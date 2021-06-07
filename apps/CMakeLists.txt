@@ -5,21 +5,6 @@
 ################################################################################
 
 
-# spits out a string like:
-# ['/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages']
-# need to strip off [', ']...
-execute_process(
-  COMMAND ${Python_EXECUTABLE} -c "import site; print(site.getsitepackages())"
-  OUTPUT_VARIABLE PY_SITEPACKAGES
-  )
-
-string(REPLACE "[" ""  PY_SITEPACKAGES ${PY_SITEPACKAGES})
-string(REPLACE "]" ""  PY_SITEPACKAGES ${PY_SITEPACKAGES})
-
-string(STRIP ${PY_SITEPACKAGES} PY_SITEPACKAGES)
-
-message("PY_SITEPACKAGES: ${PY_SITEPACKAGES}")
-
 # if python / numpy are in debug mode, or otherwise, numpy is installed from an egg,
 # it will have a path that looks like this:
 # [

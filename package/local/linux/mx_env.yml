@@ -1,0 +1,23 @@
+name: mechanica
+channels:
+  - anaconda
+  - conda-forge
+dependencies:
+  - python=3.7
+  - cmake>=3.19
+  - git
+  - clang
+  - clangxx
+  - lld
+  - ninja
+  - swig
+  - numpy
+  - jpeg
+  - libxml2
+  - matplotlib
+  - xorg-libxrandr
+  - xorg-libxcursor
+  - xorg-libxinerama
+  - xorg-libxi
+  - xorg-libxau
+  - xorg-libxdmcp

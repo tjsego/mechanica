@@ -1,3 +1,4 @@
+from . import mx_config
 from ._mechanica import *
 from . import lattice
 import warnings

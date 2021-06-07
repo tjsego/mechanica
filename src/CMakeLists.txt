@@ -17,10 +17,10 @@ include_directories(${GLM_INCLUDE_DIRS})
 message(STATUS "numpy: ${NUMPY_INCLUDE_DIR}")
 
 
-file(GLOB AST_SRC
-  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-  "ast/*.cpp"
-  )
+# file(GLOB AST_SRC
+#   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+#   "ast/*.cpp"
+#   )
 
 #file(GLOB X3D_SRC
 #  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -114,7 +114,7 @@ set(SRC
 
   shaders/MxPhong.cpp
 
-  ${AST_SRC}
+  # ${AST_SRC}
 #  ${X3D_SRC}
   )
 
@@ -251,7 +251,7 @@ message("Shader Program Res: ${MxMeshShaderProgramRes}")
 
 target_include_directories(mechanica_obj PRIVATE
   ${PYBIND11_INCLUDE_DIR}
-  ${MX_JPEG_INCLUDE_DIRS}
+  ${JPEG_INCLUDE_DIRS}
   )
 
 # set_target_properties(mechanica PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -263,7 +263,7 @@ target_include_directories(mechanica_obj PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
   #${NUMPY_INCLUDE_DIR}
-  #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
+  $<INSTALL_INTERFACE:include/mechanica>
 )
 
 
@@ -340,7 +340,7 @@ target_include_directories(mechanica_shared PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
   #${NUMPY_INCLUDE_DIR}
-  #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
+  $<INSTALL_INTERFACE:include/mechanica>
 )
 
 target_include_directories(mechanica_shared PRIVATE ${PYBIND11_INCLUDE_DIR})
@@ -385,7 +385,7 @@ target_include_directories(mechanica_py PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
   #${NUMPY_INCLUDE_DIR}
-  #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
+  $<INSTALL_INTERFACE:include/mechanica>
 )
 
 target_include_directories(mechanica_py PRIVATE ${PYBIND11_INCLUDE_DIR})
@@ -408,7 +408,7 @@ target_link_libraries(mechanica_py PRIVATE
   Magnum::Primitives
   Magnum::MeshTools
   LibSBML::LibSBML
-  ${MX_JPEG_LIBRARIES}
+  JPEG::JPEG 
   TgaImageConverter
   )
 
@@ -442,6 +442,13 @@ elseif(APPLE)
     # Suppress CMake >= 3.0 warning for shared libraries
     set_target_properties(mechanica_py PROPERTIES MACOSX_RPATH ON)
   endif()
+endif()
+
+# Handle rpath
+if(UNIX)
+  file(RELATIVE_PATH _RPATH2PYLIBS ${MX_SITEPACKAGES}/mechanica ${Python_LIBRARY_DIRS})
+  file(RELATIVE_PATH _RPATH2MXLIBS ${MX_SITEPACKAGES}/mechanica ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+  set_target_properties(mechanica_py PROPERTIES INSTALL_RPATH "${RPATH_PREFIX};${RPATH_PREFIX}/${_RPATH2PYLIBS};${RPATH_PREFIX}/${_RPATH2MXLIBS}")
 endif()
 
 if(MX_ASSIMP)
@@ -516,7 +523,7 @@ target_link_libraries(mechanica_shared
   Magnum::Primitives
   Magnum::MeshTools
   LibSBML::LibSBML
-  ${MX_JPEG_LIBRARIES}
+  JPEG::JPEG 
   TgaImageConverter
   )
 
@@ -578,3 +585,19 @@ add_library(Mechanica::Mechanica ALIAS mechanica_shared)
 #add_library(Mechanica::Static ALIAS mechanica_static)
 add_library(Mechanica::Shared ALIAS mechanica_shared)
 add_library(Mechanica::PythonLib ALIAS mechanica_py)
+
+install(TARGETS mechanica_shared 
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" 
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" 
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+)
+
+install(TARGETS mechanica_py DESTINATION ${MX_SITEPACKAGES_REL}/mechanica)
+install(FILES 
+        __init__.py 
+        mechanica.py 
+        lattice.py 
+        jwidget.py
+        DESTINATION 
+        ${MX_SITEPACKAGES_REL}/mechanica
+)

@@ -1,0 +1,17 @@
+name: mechanica
+channels:
+  - conda-forge
+dependencies:
+  - python=3.7
+  - cmake>=3.19
+  - git
+  - clang
+  - lld
+  - ninja
+  - swig
+  - numpy
+  - jpeg
+  - libxml2
+  - matplotlib
+  - vs2019_win-64
+  - pthreads-win32

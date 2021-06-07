@@ -3,8 +3,8 @@ Mechanica
 Mechanica is an interactive particle based physics, chemistry and biology
 simulation environment, with a heavy emphasis towards enabling users to model
 and simulate complex sub-cellular and cellular biological physics
-problems. Mechanica is part of the Tellurium
-`<http://tellurium.analogmachine.org>`_ project.
+problems. Mechanica is part of the [Tellurium](<http://tellurium.analogmachine.org>) 
+project.
 
 Mechanica is designed first and foremost to enable users to work interactively
 with simulations -- so they can build, and run a simulation in real-time, and
@@ -15,6 +15,96 @@ soft condensed matter physics, with a emphasis towards biological physics.
 Mechanica is a native compiled C++ shared library with a native and extensive
 Python API, that's designed to used from an ipython console (or via scripts of
 course). 
+
+Installation
+============
+From Source
+-----------
+Supported installation from source uses Miniconda for installing most dependencies. 
+In addition to requiring [Miniconda](https://docs.conda.io/en/latest/miniconda.html), 
+installation from source on Windows requires 
+[Visual Studio 2019 Build Tools](https://visualstudio.microsoft.com/downloads/), 
+and on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`. 
+
+To execute the standard installation, clone this repository, open a terminal 
+in the directory containing the `mechanica` root directory and perform the following. 
+
+On Windows 
+```bash
+call mechanica/package/local/mx_install
+```
+On Linux
+```bash
+bash mechanica/package/local/mx_install.sh
+```
+ 
+The standard installation will create the directories `mechanica_build` and 
+`mechanica_install` next to the `mechanica` root directory, the former containing 
+the build files, and the latter containing the installed binaries and conda environment. 
+The source and build directories can be safely deleted after installation. 
+The conda environment will be installed in the subdirectory `mx_env`. 
+To activate the conda environment with the Mechanica Python module, perform the following. 
+
+On Windows
+```bash
+call mechanica_install/etc/mx_vars
+conda activate %MXENV%
+```
+On Linux
+```bash
+source mechanica_install/etc/mx_vars.sh
+conda activate $MXENV
+```
+
+Launching the provided examples are then as simple as the following
+
+```bash
+python mechanica/examples/cell_sorting.py
+```
+
+Likewise Mechanica can be imported in Python scripts and interactive consoles
+
+```python
+import mechanica as mx
+```
+
+Certain aspects of the installation can be readily customized. 
+The source directory `mechanica/package/local` contains subdirectories `linux` and 
+`win` containing scripts `mx_install_vars.sh` and `mx_install_vars.bat` for Linux and 
+Windows, respectively, which declare default installation environment variables. 
+These environment variables can be customized to specify where to find, build and install 
+Mechanica, as well as the build configuration. 
+For example, to install Mechanica from a source directory `MYMXSRC`, build Mechanica 
+at path `MYMXBUILD` in debug mode and install into directory `MYMXINSTALL`, perform the following. 
+
+On Windows
+```bash
+call %MYMXSRC%/package/local/win/mx_install_vars
+set MXBUILD_CONFIG=Debug
+set MXSRCDIR=%MYMXSRC%
+set MXBUILDDIR=%MYMXBUILD%
+set MXINSTALLDIR=%MYMXINSTALL%
+call %MXSRCDIR%/package/local/win/mx_install_env
+conda activate %MXENV%
+call %MXSRCDIR%/package/local/win/mx_install_all
+```
+On Linux
+```bash
+source $MYMXSRC/package/local/linux/mx_install_vars.sh
+export MXBUILD_CONFIG=Debug
+export MXSRCDIR=$MYMXSRC
+export MXBUILDDIR=$MYMXBUILD
+export MXINSTALLDIR=$MYMXINSTALL
+bash ${MXSRCDIR}/package/local/linux/mx_install_env.sh
+conda activate $MXENV
+bash ${MXSRCDIR}/package/local/linux/mx_install_all.sh
+```
+
+The default Python version of the installation is 3.7, though Mechanica has also been tested 
+on Windows and Linux for Python versions 3.8 and 3.9. 
+To specify a different version of Python, simply add a call to 
+[update the conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-python.html#updating-or-upgrading-python) 
+in the previous commands before calling `mx_install_all`. 
 
 History
 =======

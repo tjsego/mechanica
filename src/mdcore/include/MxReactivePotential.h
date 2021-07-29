@@ -32,22 +32,6 @@ typedef struct MxReactivePotential : MxPotential {
      */
     reactivepotential_invoke invoke;
 
-} MxReactiveBond;
-
-CAPI_FUNC(HRESULT) MxBondGenerator();
-
-
-/**
- * The type of each individual particle.
- */
-CAPI_DATA(PyTypeObject) MxReactivePotential_Type;
-
-
-// internal init TODO: move this to internal header
-HRESULT _MxReactivePotential_init(PyObject *m);
-
-
-
-
+} MxReactivePotential;
 
 #endif /* SRC_MDCORE_INCLUDE_MXBONDGENERATOR_H_ */

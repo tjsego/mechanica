@@ -19,9 +19,10 @@
 #include <map>
 #include <sstream>
 #include <MxUniverse.h>
-#include <MxConvert.hpp>
 #include <MxSystem.h>
-
+#include <MxCluster.hpp>
+#include <MxLogger.h>
+#include <mx_error.h>
 #include <MxPy.h>
 
 // mdcore errs.h
@@ -29,7 +30,7 @@
 
 #include <thread>
 
-static std::vector<Vector3> fillCubeRandom(const Vector3 &corner1, const Vector3 &corner2, int nParticles);
+static std::vector<MxVector3f> fillCubeRandom(const MxVector3f &corner1, const MxVector3f &corner2, int nParticles);
 
 /* What to do if ENGINE_FLAGS was not defined? */
 #ifndef ENGINE_FLAGS
@@ -55,69 +56,18 @@ static std::vector<Vector3> fillCubeRandom(const Vector3 &corner1, const Vector3
 #define SIM_FINALLY(retval) \
     } \
     catch(const std::exception &e) { \
-        C_EXP(e); return retval; \
+        mx_exp(e); return retval; \
     }
 
 static MxSimulator* Simulator = NULL;
 
 static void simulator_interactive_run();
 
-static PyObject *ipythonInputHook(PyObject *self,
-                           PyObject *const *args,
-                                  Py_ssize_t nargs);
 
-PyObject *MxSystem_ContextHasCurrent(PyObject *self) {
-    
-    try {
-        std::thread::id id = std::this_thread::get_id();
-        Log(LOG_INFORMATION)  << ", thread id: " << id ;
-        
-        MxSimulator *sim = MxSimulator::Get();
-        
-        return mx::cast(sim->app->contextHasCurrent());
-        
-    }
-    catch(const std::exception &e) {
-        C_RETURN_EXP(e);
-    }
-}
-
-PyObject *MxSystem_ContextMakeCurrent(PyObject *self) {
-    try {
-        std::thread::id id = std::this_thread::get_id();
-        Log(LOG_INFORMATION)  << ", thread id: " << id ;
-        
-        MxSimulator *sim = MxSimulator::Get();
-        sim->app->contextMakeCurrent();
-        
-        Py_RETURN_NONE;
-    }
-    catch(const std::exception &e) {
-        C_RETURN_EXP(e);
-    }
-}
-
-PyObject *MxSystem_ContextRelease(PyObject *self) {
-    try {
-        std::thread::id id = std::this_thread::get_id();
-        Log(LOG_INFORMATION)  << ", thread id: " << id ;
-        
-        MxSimulator *sim = MxSimulator::Get();
-        sim->app->contextRelease();
-        
-        Py_RETURN_NONE;
-    }
-    catch(const std::exception &e) {
-        C_RETURN_EXP(e);
-    }
-}
-
-
-
-MxSimulator::Config::Config():
+MxSimulator_Config::MxSimulator_Config():
             _title{"Mechanica Application"},
             _size{800, 600},
-            _dpiScalingPolicy{DpiScalingPolicy::Default},
+            _dpiScalingPolicy{MxSimulator_DpiScalingPolicy::Default},
             queues{4},
            _windowless{ false }
 {
@@ -161,6 +111,23 @@ MxSimulator::GLConfig::~GLConfig() = default;
 template<typename T>
 struct ArgumentsWrapper  {
 
+    ArgumentsWrapper(const std::vector<std::string> &args) {
+
+        for(auto &a : args) {
+            strings.push_back(a);
+            cstrings.push_back(a.c_str());
+
+            Log(LOG_INFORMATION) <<  "args: " << a ;;
+        }
+
+        // stupid thing is a int reference, keep an ivar around for it
+        // to point to.
+        argsSeriouslyTakesAFuckingIntReference = cstrings.size();
+        char** fuckingConstBullshit = const_cast<char**>(cstrings.data());
+
+        pArgs = new T(argsSeriouslyTakesAFuckingIntReference, fuckingConstBullshit);
+    }
+
     ArgumentsWrapper(PyObject *args) {
 
         for(int i = 0; i < PyList_Size(args); ++i) {
@@ -192,31 +159,33 @@ struct ArgumentsWrapper  {
     int argsSeriouslyTakesAFuckingIntReference;
 };
 
-
-static void parse_kwargs(PyObject *kwargs, MxSimulator::Config &conf) {
-
-    PyObject *o;
-
-    Log(LOG_TRACE) << carbon::str(kwargs);
-
-    if((o = PyDict_GetItemString(kwargs, "dim"))) {
-        conf.universeConfig.dim = mx::cast<Magnum::Vector3>(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "cutoff"))) {
-        conf.universeConfig.cutoff = mx::cast<double>(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "cells"))) {
-        conf.universeConfig.spaceGridSize = mx::cast<Vector3i>(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "threads"))) {
-        conf.universeConfig.threads = mx::cast<unsigned>(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "integrator"))) {
-        int kind = mx::cast<int>(o);
+// todo: implement parse_kwargs in C++ startup
+static void parse_kwargs(MxSimulator_Config &conf, 
+                         MxVector3f *dim=NULL, 
+                         double *cutoff=NULL, 
+                         MxVector3i *cells=NULL, 
+                         unsigned *threads=NULL, 
+                         int *integrator=NULL, 
+                         double *dt=NULL, 
+                         int *bcValue=NULL, 
+                         std::unordered_map<std::string, unsigned int> *bcVals=NULL, 
+                         std::unordered_map<std::string, MxVector3f> *bcVels=NULL, 
+                         std::unordered_map<std::string, float> *bcRestores=NULL, 
+                         MxBoundaryConditionsArgsContainer *bcArgs=NULL, 
+                         double *max_distance=NULL, 
+                         bool *windowless=NULL, 
+                         MxVector2i *window_size=NULL, 
+                         uint32_t *perfcounters=NULL, 
+                         int *perfcounter_period=NULL, 
+                         int *logger_level=NULL, 
+                         std::vector<std::tuple<MxVector3f, MxVector3f> > *clip_planes=NULL) 
+{
+    if(dim) conf.universeConfig.dim = *dim;
+    if(cutoff) conf.universeConfig.cutoff = *cutoff;
+    if(cells) conf.universeConfig.spaceGridSize = *cells;
+    if(threads) conf.universeConfig.threads = *threads;
+    if(integrator) {
+        int kind = *integrator;
         switch (kind) {
             case FORWARD_EULER:
             case RUNGE_KUTTA_4:
@@ -229,52 +198,186 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator::Config &conf) {
             }
         }
     }
+    if(dt) conf.universeConfig.dt = *dt;
 
-    if((o = PyDict_GetItemString(kwargs, "dt"))) {
-        conf.universeConfig.dt = mx::cast<double>(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "bc"))) {
-        conf.universeConfig.setBoundaryConditions(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "boundary_conditions"))) {
-        conf.universeConfig.setBoundaryConditions(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "max_distance"))) {
-        conf.universeConfig.max_distance = mx::cast<double>(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "windowless"))) {
-        conf.setWindowless(mx::cast<bool>(o));
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "window_size"))) {
-        Magnum::Vector2i windowSize = mx::cast<Magnum::Vector2i>(o);
-        conf.setWindowSize(windowSize);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "perfcounters"))) {
-        conf.universeConfig.timers_mask = mx::cast<uint32_t>(o);
-    }
-
-    if((o = PyDict_GetItemString(kwargs, "perfcounter_period"))) {
-        conf.universeConfig.timer_output_period = mx::cast<int>(o);
-    }
+    if(bcArgs) conf.universeConfig.setBoundaryConditions(bcArgs);
+    else conf.universeConfig.setBoundaryConditions(new MxBoundaryConditionsArgsContainer(bcValue, bcVals, bcVels, bcRestores));
     
-    if((o = PyDict_GetItemString(kwargs, "logger_level"))) {
-        CLogger::setLevel(mx::cast<int>(o));
-    }
-    
-    if((o = PyDict_GetItemString(kwargs, "clip_planes"))) {
-        conf.clipPlanes = MxClipPlanes_ParseConfig(o);
-    }
+    if(max_distance) conf.universeConfig.max_distance = *max_distance;
+    if(windowless) conf.setWindowless(*windowless);
+    if(window_size) conf.setWindowSize(*window_size);
+    if(perfcounters) conf.universeConfig.timers_mask = *perfcounters;
+    if(perfcounter_period) conf.universeConfig.timer_output_period = *perfcounter_period;
+    if(logger_level) MxLogger::setLevel(*logger_level);
+    if(clip_planes) conf.clipPlanes = MxParsePlaneEquation(*clip_planes);
 }
 
-static std::string gl_info(const Magnum::Utility::Arguments &args);
+// python support: intermediate kwarg parsing
+// todo: consolidate MxSimulatorPy and eliminate this entirely
+static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
-static PyObject *not_initialized_error();
+    Log(LOG_INFORMATION) << "parsing python dictionary input";
+
+    PyObject *o;
+
+    MxVector3f *dim;
+    if((o = PyDict_GetItemString(kwargs, "dim"))) {
+        dim = new MxVector3f(mx::cast<Magnum::Vector3>(o));
+
+        Log(LOG_INFORMATION) << "got dim: " 
+                             << std::to_string(dim->x()) << "," 
+                             << std::to_string(dim->y()) << "," 
+                             << std::to_string(dim->z());
+    }
+    else dim = NULL;
+
+    double *cutoff;
+    if((o = PyDict_GetItemString(kwargs, "cutoff"))) {
+        cutoff = new double(mx::cast<double>(o));
+
+        Log(LOG_INFORMATION) << "got cutoff: " << std::to_string(*cutoff);
+    }
+    else cutoff = NULL;
+
+    MxVector3i *cells;
+    if((o = PyDict_GetItemString(kwargs, "cells"))) {
+        cells = new MxVector3i(mx::cast<Vector3i>(o));
+
+        Log(LOG_INFORMATION) << "got cells: " 
+                             << std::to_string(cells->x()) << "," 
+                             << std::to_string(cells->y()) << "," 
+                             << std::to_string(cells->z());
+    }
+    else cells = NULL;
+
+    unsigned *threads;
+    if((o = PyDict_GetItemString(kwargs, "threads"))) {
+        threads = new unsigned(mx::cast<unsigned>(o));
+
+        Log(LOG_INFORMATION) << "got threads: " << std::to_string(*threads);
+    }
+    else threads = NULL;
+
+    int *integrator;
+    if((o = PyDict_GetItemString(kwargs, "integrator"))) {
+        integrator = new int(mx::cast<int>(o));
+
+        Log(LOG_INFORMATION) << "got integrator: " << std::to_string(*integrator);
+    }
+    else integrator = NULL;
+
+    double *dt;
+    if((o = PyDict_GetItemString(kwargs, "dt"))) {
+        dt = new double(mx::cast<double>(o));
+
+        Log(LOG_INFORMATION) << "got dt: " << std::to_string(*dt);
+    }
+    else dt = NULL;
+
+    MxBoundaryConditionsArgsContainer *bcArgs;
+    if((o = PyDict_GetItemString(kwargs, "bc"))) {
+        bcArgs = new MxBoundaryConditionsArgsContainer(o);
+        
+        Log(LOG_INFORMATION) << "Got boundary conditions";
+    }
+    else bcArgs = NULL;
+
+    double *max_distance;
+    if((o = PyDict_GetItemString(kwargs, "max_distance"))) {
+        max_distance = new double(mx::cast<double>(o));
+
+        Log(LOG_INFORMATION) << "got max_distance: " << std::to_string(*max_distance);
+    }
+    else max_distance = NULL;
+
+    bool *windowless;
+    if((o = PyDict_GetItemString(kwargs, "windowless"))) {
+        windowless = new bool(mx::cast<bool>(o));
+
+        Log(LOG_INFORMATION) << "got windowless" << *windowless ? "True" : "False";
+    }
+    else windowless = NULL;
+
+    MxVector2i *window_size;
+    if((o = PyDict_GetItemString(kwargs, "window_size"))) {
+        window_size = new MxVector2i(mx::cast<Magnum::Vector2i>(o));
+
+        Log(LOG_INFORMATION) << "got window_size: " << std::to_string(window_size->x()) << "," << std::to_string(window_size->y());
+    }
+    else window_size = NULL;
+
+    uint32_t *perfcounters;
+    if((o = PyDict_GetItemString(kwargs, "perfcounters"))) {
+        perfcounters = new uint32_t(mx::cast<uint32_t>(o));
+
+        Log(LOG_INFORMATION) << "got perfcounters: " << std::to_string(*perfcounters);
+    }
+    else perfcounters = NULL;
+
+    int *perfcounter_period;
+    if((o = PyDict_GetItemString(kwargs, "perfcounter_period"))) {
+        perfcounter_period = new int(mx::cast<int>(o));
+
+        Log(LOG_INFORMATION) << "got perfcounter_period: " << std::to_string(*perfcounter_period);
+    }
+    else perfcounter_period = NULL;
+    
+    int *logger_level;
+    if((o = PyDict_GetItemString(kwargs, "logger_level"))) {
+        logger_level = new int(mx::cast<int>(o));
+
+        Log(LOG_INFORMATION) << "got logger_level: " << std::to_string(*logger_level);
+    }
+    else logger_level = NULL;
+    
+    std::vector<std::tuple<MxVector3f, MxVector3f> > *clip_planes;
+    PyObject *pyTuple;
+    PyObject *pyTupleItem;
+    if((o = PyDict_GetItemString(kwargs, "clip_planes"))) {
+        clip_planes = new std::vector<std::tuple<MxVector3f, MxVector3f> >();
+        for(unsigned int i=0; i < PyList_Size(o); ++i) {
+            pyTuple = PyList_GetItem(o, i);
+            if(!pyTuple || !PyTuple_Check(pyTuple)) {
+                Log(LOG_ERROR) << "Clip plane input entry not a tuple";
+                continue;
+            }
+            
+            pyTupleItem = PyTuple_GetItem(pyTuple, 0);
+            if(!PyList_Check(pyTupleItem)) {
+                Log(LOG_ERROR) << "Clip plane point entry not a list";
+                continue;
+            }
+            MxVector3f point = mx::cast<MxVector3f>(pyTupleItem);
+
+            pyTupleItem = PyTuple_GetItem(pyTuple, 1);
+            if(!PyList_Check(pyTupleItem)) {
+                Log(LOG_ERROR) << "Clip plane normal entry not a list";
+                continue;
+            }
+            MxVector3f normal = mx::cast<MxVector3f>(pyTupleItem);
+
+            clip_planes->push_back(std::make_tuple(point, normal));
+            Log(LOG_INFORMATION) << "got clip plane: " << point << ", " << normal;
+        }
+    }
+    else clip_planes = NULL;
+    parse_kwargs(conf, 
+                 dim, 
+                 cutoff, 
+                 cells, 
+                 threads, 
+                 integrator, 
+                 dt, 
+                 NULL, NULL, NULL, NULL, 
+                 bcArgs, 
+                 max_distance, 
+                 windowless, 
+                 window_size, 
+                 perfcounters, 
+                 perfcounter_period, 
+                 logger_level, 
+                 clip_planes);
+}
 
 // (5) Initializer list constructor
 const std::map<std::string, int> configItemMap {
@@ -282,14 +385,6 @@ const std::map<std::string, int> configItemMap {
     {"windowless", MXSIMULATOR_WINDOWLESS},
     {"glfw", MXSIMULATOR_GLFW}
 };
-
-static int init(PyObject *self, PyObject *args, PyObject *kwds)
-{
-    Log(LOG_INFORMATION)  ;
-
-    MxSimulator *s = new (self) MxSimulator();
-    return 0;
-}
 
 static PyObject *simulator_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
@@ -299,66 +394,64 @@ static PyObject *simulator_new(PyTypeObject *type, PyObject *args, PyObject *kwd
 #define MX_CLASS METH_CLASS | METH_VARARGS | METH_KEYWORDS
 
 
-CAPI_FUNC(MxSimulator*) MxSimulator_New(PyObject *_args, PyObject *_kw_args)
-{
-    return NULL;
-}
-
-CAPI_FUNC(MxSimulator*) MxSimulator_Get()
-{
-    return Simulator;
-}
-
-
-PyObject *not_initialized_error() {
-    PyErr_SetString((PyObject*)&MxSimulator_Type, "simulator not initialized");
-    Py_RETURN_NONE;
-}
-
-CAPI_FUNC(HRESULT) MxSimulator_PollEvents()
+CAPI_FUNC(HRESULT) MxSimulator::pollEvents()
 {
     SIMULATOR_CHECK();
     return Simulator->app->pollEvents();
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_WaitEvents()
+HRESULT MxSimulator::waitEvents()
 {
     SIMULATOR_CHECK();
     return Simulator->app->waitEvents();
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_WaitEventsTimeout(double timeout)
+HRESULT MxSimulator::waitEventsTimeout(double timeout)
 {
     SIMULATOR_CHECK();
     return Simulator->app->waitEventsTimeout(timeout);
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_PostEmptyEvent()
+HRESULT MxSimulator::postEmptyEvent()
 {
     SIMULATOR_CHECK();
     return Simulator->app->postEmptyEvent();
 }
 
-HRESULT MxSimulator_SwapInterval(int si)
+HRESULT MxSimulator::swapInterval(int si)
 {
     SIMULATOR_CHECK();
     return Simulator->app->setSwapInterval(si);
 }
 
+const int MxSimulator::getNumThreads() {
+    SIM_TRY();
+    return _Engine.nr_runners;
+    SIM_FINALLY(0);
+}
 
-int universe_init (const MxUniverseConfig &conf ) {
+const MxGlfwWindow *MxSimulator::getWindow() {
+    SIM_TRY();
+    return Simulator->app->getWindow();
+    SIM_FINALLY(0);
+}
 
-    Magnum::Vector3 tmp = conf.dim - conf.origin;
-    Magnum::Vector3d length{tmp[0], tmp[1], tmp[2]};
-    Magnum::Vector3i cells = conf.spaceGridSize;
+HRESULT modules_init() {
+    Log(LOG_DEBUG) << ", initializing modules... " ;
 
-    Magnum::Vector3d spaceGridSize{(float)cells[0],
-                                   (float)cells[1],
-                                   (float)cells[2]};
+    _MxParticle_init();
+    _MxCluster_init();
 
-    double   cutoff = conf.cutoff;
+    return S_OK;
+}
 
-    int  nr_runners = conf.threads;
+int universe_init(const MxUniverseConfig &conf ) {
+
+    MxVector3i cells = conf.spaceGridSize;
+
+    double cutoff = conf.cutoff;
+
+    int nr_runners = conf.threads;
 
     double _origin[3];
     double _dim[3];
@@ -372,7 +465,7 @@ int universe_init (const MxUniverseConfig &conf ) {
     
     if ( engine_init( &_Engine , _origin , _dim , cells.data() , cutoff , conf.boundaryConditionsPtr ,
             conf.maxTypes , engine_flag_none ) != 0 ) {
-        throw std::runtime_error(errs_getstring(0));
+        MX_RETURN_EXP(std::runtime_error(errs_getstring(0)));
     }
 
     _Engine.dt = conf.dt;
@@ -413,6 +506,12 @@ int universe_init (const MxUniverseConfig &conf ) {
     // start the engine
 
     if ( engine_start( &_Engine , nr_runners , nr_runners ) != 0 ) {
+        Log(LOG_ERROR) << errs_getstring(0);
+        throw std::runtime_error(errs_getstring(0));
+    }
+
+    if ( modules_init() != S_OK ) {
+        Log(LOG_ERROR) << errs_getstring(0);
         throw std::runtime_error(errs_getstring(0));
     }
 
@@ -421,10 +520,8 @@ int universe_init (const MxUniverseConfig &conf ) {
     return 0;
 }
 
-
-
-static std::vector<Vector3> fillCubeRandom(const Vector3 &corner1, const Vector3 &corner2, int nParticles) {
-    std::vector<Vector3> result;
+static std::vector<MxVector3f> fillCubeRandom(const MxVector3f &corner1, const MxVector3f &corner2, int nParticles) {
+    std::vector<MxVector3f> result;
 
     std::random_device rd;  //Will be used to obtain a seed for the random number engine
     std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -433,14 +530,14 @@ static std::vector<Vector3> fillCubeRandom(const Vector3 &corner1, const Vector3
     std::uniform_real_distribution<float> disz(corner1[2], corner2[2]);
 
     for(int i = 0; i < nParticles; ++i) {
-        result.push_back(Vector3{disx(gen), disy(gen), disz(gen)});
+        result.push_back(MxVector3f{disx(gen), disy(gen), disz(gen)});
 
     }
 
     return result;
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_Run(double et)
+HRESULT MxSimulator::run(double et)
 {
     SIMULATOR_CHECK();
 
@@ -449,38 +546,7 @@ CAPI_FUNC(HRESULT) MxSimulator_Run(double et)
     return Simulator->app->run(et);
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_InteractiveRun()
-{
-    Log(LOG_TRACE);
-    
-    SIMULATOR_CHECK();
-
-    MxUniverse_SetFlag(MX_RUNNING, true);
-
-
-    Log(LOG_DEBUG) << "checking for ipython";
-    if (C_TerminalInteractiveShell()) {
-
-        if (!MxUniverse_Flag(MxUniverse_Flags::MX_IPYTHON_MSGLOOP)) {
-            // ipython message loop, this exits right away
-            simulator_interactive_run();
-        }
-
-        Log(LOG_DEBUG) <<  "in ipython, calling interactive";
-
-        Simulator->app->show();
-        
-        Log(LOG_DEBUG) << "finished";
-
-        return S_OK;
-    }
-    else {
-        Log(LOG_DEBUG) << "not ipython, returning MxSimulator_Run";
-        return MxSimulator_Run(-1);
-    }
-}
-
-PyObject *MxSimulator_Init(PyObject *self, PyObject *args, PyObject *kwargs) {
+HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
 
     std::thread::id id = std::this_thread::get_id();
     Log(LOG_INFORMATION) << "thread id: " << id;
@@ -493,47 +559,13 @@ PyObject *MxSimulator_Init(PyObject *self, PyObject *args, PyObject *kwargs) {
         
         MxSimulator *sim = new MxSimulator();
 
-        // get the argv,
-        PyObject * argv = NULL;
-        if(kwargs == NULL || (argv = PyDict_GetItemString(kwargs, "argv")) == NULL) {
-            PyObject *sys_name = mx::cast(std::string("sys"));
-            PyObject *sys = PyImport_Import(sys_name);
-            argv = PyObject_GetAttrString(sys, "argv");
-            
-            Py_DECREF(sys_name);
-            Py_DECREF(sys);
-            
-            if(!argv) {
-                throw std::logic_error("could not get argv from sys module");
-            }
-        }
-
-        MxSimulator::Config conf;
+        MxSimulator_Config conf;
         MxSimulator::GLConfig glConf;
         
-        if(PyList_Size(argv) > 0) {
-            std::string name = mx::cast<std::string>(PyList_GetItem(argv, 0));
+        if(argv.size() > 0) {
+            std::string name = argv[0];
             Universe.name = name;
             conf.setTitle(name);
-        }
-        
-        // find out if we are in jupyter, set default state of config,
-        // not sure if this makes more sense in config constructor or here...
-        if(C_ZMQInteractiveShell()) {
-            Log(LOG_INFORMATION) << "in zmq shell, setting windowless default to true";
-            conf.setWindowless(true);
-        }
-        else {
-            Log(LOG_INFORMATION) << "not zmq shell, setting windowless default to false";
-            conf.setWindowless(false);
-        }
-
-        if(kwargs && PyDict_Size(kwargs) > 0) {
-            parse_kwargs(kwargs, conf);
-        }
-        
-        if(!conf.windowless() && C_ZMQInteractiveShell()) {
-            Log(LOG_WARNING) << "requested window mode in Jupyter notebook, will fail badly if there is no X-server";
         }
 
         // init the engine first
@@ -579,70 +611,11 @@ PyObject *MxSimulator_Init(PyObject *self, PyObject *args, PyObject *kwargs) {
 
         Simulator = sim;
         
-        if(C_ZMQInteractiveShell()) {
-            Log(LOG_INFORMATION) << "in jupyter notebook, calling widget init";
-            PyObject *widgetInit = MxSystem_JWidget_Init(args, kwargs);
-            if(!widgetInit) {
-                Log(LOG_ERROR) << "could not create jupyter widget";
-                return NULL;
-            }
-            else {
-                Py_DECREF(widgetInit);
-            }
-        }
-        
-        Py_RETURN_NONE;
+        return 1;
     }
     catch(const std::exception &e) {
-        C_EXP(e); return NULL;
+        MX_RETURN_EXP(e);
     }
-}
-
-
-static PyObject *ipythonInputHook(PyObject *self,
-                                  PyObject *const *args,
-                                  Py_ssize_t nargs) {
-    SIM_TRY();
-    
-    if(nargs < 1) {
-        throw std::logic_error("argument count to mechanica ipython input hook is 0");
-    }
-    
-    PyObject *context = args[0];
-    if(context == NULL) {
-        throw std::logic_error("mechanica ipython input hook context argument is NULL");
-    }
-    
-    PyObject *input_is_ready = PyObject_GetAttrString(context, "input_is_ready");
-    if(input_is_ready == NULL) {
-        throw std::logic_error("mechanica ipython input hook context has no \"input_is_ready\" attribute");
-    }
-    
-    PyObject *input_args = PyTuple_New(0);
-    
-    auto get_ready = [input_is_ready, input_args]() -> bool {
-        PyObject *ready = PyObject_Call(input_is_ready, input_args, NULL);
-        if(!ready) {
-            PyObject* err = PyErr_Occurred();
-            std::string str = "error calling input_is_ready";
-            str += carbon::str(err);
-            throw std::logic_error(str);
-        }
-        
-        bool bready = mx::cast<bool>(ready);
-        Py_DECREF(ready);
-        return bready;
-    };
-    
-    Py_XDECREF(input_args);
-    
-    while(!get_ready()) {
-        Simulator->app->mainLoopIteration(0.001);
-    }
-    
-    Py_RETURN_NONE;
-    
-    SIM_FINALLY(NULL);
 }
 
 static void simulator_interactive_run() {
@@ -653,7 +626,7 @@ static void simulator_interactive_run() {
     }
 
     // interactive run only works in terminal ipytythn.
-    PyObject *ipy = CIPython_Get();
+    PyObject *ipy = MxIPython_Get();
     const char* ipyname = ipy ? ipy->ob_type->tp_name : "NULL";
     Log(LOG_INFORMATION) <<  "ipy type: " << ipyname ;;
 
@@ -686,17 +659,17 @@ static void simulator_interactive_run() {
 
         PyObject *pt_inputhooks = PyImport_ImportString("IPython.terminal.pt_inputhooks");
         
-        Log(LOG_INFORMATION) <<  "pt_inputhooks: " << carbon::str(pt_inputhooks) ;;
+        Log(LOG_INFORMATION) <<  "pt_inputhooks: " << mx::cast<std::string>(pt_inputhooks) ;;
         
         PyObject *reg = PyObject_GetAttrString(pt_inputhooks, "register");
         
-        Log(LOG_INFORMATION) <<  "reg: " << carbon::str(reg) ;;
+        Log(LOG_INFORMATION) <<  "reg: " << mx::cast<std::string>(reg) ;;
         
-        PyObject *ih = PyObject_GetAttrString((PyObject*)&MxSimulator_Type, "_input_hook");
+        PyObject *ih = (PyObject*)&MxSimulatorPy::_input_hook;
         
-        Log(LOG_INFORMATION) <<  "ih: " << carbon::str(ih) ;;
+        Log(LOG_INFORMATION) <<  "ih: " << mx::cast<std::string>(ih) ;;
 
-        //py::cpp_function ih(ipythonInputHook);
+        //py::cpp_function ih(MxSimulatorPy::_input_hook);
         
         //reg("mechanica", ih);
         
@@ -715,10 +688,10 @@ static void simulator_interactive_run() {
         // import IPython
         // ip = IPython.get_ipython()
         PyObject *ipython = PyImport_ImportString("IPython");
-        Log(LOG_INFORMATION) <<  "ipython: " << carbon::str(ipython) ;;
+        Log(LOG_INFORMATION) <<  "ipython: " << mx::cast<std::string>(ipython) ;;
         
         PyObject *get_ipython = PyObject_GetAttrString(ipython, "get_ipython");
-        Log(LOG_INFORMATION) <<  "get_ipython: " << carbon::str(get_ipython) ;;
+        Log(LOG_INFORMATION) <<  "get_ipython: " << mx::cast<std::string>(get_ipython) ;;
         
         args = PyTuple_New(0);
         PyObject *ip = PyObject_Call(get_ipython, args, NULL);
@@ -752,7 +725,7 @@ static void simulator_interactive_run() {
     }
     else {
         // not in ipython, so run regular run.
-        MxSimulator_Run(-1);
+        Simulator->run(-1);
         return;
     }
 
@@ -761,40 +734,20 @@ static void simulator_interactive_run() {
 }
 
 
-CAPI_FUNC(HRESULT) MxSimulator_Show()
+HRESULT MxSimulator::show()
 {
     SIMULATOR_CHECK();
 
-    Log(LOG_TRACE) << "checking for ipython";
-    
-    if (C_TerminalInteractiveShell()) {
-
-        if (!MxUniverse_Flag(MxUniverse_Flags::MX_IPYTHON_MSGLOOP)) {
-            // ipython message loop, this exits right away
-            simulator_interactive_run();
-        }
-
-        Log(LOG_TRACE) << "in ipython, calling interactive";
-
-        Simulator->app->show();
-        
-        Log(LOG_INFORMATION) << ", Simulator->app->show() all done" ;
-
-        return S_OK;
-    }
-    else {
-        Log(LOG_TRACE) << "not ipython, returning Simulator->app->show()";
-        return Simulator->app->show();
-    }
+    return Simulator->app->show();
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_Redraw()
+HRESULT MxSimulator::redraw()
 {
     SIMULATOR_CHECK();
     return Simulator->app->redraw();
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_InitConfig(const MxSimulator::Config &conf, const MxSimulator::GLConfig &glConf)
+HRESULT MxSimulator::initConfig(const MxSimulator_Config &conf, const MxSimulator::GLConfig &glConf)
 {
     if(Simulator) {
         return mx_error(E_FAIL, "simulator already initialized");
@@ -849,62 +802,280 @@ CAPI_FUNC(HRESULT) MxSimulator_InitConfig(const MxSimulator::Config &conf, const
     return S_OK;
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_Close()
+HRESULT MxSimulator::close()
 {
     SIMULATOR_CHECK();
     return Simulator->app->close();
 }
 
-CAPI_FUNC(HRESULT) MxSimulator_Destroy()
+HRESULT MxSimulator::destroy()
 {
     SIMULATOR_CHECK();
     return Simulator->app->destroy();
 }
 
-
-
-
-
 /**
  * gets the global simulator object, throws exception if fail.
  */
-MxSimulator *MxSimulator::Get() {
+MxSimulator *MxSimulator::get() {
     if(Simulator) {
         return Simulator;
     }
     throw std::logic_error("Simulator is not initiazed");
 }
 
-static PyObject *simulator_poll_events(PyObject *self, PyObject *args, PyObject *kwargs) {
-    SIM_TRY();
-    SIM_CHECK(MxSimulator_PollEvents());
-    SIM_FINALLY(NULL);
+MxSimulatorPy *MxSimulatorPy::get() {
+    return (MxSimulatorPy*)MxSimulator::get();
 }
 
-static PyObject *simulator_wait_events(PyObject *self, PyObject *args, PyObject *kwargs) {
-    SIM_TRY();
+PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
+
+    std::thread::id id = std::this_thread::get_id();
+    Log(LOG_INFORMATION) << "thread id: " << id;
+
+    try {
+
+        if(Simulator) {
+            throw std::domain_error( "Error, Simulator is already initialized" );
+        }
+        
+        MxSimulator *sim = new MxSimulator();
+
+        Log(LOG_INFORMATION) << "successfully created new simulator";
+
+        // get the argv,
+        PyObject * argv = NULL;
+        if(kwargs == NULL || (argv = PyDict_GetItemString(kwargs, "argv")) == NULL) {
+            Log(LOG_INFORMATION) << "Getting command-line args";
+
+            PyObject *sys_name = mx::cast(std::string("sys"));
+            PyObject *sys = PyImport_Import(sys_name);
+            argv = PyObject_GetAttrString(sys, "argv");
+            
+            Py_DECREF(sys_name);
+            Py_DECREF(sys);
+            
+            if(!argv) {
+                throw std::logic_error("could not get argv from sys module");
+            }
+        }
+
+        MxSimulator_Config conf;
+        MxSimulator::GLConfig glConf;
+        
+        if(PyList_Size(argv) > 0) {
+            std::string name = mx::cast<std::string>(PyList_GetItem(argv, 0));
+            Universe.name = name;
+            conf.setTitle(name);
+        }
+
+        Log(LOG_INFORMATION) << "got universe name: " << Universe.name;
+        
+        // find out if we are in jupyter, set default state of config,
+        // not sure if this makes more sense in config constructor or here...
+        if(Mx_ZMQInteractiveShell()) {
+            Log(LOG_INFORMATION) << "in zmq shell, setting windowless default to true";
+            conf.setWindowless(true);
+        }
+        else {
+            Log(LOG_INFORMATION) << "not zmq shell, setting windowless default to false";
+            conf.setWindowless(false);
+        }
+
+        if(kwargs && PyDict_Size(kwargs) > 0) {
+            parse_kwargs(kwargs, conf);
+        }
+
+        Log(LOG_INFORMATION) << "successfully parsed args";
+        
+        if(!conf.windowless() && Mx_ZMQInteractiveShell()) {
+            Log(LOG_WARNING) << "requested window mode in Jupyter notebook, will fail badly if there is no X-server";
+        }
+
+        // init the engine first
+        /* Initialize scene particles */
+        universe_init(conf.universeConfig);
+
+        Log(LOG_INFORMATION) << "successfully initialized universe";
+
+        if(conf.windowless()) {
+            Log(LOG_INFORMATION) <<  "creating Windowless app" ;
+            
+            ArgumentsWrapper<MxWindowlessApplication::Arguments> margs(argv);
+
+            MxWindowlessApplication *windowlessApp = new MxWindowlessApplication(*margs.pArgs);
+
+            if(FAILED(windowlessApp->createContext(conf))) {
+                delete windowlessApp;
+
+                throw std::domain_error("could not create windowless gl context");
+            }
+            else {
+                sim->app = windowlessApp;
+            }
+
+	    Log(LOG_TRACE) << "sucessfully created windowless app";
+        }
+        else {
+            Log(LOG_INFORMATION) <<  "creating GLFW app" ;
+            
+            ArgumentsWrapper<MxGlfwApplication::Arguments> margs(argv);
+
+            MxGlfwApplication *glfwApp = new MxGlfwApplication(*margs.pArgs);
+            
+            if(FAILED(glfwApp->createContext(conf))) {
+                Log(LOG_DEBUG) << "deleting failed glfwApp";
+                delete glfwApp;
+                throw std::domain_error("could not create  gl context");
+            }
+            else {
+                sim->app = glfwApp;
+            }
+        }
+
+        Log(LOG_INFORMATION) << "sucessfully created application";
+
+        Simulator = sim;
+        
+        if(Mx_ZMQInteractiveShell()) {
+            Log(LOG_INFORMATION) << "in jupyter notebook, calling widget init";
+            PyObject *widgetInit = MxSystemPy::jwidget_init(args, kwargs);
+            if(!widgetInit) {
+                Log(LOG_ERROR) << "could not create jupyter widget";
+                return NULL;
+            }
+            else {
+                Py_DECREF(widgetInit);
+            }
+        }
+        
+        Py_RETURN_NONE;
+    }
+    catch(const std::exception &e) {
+        Log(LOG_CRITICAL) << "Initializing simulator failed!";
+
+        mx_exp(e); return NULL;
+    }
+}
+
+HRESULT MxSimulatorPy::irun()
+{
+    Log(LOG_TRACE);
     
-    if(PyTuple_Size(args) == 0) {
-        SIM_CHECK(MxSimulator_WaitEvents());
+    SIMULATOR_CHECK();
+
+    MxUniverse_SetFlag(MX_RUNNING, true);
+
+
+    Log(LOG_DEBUG) << "checking for ipython";
+    if (Mx_TerminalInteractiveShell()) {
+
+        if (!MxUniverse_Flag(MxUniverse_Flags::MX_IPYTHON_MSGLOOP)) {
+            // ipython message loop, this exits right away
+            simulator_interactive_run();
+        }
+
+        Log(LOG_DEBUG) <<  "in ipython, calling interactive";
+
+        Simulator->app->show();
+        
+        Log(LOG_DEBUG) << "finished";
+
+        return S_OK;
     }
     else {
-        double t = mx::arg<double>("timout", 0, args, kwargs);
-        SIM_CHECK(MxSimulator_WaitEventsTimeout(t));
+        Log(LOG_DEBUG) << "not ipython, returning MxSimulator_Run";
+        return Simulator->run(-1);
+    }
+}
+
+HRESULT MxSimulatorPy::_show()
+{
+    SIMULATOR_CHECK();
+
+    Log(LOG_TRACE) << "checking for ipython";
+    
+    if (Mx_TerminalInteractiveShell()) {
+
+        if (!MxUniverse_Flag(MxUniverse_Flags::MX_IPYTHON_MSGLOOP)) {
+            // ipython message loop, this exits right away
+            simulator_interactive_run();
+        }
+
+        Log(LOG_TRACE) << "in ipython, calling interactive";
+
+        Simulator->app->show();
+        
+        Log(LOG_INFORMATION) << ", Simulator->app->show() all done" ;
+
+        return S_OK;
+    }
+    else {
+        Log(LOG_TRACE) << "not ipython, returning Simulator->app->show()";
+        return Simulator->show();
+    }
+}
+
+PyObject *MxSimulatorPy::_input_hook(PyObject *const *args, Py_ssize_t nargs) {
+    SIM_TRY();
+    
+    if(nargs < 1) {
+        throw std::logic_error("argument count to mechanica ipython input hook is 0");
+    }
+    
+    PyObject *context = args[0];
+    if(context == NULL) {
+        throw std::logic_error("mechanica ipython input hook context argument is NULL");
+    }
+    
+    PyObject *input_is_ready = PyObject_GetAttrString(context, "input_is_ready");
+    if(input_is_ready == NULL) {
+        throw std::logic_error("mechanica ipython input hook context has no \"input_is_ready\" attribute");
+    }
+    
+    PyObject *input_args = PyTuple_New(0);
+    
+    auto get_ready = [input_is_ready, input_args]() -> bool {
+        PyObject *ready = PyObject_Call(input_is_ready, input_args, NULL);
+        if(!ready) {
+            PyObject* err = PyErr_Occurred();
+            std::string str = "error calling input_is_ready";
+            str += mx::cast<std::string>(err);
+            throw std::logic_error(str);
+        }
+        
+        bool bready = mx::cast<bool>(ready);
+        Py_DECREF(ready);
+        return bready;
+    };
+    
+    Py_XDECREF(input_args);
+    
+    while(!get_ready()) {
+        Simulator->app->mainLoopIteration(0.001);
+    }
+    
+    Py_RETURN_NONE;
+    
+    SIM_FINALLY(NULL);
+}
+
+void *MxSimulatorPy::wait_events(const double &timeout) {
+    SIM_TRY();
+    if(timeout < 0) {
+        SIM_CHECK(MxSimulator::waitEvents());
+    }
+    else {
+        SIM_CHECK(MxSimulator::waitEventsTimeout(timeout));
     }
     SIM_FINALLY(NULL);
 }
 
-static PyObject *post_empty_event(PyObject *self, PyObject *args, PyObject *kwargs) {
-    SIM_TRY();
-    SIM_CHECK(MxSimulator_PostEmptyEvent());
-    SIM_FINALLY(NULL);
-}
-
-static PyObject *simulator_run(PyObject *self, PyObject *args, PyObject *kwargs) {
+PyObject *MxSimulatorPy::_run(PyObject *args, PyObject *kwargs) {
     SIM_TRY();
 
-    if (C_ZMQInteractiveShell()) {
-        PyObject* result = MxSystem_JWidget_Run(args, kwargs);
+    if (Mx_ZMQInteractiveShell()) {
+        PyObject* result = MxSystemPy::jwidget_run(args, kwargs);
         if (!result) {
             Log(LOG_ERROR) << "failed to call mechanica.jwidget.run";
             return NULL;
@@ -925,157 +1096,11 @@ static PyObject *simulator_run(PyObject *self, PyObject *args, PyObject *kwargs)
     }
 
 
-    double et = mx::arg<double>("et", 0, args, kwargs, -1);
-    SIM_CHECK(MxSimulator_Run(et));
+    double et = mx::arg("et", 0, args, kwargs, -1.0);
+    SIM_CHECK(Simulator->run(et));
     SIM_FINALLY(NULL);
 }
-
-static PyObject *simultor_irun(PyObject *self, PyObject *args, PyObject *kwargs) {
-    SIM_TRY();
-    SIM_CHECK(MxSimulator_InteractiveRun());
-    SIM_FINALLY(NULL);
-}
-
-static PyObject *simulator_show(PyObject *self, PyObject *args, PyObject *kwargs) {
-    SIM_TRY();
-    SIM_CHECK(MxSimulator_Show());
-    SIM_FINALLY(NULL);
-}
-
-static PyObject *simulator_close(PyObject *self) {
-    SIM_TRY();
-    SIM_CHECK(MxSimulator_Close());
-    SIM_FINALLY(NULL);
-}
-
-static PyMethodDef simulator_methods[] = {
-    { "init", (PyCFunction)MxSimulator_Init, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "poll_events", (PyCFunction)simulator_poll_events, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "wait_events", (PyCFunction)simulator_wait_events, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "post_empty_event", (PyCFunction)post_empty_event, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "run", (PyCFunction)simulator_run, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "irun", (PyCFunction)simultor_irun, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "show", (PyCFunction)simulator_show, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "close", (PyCFunction)simulator_close, METH_STATIC| METH_NOARGS, NULL },
-    { "context_has_current", (PyCFunction)MxSystem_ContextHasCurrent, METH_STATIC| METH_NOARGS, NULL },
-    { "context_make_current", (PyCFunction)MxSystem_ContextMakeCurrent, METH_STATIC| METH_NOARGS, NULL },
-    { "context_release", (PyCFunction)MxSystem_ContextRelease, METH_STATIC| METH_NOARGS, NULL },
-    { "_input_hook", (PyCFunction)ipythonInputHook, METH_STATIC | METH_FASTCALL, NULL },
-    { NULL, NULL, 0, NULL }
-};
-
-
-PyGetSetDef simulator_getsets[] = {
-    {
-        .name = "threads",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            SIM_TRY();
-            return mx::cast(_Engine.nr_runners);
-            SIM_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "window",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            SIM_TRY();
-            PyObject *r = Simulator->app->getWindow();
-            Py_INCREF(r);
-            return r;
-            SIM_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {NULL}
-};
-
-PyTypeObject MxSimulator_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name =           "MxSimulator",
-    .tp_basicsize =      sizeof(PyObject),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           0,
-    .tp_as_number =      0,
-    .tp_as_sequence =    0,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           MxSimulator_Init,
-    .tp_str =            0,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags =          Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        simulator_methods,
-    .tp_members =        0,
-    .tp_getset =         simulator_getsets,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           0,
-    .tp_alloc =          0,
-    .tp_new =            0,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
-
 
 struct MxUniverseRenderer *MxSimulator::getRenderer() {
     return app->getRenderer();
-}
-
-HRESULT _MxSimulator_init(PyObject* m) {
-
-    Log(LOG_TRACE);
-
-    PyModule_AddIntConstant(m, "FORWARD_EULER", EngineIntegrator::FORWARD_EULER);
-    PyModule_AddIntConstant(m, "RUNGE_KUTTA_4", EngineIntegrator::RUNGE_KUTTA_4);
-
-    
-    if (PyType_Ready((PyTypeObject*)&MxSimulator_Type) < 0) {
-        return E_FAIL;
-    }
-    
-    PyObject* s = PyObject_New(PyObject, &MxSimulator_Type);
-
-    if(!s) {
-        return c_error(E_FAIL, "could not create simulator API");
-    }
-
-    PyModule_AddObject(m, "Simulator", s);
-    
-    PyModule_AddObject(m, "simulator", s);
-
-    return S_OK;
 }

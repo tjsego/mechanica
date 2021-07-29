@@ -7,162 +7,19 @@
 
 #include <Flux.hpp>
 #include "MxParticle.h"
-#include "CSpeciesList.hpp"
-#include "CStateVector.hpp"
-#include <MxConvert.hpp>
-#include <CConvert.hpp>
+#include "../../state/MxSpeciesList.h"
+#include "../../state/MxStateVector.h"
 #include "flux_eval.hpp"
 #include "space.h"
 #include "space_cell.h"
 #include "engine.h"
+#include "../../MxLogger.h"
+#include "../../mx_error.h"
+#include "../../MxUtil.h"
 
-
-
-PyTypeObject MxFluxes_Type = {
-    CObject_HEAD_INIT(NULL)
-    "Fluxes"                              , // .tp_name
-    sizeof(MxFluxes)                      , // .tp_basicsize
-    sizeof(MxFlux)                        , // .tp_itemsize
-    (destructor )0                        , // .tp_dealloc
-    0                                     , // .tp_print
-    0                                     , // .tp_getattr
-    0                                     , // .tp_setattr
-    0                                     , // .tp_as_async
-    (reprfunc)0                 , // .tp_repr
-    0                                     , // .tp_as_number
-    0                                     , // .tp_as_sequence
-    0                                     , // .tp_as_mapping
-    0                                     , // .tp_hash
-    0                                     , // .tp_call
-    (reprfunc)0                 , // .tp_str
-    0                                     , // .tp_getattro
-    0                                     , // .tp_setattro
-    0                                     , // .tp_as_buffer
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE , // .tp_flags
-    0                                     , // .tp_doc
-    0                                     , // .tp_traverse
-    0                                     , // .tp_clear
-    0                                     , // .tp_richcompare
-    0                                     , // .tp_weaklistoffset
-    0                                     , // .tp_iter
-    0                                     , // .tp_iternext
-    0                       , // .tp_methods
-    0                                     , // .tp_members
-    0                      , // .tp_getset
-    0                                     , // .tp_base
-    0                                     , // .tp_dict
-    0                                     , // .tp_descr_get
-    0                                     , // .tp_descr_set
-    0                                     , // .tp_dictoffset
-    (initproc)0               , // .tp_init
-    0                                     , // .tp_alloc
-    PyType_GenericNew                     , // .tp_new
-    0                                     , // .tp_free
-    0                                     , // .tp_is_gc
-    0                                     , // .tp_bases
-    0                                     , // .tp_mro
-    0                                     , // .tp_cache
-    0                                     , // .tp_subclasses
-    0                                     , // .tp_weaklist
-    0                                     , // .tp_del
-    0                                     , // .tp_version_tag
-    0                                     , // .tp_finalize
-#ifdef COUNT_ALLOCS
-    0                                     , // .tp_allocs
-    0                                     , // .tp_frees
-    0                                     , // .tp_maxalloc
-    0                                     , // .tp_prev
-    0                                     , // .tp_next
-#endif
-};
-
-PyTypeObject MxFlux_Type = {
-    CVarObject_HEAD_INIT(NULL, 0)
-    "Flux"                                , // .tp_name
-    sizeof(MxFlux)                      , // .tp_basicsize
-    sizeof(int32_t)                       , // .tp_itemsize
-    (destructor )0         , // .tp_dealloc
-    0                                     , // .tp_print
-    0                                     , // .tp_getattr
-    0                                     , // .tp_setattr
-    0                                     , // .tp_as_async
-    (reprfunc)0                 , // .tp_repr
-    0                                     , // .tp_as_number
-    0                                     , // .tp_as_sequence
-    0                                     , // .tp_as_mapping
-    0                                     , // .tp_hash
-    0                                     , // .tp_call
-    (reprfunc)0                 , // .tp_str
-    0                                     , // .tp_getattro
-    0                                     , // .tp_setattro
-    0                                     , // .tp_as_buffer
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE , // .tp_flags
-    0                                     , // .tp_doc
-    0                                     , // .tp_traverse
-    0                                     , // .tp_clear
-    0                                     , // .tp_richcompare
-    0                                     , // .tp_weaklistoffset
-    0                                     , // .tp_iter
-    0                                     , // .tp_iternext
-    0                       , // .tp_methods
-    0                                     , // .tp_members
-    0                      , // .tp_getset
-    0                                     , // .tp_base
-    0                                     , // .tp_dict
-    0                                     , // .tp_descr_get
-    0                                     , // .tp_descr_set
-    0                                     , // .tp_dictoffset
-    (initproc)0               , // .tp_init
-    0                                     , // .tp_alloc
-    PyType_GenericNew                     , // .tp_new
-    0                                     , // .tp_free
-    0                                     , // .tp_is_gc
-    0                                     , // .tp_bases
-    0                                     , // .tp_mro
-    0                                     , // .tp_cache
-    0                                     , // .tp_subclasses
-    0                                     , // .tp_weaklist
-    0                                     , // .tp_del
-    0                                     , // .tp_version_tag
-    0                                     , // .tp_finalize
-#ifdef COUNT_ALLOCS
-    0                                     , // .tp_allocs
-    0                                     , // .tp_frees
-    0                                     , // .tp_maxalloc
-    0                                     , // .tp_prev
-    0                                     , // .tp_next
-#endif
-};
-
-HRESULT _MxFlux_Init(PyObject* m) {
-    if (PyType_Ready((PyTypeObject*)&MxFluxes_Type) < 0) {
-        return E_FAIL;
-    }
-    
-    Py_INCREF(&MxFluxes_Type);
-    if (PyModule_AddObject(m, "Fluxes", (PyObject *)&MxFluxes_Type) < 0) {
-        Py_DECREF(&MxFluxes_Type);
-        return E_FAIL;
-    }
-    
-    if (PyType_Ready((PyTypeObject*)&MxFlux_Type) < 0) {
-        return E_FAIL;
-    }
-    
-    Py_INCREF(&MxFlux_Type);
-    if (PyModule_AddObject(m, "Flux", (PyObject *)&MxFlux_Type) < 0) {
-        Py_DECREF(&MxFlux_Type);
-        return E_FAIL;
-    }
-    
-    return S_OK;
-}
-
-PyObject* MxFluxes_FluxEx(FluxKind kind, PyObject *_a, PyObject *_b,
-                          const std::string& name, float k, float decay, float target) {
-    
-    MxParticleType *a = MxParticleType_Get(_a);
-    MxParticleType *b = MxParticleType_Get(_b);
+MxFluxes *MxFluxes::create(FluxKind kind, MxParticleType *a, MxParticleType *b,
+                           const std::string& name, float k, float decay, float target) 
+{
     
     if(!a || !b) {
         throw std::invalid_argument("Invalid particle types");
@@ -178,8 +35,8 @@ PyObject* MxFluxes_FluxEx(FluxKind kind, PyObject *_a, PyObject *_b,
         throw std::invalid_argument(msg);
     }
     
-    int index_a = a->species->index_of(name);
-    int index_b = b->species->index_of(name);
+    int index_a = a->species->index_of(name.c_str());
+    int index_b = b->species->index_of(name.c_str());
     
     if(index_a < 0) {
         std::string msg = std::string("particle type ") +
@@ -199,66 +56,49 @@ PyObject* MxFluxes_FluxEx(FluxKind kind, PyObject *_a, PyObject *_b,
     MxFluxes *fluxes = _Engine.fluxes[fluxes_index1];
     
     if(fluxes == NULL) {
-        fluxes = MxFluxes_New(8);
+        fluxes = MxFluxes::newFluxes(8);
     }
     
-    fluxes = MxFluxes_AddFlux(kind, fluxes, a->id, b->id, index_a, index_b, k, decay, target);
+    fluxes = MxFluxes::addFlux(kind, fluxes, a->id, b->id, index_a, index_b, k, decay, target);
     
     _Engine.fluxes[fluxes_index1] = fluxes;
     _Engine.fluxes[fluxes_index2] = fluxes;
     
-    return Py_INCREF(fluxes), fluxes;
+    return fluxes;
 }
 
-PyObject* MxFluxes_Fick(PyObject *self, PyObject *args, PyObject *kwargs) {
+MxFluxes *MxFluxes::fluxFick(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &decay) {
     try {
-        PyObject *a =      mx::arg<PyObject*>("A", 0, args, kwargs);
-        PyObject *b =      mx::arg<PyObject*>("B", 1, args, kwargs);
-        std::string name = mx::arg<std::string>("name", 2, args, kwargs);
-        float k =          mx::arg<float>("k", 3, args, kwargs);
-        float decay =      mx::arg<float>("decay", 4, args, kwargs, 0.f);
-        
-        return MxFluxes_FluxEx(FLUX_FICK, a, b, name, k, decay, 0.f);
+        return MxFluxes::create(FLUX_FICK, A, B, name, k, decay, 0.f);
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
 }
 
+MxFluxes *MxFluxes::flux(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &decay) {
+    return fluxFick(A, B, name, k, decay);
+}
 
-PyObject* MxFluxes_Secrete(PyObject *self, PyObject *args, PyObject *kwargs) {
+MxFluxes *MxFluxes::secrete(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay) {
     try {
-        PyObject *a =      mx::arg<PyObject*>("A", 0, args, kwargs);
-        PyObject *b =      mx::arg<PyObject*>("B", 1, args, kwargs);
-        std::string name = mx::arg<std::string>("name", 2, args, kwargs);
-        float k =          mx::arg<float>("k", 3, args, kwargs);
-        float target =     mx::arg<float>("target", 4, args, kwargs);
-        float decay =      mx::arg<float>("decay", 5, args, kwargs, 0.f);
-        
-        return MxFluxes_FluxEx(FLUX_SECRETE, a, b, name, k, decay, target);
+        return MxFluxes::create(FLUX_SECRETE, A, B, name, k, decay, target);
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
 }
 
-PyObject* MxFluxes_Uptake(PyObject *self, PyObject *args, PyObject *kwargs) {
+MxFluxes *MxFluxes::uptake(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay) {
     try {
-        PyObject *a =      mx::arg<PyObject*>("A", 0, args, kwargs);
-        PyObject *b =      mx::arg<PyObject*>("B", 1, args, kwargs);
-        std::string name = mx::arg<std::string>("name", 2, args, kwargs);
-        float k =          mx::arg<float>("k", 3, args, kwargs);
-        float target =     mx::arg<float>("target", 4, args, kwargs);
-        float decay =      mx::arg<float>("decay", 5, args, kwargs, 0.f);
-        
-        return MxFluxes_FluxEx(FLUX_UPTAKE, a, b, name, k, decay, target);
+        return MxFluxes::create(FLUX_UPTAKE, A, B, name, k, decay, target);
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
 }
 
-static void integrate_statevector(CStateVector *s) {
+static void integrate_statevector(MxStateVector *s) {
     for(int i = 0; i < s->size; ++i) {
         float konst = (s->species_flags[i] & SPECIES_KONSTANT) ? 0.f : 1.f;
         s->fvec[i] += _Engine.dt * s->q[i] * konst;
@@ -266,12 +106,11 @@ static void integrate_statevector(CStateVector *s) {
     }
 }
 
-
-HRESULT MxFluxes_Integrate(int cellId) {
+HRESULT MxFluxes::integrate(int cellId) {
     
     space_cell *c = &_Engine.s.cells[cellId];
     MxParticle *p;
-    CStateVector *s;
+    MxStateVector *s;
     
     
     for(int i = 0; i < c->count; ++i) {
@@ -286,10 +125,12 @@ HRESULT MxFluxes_Integrate(int cellId) {
     return S_OK;
 }
 
-MxFluxes *MxFluxes_AddFlux(FluxKind kind, MxFluxes *fluxes,
-                           int16_t typeId_a, int16_t typeId_b,
-                           int32_t index_a, int32_t index_b,
-                           float k, float decay, float target) {
+MxFluxes *MxFluxes::addFlux(FluxKind kind, MxFluxes *fluxes,
+                            int16_t typeId_a, int16_t typeId_b,
+                            int32_t index_a, int32_t index_b,
+                            float k, float decay, float target) {
+    Log(LOG_TRACE);
+
     int i = 0;
     if(fluxes->size + 1 < fluxes->fluxes_size * MX_SIMD_SIZE) {
         i = fluxes->fluxes[0].size;
@@ -298,7 +139,7 @@ MxFluxes *MxFluxes_AddFlux(FluxKind kind, MxFluxes *fluxes,
     }
     else {
         std::string msg = "currently only ";
-        msg += std::to_string(MX_SIMD_SIZE) + " flux species supported, please let Andy know you want more. ";
+        msg += std::to_string(MX_SIMD_SIZE) + " flux species supported, please let the Mechanica development team know you want more. ";
         throw std::logic_error(msg);
     }
     
@@ -316,21 +157,17 @@ MxFluxes *MxFluxes_AddFlux(FluxKind kind, MxFluxes *fluxes,
     return fluxes;
 }
 
-
-MxFluxes *MxFluxes_New(int32_t init_size) {
-    
+MxFluxes* MxFluxes::newFluxes(int32_t init_size) {
     Log(LOG_TRACE);
 
     struct MxFluxes *obj = NULL;
     
-    PyTypeObject *type = &MxFluxes_Type;
-    
     int32_t blocks = std::ceil((double)init_size / MX_SIMD_SIZE);
     
-    int total_size = type->tp_basicsize + blocks * type->tp_itemsize;
+    int total_size = sizeof(MxFluxes) + blocks * sizeof(MxFlux);
 
     /* allocate the potential */
-    if ((obj = (MxFluxes * )CAligned_Malloc(total_size, 16 )) == NULL ) {
+    if ((obj = (MxFluxes * )MxAligned_Malloc(total_size, 16 )) == NULL ) {
         return NULL;
     }
     
@@ -338,18 +175,6 @@ MxFluxes *MxFluxes_New(int32_t init_size) {
     
     obj->size = 0;
     obj->fluxes_size = blocks;
-    
-    if (type->tp_flags & Py_TPFLAGS_HEAPTYPE)
-        Py_INCREF(type);
-
-    PyObject_INIT(obj, type);
-
-    if (PyType_IS_GC(type)) {
-        assert(0 && "should not get here");
-        //  _PyObject_GC_TRACK(obj);
-    }
 
     return obj;
 }
-
-

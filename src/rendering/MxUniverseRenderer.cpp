@@ -56,6 +56,7 @@
 #include <rendering/NOMStyle.hpp>
 
 #include <MxUtil.h>
+#include <MxLogger.h>
 
 #include <assert.h>
 #include <iostream>
@@ -65,11 +66,15 @@
 
 using namespace Magnum::Math::Literals;
 
-MxUniverseRenderer::MxUniverseRenderer(const MxSimulator::Config &conf, MxWindow *win):
+MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow *win):
     window{win}
 {
+    Log(LOG_DEBUG) << "Creating MxUniverseRenderer";
+
     //GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
+
+    Log(LOG_DEBUG) << "clip planes: " << conf.clipPlanes.size();
     
     if(conf.clipPlanes.size() > 0) {
         GL::Renderer::enable(GL::Renderer::Feature::ClipDistance0);
@@ -112,29 +117,29 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator::Config &conf, MxWindow
     /* Loop at 60 Hz max */
     glfwSwapInterval(1);
 
-    Vector3 origin = MxUniverse::origin();
-    Vector3 dim = MxUniverse::dim();
+    MxVector3f origin = MxUniverse::origin();
+    MxVector3f dim = MxUniverse::dim();
 
     center = (dim + origin) / 2.;
 
-    // TODO: get the max value
-    sideLength = dim[0];
+    sideLength = dim.max();
     
-    Magnum::Vector3i size = {(int)std::ceil(dim[0]), (int)std::ceil(dim[1]), (int)std::ceil(dim[2])};
+    MxVector3i size = {(int)std::ceil(dim[0]), (int)std::ceil(dim[1]), (int)std::ceil(dim[2])};
 
     /* Set up the camera */
     {
         /* Setup the arcball after the camera objects */
-        const Vector3 eye = Vector3(0.5f * sideLength, -2.2f * sideLength, 1.1f * sideLength);
-        const Vector3 center{0.f, 0.f, -0.1f * sideLength};
-        const Vector3 up = Vector3::zAxis();
+        const MxVector3f eye = MxVector3f(0.5f * sideLength, -2.2f * sideLength, 1.1f * sideLength);
+        const MxVector3f center{0.f, 0.f, -0.1f * sideLength};
+        const MxVector3f up = Vector3::zAxis();
         
         _eye = eye;
         _center = center;
         _up = up;
+        const MxVector2i viewportSize = win->windowSize();
 
         _arcball = new Magnum::Mechanica::ArcBallCamera(eye, center, up, 45.0_degf,
-            win->windowSize(), win->framebuffer().viewport().size());
+            viewportSize, win->framebuffer().viewport().size());
     }
 
     /* Setup ground grid */
@@ -207,9 +212,11 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator::Config &conf, MxWindow
         .setDiffuseColor({1, 1, 1, 0})
         .setSpecularColor({0.2, 0.2, 0.2, 0});
     
-    _clipPlanes = conf.clipPlanes;
+    _clipPlanes = std::vector<Magnum::Vector4>(conf.clipPlanes.size());
     for(int i = 0; i < conf.clipPlanes.size(); ++i) {
-        sphereShader.setclipPlaneEquation(i, conf.clipPlanes[i]);
+        Log(LOG_DEBUG) << "clip plane " << i << ": " << conf.clipPlanes[i];
+        _clipPlanes[i] = conf.clipPlanes[i];
+        sphereShader.setclipPlaneEquation(i, _clipPlanes[i]);
     }
     
     // we resize instances all the time.
@@ -269,7 +276,7 @@ static inline int render_cuboid(CuboidInstanceData* pData, int i, MxCuboid *p, d
 
 template<typename T>
 MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
-        const Vector2i& viewportSize) {
+        const MxVector2i& viewportSize) {
 
     // the incomprehensible template madness way of doing things.
     // Containers::ArrayView<const float> data(reinterpret_cast<const float*>(&_points[0]), _points.size() * 3);
@@ -424,78 +431,13 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     return *this;
 }
 
+void MxUniverseRenderer::setupCallbacks() {
+    MX_NOTIMPLEMENTED_NORET
+}
+
 MxUniverseRenderer::~MxUniverseRenderer() {
     std::cout << MX_FUNCTION << std::endl;
 }
-
-PyTypeObject MxUniverseRenderer_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "UniverseRenderer",
-    .tp_basicsize = sizeof(MxUniverseRenderer),
-    .tp_itemsize =       0,
-    .tp_dealloc =        [](PyObject *obj) -> void {assert( 0 && "should never dealloc stack object MxUniverseRenderer");},
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           0,
-    .tp_as_number =      0,
-    .tp_as_sequence =    0,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            0,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        0,
-    .tp_members =        0,
-    .tp_getset =         0,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           0,
-    .tp_alloc =          0,
-    .tp_new =            0,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
-
-HRESULT MyUniverseRenderer_Init(PyObject *m)
-{
-    if (PyType_Ready(&MxUniverseRenderer_Type)) {
-        return -1;
-    }
-
-
-
-    Py_INCREF(&MxUniverseRenderer_Type);
-    if (PyModule_AddObject(m, "UniverseRenderer", (PyObject*)&MxUniverseRenderer_Type)) {
-        Py_DECREF(&MxUniverseRenderer_Type);
-        return -1;
-    }
-    return 0;
-}
-
-
 
 void MxUniverseRenderer::onCursorMove(double xpos, double ypos)
 {
@@ -524,12 +466,12 @@ void MxUniverseRenderer::onCursorMove(double xpos, double ypos)
 
 }
 
-Vector3 MxUniverseRenderer::unproject(const Vector2i& windowPosition, float depth) const {
+MxVector3f MxUniverseRenderer::unproject(const MxVector2i& windowPosition, float depth) const {
     /* We have to take window size, not framebuffer size, since the position is
        in window coordinates and the two can be different on HiDPI systems */
-    const Vector2i viewSize = window->windowSize();
-    const Vector2i viewPosition = Vector2i{windowPosition.x(), viewSize.y() - windowPosition.y() - 1};
-    const Vector3 in{2.0f*Vector2{viewPosition}/Vector2{viewSize} - Vector2{1.0f}, depth*2.0f - 1.0f};
+    const MxVector2i viewSize = window->windowSize();
+    const MxVector2i viewPosition = Vector2i{windowPosition.x(), viewSize.y() - windowPosition.y() - 1};
+    const MxVector3f in{2.0f*MxVector2f{viewPosition}/MxVector2f{viewSize} - MxVector2f{1.0f}, depth*2.0f - 1.0f};
 
     return in;
 }

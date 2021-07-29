@@ -14,16 +14,4 @@ class MxWindowProxy
 {
 };
 
-/**
- * The the particle type type
- */
-CAPI_DATA(PyTypeObject) MxWindowProxy_Type;
-
-
-
-/**
- * Init and add to python module
- */
-HRESULT MxWindowProxy_init(PyObject *m);
-
 #endif /* SRC_MXWINDOWPROXY_H_ */

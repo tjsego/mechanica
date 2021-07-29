@@ -23,9 +23,9 @@
 
 #include "platform.h"
 #include "fptype.h"
-#include "carbon.h"
 
-
+#include <limits>
+#include <utility>
 
 /* potential error codes */
 #define potential_err_ok                    0
@@ -118,7 +118,7 @@ typedef struct MxPotential* (*MxPotentialCreate) (
 
 
 /** The #potential structure. */
-typedef struct MxPotential : PyObject {
+typedef struct MxPotential {
     uint32_t kind;
 
     /** Flags. */
@@ -152,9 +152,42 @@ typedef struct MxPotential : PyObject {
      */
     const char* name;
 
-} MxPotential;
+    MxPotential();
 
-CAPI_FUNC(int) MxPotential_Check(PyObject *obj);
+    std::pair<float, float> operator()(const float &r, const float &r0=-1.0);
+    float force(double r, double ri=-1.0, double rj=-1.0);
+
+    static MxPotential *lennard_jones_12_6(double min, double max, double A, double B, double *tol=NULL);
+    static MxPotential *lennard_jones_12_6_coulomb(double min, double max, double A, double B, double q, double *tol=NULL);
+    static MxPotential *soft_sphere(double kappa, double epsilon, double r0, int eta, double *min=NULL, double *max=NULL, double *tol=NULL, bool *shift=NULL);
+    static MxPotential *ewald(double min, double max, double q, double kappa, double *tol=NULL);
+    static MxPotential *coulomb(double q, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *harmonic(double k, double r0, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *linear(double k, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *harmonic_angle(double k, double theta0, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *harmonic_dihedral(double k, int n, double delta, double *tol=NULL);
+    static MxPotential *well(double k, double n, double r0, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *glj(double e, double *m=NULL, double *n=NULL, double *k=NULL, double *r0=NULL, double *min=NULL, double *max=NULL, double *tol=NULL, bool *shifted=NULL);
+    static MxPotential *morse(double *d=NULL, double *a=NULL, double *r0=NULL, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *overlapping_sphere(double *mu=NULL, double *kc=NULL, double *kh=NULL, double *r0=NULL, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *power(double *k=NULL, double *r0=NULL, double *alpha=NULL, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *dpd(double *alpha=NULL, double *gamma=NULL, double *sigma=NULL, double *cutoff=NULL, bool *shifted=NULL);
+
+    float getMin();
+    float getMax();
+    float getCutoff();
+    std::pair<float, float> getDomain();
+    int getIntervals();
+    bool getBound();
+    void setBound(const bool &_bound);
+    FPTYPE getR0();
+    void setR0(const FPTYPE &_r0);
+    bool getShifted();
+    void setShifted(const bool &_shifted);
+    bool getRSquare();
+    void setRSquare(const bool &_rSquare);
+
+} MxPotential;
 
 
 /** Fictitious null potential. */
@@ -265,21 +298,5 @@ CAPI_FUNC(double) potential_Coulomb_p ( double r );
 CAPI_FUNC(double) potential_Coulomb_6p ( double r );
 CAPI_FUNC(double) potential_switch ( double r , double A , double B );
 CAPI_FUNC(double) potential_switch_p ( double r , double A , double B );
-
-
-/**
- * do an aligned alloc. 
- */
-MxPotential *potential_alloc(PyTypeObject *type);
-
-
-
-/**
- * The type of each individual particle.
- */
-CAPI_DATA(PyTypeObject) MxPotential_Type;
-
-HRESULT _MxPotential_init(PyObject *m);
-
 
 #endif // INCLUDE_POTENTIAL_H_

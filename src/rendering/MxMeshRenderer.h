@@ -11,7 +11,6 @@
 #include <MxMesh.h>
 
 #include <Magnum/Magnum.h>
-#include <Magnum/Math/Vector3.h>
 #include <Magnum/Math/Matrix4.h>
 #include <Magnum/GL/Buffer.h>
 #include <Magnum/GL/Mesh.h>
@@ -95,7 +94,6 @@ Magnum::Color4 jetColorMap(float val, float minVal, float maxVal);
  *
  */
 class MxMeshRenderer {
-    //using Magnum::Matrix4;
 public:
 
     /**
@@ -130,11 +128,11 @@ public:
 
     MxMeshRenderer& setMesh(MxMesh *mesh);
 
-    MxMeshRenderer& setModelMatrix(const Magnum::Matrix4& mat);
+    MxMeshRenderer& setModelMatrix(const MxMatrix4f& mat);
 
-    MxMeshRenderer& setViewMatrix(const Magnum::Matrix4& mat);
+    MxMeshRenderer& setViewMatrix(const MxMatrix4f& mat);
 
-    MxMeshRenderer& setProjectionMatrix(const Magnum::Matrix4& mat);
+    MxMeshRenderer& setProjectionMatrix(const MxMatrix4f& mat);
 
 
     /**
@@ -144,7 +142,7 @@ public:
      * Has effect only if @ref Flag::Wireframe is enabled and geometry
      * shaders are used.
      */
-    MxMeshRenderer& setViewportSize(const Magnum::Vector2& size);
+    MxMeshRenderer& setViewportSize(const MxVector2f& size);
 
     /**
      * @brief Set base object color
@@ -202,7 +200,7 @@ private:
      * multiplication order is the reverse of the pipeline.
      * Therefore you do totalmat = proj * view * model.
      */
-    Magnum::Matrix4 modelMat, viewMat, projMat = Magnum::Matrix4{Math::IdentityInit};
+    MxMatrix4f modelMat, viewMat, projMat = Magnum::Matrix4{Math::IdentityInit};
 
 
 

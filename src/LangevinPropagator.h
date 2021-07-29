@@ -10,7 +10,6 @@
 
 #include "MxPropagator.h"
 #include "Magnum/Magnum.h"
-#include <Magnum/Math/Vector3.h>
 #include "MxConstraints.h"
 #include "MxForces.h"
 
@@ -28,7 +27,7 @@ struct MxMesh;
  */
 class LangevinPropagator {
 
-    typedef Magnum::Vector3 Vector3;
+    typedef MxVector3f Vector3;
 
 
 
@@ -49,17 +48,9 @@ public:
     HRESULT structureChanged();
 
 
-    HRESULT bindConstraint(IConstraint *constraint, CObject *obj);
+    HRESULT bindConstraint(IConstraint *constraint, MxConstrainableType *obj);
 
-    HRESULT bindConstraint(IConstraint *constraint, PyTypeObject *obj) {
-        return bindConstraint(constraint, (CObject*)obj);
-    }
-
-    HRESULT bindForce(IForce *force, CObject *obj);
-
-    HRESULT bindForce(IForce *force, PyTypeObject *obj) {
-        return bindForce(force, (CObject*)obj);
-    }
+    HRESULT bindForce(IForce *force, MxForcableType *obj);
 
     HRESULT unbindConstraint(IConstraint* constraint);
 
@@ -69,17 +60,34 @@ public:
 
 private:
 
-    struct ConstraintItems {
-        IConstraint *thing;
-        CType *type;
-        std::vector<CObject*> args;
-    };
+    template<typename ActorType, typename TargetType, typename TargetObject>
+    struct BaseItems {
+        BaseItems(ActorType *actor, TargetType *type=NULL) {
+            this->actor = actor; 
+            this->type = type;
+        }
+        virtual void update(const LangevinPropagator *prop) {}
+        void unbind() {
+            type = NULL;
+            args.clear();
+        }
 
-    struct ForceItems {
-        IForce *thing;
-        CType *type;
-        std::vector<CObject*> args;
+        ActorType *actor;
+        TargetType *type;
+        std::vector<TargetObject*> args;
     };
+    
+    struct _ConstraintItems : BaseItems<IConstraint, MxConstrainableType, MxConstrainable> {
+        _ConstraintItems(IConstraint *actor, MxConstrainableType *type=NULL) : BaseItems<IConstraint, MxConstrainableType, MxConstrainable>(actor, type) {}
+        void update(const LangevinPropagator *prop);
+    };
+    using ConstraintItems = BaseItems<IConstraint, MxConstrainableType, MxConstrainable>;
+
+    struct _ForceItems : BaseItems<IForce, MxForcableType, MxForcable> {
+        _ForceItems(IForce *actor, MxForcableType *type=NULL) : BaseItems<IForce, MxForcableType, MxForcable>(actor, type) {}
+        void update(const LangevinPropagator *prop);
+    };
+    using ForceItems = BaseItems<IForce, MxForcableType, MxForcable>;
 
     HRESULT applyForces();
 
@@ -110,16 +118,16 @@ private:
     MxMesh *mesh;
 
     size_t size = 0;
-    Magnum::Vector3 *positions = nullptr;
+    Vector3 *positions = nullptr;
 
-    Magnum::Vector3 *posInit = nullptr;
+    Vector3 *posInit = nullptr;
 
-    Magnum::Vector3 *accel = nullptr;
+    Vector3 *accel = nullptr;
 
-    Magnum::Vector3 *k1 = nullptr;
-    Magnum::Vector3 *k2 = nullptr;
-    Magnum::Vector3 *k3 = nullptr;
-    Magnum::Vector3 *k4 = nullptr;
+    Vector3 *k1 = nullptr;
+    Vector3 *k2 = nullptr;
+    Vector3 *k3 = nullptr;
+    Vector3 *k4 = nullptr;
 
     float *masses = nullptr;
 
@@ -145,20 +153,14 @@ private:
     std::vector<ConstraintItems> constraints;
     std::vector<ForceItems> forces;
 
-    static HRESULT objectDeleteListener(CObject* pThis,
-            const CObject* obj, uint32_t what);
+    template<typename A, typename T, typename O>
+    HRESULT updateItems(std::vector<LangevinPropagator::BaseItems<A, T, O> > &items);
 
-    template<typename T>
-    HRESULT updateItems(std::vector<T> &items);
+    template<typename A, typename T, typename O>
+    LangevinPropagator::BaseItems<A, T, O>& getItem(std::vector<LangevinPropagator::BaseItems<A, T, O> > &items, A *key);
 
-    template<typename T>
-    HRESULT updateItem(T &item);
-
-    template<typename T, typename KeyType>
-    T& getItem(std::vector<T> &items, KeyType *key);
-
-    template<typename T, typename KeyType>
-    HRESULT bindTypeItem(std::vector<T> &items, KeyType *key, CType* type);
+    template<typename A, typename T, typename O>
+    HRESULT bindTypeItem(std::vector<LangevinPropagator::BaseItems<A, T, O> > &items, A *key, T* type);
 
 };
 

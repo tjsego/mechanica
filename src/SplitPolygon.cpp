@@ -6,8 +6,8 @@
  */
 
 #include <MeshOperations.h>
-#include <Magnum/Math/Matrix4.h>
 #include <Magnum/Math/Distance.h>
+#include <mx_error.h>
 
 HRESULT Mx_SplitPolygonSemiMajorAxisAngle(MeshPtr mesh,
         PolygonPtr poly, float radians, PolygonPtr* pn1, PolygonPtr* pn2)
@@ -26,7 +26,7 @@ static PolygonPtr otherPolygon2D(EdgePtr e, PolygonPtr p) {
 }
 
 HRESULT Mx_SplitPolygonBisectPlane(MeshPtr mesh, PolygonPtr poly,
-        Vector3* normal, PolygonPtr* pn1, PolygonPtr* pn2) {
+        MxVector3f* normal, PolygonPtr* pn1, PolygonPtr* pn2) {
 
     // make a plane, point normal form with poly centroid as point
     Vector4 plane = Magnum::Math::planeEquation(*normal, poly->centroid);
@@ -108,13 +108,13 @@ HRESULT Mx_SplitPolygonBisectPlane(MeshPtr mesh, PolygonPtr poly,
 
     // create two new vertices that are at the same position as the end vertices,
     // we shrink the edges so the end vertices are at the previous midpoint.
-    vn1 = mesh->createVertex((vn->position + vn2->position) / 2., MxVertex_Type);
-    vm1 = mesh->createVertex((vm->position + vm2->position) / 2., MxVertex_Type);
+    vn1 = mesh->createVertex((vn->position + vn2->position) / 2.);
+    vm1 = mesh->createVertex((vm->position + vm2->position) / 2.);
 
     // make the new edges
-    en1 = mesh->createEdge(MxEdge_Type, vn1, vn2);
-    em1 = mesh->createEdge(MxEdge_Type, vm1, vm2);
-    es = mesh->createEdge(MxEdge_Type, vn1, vm1);
+    en1 = mesh->createEdge(vn1, vn2);
+    em1 = mesh->createEdge(vm1, vm2);
+    es = mesh->createEdge(vn1, vm1);
 
     std::cout << "edge en: " << en << std::endl;
     std::cout << "edge em: " << em << std::endl;
@@ -150,7 +150,7 @@ HRESULT Mx_SplitPolygonBisectPlane(MeshPtr mesh, PolygonPtr poly,
     std::cout << "ready to split with new edge: " << es << std::endl;
 
     // the new daughter polygon, initially empty
-    PolygonPtr pn = mesh->createPolygon(poly->ob_type);
+    PolygonPtr pn = mesh->createPolygon((MxPolygonType*)poly->constraintType);
 
     {
         // tmp data structures to copy the elements into,

@@ -14,9 +14,9 @@
 
 
 struct IMeshObjectTypeHandler {
-    virtual CType *cellType(const char* cellName, int cellIndex) = 0;
-    virtual CType *polygonType(int polygonIndex) = 0;
-    virtual CType *partialPolygonType(const CType *cellType, const CType *polyType) = 0;
+    virtual MxCellType *cellType(const char* cellName, int cellIndex) = 0;
+    virtual MxPolygonType *polygonType(int polygonIndex) = 0;
+    virtual MxPartialPolygonType *partialPolygonType(const MxCellType *cellType, const MxPolygonType *polyType) = 0;
 };
 
 MxMesh *MxMesh_FromFile(const char* fname, float density, IMeshObjectTypeHandler *typeHandler);

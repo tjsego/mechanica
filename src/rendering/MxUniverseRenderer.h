@@ -55,7 +55,7 @@
 #include <rendering/MxWindow.h>
 #include <rendering/ArcBallCamera.h>
 
-using namespace Magnum;
+struct MxSimulator_Config;
 
 class WireframeGrid;
 class WireframeBox;
@@ -81,10 +81,10 @@ struct MxUniverseRenderer : MxRenderer {
 
 
     // TODO, implement the event system instead of hard coding window events.
-    MxUniverseRenderer(const MxSimulator::Config &conf, MxWindow *win);
+    MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow *win);
 
     template<typename T>
-    MxUniverseRenderer& draw(T& camera, const Vector2i& viewportSize);
+    MxUniverseRenderer& draw(T& camera, const MxVector2i& viewportSize);
 
     bool& isDirty() { return _dirty; }
 
@@ -123,14 +123,14 @@ struct MxUniverseRenderer : MxRenderer {
 
     Float& shininess() { return _shininess; }
 
-    MxUniverseRenderer& setShininess(Float shininess) {
+    MxUniverseRenderer& setShininess(float shininess) {
         _shininess = shininess;
         return *this;
     }
 
-    Vector3& lightDirection() { return _lightDir; }
+    MxVector3f& lightDirection() { return _lightDir; }
 
-    MxUniverseRenderer& setLightDirection(const Vector3& lightDir) {
+    MxUniverseRenderer& setLightDirection(const MxVector3f& lightDir) {
         _lightDir = lightDir;
         return *this;
     }
@@ -145,15 +145,15 @@ struct MxUniverseRenderer : MxRenderer {
         return *this;
     }
     
-    const Magnum::Vector3& defaultEye() const {
+    const MxVector3f& defaultEye() const {
         return _eye;
     }
     
-    const Magnum::Vector3& defaultCenter() const {
+    const MxVector3f& defaultCenter() const {
         return _center;
     }
     
-    const Magnum::Vector3& defaultUp() const {
+    const MxVector3f& defaultUp() const {
         return _up;
     }
 
@@ -198,9 +198,9 @@ struct MxUniverseRenderer : MxRenderer {
     Color3 _diffuseColor{0.0f, 0.5f, 0.9f};
     Color3 _specularColor{ 1.0f};
     Float _shininess = 150.0f;
-    Vector3 _lightDir{1.0f, 1.0f, 2.0f};
+    MxVector3f _lightDir{1.0f, 1.0f, 2.0f};
     
-    Vector3 _eye, _center, _up;
+    MxVector3f _eye, _center, _up;
     
     std::vector<Magnum::Vector4> _clipPlanes;
     
@@ -215,8 +215,8 @@ struct MxUniverseRenderer : MxRenderer {
     Magnum::Matrix4 modelViewMat = Matrix4{Math::IdentityInit};
     Magnum::Matrix4 projMat =  Matrix4{Math::IdentityInit};
 
-    Vector2i _prevMousePosition;
-    Vector3  _rotationPoint, _translationPoint;
+    MxVector2i _prevMousePosition;
+    MxVector3f  _rotationPoint, _translationPoint;
     Float _lastDepth;
     
     float sideLength;
@@ -254,26 +254,14 @@ struct MxUniverseRenderer : MxRenderer {
     
     GL::Buffer bondsVertexBuffer{NoCreate};
 
-    Vector3 center;
+    MxVector3f center;
 
     MxWindow *window;
 
-    Vector3 unproject(const Vector2i& windowPosition, float depth) const;
+    MxVector3f unproject(const MxVector2i& windowPosition, float depth) const;
 
+    // todo: implement MxUniverseRenderer::setupCallbacks
     void setupCallbacks();
     
     ~MxUniverseRenderer();
 };
-
-
-/**
- * The the renderer type
- */
-CAPI_DATA(PyTypeObject) MxUniverseRenderer_Type;
-
-HRESULT MyUniverseRenderer_Init(PyObject *module);
-
-
-
-
-

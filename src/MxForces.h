@@ -8,9 +8,17 @@
 #ifndef SRC_MXFORCES_H_
 #define SRC_MXFORCES_H_
 
-#include <carbon.h>
 #include "mechanica_private.h"
+#include <vector>
 
+// A propagator using these to determine what information to give a force
+enum FORCABLE_TYPE {
+    FORCABLE_NONE, 
+    FORCABLE_CELL, 
+    FORCABLE_POLYGON
+};
+
+struct MxForcable;
 
 /**
  * Interface that force objects implement.
@@ -20,6 +28,8 @@
  */
 struct IForce {
 
+    virtual FORCABLE_TYPE dataType() { return FORCABLE_TYPE::FORCABLE_NONE; }
+
     /**
      * Called when the main time step changes.
      */
@@ -28,7 +38,21 @@ struct IForce {
     /**
      * Apply forces to a set of objects.
      */
-    virtual HRESULT applyForce(float time, CObject **objs, uint32_t len) const = 0;
+    virtual HRESULT applyForce(float time, const std::vector<MxForcable*> &objs) const = 0;
+};
+
+struct MxForcableType {
+
+    std::vector<IForce*> forces;
+
+};
+
+struct MxForcable {
+
+    MxForcableType *forceType;
+
+    MxForcable(MxForcableType *type) : forceType(type) {}
+
 };
 
 

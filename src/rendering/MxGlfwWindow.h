@@ -13,7 +13,6 @@
 #include <rendering/MxWindow.h>
 
 #include <Magnum/Magnum.h>
-#include <Magnum/Math/Vector2.h>
 #include <GLFW/glfw3.h>
 
 
@@ -34,27 +33,17 @@ struct MxGlfwWindow : MxWindow
 
     float f;
 
-    Magnum::Vector2i windowSize() const override;
+    MxVector2i windowSize() const override;
 
     void redraw() override;
     
     void setTitle(const char* title);
     
     Magnum::GL::AbstractFramebuffer &framebuffer() override;
+
+    const float &getFloatField();
+    void setFloatField(const float &value);
     
 };
-
-
-/**
- * The the particle type type
- */
-CAPI_DATA(PyTypeObject) MxGlfwWindow_Type;
-
-
-
-/**
- * Init and add to python module
- */
-HRESULT MxGlfwWindow_init(PyObject *m);
 
 #endif /* SRC_MXGLFWWINDOW_H_ */

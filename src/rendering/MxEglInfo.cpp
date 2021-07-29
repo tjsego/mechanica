@@ -24,8 +24,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "MxGlInfo.h"
-#include "CConvert.hpp"
+#include "MxEglInfo.h"
 
 #include <sstream>
 #include <iomanip>
@@ -280,18 +279,14 @@ std::string print_eglinfo()
 
 #endif
 
-PyObject *Mx_EglInfo(PyObject *args, PyObject *kwds) {
-
+const std::string MxEGLInfo::getInfo() {
 #ifdef MX_LINUX
-  std::string info = print_eglinfo();
+   return print_eglinfo();
 #else
-  
-  std::string info = "Not a Linux system, no EGL";
+   return "Not a Linux system, no EGL";
 #endif
-  
-  PyObject *result = carbon::cast(info);
-
-  return result;
 }
 
-
+std::string Mx_EglInfo() {
+   return MxEGLInfo::getInfo();
+}

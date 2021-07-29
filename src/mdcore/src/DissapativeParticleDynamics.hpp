@@ -23,13 +23,8 @@ struct DPDPotential : public MxPotential {
     
     // strength of random interaction
     float sigma;
+
+    DPDPotential(float alpha, float gamma, float sigma, float cutoff, bool shifted);
 };
-
-PyObject * DPDPotential_New(float alpha, float gamma, float sigma, float cutoff, bool shifted);
-
-
-HRESULT _DPDPotential_Init(PyObject *m);
-
-
 
 #endif /* _DISSAPATIVEPARTICLEDYNAMICS_HPP_ */

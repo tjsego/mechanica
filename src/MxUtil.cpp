@@ -11,11 +11,9 @@
 #include <cmath>
 
 #include <MxUtil.h>
-#include <MxNumpy.h>
-#include <MxConvert.hpp>
 #include <MxThreadPool.hpp>
+#include <mx_error.h>
 
-#include <CConvert.hpp>
 #include <mdcore_config.h>
 #include <engine.h>
 
@@ -35,13 +33,10 @@
 #include <set>
 #include <iostream>
 #include <vector>
-#include <bitset>
 #include <array>
 #include <string>
 
-#include <MxPy.h>
-
-
+MxRandomType MxRandom;
 
 const char* MxColor3Names[] = {
     "AliceBlue",
@@ -191,11 +186,11 @@ const char* MxColor3Names[] = {
     NULL
 };
 
-typedef float (*force_2body_fn)(struct EnergyMinimizer* p, Magnum::Vector3 *x1, Magnum::Vector3 *x2,
-Magnum::Vector3 *f1, Magnum::Vector3 *f2);
+typedef float (*force_2body_fn)(struct EnergyMinimizer* p, MxVector3f *x1, MxVector3f *x2,
+MxVector3f *f1, MxVector3f *f2);
 
-typedef float (*force_1body_fn)(struct EnergyMinimizer* p, Magnum::Vector3 *p1,
-Magnum::Vector3 *f1);
+typedef float (*force_1body_fn)(struct EnergyMinimizer* p, MxVector3f *p1,
+MxVector3f *f1);
 
 struct EnergyMinimizer {
     force_1body_fn force_1body;
@@ -207,73 +202,54 @@ struct EnergyMinimizer {
     float cutoff;
 };
 
-static void energy_minimize(EnergyMinimizer *p, std::vector<Magnum::Vector3> &points);
+static void energy_minimize(EnergyMinimizer *p, std::vector<MxVector3f> &points);
 
-static float sphere_2body(EnergyMinimizer* p, Magnum::Vector3 *x1, Magnum::Vector3 *x2,
-                          Magnum::Vector3 *f1, Magnum::Vector3 *f2);
+static float sphere_2body(EnergyMinimizer* p, MxVector3f *x1, MxVector3f *x2,
+                          MxVector3f *f1, MxVector3f *f2);
 
-static float sphere_1body(EnergyMinimizer* p, Magnum::Vector3 *p1,
-                          Magnum::Vector3 *f1) ;
+static float sphere_1body(EnergyMinimizer* p, MxVector3f *p1,
+                          MxVector3f *f1) ;
 
-static PyObject *random_point_disk(int n) {
+static std::vector<MxVector3f> random_point_disk(int n) {
+
+    std::vector<MxVector3f> result(n);
 
     try {
-        std::uniform_real_distribution<double> uniform01(0.0, 1.0);
+        std::uniform_real_distribution<float> uniform01(0.0, 1.0);
 
-        int nd = 2;
-
-        int typenum = NPY_DOUBLE;
-
-        npy_intp dims[] = {n,3};
-
-        PyArrayObject* array = (PyArrayObject*)PyArray_SimpleNew(nd, dims, typenum);
-
-        double *data = (double*)PyArray_DATA(array);
-
-        for(int i = 0; i < n; ++i) {
-            double r = sqrt(uniform01(CRandom));
-            double theta = 2 * M_PI * uniform01(CRandom);
-            data[i * 3 + 0] = r * cos(theta);
-            data[i * 3 + 1] = r * sin(theta);
-            data[i * 3 + 2] = 0.;
+        for(auto p = result.begin(); p != result.end(); ++p) {
+            float r = sqrt(uniform01(MxRandom));
+            float theta = 2 * M_PI * uniform01(MxRandom);
+            *p = MxVector3f(r * cos(theta), r * sin(theta), 0.);
         }
-
-        return (PyObject*)array;
-
     }
     catch (const std::exception &e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
+        result.clear();
     }
+
+    return result;
 }
 
+static std::vector<MxVector3f> random_point_sphere(int n) {
 
-static PyObject* random_point_sphere(int n) {
+    std::vector<MxVector3f> result(n);
 
     try {
-        std::vector<Magnum::Vector3> points(n);
+        std::vector<MxVector3f> points(n);
         
-        double radius = 1.0;
+        float radius = 1.0;
 
-        std::uniform_real_distribution<double> uniform01(0.0, 1.0);
+        std::uniform_real_distribution<float> uniform01(0.0, 1.0);
 
-        int nd = 2;
+        for(auto p = result.begin(); p != result.end(); ++p) {
+            float theta = 2 * M_PI * uniform01(MxRandom);
+            float phi = acos(1 - 2 * uniform01(MxRandom));
+            float x = radius * sin(phi) * cos(theta);
+            float y = radius * sin(phi) * sin(theta);
+            float z = radius * cos(phi);
 
-        int typenum = NPY_DOUBLE;
-
-        npy_intp dims[] = {n,3};
-
-        PyArrayObject* array = (PyArrayObject*)PyArray_SimpleNew(nd, dims, typenum);
-
-        double *data = (double*)PyArray_DATA(array);
-
-        for(int i = 0; i < n; ++i) {
-            double theta = 2 * M_PI * uniform01(CRandom);
-            double phi = acos(1 - 2 * uniform01(CRandom));
-            double x = radius * sin(phi) * cos(theta);
-            double y = radius * sin(phi) * sin(theta);
-            double z = radius * cos(phi);
-
-            points[i] = Magnum::Vector3{(float)x, (float)y, (float)z};
+            *p = MxVector3f(x, y, z);
         }
         
         EnergyMinimizer em;
@@ -282,260 +258,152 @@ static PyObject* random_point_sphere(int n) {
         em.max_outer_iter = 10;
         em.cutoff = 0.2;
         
-        energy_minimize(&em, points);
-        
-        for(int i = 0; i < n; ++i) {
-            data[i * 3 + 0] = points[i].x();
-            data[i * 3 + 1] = points[i].y();
-            data[i * 3 + 2] = points[i].z();
-        }
-
-        return (PyObject*)array;
+        energy_minimize(&em, result);
 
     }
     catch (const std::exception &e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
+        result.clear();
     }
+
+    return result;
 }
 
-static PyObject* random_point_solidsphere(int n) {
+static std::vector<MxVector3f> random_point_solidsphere(int n) {
+
+    std::vector<MxVector3f> result(n);
 
     try {
+        std::uniform_real_distribution<float> uniform01(0.0, 1.0);
 
-        std::uniform_real_distribution<double> uniform01(0.0, 1.0);
+        for(auto p = result.begin(); p != result.end(); ++p) {
+            float theta = 2 * M_PI * uniform01(MxRandom);
+            float phi = acos(1 - 2 * uniform01(MxRandom));
+            float r = std::cbrt(uniform01(MxRandom));
+            float x = r * sin(phi) * cos(theta);
+            float y = r * sin(phi) * sin(theta);
+            float z = r * cos(phi);
 
-        int nd = 2;
-
-        int typenum = NPY_DOUBLE;
-
-        npy_intp dims[] = {n,3};
-
-
-        PyArrayObject* array = (PyArrayObject*)PyArray_SimpleNew(nd, dims, typenum);
-
-        double *data = (double*)PyArray_DATA(array);
-
-        for(int i = 0; i < n; ++i) {
-            double theta = 2 * M_PI * uniform01(CRandom);
-            double phi = acos(1 - 2 * uniform01(CRandom));
-            double r = std::cbrt(uniform01(CRandom));
-            double x = r * sin(phi) * cos(theta);
-            double y = r * sin(phi) * sin(theta);
-            double z = r * cos(phi);
-
-            data[i * 3 + 0] = x;
-            data[i * 3 + 1] = y;
-            data[i * 3 + 2] = z;
+            *p = MxVector3f(x, y, z);
         }
-
-        return (PyObject*)array;
 
     }
     catch (const std::exception& e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
+        result.clear();
     }
+
+    return result;
 }
 
-static PyObject* random_point_solidsphere_shell(int n, PyObject *_dr, PyObject *_phi) {
-    float dr = 1.0;
-    
-    if(_dr) {
-        dr = mx::cast<float>(_dr);
-    }
-    
-    float phi0 = 0;
-    float phi1 = M_PI;
-    
-    if(_phi) {
-        if(!PyTuple_Check(_phi) || PyTuple_Size(_phi) != 2) {
-            throw std::logic_error("phi must be a tuple of (phi0, phi1)");
-        }
-        phi0 = mx::cast<float>(PyTuple_GET_ITEM(_phi, 0));
-        phi1 = mx::cast<float>(PyTuple_GET_ITEM(_phi, 1));
-    }
-    
+static std::vector<MxVector3f> random_point_solidsphere_shell(int n, const float &dr=1.0, const float &phi0=0, const float &phi1=M_PI) {
+    std::vector<MxVector3f> result(n);
 
-    double cos0 = std::cos(phi0);
-    double cos1 = std::cos(phi1);
-    
-    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
-    
-    int nd = 2;
-    
-    int typenum = NPY_DOUBLE;
-    
-    npy_intp dims[] = {n,3};
-    
-    PyArrayObject* array = (PyArrayObject*)PyArray_SimpleNew(nd, dims, typenum);
-    
-    double *data = (double*)PyArray_DATA(array);
-    
-    for(int i = 0; i < n; ++i) {
-        double theta = 2 * M_PI * uniform01(CRandom);
-        // double phi = acos(1 - 2 * uniform01(CRandom));
-        double phi = acos(cos0 - (cos0-cos1) * uniform01(CRandom));
-        double r = std::cbrt((1-dr) + dr * uniform01(CRandom));
-        double x = r * sin(phi) * cos(theta);
-        double y = r * sin(phi) * sin(theta);
-        double z = r * cos(phi);
-        
-        data[i * 3 + 0] = x;
-        data[i * 3 + 1] = y;
-        data[i * 3 + 2] = z;
-    }
-    
-    return (PyObject*)array;
-}
-
-static PyObject* random_point_solidcube(int n) {
+    float cos0 = std::cos(phi0);
+    float cos1 = std::cos(phi1);
 
     try {
-        std::uniform_real_distribution<double> uniform01(-0.5, 0.5);
+        std::uniform_real_distribution<float> uniform01(0.0, 1.0);
 
-        int nd = 2;
+        for(auto p = result.begin(); p != result.end(); ++p) {
+            float theta = 2 * M_PI * uniform01(MxRandom);
+            float phi = acos(cos0 - (cos0-cos1) * uniform01(MxRandom));
+            float r = std::cbrt((1-dr) + dr * uniform01(MxRandom));
+            float x = r * sin(phi) * cos(theta);
+            float y = r * sin(phi) * sin(theta);
+            float z = r * cos(phi);
 
-        int typenum = NPY_DOUBLE;
-
-        npy_intp dims[] = {n,3};
-
-        PyArrayObject* array = (PyArrayObject*)PyArray_SimpleNew(nd, dims, typenum);
-
-        double *data = (double*)PyArray_DATA(array);
-
-        for(int i = 0; i < n; ++i) {
-            double x = uniform01(CRandom);
-            double y = uniform01(CRandom);
-            double z = uniform01(CRandom);
-            data[i * 3 + 0] = x;
-            data[i * 3 + 1] = y;
-            data[i * 3 + 2] = z;
+            *p = MxVector3f(x, y, z);
         }
+    }
+    catch (const std::exception& e) {
+        mx_exp(e);
+        result.clear();
+    }
+    
+    return result;
+}
 
-        return (PyObject*)array;
+static std::vector<MxVector3f> random_point_solidcube(int n) {
+    std::vector<MxVector3f> result(n);
+
+    try {
+        std::uniform_real_distribution<float> uniform01(-0.5, 0.5);
+
+        for(auto p = result.begin(); p != result.end(); ++p) {
+            *p = MxVector3f(uniform01(MxRandom), uniform01(MxRandom), uniform01(MxRandom));
+        }
 
     }
     catch (const std::exception& e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
+        result.clear();
     }
+
+    return result;
 }
 
-static PyObject* points_solidcube(int n) {
-    
-    if(n < 8) {
-        PyErr_SetString(PyExc_ValueError, "minimum 8 points in cube");
-        return NULL;
-    }
+static std::vector<MxVector3f> points_solidcube(int n) {
+    std::vector<MxVector3f> result(n);
     
     try {
-        std::uniform_real_distribution<double> uniform01(-0.5, 0.5);
+        if(n < 8) throw std::runtime_error("minimum 8 points in cube");
+
+        std::uniform_real_distribution<float> uniform01(-0.5, 0.5);
         
-        int nd = 2;
-        
-        int typenum = NPY_DOUBLE;
-        
-        npy_intp dims[] = {n,3};
-        
-        PyArrayObject* array = (PyArrayObject*)PyArray_SimpleNew(nd, dims, typenum);
-        
-        double *data = (double*)PyArray_DATA(array);
-        
-        for(int i = 0; i < n; ++i) {
-            double x = uniform01(CRandom);
-            double y = uniform01(CRandom);
-            double z = uniform01(CRandom);
-            data[i * 3 + 0] = x;
-            data[i * 3 + 1] = y;
-            data[i * 3 + 2] = z;
+        for(auto p = result.begin(); p != result.end(); ++p) {
+            *p = MxVector3f(uniform01(MxRandom), uniform01(MxRandom), uniform01(MxRandom));
         }
-        
-        return (PyObject*)array;
         
     }
     catch (const std::exception& e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
+        result.clear();
     }
+
+    return result;
 }
 
+static std::vector<MxVector3f> points_ring(int n) {
+    std::vector<MxVector3f> result(n);
 
-
-static PyObject* points_ring(int n) {
     try {
-        double radius = 1.0;
-        
-        int nd = 2;
-        
-        int typenum = NPY_DOUBLE;
-        
-        npy_intp dims[] = {n,3};
-        
-        const double phi = M_PI / 2.;
-        const double theta_i = 2 * M_PI / n;
-        
-        PyArrayObject* array = (PyArrayObject*)PyArray_SimpleNew(nd, dims, typenum);
-        
-        double *data = (double*)PyArray_DATA(array);
-        
-        for(int i = 0; i < n; ++i) {
-            double theta = i * theta_i;
-            double x = radius * sin(phi) * cos(theta);
-            double y = radius * sin(phi) * sin(theta);
-            double z = radius * cos(phi);
-            
-            data[i * 3 + 0] = x;
-            data[i * 3 + 1] = y;
-            data[i * 3 + 2] = z;
+        float radius = 1.0;
+        const float phi = M_PI / 2.;
+        const float theta_i = 2 * M_PI / n;
+
+        for(unsigned i = 0; i < result.size(); ++i) {
+            float theta = i * theta_i;
+            float x = radius * sin(phi) * cos(theta);
+            float y = radius * sin(phi) * sin(theta);
+            float z = radius * cos(phi);
+
+            result[i] = MxVector3f(x, y, z);
         }
-        
-        return (PyObject*)array;
-        
+
     }
     catch (const std::exception& e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
+        result.clear();
     }
+
+    return result;
 }
 
-static PyObject* points_sphere(int n) {
-    
-    std::vector<Magnum::Vector3> vertices;
+static std::vector<MxVector3f> points_sphere(int n) {
+    std::vector<MxVector3f> result;
     std::vector<int32_t> indices;
-    Mx_Icosphere(n, 0, M_PI, vertices, indices);
-    
-    
-    try {
-        int nd = 2;
-        npy_intp dims[] = {(int)vertices.size(),3};
-        int typenum = NPY_DOUBLE;
-        
-        PyArrayObject* array = (PyArrayObject*)PyArray_SimpleNew(nd, dims, typenum);
-        
-        double *data = (double*)PyArray_DATA(array);
-        
-        for(int i = 0; i < vertices.size(); ++i) {
-            Magnum::Vector3 vec = vertices[i];
-            
-            
-            data[i * 3 + 0] = vec.x();
-            data[i * 3 + 1] = vec.y();
-            data[i * 3 + 2] = vec.z();
-        }
-        
-        return (PyObject*)array;
-        
-    }
-    catch (const std::exception& e) {
-        C_EXP(e); return NULL;
-    }
+    if(Mx_Icosphere(n, 0, M_PI, result, indices) != S_OK) result.clear();
+    return result;
 }
 
-
-
-
-PyObject* MxRandomPoints(PyObject *m, PyObject *args, PyObject *kwargs)
+std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind, 
+                                       const int &n, 
+                                       const float &dr, 
+                                       const float &phi0, 
+                                       const float &phi1)
 {
     try {
-        MxPointsType kind = (MxPointsType)mx::arg<int>("kind", 0, args, kwargs, MxPointsType::Sphere);
-        int n  = mx::arg<int>("n", 1, args, kwargs, 1);
-
         switch(kind) {
         case MxPointsType::Sphere:
             return random_point_sphere(n);
@@ -544,54 +412,38 @@ PyObject* MxRandomPoints(PyObject *m, PyObject *args, PyObject *kwargs)
         case MxPointsType::SolidCube:
             return random_point_solidcube(n);
         case MxPointsType::SolidSphere: {
-            PyObject *phi = mx::py_arg("phi", 2, args, kwargs);
-            PyObject *dr = mx::py_arg("dr", 3, args, kwargs);
-            return random_point_solidsphere_shell(n, dr, phi);
+            return random_point_solidsphere_shell(n, dr, phi0, phi1);
         }
         default:
-            PyErr_SetString(PyExc_ValueError, "invalid kind");
-            return NULL;
+            throw std::runtime_error("invalid kind");
+            return std::vector<MxVector3f>();
         }
     }
     catch (const std::exception& e) {
-        C_EXP(e); return NULL;
+        mx_exp(e); 
     }
+
+    return std::vector<MxVector3f>();
 }
 
-
-PyObject* MxPoints(PyObject *m, PyObject *args, PyObject *kwargs)
+std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n)
 {
     try {
-        MxPointsType kind = (MxPointsType)mx::arg<int>("kind", 0, args, kwargs, MxPointsType::Sphere);
-        int n  = mx::arg<int>("n", 1, args, kwargs, 1);
-        
         switch(kind) {
             case MxPointsType::Ring:
                 return points_ring(n);
             case MxPointsType::Sphere:
                 return points_sphere(n);
             default:
-                PyErr_SetString(PyExc_ValueError, "invalid kind");
-                return NULL;
+                throw std::runtime_error("invalid kind");
+                return std::vector<MxVector3f>();
         }
     }
     catch (const std::exception& e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
     }
-}
 
-
-
-HRESULT _MxUtil_init(PyObject *m)
-{
-    PyModule_AddIntConstant(m, "Sphere", MxPointsType::Sphere);
-    PyModule_AddIntConstant(m, "SolidSphere", MxPointsType::SolidSphere);
-    PyModule_AddIntConstant(m, "Disk", MxPointsType::Disk);
-    PyModule_AddIntConstant(m, "SolidCube", MxPointsType::SolidCube);
-    PyModule_AddIntConstant(m, "Cube", MxPointsType::Cube);
-    PyModule_AddIntConstant(m, "Ring", MxPointsType::Ring);
-
-    return S_OK;
+    return std::vector<MxVector3f>();
 }
 
 Magnum::Color3 Color3_Parse(const std::string &s)
@@ -809,7 +661,7 @@ constexpr uint32_t Indices[]{
 /* Can't be just an array of Vector3 because MSVC 2015 is special. See
  Crosshair.cpp for details. */
 constexpr struct VertexSolidStrip {
-    Magnum::Vector3 position;
+    MxVector3f position;
 } Vertices[] {
     {{0.0f, -0.525731f, 0.850651f}},
     {{0.850651f, 0.0f, 0.525731f}},
@@ -826,7 +678,7 @@ constexpr struct VertexSolidStrip {
 };
 
 HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,
-                    std::vector<Magnum::Vector3> &verts,
+                    std::vector<MxVector3f> &verts,
                     std::vector<int32_t> &inds) {
     
     // TODO: sloppy ass code, needs clean up...
@@ -846,8 +698,8 @@ HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,
     std::memcpy(indices.begin(), Indices, sizeof(Indices));
     
     struct Vertex {
-        Magnum::Vector3 position;
-        Magnum::Vector3 normal;
+        MxVector3f position;
+        MxVector3f normal;
     };
     
     Magnum::Containers::Array<char> vertexData;
@@ -918,10 +770,10 @@ HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,
     
     std::set<int32_t> discarded_verts;
     
-    Magnum::Vector3 origin = {0.0, 0.0, 0.0};
+    MxVector3f origin = {0.0, 0.0, 0.0};
     for(int i = 0; i < positions.size(); ++i) {
-        Magnum::Vector3 position = positions[i];
-        Magnum::Vector3 spherical = MxCartesianToSpherical(position, origin);
+        MxVector3f position = positions[i];
+        MxVector3f spherical = MxCartesianToSpherical(position, origin);
         if(spherical[2] < phi0 || spherical[2] > phi1) {
             discarded_verts.emplace(i);
             index_map[i] = -1;
@@ -953,7 +805,7 @@ HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,
     return S_OK;
 }
 
-static void energy_find_neighborhood(std::vector<Magnum::Vector3> const &points,
+static void energy_find_neighborhood(std::vector<MxVector3f> const &points,
                                      const int part,
                                      float r,
                                      std::vector<int32_t> &nbor_inds,
@@ -965,10 +817,10 @@ static void energy_find_neighborhood(std::vector<Magnum::Vector3> const &points,
     float r2 = r * r;
     float br2 = 4 * r * r;
     
-    Magnum::Vector3 pt = points[part];
+    MxVector3f pt = points[part];
     for(int i = 0; i < points.size(); ++i) {
 
-        Magnum::Vector3 dx = pt - points[i];
+        MxVector3f dx = pt - points[i];
         float dx2 = dx.dot();
         if(dx2 <= r2) {
             nbor_inds.push_back(i);
@@ -982,8 +834,8 @@ static void energy_find_neighborhood(std::vector<Magnum::Vector3> const &points,
 float energy_minimize_neighborhood(EnergyMinimizer *p,
                                    std::vector<int32_t> &indices,
                                    std::vector<int32_t> &boundary_indices,
-                                   std::vector<Magnum::Vector3> &points,
-                                   std::vector<Magnum::Vector3> &forces) {
+                                   std::vector<MxVector3f> &points,
+                                   std::vector<MxVector3f> &forces) {
 
     float etot = 0;
 
@@ -1023,10 +875,10 @@ float energy_minimize_neighborhood(EnergyMinimizer *p,
     return etot;
 }
 
-void energy_minimize(EnergyMinimizer *p, std::vector<Magnum::Vector3> &points) {
+void energy_minimize(EnergyMinimizer *p, std::vector<MxVector3f> &points) {
     std::vector<int32_t> nindices(points.size()/2);
     std::vector<int32_t> bindices(points.size()/2);
-    std::vector<Magnum::Vector3> forces(points.size());
+    std::vector<MxVector3f> forces(points.size());
     std::uniform_int_distribution<> distrib(0, points.size() - 1);
     
     float etot[3] = {0, 0, 0};
@@ -1053,9 +905,9 @@ void energy_minimize(EnergyMinimizer *p, std::vector<Magnum::Vector3> &points) {
 }
 
 
-float sphere_2body(EnergyMinimizer* p, Magnum::Vector3 *x1, Magnum::Vector3 *x2,
-                   Magnum::Vector3 *f1, Magnum::Vector3 *f2) {
-    Magnum::Vector3 dx = (*x2 - *x1); // vector from x1 -> x2
+float sphere_2body(EnergyMinimizer* p, MxVector3f *x1, MxVector3f *x2,
+                   MxVector3f *f1, MxVector3f *f2) {
+    MxVector3f dx = (*x2 - *x1); // vector from x1 -> x2
     float r = dx.length() + 0.01; // softness factor.
     if(r > p->cutoff) {
         return 0;
@@ -1072,8 +924,8 @@ float sphere_2body(EnergyMinimizer* p, Magnum::Vector3 *x1, Magnum::Vector3 *x2,
     return std::abs(f);
 }
 
-float sphere_1body(EnergyMinimizer* p, Magnum::Vector3 *p1,
-                   Magnum::Vector3 *f1) {
+float sphere_1body(EnergyMinimizer* p, MxVector3f *p1,
+                   MxVector3f *f1) {
     float r = (*p1).length();
 
     float f = 1 * (1.0 - r); // magnitude of force.
@@ -1085,653 +937,385 @@ float sphere_1body(EnergyMinimizer* p, Magnum::Vector3 *p1,
 
 #if defined(__x86_64__) || defined(_M_X64)
 
-// Yes, Windows has the __cpuid and __cpuidx macros in the #include <intrin.h>
-// header file, but it seg-faults when we try to call them from clang.
-// this version of the cpuid seems to work with clang on both Windows and mac.
-
-// adapted from https://github.com/01org/linux-sgx/blob/master/common/inc/internal/linux/cpuid_gnu.h
-/* This is a PIC-compliant version of CPUID */
-static inline void __mx_cpuid(int *eax, int *ebx, int *ecx, int *edx)
+// getters
+std::string InstructionSet::Vendor(void)
 {
-#if defined(__x86_64__)
-    asm("cpuid"
-            : "=a" (*eax),
-            "=b" (*ebx),
-            "=c" (*ecx),
-            "=d" (*edx)
-            : "0" (*eax), "2" (*ecx));
+    return CPU_Rep.vendor_;
+}
+std::string InstructionSet::Brand(void)
+{
+    return CPU_Rep.brand_;
+}
+
+bool InstructionSet::SSE3(void)
+{
+    return CPU_Rep.f_1_ECX_[0];
+}
+bool InstructionSet::PCLMULQDQ(void)
+{
+    return CPU_Rep.f_1_ECX_[1];
+}
+bool InstructionSet::MONITOR(void)
+{
+    return CPU_Rep.f_1_ECX_[3];
+}
+bool InstructionSet::SSSE3(void)
+{
+    return CPU_Rep.f_1_ECX_[9];
+}
+bool InstructionSet::FMA(void)
+{
+    return CPU_Rep.f_1_ECX_[12];
+}
+bool InstructionSet::CMPXCHG16B(void)
+{
+    return CPU_Rep.f_1_ECX_[13];
+}
+bool InstructionSet::SSE41(void)
+{
+    return CPU_Rep.f_1_ECX_[19];
+}
+bool InstructionSet::SSE42(void)
+{
+    return CPU_Rep.f_1_ECX_[20];
+}
+bool InstructionSet::MOVBE(void)
+{
+    return CPU_Rep.f_1_ECX_[22];
+}
+bool InstructionSet::POPCNT(void)
+{
+    return CPU_Rep.f_1_ECX_[23];
+}
+bool InstructionSet::AES(void)
+{
+    return CPU_Rep.f_1_ECX_[25];
+}
+bool InstructionSet::XSAVE(void)
+{
+    return CPU_Rep.f_1_ECX_[26];
+}
+bool InstructionSet::OSXSAVE(void)
+{
+    return CPU_Rep.f_1_ECX_[27];
+}
+bool InstructionSet::AVX(void)
+{
+    return CPU_Rep.f_1_ECX_[28];
+}
+bool InstructionSet::F16C(void)
+{
+    return CPU_Rep.f_1_ECX_[29];
+}
+bool InstructionSet::RDRAND(void)
+{
+    return CPU_Rep.f_1_ECX_[30];
+}
+
+bool InstructionSet::MSR(void)
+{
+    return CPU_Rep.f_1_EDX_[5];
+}
+bool InstructionSet::CX8(void)
+{
+    return CPU_Rep.f_1_EDX_[8];
+}
+bool InstructionSet::SEP(void)
+{
+    return CPU_Rep.f_1_EDX_[11];
+}
+bool InstructionSet::CMOV(void)
+{
+    return CPU_Rep.f_1_EDX_[15];
+}
+bool InstructionSet::CLFSH(void)
+{
+    return CPU_Rep.f_1_EDX_[19];
+}
+bool InstructionSet::MMX(void)
+{
+    return CPU_Rep.f_1_EDX_[23];
+}
+bool InstructionSet::FXSR(void)
+{
+    return CPU_Rep.f_1_EDX_[24];
+}
+bool InstructionSet::SSE(void)
+{
+    return CPU_Rep.f_1_EDX_[25];
+}
+bool InstructionSet::SSE2(void)
+{
+    return CPU_Rep.f_1_EDX_[26];
+}
+bool InstructionSet::FSGSBASE(void)
+{
+    return CPU_Rep.f_7_EBX_[0];
+}
+bool InstructionSet::BMI1(void)
+{
+    return CPU_Rep.f_7_EBX_[3];
+}
+bool InstructionSet::HLE(void)
+{
+    return CPU_Rep.isIntel_ && CPU_Rep.f_7_EBX_[4];
+}
+bool InstructionSet::AVX2(void)
+{
+    return CPU_Rep.f_7_EBX_[5];
+}
+bool InstructionSet::BMI2(void)
+{
+    return CPU_Rep.f_7_EBX_[8];
+}
+bool InstructionSet::ERMS(void)
+{
+    return CPU_Rep.f_7_EBX_[9];
+}
+bool InstructionSet::INVPCID(void)
+{
+    return CPU_Rep.f_7_EBX_[10];
+}
+bool InstructionSet::RTM(void)
+{
+    return CPU_Rep.isIntel_ && CPU_Rep.f_7_EBX_[11];
+}
+bool InstructionSet::AVX512F(void)
+{
+    return CPU_Rep.f_7_EBX_[16];
+}
+bool InstructionSet::RDSEED(void)
+{
+    return CPU_Rep.f_7_EBX_[18];
+}
+bool InstructionSet::ADX(void)
+{
+    return CPU_Rep.f_7_EBX_[19];
+}
+bool InstructionSet::AVX512PF(void)
+{
+    return CPU_Rep.f_7_EBX_[26];
+}
+bool InstructionSet::AVX512ER(void)
+{
+    return CPU_Rep.f_7_EBX_[27];
+}
+bool InstructionSet::AVX512CD(void)
+{
+    return CPU_Rep.f_7_EBX_[28];
+}
+bool InstructionSet::SHA(void)
+{
+    return CPU_Rep.f_7_EBX_[29];
+}
+bool InstructionSet::PREFETCHWT1(void)
+{
+    return CPU_Rep.f_7_ECX_[0];
+}
+bool InstructionSet::LAHF(void)
+{
+    return CPU_Rep.f_81_ECX_[0];
+}
+bool InstructionSet::LZCNT(void)
+{
+    return CPU_Rep.isIntel_ && CPU_Rep.f_81_ECX_[5];
+}
+bool InstructionSet::ABM(void)
+{
+    return CPU_Rep.isAMD_ && CPU_Rep.f_81_ECX_[5];
+}
+bool InstructionSet::SSE4a(void)
+{
+    return CPU_Rep.isAMD_ && CPU_Rep.f_81_ECX_[6];
+}
+bool InstructionSet::XOP(void)
+{
+    return CPU_Rep.isAMD_ && CPU_Rep.f_81_ECX_[11];
+}
+bool InstructionSet::TBM(void)
+{
+    return CPU_Rep.isAMD_ && CPU_Rep.f_81_ECX_[21];
+}
+bool InstructionSet::SYSCALL(void)
+{
+    return CPU_Rep.isIntel_ && CPU_Rep.f_81_EDX_[11];
+}
+bool InstructionSet::MMXEXT(void)
+{
+    return CPU_Rep.isAMD_ && CPU_Rep.f_81_EDX_[22];
+}
+bool InstructionSet::RDTSCP(void)
+{
+    return CPU_Rep.isIntel_ && CPU_Rep.f_81_EDX_[27];
+}
+bool InstructionSet::_3DNOWEXT(void)
+{
+    return CPU_Rep.isAMD_ && CPU_Rep.f_81_EDX_[30];
+}
+bool InstructionSet::_3DNOW(void)
+{
+    return CPU_Rep.isAMD_ && CPU_Rep.f_81_EDX_[31];
+}
+
+InstructionSet::InstructionSet() {
+    featuresMap["SSE3"] = SSE3();
+    featuresMap["PCLMULQDQ"] = PCLMULQDQ();
+    featuresMap["MONITOR"] = MONITOR();
+    featuresMap["SSSE3"] = SSSE3();
+    featuresMap["FMA"] = FMA();
+    featuresMap["CMPXCHG16B"] = CMPXCHG16B();
+    featuresMap["SSE41"] = SSE41();
+    featuresMap["SSE42"] = SSE42();
+    featuresMap["MOVBE"] = MOVBE();
+    featuresMap["POPCNT"] = POPCNT();
+    featuresMap["AES"] = AES();
+    featuresMap["XSAVE"] = XSAVE();
+    featuresMap["OSXSAVE"] = OSXSAVE();
+    featuresMap["AVX"] = AVX();
+    featuresMap["F16C"] = F16C();
+    featuresMap["RDRAND"] = RDRAND();
+    featuresMap["MSR"] = MSR();
+    featuresMap["CX8"] = CX8();
+    featuresMap["SEP"] = SEP();
+    featuresMap["CMOV"] = CMOV();
+    featuresMap["CLFSH"] = CLFSH();
+    featuresMap["MMX"] = MMX();
+    featuresMap["FXSR"] = FXSR();
+    featuresMap["SSE"] = SSE();
+    featuresMap["SSE2"] = SSE2();
+    featuresMap["FSGSBASE"] = FSGSBASE();
+    featuresMap["BMI1"] = BMI1();
+    featuresMap["HLE"] = HLE();
+    featuresMap["AVX2"] = AVX2();
+    featuresMap["BMI2"] = BMI2();
+    featuresMap["ERMS"] = ERMS();
+    featuresMap["INVPCID"] = INVPCID();
+    featuresMap["RTM"] = RTM();
+    featuresMap["AVX512F"] = AVX512F();
+    featuresMap["RDSEED"] = RDSEED();
+    featuresMap["ADX"] = ADX();
+    featuresMap["AVX512PF"] = AVX512PF();
+    featuresMap["AVX512ER"] = AVX512ER();
+    featuresMap["AVX512CD"] = AVX512CD();
+    featuresMap["SHA"] = SHA();
+    featuresMap["PREFETCHWT1"] = PREFETCHWT1();
+    featuresMap["LAHF"] = LAHF();
+    featuresMap["LZCNT"] = LZCNT();
+    featuresMap["ABM"] = ABM();
+    featuresMap["SSE4a"] = SSE4a();
+    featuresMap["XOP"] = XOP();
+    featuresMap["TBM"] = TBM();
+    featuresMap["SYSCALL"] = SYSCALL();
+    featuresMap["MMXEXT"] = MMXEXT();
+    featuresMap["RDTSCP"] = RDTSCP();
+    featuresMap["_3DNOWEXT"] = _3DNOWEXT();
+    featuresMap["_3DNOW"] = _3DNOW();
+}
+
+std::unordered_map<std::string, bool> getFeaturesMap() {
+    return InstructionSet().featuresMap;
+}
 
 #else
-    /*on 32bit, ebx can NOT be used as PIC code*/
-    asm volatile ("xchgl %%ebx, %1; cpuid; xchgl %%ebx, %1"
-            : "=a" (*eax), "=r" (*ebx), "=c" (*ecx), "=d" (*edx)
-            : "0" (*eax), "2" (*ecx));
-#endif
-}
 
-#ifdef _WIN32
-
-// TODO: PATHETIC HACK for windows. 
-// don't know why, but calling cpuid in release mode, and ONLY in release 
-// mode causes a segfault. Hack is to flush stdout, push some junk on the stack. 
-// and force a task switch. 
-// dont know why this works, but if any of these are not here, then it segfaults
-// in release mode. 
-// this also seems to work, but force it non-inline and return random
-// number. 
-// Maybe the optimizer is inlining it, and inlining causes issues
-// calling cpuid??? 
-
-static __declspec(noinline) int mx_cpuid(int a[4], int b)
-{
-    a[0] = b;
-    a[2] = 0;
-    __mx_cpuid(&a[0], &a[1], &a[2], &a[3]);
-    return std::rand();
-}
-
-static __declspec(noinline) int mx_cpuidex(int a[4], int b, int c)
-{
-    a[0] = b;
-    a[2] = c;
-    __mx_cpuid(&a[0], &a[1], &a[2], &a[3]);
-    return std::rand();
-}
-
-#else 
-
-static  void mx_cpuid(int a[4], int b)
-{
-    a[0] = b;
-    a[2] = 0;
-    __mx_cpuid(&a[0], &a[1], &a[2], &a[3]);
-}
-
-static void mx_cpuidex(int a[4], int b, int c)
-{
-    a[0] = b;
-    a[2] = c;
-    __mx_cpuid(&a[0], &a[1], &a[2], &a[3]);
+std::unordered_map<std::string, bool> getFeaturesMap() {
+    return std::unordered_map<std::string, bool>();
 }
 
 #endif
 
-             
-// InstructionSet.cpp
-// Compile by using: cl /EHsc /W4 InstructionSet.cpp
-// processor: x86, x64
-// Uses the __cpuid intrinsic to get information about
-// CPU extended instruction set support.
-
-
-
-typedef Magnum::Vector4i VectorType;
-
-
-class InstructionSet
-{
-
-private:
+MxCompileFlags::MxCompileFlags() {
     
-
-    class InstructionSet_Internal
-    {
-    public:
-        InstructionSet_Internal() :
-                nIds_ { 0 }, nExIds_ { 0 }, isIntel_ { false }, isAMD_ { false }, f_1_ECX_ {
-                        0 }, f_1_EDX_ { 0 }, f_7_EBX_ { 0 }, f_7_ECX_ { 0 }, f_81_ECX_ {
-                        0 }, f_81_EDX_ { 0 }, data_ { }, extdata_ { }
-        {
-            VectorType cpui;
-
-            // Calling mx_cpuid with 0x0 as the function_id argument
-            // gets the number of the highest valid function ID.
-            mx_cpuid(cpui.data(), 0);
-            nIds_ = cpui[0];
-
-            for (int i = 0; i <= nIds_; ++i) {
-                mx_cpuidex(cpui.data(), i, 0);
-                data_.push_back(cpui);
-            }
-
-            // Capture vendor string
-            char vendor[0x20];
-            memset(vendor, 0, sizeof(vendor));
-            *reinterpret_cast<int*>(vendor) = data_[0][1];
-            *reinterpret_cast<int*>(vendor + 4) = data_[0][3];
-            *reinterpret_cast<int*>(vendor + 8) = data_[0][2];
-            vendor_ = vendor;
-            if (vendor_ == "GenuineIntel") {
-                isIntel_ = true;
-            } else if (vendor_ == "AuthenticAMD") {
-                isAMD_ = true;
-            }
-
-            // load bitset with flags for function 0x00000001
-            if (nIds_ >= 1) {
-                f_1_ECX_ = data_[1][2];
-                f_1_EDX_ = data_[1][3];
-            }
-
-            // load bitset with flags for function 0x00000007
-            if (nIds_ >= 7) {
-                f_7_EBX_ = data_[7][1];
-                f_7_ECX_ = data_[7][2];
-            }
-
-            // Calling mx_cpuid with 0x80000000 as the function_id argument
-            // gets the number of the highest valid extended ID.
-            mx_cpuid(cpui.data(), 0x80000000);
-            nExIds_ = cpui[0];
-
-            char brand[0x40];
-            memset(brand, 0, sizeof(brand));
-
-            for (int i = 0x80000000; i <= nExIds_; ++i) {
-                mx_cpuidex(cpui.data(), i, 0);
-                extdata_.push_back(cpui);
-            }
-
-            // load bitset with flags for function 0x80000001
-            if (nExIds_ >= 0x80000001) {
-                f_81_ECX_ = extdata_[1][2];
-                f_81_EDX_ = extdata_[1][3];
-            }
-
-            // Interpret CPU brand string if reported
-            if (nExIds_ >= 0x80000004) {
-                memcpy(brand, extdata_[2].data(), sizeof(cpui));
-                memcpy(brand + 16, extdata_[3].data(), sizeof(cpui));
-                memcpy(brand + 32, extdata_[4].data(), sizeof(cpui));
-                brand_ = brand;
-            }
-        };
-
-
-        int nIds_;
-        int nExIds_;
-        std::string vendor_;
-        std::string brand_;
-        bool isIntel_;
-        bool isAMD_;
-        std::bitset<32> f_1_ECX_;
-        std::bitset<32> f_1_EDX_;
-        std::bitset<32> f_7_EBX_;
-        std::bitset<32> f_7_ECX_;
-        std::bitset<32> f_81_ECX_;
-        std::bitset<32> f_81_EDX_;
-        std::vector<VectorType> data_;
-        std::vector<VectorType> extdata_;
-    };
-
-    const InstructionSet_Internal CPU_Rep;
-
-
-public:
-    // getters
-    std::string Vendor(void)
-    {
-        return CPU_Rep.vendor_;
-    }
-    std::string Brand(void)
-    {
-        return CPU_Rep.brand_;
-    }
-
-    bool SSE3(void)
-    {
-        return CPU_Rep.f_1_ECX_[0];
-    }
-    bool PCLMULQDQ(void)
-    {
-        return CPU_Rep.f_1_ECX_[1];
-    }
-    bool MONITOR(void)
-    {
-        return CPU_Rep.f_1_ECX_[3];
-    }
-    bool SSSE3(void)
-    {
-        return CPU_Rep.f_1_ECX_[9];
-    }
-    bool FMA(void)
-    {
-        return CPU_Rep.f_1_ECX_[12];
-    }
-    bool CMPXCHG16B(void)
-    {
-        return CPU_Rep.f_1_ECX_[13];
-    }
-    bool SSE41(void)
-    {
-        return CPU_Rep.f_1_ECX_[19];
-    }
-    bool SSE42(void)
-    {
-        return CPU_Rep.f_1_ECX_[20];
-    }
-    bool MOVBE(void)
-    {
-        return CPU_Rep.f_1_ECX_[22];
-    }
-    bool POPCNT(void)
-    {
-        return CPU_Rep.f_1_ECX_[23];
-    }
-    bool AES(void)
-    {
-        return CPU_Rep.f_1_ECX_[25];
-    }
-    bool XSAVE(void)
-    {
-        return CPU_Rep.f_1_ECX_[26];
-    }
-    bool OSXSAVE(void)
-    {
-        return CPU_Rep.f_1_ECX_[27];
-    }
-    bool AVX(void)
-    {
-        return CPU_Rep.f_1_ECX_[28];
-    }
-    bool F16C(void)
-    {
-        return CPU_Rep.f_1_ECX_[29];
-    }
-    bool RDRAND(void)
-    {
-        return CPU_Rep.f_1_ECX_[30];
-    }
-
-    bool MSR(void)
-    {
-        return CPU_Rep.f_1_EDX_[5];
-    }
-    bool CX8(void)
-    {
-        return CPU_Rep.f_1_EDX_[8];
-    }
-    bool SEP(void)
-    {
-        return CPU_Rep.f_1_EDX_[11];
-    }
-    bool CMOV(void)
-    {
-        return CPU_Rep.f_1_EDX_[15];
-    }
-    bool CLFSH(void)
-    {
-        return CPU_Rep.f_1_EDX_[19];
-    }
-    bool MMX(void)
-    {
-        return CPU_Rep.f_1_EDX_[23];
-    }
-    bool FXSR(void)
-    {
-        return CPU_Rep.f_1_EDX_[24];
-    }
-    bool SSE(void)
-    {
-        return CPU_Rep.f_1_EDX_[25];
-    }
-    bool SSE2(void)
-    {
-        return CPU_Rep.f_1_EDX_[26];
-    }
-
-    bool FSGSBASE(void)
-    {
-        return CPU_Rep.f_7_EBX_[0];
-    }
-    bool BMI1(void)
-    {
-        return CPU_Rep.f_7_EBX_[3];
-    }
-    bool HLE(void)
-    {
-        return CPU_Rep.isIntel_ && CPU_Rep.f_7_EBX_[4];
-    }
-    bool AVX2(void)
-    {
-        return CPU_Rep.f_7_EBX_[5];
-    }
-    bool BMI2(void)
-    {
-        return CPU_Rep.f_7_EBX_[8];
-    }
-    bool ERMS(void)
-    {
-        return CPU_Rep.f_7_EBX_[9];
-    }
-    bool INVPCID(void)
-    {
-        return CPU_Rep.f_7_EBX_[10];
-    }
-    bool RTM(void)
-    {
-        return CPU_Rep.isIntel_ && CPU_Rep.f_7_EBX_[11];
-    }
-    bool AVX512F(void)
-    {
-        return CPU_Rep.f_7_EBX_[16];
-    }
-    bool RDSEED(void)
-    {
-        return CPU_Rep.f_7_EBX_[18];
-    }
-    bool ADX(void)
-    {
-        return CPU_Rep.f_7_EBX_[19];
-    }
-    bool AVX512PF(void)
-    {
-        return CPU_Rep.f_7_EBX_[26];
-    }
-    bool AVX512ER(void)
-    {
-        return CPU_Rep.f_7_EBX_[27];
-    }
-    bool AVX512CD(void)
-    {
-        return CPU_Rep.f_7_EBX_[28];
-    }
-    bool SHA(void)
-    {
-        return CPU_Rep.f_7_EBX_[29];
-    }
-
-    bool PREFETCHWT1(void)
-    {
-        return CPU_Rep.f_7_ECX_[0];
-    }
-
-    bool LAHF(void)
-    {
-        return CPU_Rep.f_81_ECX_[0];
-    }
-    bool LZCNT(void)
-    {
-        return CPU_Rep.isIntel_ && CPU_Rep.f_81_ECX_[5];
-    }
-    bool ABM(void)
-    {
-        return CPU_Rep.isAMD_ && CPU_Rep.f_81_ECX_[5];
-    }
-    bool SSE4a(void)
-    {
-        return CPU_Rep.isAMD_ && CPU_Rep.f_81_ECX_[6];
-    }
-    bool XOP(void)
-    {
-        return CPU_Rep.isAMD_ && CPU_Rep.f_81_ECX_[11];
-    }
-    bool TBM(void)
-    {
-        return CPU_Rep.isAMD_ && CPU_Rep.f_81_ECX_[21];
-    }
-
-    bool SYSCALL(void)
-    {
-        return CPU_Rep.isIntel_ && CPU_Rep.f_81_EDX_[11];
-    }
-    bool MMXEXT(void)
-    {
-        return CPU_Rep.isAMD_ && CPU_Rep.f_81_EDX_[22];
-    }
-    bool RDTSCP(void)
-    {
-        return CPU_Rep.isIntel_ && CPU_Rep.f_81_EDX_[27];
-    }
-    bool _3DNOWEXT(void)
-    {
-        return CPU_Rep.isAMD_ && CPU_Rep.f_81_EDX_[30];
-    }
-    bool _3DNOW(void)
-    {
-        return CPU_Rep.isAMD_ && CPU_Rep.f_81_EDX_[31];
-    }
-};
-
-PyObject *MxInstructionSetFeatruesDict(PyObject *o) {
-     
-     PyObject *dict = PyDict_New();
-
-     InstructionSet is;
-     
-     // Defining Lambda function and
-     // Capturing Local variables by Value
-     auto add_item = [dict] (const char* key, bool value) {
-         PyDict_SetItemString(dict, key, PyBool_FromLong(value));
-     };
-     
-     PyObject *s = carbon::cast(is.Vendor());
-     PyDict_SetItemString(dict, "VENDOR", s);
-     Py_DecRef(s);
-     
-     s = carbon::cast(is.Brand());
-     PyDict_SetItemString(dict, "ID", s);
-     Py_DecRef(s);
-     
-     add_item("3DNOW", is._3DNOW());
-     add_item("3DNOWEXT", is._3DNOWEXT());
-     add_item("ABM", is.ABM());
-     add_item("ADX", is.ADX());
-     add_item("AES", is.AES());
-     add_item("AVX", is.AVX());
-     add_item("AVX2", is.AVX2());
-     add_item("AVX512CD", is.AVX512CD());
-     add_item("AVX512ER", is.AVX512ER());
-     add_item("AVX512F", is.AVX512F());
-     add_item("AVX512PF", is.AVX512PF());
-     add_item("BMI1", is.BMI1());
-     add_item("BMI2", is.BMI2());
-     add_item("CLFSH", is.CLFSH());
-     add_item("CMPXCHG16B", is.CMPXCHG16B());
-     add_item("CX8", is.CX8());
-     add_item("ERMS", is.ERMS());
-     add_item("F16C", is.F16C());
-     add_item("FMA", is.FMA());
-     add_item("FSGSBASE", is.FSGSBASE());
-     add_item("FXSR", is.FXSR());
-     add_item("HLE", is.HLE());
-     add_item("INVPCID", is.INVPCID());
-     add_item("LAHF", is.LAHF());
-     add_item("LZCNT", is.LZCNT());
-     add_item("MMX", is.MMX());
-     add_item("MMXEXT", is.MMXEXT());
-     add_item("MONITOR", is.MONITOR());
-     add_item("MOVBE", is.MOVBE());
-     add_item("MSR", is.MSR());
-     add_item("OSXSAVE", is.OSXSAVE());
-     add_item("PCLMULQDQ", is.PCLMULQDQ());
-     add_item("POPCNT", is.POPCNT());
-     add_item("PREFETCHWT1", is.PREFETCHWT1());
-     add_item("RDRAND", is.RDRAND());
-     add_item("RDSEED", is.RDSEED());
-     add_item("RDTSCP", is.RDTSCP());
-     add_item("RTM", is.RTM());
-     add_item("SEP", is.SEP());
-     add_item("SHA", is.SHA());
-     add_item("SSE", is.SSE());
-     add_item("SSE2", is.SSE2());
-     add_item("SSE3", is.SSE3());
-     add_item("SSE4.1", is.SSE41());
-     add_item("SSE4.2", is.SSE42());
-     add_item("SSE4a", is.SSE4a());
-     add_item("SSSE3", is.SSSE3());
-     add_item("SYSCALL", is.SYSCALL());
-     add_item("TBM", is.TBM());
-     add_item("XOP", is.XOP());
-     add_item("XSAVE", is.XSAVE());
-     
-     return dict;
- }
- 
- uint64_t MxInstructionSetFeatures() {
-
-     InstructionSet is;
-     
-     uint64_t result = 0;
-     
-     auto add_item = [&result] (uint64_t key, bool value) {
-         if(value) {
-             result |= key;
-         }
-     };
-     
-     add_item(IS_3DNOW, is._3DNOW());
-     add_item(IS_3DNOWEXT, is._3DNOWEXT());
-     add_item(IS_ABM, is.ABM());
-     add_item(IS_ADX, is.ADX());
-     add_item(IS_AES, is.AES());
-     add_item(IS_AVX, is.AVX());
-     add_item(IS_AVX2, is.AVX2());
-     add_item(IS_AVX512CD, is.AVX512CD());
-     add_item(IS_AVX512ER, is.AVX512ER());
-     add_item(IS_AVX512F, is.AVX512F());
-     add_item(IS_AVX512PF, is.AVX512PF());
-     add_item(IS_BMI1, is.BMI1());
-     add_item(IS_BMI2, is.BMI2());
-     add_item(IS_CLFSH, is.CLFSH());
-     add_item(IS_CMPXCHG16B, is.CMPXCHG16B());
-     add_item(IS_CX8, is.CX8());
-     add_item(IS_ERMS, is.ERMS());
-     add_item(IS_F16C, is.F16C());
-     add_item(IS_FMA, is.FMA());
-     add_item(IS_FSGSBASE, is.FSGSBASE());
-     add_item(IS_FXSR, is.FXSR());
-     add_item(IS_HLE, is.HLE());
-     add_item(IS_INVPCID, is.INVPCID());
-     add_item(IS_LAHF, is.LAHF());
-     add_item(IS_LZCNT, is.LZCNT());
-     add_item(IS_MMX, is.MMX());
-     add_item(IS_MMXEXT, is.MMXEXT());
-     add_item(IS_MONITOR, is.MONITOR());
-     add_item(IS_MOVBE, is.MOVBE());
-     add_item(IS_MSR, is.MSR());
-     add_item(IS_OSXSAVE, is.OSXSAVE());
-     add_item(IS_PCLMULQDQ, is.PCLMULQDQ());
-     add_item(IS_POPCNT, is.POPCNT());
-     add_item(IS_PREFETCHWT1, is.PREFETCHWT1());
-     add_item(IS_RDRAND, is.RDRAND());
-     add_item(IS_RDSEED, is.RDSEED());
-     add_item(IS_RDTSCP, is.RDTSCP());
-     add_item(IS_RTM, is.RTM());
-     add_item(IS_SEP, is.SEP());
-     add_item(IS_SHA, is.SHA());
-     add_item(IS_SSE, is.SSE());
-     add_item(IS_SSE2, is.SSE2());
-     add_item(IS_SSE3, is.SSE3());
-     add_item(IS_SSE41, is.SSE41());
-     add_item(IS_SSE42, is.SSE42());
-     add_item(IS_SSE4a, is.SSE4a());
-     add_item(IS_SSSE3, is.SSSE3());
-     add_item(IS_SYSCALL, is.SYSCALL());
-     add_item(IS_TBM, is.TBM());
-     add_item(IS_XOP, is.XOP());
-     add_item(IS_XSAVE, is.XSAVE());
-     
-     return result;
- }
-
-         
-
-
-#else // #if defined(__x86_64__) || defined(_M_X64)
-
-PyObject *MxInstructionSetFeatruesDict(PyObject *o) {
-     
-    Log(LOG_WARNING) << "Instruction Set Features only supported in Intel";
-    PyUnicode_FromString("Instruction Set Features only supported in Intel");
-    Py_RETURN_NONE;
-}
-
-uint64_t MxInstructionSetFeatures() {
-    Log(LOG_WARNING) << "Instruction Set Features only supported in Intel";
-    return 0;
-}
-
-
-#endif // #if defined(__x86_64__) || defined(_M_X64)
-
-// Initialize static member data
-//const InstructionSet::InstructionSet_Internal InstructionSet::CPU_Rep;
-
-PyObject *MxCompileFlagsDict(PyObject *o) {
-    PyObject *dict = PyDict_New();
-    
-    // Defining Lambda function and
-    // Capturing Local variables by Value
-    auto add_item = [dict] (const char* key, bool value) {
-        PyDict_SetItemString(dict, key, PyBool_FromLong(value));
-    };
-
 #ifdef _DEBUG
-    add_item("_DEBUG", true);
+    flags["_DEBUG"] = 1;
 #else
-    add_item("_DEBUG", 0);
-#endif 
+    flags["_DEBUG"] = 0;
+#endif
+    flagNames.push_back("_DEBUG");
 
-    add_item("MX_OPENMP", MX_OPENMP);
-    add_item("MX_OPENMP_BONDS", MX_OPENMP_BONDS);
-    add_item("MX_OPENMP_INTEGRATOR", MX_OPENMP_INTEGRATOR);
-    add_item("MX_VECTORIZE_FLUX", MX_VECTORIZE_FLUX);
-    add_item("MX_VECTORIZE_FORCE", MX_VECTORIZE_FORCE);
-    add_item("MX_SSE42", MX_SSE42);
-    add_item("MX_AVX", MX_AVX);
-    add_item("MX_AVX2", MX_AVX2);
+    flags["MX_OPENMP"] = MX_OPENMP;
+    flagNames.push_back("MX_OPENMP");
+    flags["MX_OPENMP_BONDS"] = MX_OPENMP_BONDS;
+    flagNames.push_back("MX_OPENMP_BONDS");
+    flags["MX_OPENMP_INTEGRATOR"] = MX_OPENMP_INTEGRATOR;
+    flagNames.push_back("MX_OPENMP_INTEGRATOR");
+    flags["MX_VECTORIZE_FLUX"] = MX_VECTORIZE_FLUX;
+    flagNames.push_back("MX_VECTORIZE_FLUX");
+    flags["MX_VECTORIZE_FORCE"] = MX_VECTORIZE_FORCE;
+    flagNames.push_back("MX_VECTORIZE_FORCE");
+    flags["MX_SSE42"] = MX_SSE42;
+    flagNames.push_back("MX_SSE42");
+    flags["MX_AVX"] = MX_AVX;
+    flagNames.push_back("MX_AVX");
+    flags["MX_AVX2"] = MX_AVX2;
+    flagNames.push_back("MX_AVX2");
     
 #ifdef MX_THREADING
-    add_item("MX_THREADING", true);
-    PyDict_SetItemString(dict, "MX_THREADPOOL_SIZE", PyLong_FromLong(mx::ThreadPool::hardwareThreadSize()));
+    flags["MX_THREADING"] = 1;
+    flags["MX_THREADPOOL_SIZE"] = mx::ThreadPool::hardwareThreadSize();
 #else
-    add_item("MX_THREADING", false);
-    PyDict_SetItemString(dict, "MX_THREADPOOL_SIZE", PyLong_FromLong(0));
+    flags["MX_THREADING"] = 0;
+    flags["MX_THREADPOOL_SIZE"] = 0;
 #endif
+    flagNames.push_back("MX_THREADING");
+    flagNames.push_back("MX_THREADPOOL_SIZE");
     
-    PyDict_SetItemString(dict, "MX_SIMD_SIZE", PyLong_FromLong(MX_SIMD_SIZE));
+    flags["MX_SIMD_SIZE"] = MX_SIMD_SIZE;
+    flagNames.push_back("MX_SIMD_SIZE");
 
 #ifdef __SSE__
-    add_item("__SSE__", __SSE__);
+    flags["__SSE__"] = __SSE__;
 #else
-    add_item("__SSE__", 0);
+    flags["__SSE__"] = 0;
 #endif
+    flagNames.push_back("__SSE__");
     
 #ifdef __SSE2__
-    add_item("__SSE2__", __SSE2__);
+    flags["__SSE2__"] = __SSE2__;
 #else
-    add_item("__SSE2__", 0);
+    flags["__SSE2__"] = 0;
 #endif
+    flagNames.push_back("__SSE2__");
     
 #ifdef __SSE3__
-    add_item("__SSE3__", __SSE3__);
+    flags["__SSE3__"] = __SSE3__;
 #else
-    add_item("__SSE3__", 0);
+    flags["__SSE3__"] = 0;
 #endif
+    flagNames.push_back("__SSE3__");
     
 #ifdef __SSE4_2__
-    add_item("__SSE4_2__", __SSE4_2__);
+    flags["__SSE4_2__"] = __SSE4_2__;
 #else
-    add_item("__SSE4_2__", 0);
+    flags["__SSE4_2__"] = 0;
 #endif
+    flagNames.push_back("__SSE4_2__");
     
 #ifdef __AVX__
-    add_item("__AVX__", __AVX__);
+    flags["__AVX__"] = __AVX__;
 #else
-    add_item("__AVX__", 0);
+    flags["__AVX__"] = 0;
 #endif
+    flagNames.push_back("__AVX__");
     
 #ifdef __AVX2__
-    add_item("__AVX2__", __AVX2__);
+    flags["__AVX2__"] = __AVX2__;
 #else
-    add_item("__AVX2__", 0);
+    flags["__AVX2__"] = 0;
 #endif
-    
-    return dict;
+    flagNames.push_back("__AVX2__");
 }
-          
-    
+
+const std::list<std::string> MxCompileFlags::getFlags() {
+    return flagNames;
+}
+
+const int MxCompileFlags::getFlag(const std::string &_flag) {
+    auto x = flags.find(_flag);
+    if (x != flags.end()) return x->second;
+    throw std::runtime_error("Flag not defined: " + _flag);
+}
+
 
 //  Windows
 #ifdef _WIN32
@@ -1799,32 +1383,87 @@ PerformanceTimer::~PerformanceTimer() {
     _Engine.timers[_id] += getticks() - _start;
 }
 
+// Function that returns true if n
+// is prime else returns false
+static bool isPrime(uint64_t n)
+{
+    // Corner cases
+    if (n <= 1)  return false;
+    if (n <= 3)  return true;
+
+    // This is checked so that we can skip
+    // middle five numbers in below loop
+    if (n%2 == 0 || n%3 == 0) return false;
+
+    for (uint64_t i=5; i*i<=n; i=i+6)
+        if (n%i == 0 || n%(i+2) == 0)
+           return false;
+
+    return true;
+}
+
+// Function to return the smallest
+// prime number greater than N
+
+uint64_t MxMath_NextPrime(const uint64_t &N)
+{
+
+    // Base case
+    if (N <= 1)
+        return 2;
+
+    uint64_t prime = N;
+    bool found = false;
+
+    // Loop continuously until isPrime returns
+    // true for a number greater than n
+    while (!found) {
+        prime++;
+
+        if (isPrime(prime))
+            found = true;
+    }
+
+    return prime;
+}
+
+std::vector<uint64_t> MxMath_FindPrimes(const uint64_t &start_prime, int n)
+{
+    auto result = std::vector<uint64_t>(n, 0);
+    auto start_p = start_prime;
+    for(auto itr = result.begin(); itr != result.end(); ++itr) {
+        *itr = MxMath_NextPrime(start_p);
+        start_p = *itr;
+    }
+    return result;
+}
+
+HRESULT MxMath_FindPrimes(uint64_t start_prime, int n, uint64_t *result)
+{
+    uint64_t r;
+    for(unsigned int i = 0; i < n; ++i) {
+        r = MxMath_NextPrime(start_prime);
+        result[i] = r;
+        start_prime = r;
+    }
+    return 0;
+}
 
 #include <Magnum/Math/Distance.h>
 
-PyObject *_MxTest(PyObject *mod, PyObject *args, PyObject *kwargs) {
+std::tuple<Magnum::Vector4, float> _MxTest(const MxVector3f &a, const MxVector3f &b, const MxVector3f &c) {
     try {
-        
-        auto a = mx::arg<Magnum::Vector3>("a", 0, args, kwargs);
-        auto b = mx::arg<Magnum::Vector3>("b", 1, args, kwargs);
-        auto c = mx::arg<Magnum::Vector3>("c", 2, args, kwargs);
-        
-        Magnum::Vector4 plane = Magnum::Math::planeEquation(a,b);
+        Magnum::Vector4 plane = Magnum::Math::planeEquation(a, b);
         
         float dist = Magnum::Math::Distance::pointPlaneScaled(c, plane);
         
-        PyObject *ret = PyTuple_Pack(2, mx::cast(plane), mx::cast(dist));
-        
-        return ret;
+        return std::make_tuple(plane, dist);;
         
     }
 
-catch(const std::exception &e) {
-    C_EXP(e); return NULL;
+    catch(const std::exception &e) {
+        mx_exp(e);
+    }
+
+    return std::make_tuple(Magnum::Vector4(), 0.0f);
 }
-
-
-    
-}
-   
-

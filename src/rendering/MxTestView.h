@@ -55,13 +55,11 @@ struct MxTestView
 
     ~MxTestView();
 
-    Magnum::Matrix3 transform;
+    MxMatrix3f transform;
 };
 
 int testWin(int argc, char** argv);
 
-PyObject *PyTestWin(PyObject *self, PyObject *args);
-
-PyObject *PyMessagePump(PyObject *self, PyObject *args);
+int testWin();
 
 #endif /* SRC_MXTESTVIEW_H_ */

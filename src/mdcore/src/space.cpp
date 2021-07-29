@@ -47,6 +47,8 @@
 #include <iostream>
 #include "smoothing_kernel.hpp"
 #include "MxBoundaryConditions.hpp"
+#include "../../MxLogger.h"
+#include "../../mx_error.h"
 
 #include <vector>
 #include <random>
@@ -1503,12 +1505,12 @@ int space_maketuples ( struct space *s ) {
 CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
 {
     if(pid < 0 || pid >= s->size_parts) {
-        return c_error(E_FAIL, "pid out of range");
+        return mx_error(E_FAIL, "pid out of range");
     }
     MxParticle *p = s->partlist[pid];
 
     if(p == NULL) {
-        return c_error(E_FAIL, "particle is already null and deleted");
+        return mx_error(E_FAIL, "particle is already null and deleted");
     }
 
     space_cell *cell = s->celllist[pid];
@@ -1521,10 +1523,6 @@ CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
     size_t cid = p - cell->parts;
 
     assert(p == &cell->parts[cid] && "pointer arithmetic error");
-    
-    // the particle will get overwritten, release the
-    // pyobject ptr now
-    Py_DecRef(p->_pyparticle);
 
     cell->count -= 1;
     if ( cid < cell->count ) {

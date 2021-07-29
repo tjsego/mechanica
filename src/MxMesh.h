@@ -12,7 +12,7 @@
 #include <list>
 #include <deque>
 #include <random>
-
+#include <variant>
 
 #include <Magnum/Magnum.h>
 #include <Magnum/Mesh.h>
@@ -24,22 +24,13 @@
 #include "MeshOperations.h"
 
 
-
-
-
-/**
- * The type object for a universe cell.
- */
-CAPI_DATA(MxCellType) *MxUniverseCell_Type;
+enum MxMesh_TYPESEL : int {
+    MxMesh_TYPENONE, 
+    MxMesh_TYPEEDGE, 
+    MxMesh_TYPEPOLYGON
+};
 
 /**
- * The type object for a universe partial triangle.
- */
-CAPI_DATA(CType) *MxUniversePartialTriangle_Type;
-
-/**
- * Internal implementation of CObject
- *
  * This mesh structure stores all position, velocity and acceleration information
  * in a set of mdcore particles. The MxMesh
  *
@@ -192,7 +183,7 @@ struct MxMesh  {
     void vertexAtributes(const std::vector<MxVertexAttribute> &attributes, uint vertexCount,
                 uint stride, void* buffer);
 
-    int findVertex(const Magnum::Vector3 &pos, double tolerance = 0.00001);
+    int findVertex(const MxVector3f &pos, double tolerance = 0.00001);
 
     /**
      * searches the edge list and checks to see if there is a skeletal edge
@@ -205,14 +196,14 @@ struct MxMesh  {
      *
      * returns a new, orphaned triangle.
      */
-    PolygonPtr createPolygon(CType *type,
+    PolygonPtr createPolygon(MxPolygonType *type,
             const std::vector<VertexPtr> &vertices);
 
 
     /**
      * Creates a new empty polygon.
      */
-    PolygonPtr createPolygon(CType *type);
+    PolygonPtr createPolygon(MxPolygonType *type);
 
 
     /**
@@ -223,12 +214,12 @@ struct MxMesh  {
      * of the vertices, that must be done with connectEdgeTriangle.
      * returns a new edge.
      */
-    EdgePtr createEdge(CType *type, VertexPtr a, VertexPtr b);
+    EdgePtr createEdge(VertexPtr a, VertexPtr b);
 
     /**
      * Creates a new empty cell and inserts it into the cell inventory.
      */
-    CellPtr createCell(CType *type = nullptr, const std::string& name = "");
+    CellPtr createCell(MxCellType *type = nullptr, const std::string& name = "");
 
     void dump(uint what);
 
@@ -260,9 +251,9 @@ struct MxMesh  {
      * May be called with zero len, in this case, the mesh re-calculates the derived
      *
      */
-    HRESULT setPositions(uint32_t len, const Vector3 *positions);
+    HRESULT setPositions(uint32_t len, const MxVector3f *positions);
 
-    VertexPtr createVertex(const Magnum::Vector3 &pos, const CType *type = MxVertex_Type);
+    VertexPtr createVertex(const MxVector3f &pos);
 
     HRESULT deleteVertex(VertexPtr v);
 
@@ -284,7 +275,8 @@ struct MxMesh  {
      * The type must be one of the types manages by this class, currently, these are
      * any cell, vertex, triangle or edge derived types.
      */
-    CObject *alloc(const CType *type);
+    template<typename ObjectType>
+    ObjectType *alloc();
 
 
     CellPtr rootCell() const {return _rootCell;};
@@ -317,24 +309,42 @@ struct MxMesh  {
     /**
      * Get the currently selected object.
      */
-    CObject *selectedObject() const;
+    template<typename T>
+    T *selectedObject() const { return *std::get_if<T*>(_selectedObject); }
+
+    /**
+     * Tests whether an edge is selected
+     */
+    const bool selectedEdge() const { return std::holds_alternative<MxEdge*>(*_selectedObject); }
+
+    /**
+     * Tests whether an polygon is selected
+     */
+    const bool selectedPolygon() const { return std::holds_alternative<MxPolygon*>(*_selectedObject); }
 
     /**
      * Select an object, sets the current selected object, and clears the existing one.
-     * type can be NULL to clear selection.
+     * type can be void* to clear selection.
      */
-    HRESULT selectObject(CType *type, uint index);
+    HRESULT selectObject(MxMesh_TYPESEL type, uint index);
 
-    std::tuple<Magnum::Vector3, Magnum::Vector3> extents() const;
+    HRESULT selectEdge(uint index);
 
+    HRESULT selectPolygon(uint index);
 
-    HRESULT addObjectDeleteListener(CObjectChangedHandler, void* userData);
+    HRESULT deselectObject();
 
-    HRESULT removeObjectDeleteListener(void* userData);
+    template<typename T>
+    const bool isSelected(T *obj) const { return obj = *std::get_if<T*>(_selectedObject); }
+
+    template<typename T>
+    const bool isSelected(const T *obj) const { return isSelected(const_cast<T*>(obj)); }
+
+    std::tuple<MxVector3f, MxVector3f> extents() const;
 
 private:
 
-
+    struct NoneSelectedType {};
 
 
 
@@ -349,7 +359,7 @@ private:
 
     uint triangleId = 0;
 
-    CObject *_selectedObject = nullptr;
+    std::variant<NoneSelectedType, MxEdge*, MxPolygon*> *_selectedObject;
 
     friend struct MxVertex;
     friend struct MxPolygon;
@@ -360,8 +370,6 @@ private:
     friend struct RadialEdgeCollapse;
     friend struct RadialEdgeSplit;
     friend struct MxEdge;
-
-    std::vector<CObjectChangedHolder> objectDeleteHandlers;
 
 };
 

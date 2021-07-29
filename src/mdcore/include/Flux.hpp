@@ -11,6 +11,8 @@
 #include "platform.h"
 #include "mdcore_single_config.h"
 
+#include <string>
+
 enum FluxKind {
     FLUX_FICK = 0,
     FLUX_SECRETE = 1,
@@ -36,6 +38,7 @@ struct MxFlux {
     float         target[MX_SIMD_SIZE];
 };
 
+struct MxParticleType;
 
 /**
  * flux is defined btween a pair of types, and acts on the
@@ -57,65 +60,38 @@ struct MxFlux {
  * Allocated size is:
  * sizeof(MxFluxes) + 2 * alloc_size * sizeof(int32) + alloc_size * sizeof(float)
  */
-struct MxFluxes : PyObject
+struct CAPI_EXPORT MxFluxes
 {
     int32_t size;          // how many individual flux objects this has
     int32_t fluxes_size;   // how many fluxes (blocks) this has.
-    static int32_t init;
+    // static int32_t init;
     MxFlux fluxes[];       // allocated in single block, this
+
+    static MxFluxes* newFluxes(int32_t init_size);
+    static MxFluxes *create(FluxKind kind, MxParticleType *a, MxParticleType *b,
+                            const std::string& name, float k, float decay, float target);
+    static MxFluxes *addFlux(FluxKind kind, MxFluxes *fluxes,
+                             int16_t typeId_a, int16_t typeId_b,
+                             int32_t index_a, int32_t index_b,
+                             float k, float decay, float target);
+
+    /**
+     * The mechanica flux function.
+     *
+     * args a:ParticleType, b:ParticleType, s:String, k:Float
+     *
+     * looks for a fluxes between types a and b, adds a flux for the
+     * species named 'name' with coef k.
+     */
+    static MxFluxes *fluxFick(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &decay=0.0f);
+    static MxFluxes *flux(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &decay=0.0f);
+    static MxFluxes *secrete(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay=0.0f);
+    static MxFluxes *uptake(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay=0.0f);
+
+    /**
+     * integrate all of the fluxes for a space cell.
+     */
+    static HRESULT integrate(int cellId);
 };
-
-MxFluxes *MxFluxes_New(int32_t init_size);
-
-
-MxFluxes *MxFluxes_AddFlux(FluxKind kind, MxFluxes *fluxes,
-                           int16_t typeId_a, int16_t typeId_b,
-                           int32_t index_a, int32_t index_b,
-                           float k, float decay, float target);
-
-
-/**
- * The global mechanica.flux function.
- *
- * python interface to add fluxes
- *
- * args a:ParticleType, b:ParticleType, s:String, k:Float
- *
- * looks for a fluxes between types a and b, adds a flux for the
- * species named 's' with coef k.
- */
-PyObject* MxFluxes_Fick(PyObject *self, PyObject *args, PyObject *kwargs);
-
-/**
- * The global mechanica.flux function.
- *
- * python interface to add fluxes
- *
- * args a:ParticleType, b:ParticleType, s:String, k:Float
- *
- * looks for a fluxes between types a and b, adds a flux for the
- * species named 's' with coef k.
- */
-PyObject* MxFluxes_Secrete(PyObject *self, PyObject *args, PyObject *kwargs);
-
-/**
- * The global mechanica.flux function.
- *
- * python interface to add fluxes
- *
- * args a:ParticleType, b:ParticleType, s:String, k:Float
- *
- * looks for a fluxes between types a and b, adds a flux for the
- * species named 's' with coef k.
- */
-PyObject* MxFluxes_Uptake(PyObject *self, PyObject *args, PyObject *kwargs);
-
-
-/**
- * integrate all of the fluxes for a space cell.
- */
-HRESULT MxFluxes_Integrate(int cellId);
-
-CAPI_DATA(PyTypeObject) MxFluxes_Type;
 
 #endif /* SRC_MDCORE_SRC_FLUX_H_ */

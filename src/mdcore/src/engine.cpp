@@ -25,7 +25,6 @@
 #include <math.h>
 #include <float.h>
 #include <string.h>
-#include <MxParticleEvent.h>
 #include <MxCluster.hpp>
 
 /* Include conditional headers. */
@@ -69,9 +68,9 @@
 #include "engine_advance.h"
 #include "MxForce.h"
 #include "MxBoundaryConditions.hpp"
-
+#include "../../MxLogger.h"
 #include "../../MxUtil.h"
-
+#include "../../mx_error.h"
 #include <iostream>
 
 #pragma clang diagnostic ignored "-Wwritable-strings"
@@ -958,6 +957,7 @@ int engine_addtype ( struct engine *e , double mass , double charge ,
  */
 
 int engine_addpot ( struct engine *e , struct MxPotential *p , int i , int j ) {
+	Log(LOG_DEBUG);
 
 	/* check for nonsense. */
 	if ( e == NULL )
@@ -969,12 +969,8 @@ int engine_addpot ( struct engine *e , struct MxPotential *p , int i , int j ) {
 
 	/* store the potential. */
 	pots[ i * e->max_type + j ] = p;
-    Py_INCREF(p);
 
-    if ( i != j ) {
-		pots[ j * e->max_type + i ] = p;
-        Py_INCREF(p);
-    }
+    if ( i != j ) pots[ j * e->max_type + i ] = p;
 
 	/* end on a good note. */
 	return engine_err_ok;
@@ -991,12 +987,8 @@ CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e, struct MxForce *p,
     /* store the force. */
     e->p_singlebody[i].force = p;
     e->p_singlebody[i].stateVectorIndex = stateVectorId;
-    Py_INCREF(p);
 
-    if(MxConstantForce_Check(p)) {
-        Py_INCREF(p);
-        e->constant_forces.push_back((MxConstantForce*)p);
-    }
+    if(p->isConstant()) e->constant_forces.push_back((MxConstantForce*)p);
 
     /* end on a good note. */
     return engine_err_ok;
@@ -1215,7 +1207,7 @@ int engine_step ( struct engine *e ) {
 	}
 
     // notify time listeners
-    if(!SUCCEEDED(CMulticastTimeEvent_Invoke(e->on_time, e->time * e->dt))) {
+    if(!SUCCEEDED(e->events->eval(e->time * e->dt))) {
         return error(engine_err);
     }
 
@@ -1500,7 +1492,7 @@ int engine_finalize ( struct engine *e ) {
 
 
 int engine_init ( struct engine *e , const double *origin , const double *dim , int *cells ,
-        double cutoff , PyObject *boundaryConditions , int max_type , unsigned int flags ) {
+        double cutoff , MxBoundaryConditionsArgsContainer *boundaryConditions , int max_type , unsigned int flags ) {
 
     int cid;
     
@@ -1508,19 +1500,22 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
     init_types = engine::nr_types;
 
     /* make sure the inputs are ok */
-    if ( e == NULL || origin == NULL || dim == NULL || cells == NULL )
+    if ( e == NULL || origin == NULL || dim == NULL || cells == NULL ) {
+		if(!e) 		Log(LOG_CRITICAL) << "no engine";
+		if(!origin) Log(LOG_CRITICAL) << "no origin";
+		if(!dim) 	Log(LOG_CRITICAL) << "no dim";
+		if(!cells) 	Log(LOG_CRITICAL) << "no cells";
+
         return error(engine_err_null);
+	}
 
     // set up boundary conditions, adjust cell count if needed
-    HRESULT err = MxBoundaryConditions_Init(&(e->boundary_conditions), cells, boundaryConditions);
-    if(FAILED(err)) {
-        return err;
-    }
+	e->boundary_conditions = *boundaryConditions->create(cells);
 
     // figure out spatials size...
-    Magnum::Vector3d domain_dim {dim[0] - origin[0], dim[1] - origin[1], dim[2] - origin[2]};
+    MxVector3d domain_dim {dim[0] - origin[0], dim[1] - origin[1], dim[2] - origin[2]};
 
-    Magnum::Vector3d L = {domain_dim[0] / cells[0], domain_dim[1] / cells[1], domain_dim[2] / cells[2]};
+    MxVector3d L = {domain_dim[0] / cells[0], domain_dim[1] / cells[1], domain_dim[2] / cells[2]};
 
     // initialize the engine
     Log(LOG_INFORMATION) << "engine: initializing the engine... ";
@@ -1660,7 +1655,7 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
     e->send = NULL;
     e->recv = NULL;
 
-    e->on_time = CMulticastTimeEvent_New();
+    e->events = new MxEventBaseList();
 
     e->integrator = EngineIntegrator::FORWARD_EULER;
 
@@ -1669,7 +1664,6 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
     e->particle_max_dist_fraction = 0.05;
     
     e->_init_boundary_conditions = boundaryConditions;
-    Py_IncRef(boundaryConditions);
     e->_init_cells[0] = cells[0];
     e->_init_cells[1] = cells[1];
     e->_init_cells[2] = cells[2];
@@ -1778,13 +1772,13 @@ CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
     PerformanceTimer t(engine_timer_advance);
 
     if(pid < 0 || pid >= e->s.size_parts) {
-        return c_error(E_FAIL, "pid out of range");
+        return mx_error(E_FAIL, "pid out of range");
     }
 
     MxParticle *part = e->s.partlist[pid];
 
     if(part == NULL) {
-        return c_error(E_FAIL, "particle already null");
+        return mx_error(E_FAIL, "particle already null");
     }
 
     MxParticleType *type = &e->types[part->typeId];
@@ -1803,14 +1797,24 @@ CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
     return space_del_particle(&e->s, pid);
 }
 
+MxVector3f engine_origin() {
+	return {
+        (float)_Engine.s.origin[0],
+        (float)_Engine.s.origin[1],
+        (float)_Engine.s.origin[2]
+    };
+}
 
-Magnum::Vector3 engine_center() {
-    Magnum::Vector3 dim = {
+MxVector3f engine_dimensions() {
+	return {
         (float)_Engine.s.dim[0],
         (float)_Engine.s.dim[1],
         (float)_Engine.s.dim[2]
     };
-    return dim / 2.;
+}
+
+MxVector3f engine_center() {
+    return engine_dimensions() / 2.;
 }
 
 int engine_add_cuboid_potential (struct engine *e , struct MxPotential *p , int partTypeId) {
@@ -1820,13 +1824,8 @@ int engine_add_cuboid_potential (struct engine *e , struct MxPotential *p , int 
     if ( partTypeId < 0 || partTypeId >= e->nr_types)
         return error(engine_err_range);
 
-    if(e->cuboid_potentials[partTypeId]) {
-        Py_DECREF(e->cuboid_potentials[partTypeId]);
-    }
-
     /* store the potential. */
     e->cuboid_potentials[partTypeId] = p;
-    Py_INCREF(p);
 
     /* end on a good note. */
     return engine_err_ok;
@@ -1834,7 +1833,7 @@ int engine_add_cuboid_potential (struct engine *e , struct MxPotential *p , int 
     
 int engine_reset ( struct engine *e  ) {
     
-    MxParticleList *parts = MxParticleList_All();
+    MxParticleList *parts = MxParticleList::all();
     
     HRESULT hr;
     

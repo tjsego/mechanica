@@ -42,6 +42,15 @@ typedef enum MxBondFlags {
     BOND_ACTIVE                 = 1 << 0,
 } MxBondFlags;
 
+// list of pairs...
+struct Pair {
+    int32_t i;
+    int32_t j;
+};
+
+typedef std::vector<Pair> PairList;
+struct MxBondHandle;
+struct MxParticleHandle;
 
 /** The bond structure */
 typedef struct MxBond {
@@ -67,63 +76,134 @@ typedef struct MxBond {
     
     struct NOMStyle *style;
 
+    /**
+     * @brief Construct a new bond handle and underlying bond
+     * 
+     * @param potential bond potential
+     * @param i ith particle
+     * @param j jth particle
+     * @param half_life bond half life
+     * @param dissociation_energy dissociation energy
+     * @param flags bond flags
+     */
+    static MxBondHandle *create(struct MxPotential *potential, 
+                                MxParticleHandle *i, 
+                                MxParticleHandle *j, 
+                                double *half_life=NULL, 
+                                double *dissociation_energy=NULL, 
+                                uint32_t flags=0);
+
 } MxBond;
 
-struct MxBondHandle : PyObject {
+struct MxParticleType;
+struct MxParticleList;
+
+struct MxBondHandle {
     int32_t id;
     
-    #ifdef INCLUDE_ENGINE_H_
-    inline MxBond *get() {
-        return &_Engine.bonds[this->id];
-    };
-    #endif
+    MxBond *get();
+
+    /**
+     * @brief Construct a new bond handle and do nothing
+     * Subsequent usage will require a call to 'init'
+     * 
+     */
+    MxBondHandle() : id(-1) {};
+
+    /**
+     * @brief Construct a new bond handle from an existing bond id
+     * 
+     * @param id id of existing bond
+     */
+    MxBondHandle(int id);
+
+    /**
+     * @brief Construct a new bond handle and underlying bond
+     * 
+     * @param potential bond potential
+     * @param i id of ith particle
+     * @param j id of jth particle
+     * @param half_life bond half life
+     * @param bond_energy bond energy
+     * @param flags bond flags
+     */
+    MxBondHandle(struct MxPotential *potential, 
+                 int32_t i, 
+                 int32_t j, 
+                 double half_life, 
+                 double bond_energy, 
+                 uint32_t flags);
+
+    /**
+     * @brief For initializing a bond after constructing with default constructor
+     * 
+     * @param pot bond potential
+     * @param p1 ith particle
+     * @param p2 jth particle
+     * @param half_life bond half life
+     * @param bond_energy bond energy
+     * @param flags bond flags
+     * @return int 
+     */
+    int init(MxPotential *pot, 
+             MxParticleHandle *p1, 
+             MxParticleHandle *p2, 
+             const double &half_life=std::numeric_limits<double>::max(), 
+             const double &bond_energy=std::numeric_limits<double>::max(), 
+             uint32_t flags=0);
+    std::string str();
+    bool check();
+    
+    static std::vector<MxBondHandle*>* pairwise(MxPotential* pot,
+                                                MxParticleList *parts,
+                                                const double &cutoff,
+                                                std::vector<std::pair<MxParticleType*, MxParticleType*>* > *ppairs,
+                                                const double &half_life,
+                                                const double &bond_energy,
+                                                uint32_t flags);
+    HRESULT destroy();
+    static std::vector<MxBondHandle*> bonds();
+    static std::vector<MxBondHandle*> items();
+
+    MxParticleHandle *operator[](unsigned int index);
+    
+    double getEnergy();
+    std::vector<int32_t> getParts();
+    MxPotential *getPotential();
+    uint32_t getId();
+    float getDissociationEnergy();
+    bool getActive();
+    NOMStyle *getStyle();
+
+private:
+
+    int _init(uint32_t flags, 
+              int32_t i, 
+              int32_t j, 
+              double half_life, 
+              double bond_energy, 
+              struct MxPotential *potential);
 };
 
-CAPI_FUNC(MxBondHandle*) MxBondHandle_FromId(int id);
-
-MxBond *MxBond_Get(PyObject *o);
-
-bool MxBondHandle_Check(PyObject *o);
-
-/**
- * The type of each individual bond.
- * actually bond handle type.
- */
-CAPI_DATA(PyTypeObject) MxBondHandle_Type;
+bool contains_bond(const std::vector<MxBondHandle*> &bonds, int a, int b);
 
 /**
  * shared global bond style
  */
 CAPI_DATA(NOMStyle*) MxBond_StylePtr;
 
-HRESULT _MxBond_init(PyObject *m);
-
-CAPI_FUNC(MxBondHandle*) MxBondHandle_New(uint32_t flags,
-        int32_t i, int32_t j,
-        double half_life,
-        double bond_energy,
-        struct MxPotential* potential);
-
-CAPI_FUNC(PyObject*) MxBond_PairwiseNew(
-        struct MxPotential* potential,
-        struct MxParticleList *parts,
-        float cutoff,
-        PyObject *pairs,
-        PyObject *args,
-        PyObject *kwds);
-
 /**
  * deletes, marks a bond ready for deleteion, removes the potential,
  * other vars, clears the bond, and makes is ready to be
  * over-written.
  */
-CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b);
+CAPI_FUNC(HRESULT) MxBond_Destroy(MxBond *b);
 
 HRESULT MxBond_Energy (MxBond *b, double *epot_out);
 
 /* associated functions */
-CAPI_FUNC(int) bond_eval ( struct MxBond *b , int N , struct engine *e , double *epot_out );
-CAPI_FUNC(int) bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , double *epot_out );
+CAPI_FUNC(int) bond_eval (MxBond *b , int N , struct engine *e , double *epot_out );
+CAPI_FUNC(int) bond_evalf (MxBond *b , int N , struct engine *e , FPTYPE *f , double *epot_out );
 
 
 /**
@@ -131,5 +211,7 @@ CAPI_FUNC(int) bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE
  */
 std::vector<int32_t> MxBond_IdsForParticle(int32_t pid);
 
+int insert_bond(std::vector<MxBondHandle*> &bonds, int a, int b,
+                MxPotential *pot, MxParticleList *parts);
 
 #endif // INCLUDE_BOND_H_

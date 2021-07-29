@@ -13,6 +13,8 @@
 #include "MxCluster.hpp"
 #include "Flux.hpp"
 #include "boundary_eval.hpp"
+#include "../../mx_error.h"
+#include "../../MxLogger.h"
 
 #include <sstream>
 #pragma clang diagnostic ignored "-Wwritable-strings"
@@ -51,7 +53,6 @@ static int engine_advance_runge_kutta_4 ( struct engine *e );
 
 
 static int _toofast_error(MxParticle *p, int line, const char* func) {
-    //CErr_Set(HRESULT code, const char* msg, int line, const char* file, const char* func);
     std::stringstream ss;
     ss << "ERROR, particle moving too fast, p: {" << std::endl;
     ss << "\tid: " << p->id << ", " << std::endl;
@@ -61,7 +62,7 @@ static int _toofast_error(MxParticle *p, int line, const char* func) {
     ss << "\tf: [" << p->f[0] << ", " << p->f[1] << ", " << p->f[2] << "], " << std::endl;
     ss << "}";
     
-    CErr_Set(E_FAIL, ss.str().c_str(), line, __FILE__, func);
+    MxErr_Set(E_FAIL, ss.str().c_str(), line, __FILE__, func);
     return error(engine_err_toofast);
 }
 
@@ -85,28 +86,28 @@ int engine_advance ( struct engine *e ) {
     }
 }
 
-Magnum::Quaternion integrate_angular_velocity_exact_1(const Magnum::Vector3& em, double deltaTime)
+MxQuaternionf integrate_angular_velocity_exact_1(const MxVector3f& em, double deltaTime)
 {
-    Magnum::Vector3 ha = em * deltaTime * 0.5; // vector of half angle
+    MxVector3f ha = em * deltaTime * 0.5; // vector of half angle
     double len = ha.length(); // magnitude
     if (len > 0) {
         ha *= std::sin(len) / len;
         double w = std::cos(len);
-        return Magnum::Quaternion(ha, w);
+        return MxQuaternionf(ha, w);
     } else {
-        return Magnum::Quaternion(ha, 1.0);
+        return MxQuaternionf(ha, 1.0);
     }
 }
 
-static Magnum::Quaternion integrate_angular_velocity_2(const Magnum::Vector3 &av, double dt) {
+static MxQuaternionf integrate_angular_velocity_2(const MxVector3f &av, double dt) {
     float len = av.length();
     double theta = len * dt * 0.5;
     if (len > 1.0e-12) {
         double w = std::cos(theta);
         double s = std::sin(theta) / len;
-        return  Magnum::Quaternion(av * s, w);
+        return  MxQuaternionf(av * s, w);
     } else {
-        return Magnum::Quaternion({0.f, 0.f, 0.f}, 1.f);
+        return MxQuaternionf({0.f, 0.f, 0.f}, 1.f);
     }
 }
 
@@ -252,6 +253,7 @@ int engine_advance_forward_euler ( struct engine *e ) {
     e->integrator_flags |= INTEGRATOR_UPDATE_PERSISTENTFORCE;
 
     if (engine_force( e ) < 0 ) {
+        Log(LOG_CRITICAL);
         return error(engine_err);
     }
 
@@ -338,7 +340,7 @@ int engine_advance_forward_euler ( struct engine *e ) {
         auto func = [dt, &h, &h2, &maxv, &maxv2, &maxx, &maxx2, &epot](int cid) -> void {
             cell_advance_forward_euler(dt, h, h2, maxv, maxv2, maxx, maxx2, cid);
             
-            MxFluxes_Integrate(cid);
+            MxFluxes::integrate(cid);
             
             bodies_advance_forward_euler(dt, cid);
         };

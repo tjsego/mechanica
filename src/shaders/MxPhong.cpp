@@ -42,7 +42,7 @@
 #include "Magnum/Math/Matrix3.h"
 #include "Magnum/Math/Matrix4.h"
 
-#include <CLogger.hpp>
+#include <MxLogger.h>
 
 #include <iostream>
 
@@ -180,7 +180,7 @@ MxPhong::MxPhong(Flags flags, unsigned lightCount, unsigned clipPlaneCount):
         .addSource(rs.get("MxPhong.frag"));
           
                      
-     if(CLogger::getLevel() >= LOG_DEBUG) {
+     if(MxLogger::getLevel() >= LOG_DEBUG) {
          std::stringstream ss;
          
          for(auto s : vert.sources()) {

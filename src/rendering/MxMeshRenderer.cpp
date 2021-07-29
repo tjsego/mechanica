@@ -18,18 +18,18 @@ MxMeshRenderer::MxMeshRenderer(Flags flags) :
 {
 }
 
-MxMeshRenderer& MxMeshRenderer::setViewportSize(const Magnum::Vector2& size) {
+MxMeshRenderer& MxMeshRenderer::setViewportSize(const MxVector2f& size) {
     shader->setViewportSize(size);
     return *this;
 }
 
 MxMeshRenderer& MxMeshRenderer::setColor(const Magnum::Color4& color) {
-    shader->setColor(color);
+    shader->setColor(Magnum::Color4(color));
     return *this;
 }
 
 MxMeshRenderer& MxMeshRenderer::setWireframeColor(const Magnum::Color4& color) {
-    shader->setWireframeColor(color);
+    shader->setWireframeColor(Magnum::Color4(color));
     return *this;
 }
 
@@ -121,20 +121,19 @@ MxMeshRenderer& MxMeshRenderer::setMesh(MxMesh* _mesh) {
     return *this;
 }
 
-MxMeshRenderer& MxMeshRenderer::setModelMatrix(const Magnum::Matrix4& mat) {
+MxMeshRenderer& MxMeshRenderer::setModelMatrix(const MxMatrix4f& mat) {
     modelMat = mat;
     shader->setTransformationProjectionMatrix(projMat * viewMat * modelMat);
     return *this;
 }
 
-MxMeshRenderer& MxMeshRenderer::setViewMatrix(const Magnum::Matrix4& mat) {
+MxMeshRenderer& MxMeshRenderer::setViewMatrix(const MxMatrix4f& mat) {
     viewMat = mat;
     shader->setTransformationProjectionMatrix(projMat * viewMat * modelMat);
     return *this;
 }
 
-MxMeshRenderer& MxMeshRenderer::setProjectionMatrix(
-        const Magnum::Matrix4& mat) {
+MxMeshRenderer& MxMeshRenderer::setProjectionMatrix(const MxMatrix4f& mat) {
     projMat = mat;
     shader->setTransformationProjectionMatrix(projMat * viewMat * modelMat);
     return *this;

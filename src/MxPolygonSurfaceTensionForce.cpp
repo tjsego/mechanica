@@ -20,13 +20,11 @@ HRESULT MxPolygonSurfaceTensionForce::setTime(float time)
     return S_OK;
 }
 
-HRESULT MxPolygonSurfaceTensionForce::applyForce(float time, CObject** objs,
-        uint32_t len) const
+HRESULT MxPolygonSurfaceTensionForce::applyForce(float time, const std::vector<MxForcable*> &objs) const
 {
-    for(int i = 0; i < len; ++i) {
+    for(auto o : objs) {
 
-
-        MxPolygon *pp = static_cast<MxPolygon*>(objs[i]);
+        MxPolygon *pp = static_cast<MxPolygon*>(o);
 
         for(uint i = 0; i < pp->vertices.size(); ++i) {
             VertexPtr vi = pp->vertices[i];

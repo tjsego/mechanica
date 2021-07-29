@@ -45,12 +45,9 @@ set(PUBLIC_HEADERS
   "${MDCORE_SOURCE_DIR}/include/fptype.h"
   "${MDCORE_SOURCE_DIR}/include/mdcore_config.h"
   "${MDCORE_SOURCE_DIR}/include/MxPy.h"
-  "${MDCORE_SOURCE_DIR}/include/MxNumpy.h"
   "${MDCORE_SOURCE_DIR}/include/MxForce.h"
-  "${MDCORE_SOURCE_DIR}/include/MxParticleEvent.h"
   "${MDCORE_SOURCE_DIR}/include/MxReactivePotential.h"
   "${MDCORE_SOURCE_DIR}/include/metrics.h"
-  "${MDCORE_SOURCE_DIR}/include/MxConvert.hpp"
   "${MDCORE_SOURCE_DIR}/include/MxParticleList.hpp"
   "${MDCORE_SOURCE_DIR}/include/Vertex.hpp"
   "${MDCORE_SOURCE_DIR}/include/MxBody.hpp"
@@ -118,12 +115,10 @@ SET(SOURCES
   runner_verlet.cpp
   MxPy.cpp
   MxForce.cpp
-  MxParticleEvent.cpp
   MxReactivePotential.cpp
   MxConstraint.cpp
   MxCluster.cpp
   metrics.cpp
-  MxConvert.cpp
   MxParticleList.cpp
   Vertex.cpp
   MxBody.cpp
@@ -222,7 +217,7 @@ function(add_mdcore_single)
   )
 
 target_link_libraries(mdcore_single PUBLIC
-  Carbon::Carbon
+  LibSBML::LibSBML
   Threads::Threads
   Magnum::Magnum
   )

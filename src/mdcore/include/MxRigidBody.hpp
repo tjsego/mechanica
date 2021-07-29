@@ -14,14 +14,8 @@ struct Cell
 {
 };
 
-struct CellHandle : PyObject
+struct CellHandle
 {
 };
-
-/**
- */
-CAPI_DATA(PyTypeObject) Cell_Type;
-
-HRESULT _cell_init(PyObject *m);
 
 #endif /* SRC_MDCORE_SRC_CELL_H_ */

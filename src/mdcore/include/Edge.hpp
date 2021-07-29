@@ -15,19 +15,9 @@ struct Edge
 {
 };
 
-struct EdgeHandle : PyObject
+struct EdgeHandle
 {
     int32_t id;
 };
-
-
-
-/**
- */
-CAPI_DATA(PyTypeObject) Edge_Type;
-
-HRESULT _edge_init(PyObject *m);
-
-
 
 #endif /* SRC_MDCORE_SRC_EDGE_H_ */

@@ -6,7 +6,7 @@
  */
 
 #include <MxBody.hpp>
-#include <MxConvert.hpp>
+#include <../../mx_error.h>
 #include <engine.h>
 
 // TODO: cheap, quick hack, move this to function pointer or somethign...
@@ -16,264 +16,215 @@
 
 
 #define BODY_SELF(handle) \
-    MxBody *self = &_Engine.s.cuboids[((MxBodyHandle*)handle)->id]; \
+    MxBody *self = &_Engine.s.cuboids[handle->id]; \
     if(self == NULL) { \
-        PyErr_SetString(PyExc_ReferenceError, "Body has been destroyed or is invalid"); \
-        return NULL; \
+        throw std::runtime_error("Body has been destroyed or is invalid"); \
     }
 
 #define BODY_PROP_SELF(handle) \
-    MxBody *self = &_Engine.s.cuboids[((MxBodyHandle*)handle)->id]; \
+    MxBody *self = &_Engine.s.cuboids[handle->id]; \
     if(self == NULL) { \
-        PyErr_SetString(PyExc_ReferenceError, "Cuboid has been destroyed or is invalid"); \
+        throw std::runtime_error("Cuboid has been destroyed or is invalid"); \
         return -1; \
     }
 
+MxBodyHandle *MxBody::handle() {
+    if(!_handle) _handle = new MxBodyHandle(this->id);
+
+    return _handle;
+}
+
 MxBody::MxBody() {
     bzero(this, sizeof(MxBody));
-    orientation = Magnum::Quaternion();
+    orientation = MxQuaternionf();
 }
 
-
-static PyObject* body_move(MxBodyHandle *_self, PyObject *args, PyObject *kwargs) {
+static HRESULT body_move(MxBodyHandle *handle, const MxVector3f &by) {
     try {
-        BODY_SELF(_self);
+        BODY_SELF(handle);
         
-        Magnum::Vector3 amount = mx::arg<Magnum::Vector3>("by", 0, args, kwargs);
-        
-        self->position += amount;
+        self->position += by;
         
         update_aabb(self);
-        
-        Py_RETURN_NONE;
+
+        return 1;
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
 }
 
-static PyObject* body_rotate(MxBodyHandle *_self, PyObject *args, PyObject *kwargs) {
+HRESULT MxBodyHandle::move(const MxVector3f &by) {
+    if(body_move(this, by) == 0) return 1;
+    return 0;
+}
+
+HRESULT MxBodyHandle::move(const std::vector<float> &by) {
+    return move(MxVector3f(by));
+}
+
+HRESULT body_rotate(MxBodyHandle *handle, const MxVector3f &by) {
     try {
-        BODY_SELF(_self);
+        BODY_SELF(handle);
         
-        Magnum::Vector3 angle = mx::arg<Magnum::Vector3>("by", 0, args, kwargs);
+        MxQuaternionf qx = MxQuaternionf::rotation(by[0], MxVector3f::xAxis());
+        MxQuaternionf qy = MxQuaternionf::rotation(by[1], MxVector3f::yAxis());
+        MxQuaternionf qz = MxQuaternionf::rotation(by[2], MxVector3f::zAxis());
         
-        Magnum::Quaternion qx = Magnum::Quaternion::rotation(Magnum::Rad(angle[0]), Magnum::Vector3::xAxis());
-        Magnum::Quaternion qy = Magnum::Quaternion::rotation(Magnum::Rad(angle[1]), Magnum::Vector3::yAxis());
-        Magnum::Quaternion qz = Magnum::Quaternion::rotation(Magnum::Rad(angle[2]), Magnum::Vector3::zAxis());
+        MxQuaternionf test = MxQuaternionf(by).normalized();
         
-        Magnum::Quaternion test = Magnum::Quaternion(angle).normalized();
-        
-        Magnum::Quaternion t2 = qx * qy * qz;
+        MxQuaternionf t2 = qx * qy * qz;
         
         self->orientation = self->orientation * qx * qy * qz;
         
         update_aabb(self);
         
-        Py_RETURN_NONE;
+        return 1;
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
 }
 
+HRESULT MxBodyHandle::rotate(const MxVector3f &by) {
+    if(body_rotate(this, by) == 0) return 1;
+    return 0;
+}
 
-static PyMethodDef body_methods[] = {
-    { "move", (PyCFunction)body_move, METH_VARARGS | METH_KEYWORDS, NULL },
-    { "rotate", (PyCFunction)body_rotate, METH_VARARGS | METH_KEYWORDS, NULL },
-    { NULL, NULL, 0, NULL }
-};
+HRESULT MxBodyHandle::rotate(const std::vector<float> &by) {
+    return rotate(MxVector3f(by));
+}
 
-
-PyGetSetDef body_getsets[] = {
-    {
-        .name = "position",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            BODY_SELF(obj);
-            return mx::cast(self->position);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            try {
-                BODY_PROP_SELF(obj);
-                Magnum::Vector3 vec = mx::cast<Magnum::Vector3>(val);
-                self->position = vec;
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "velocity",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            BODY_SELF(obj);
-            return mx::cast(self->velocity);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            try {
-                int id = ((MxParticleHandle*)obj)->id;
-                Magnum::Vector3 *vec = &_Engine.s.partlist[id]->velocity;
-                *vec = mx::cast<Magnum::Vector3>(val);
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "force",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            int id = ((MxParticleHandle*)obj)->id;
-            Magnum::Vector3 *vec = &_Engine.s.partlist[id]->force;
-            return mx::cast(*vec);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            try {
-                int id = ((MxParticleHandle*)obj)->id;
-                Magnum::Vector3 *vec = &_Engine.s.partlist[id]->force;
-                *vec = mx::cast<Magnum::Vector3>(val);
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "spin",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            BODY_SELF(obj);
-            return mx::cast(self->spin);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            try {
-                BODY_PROP_SELF(obj);
-                self->spin = mx::cast<Magnum::Vector3>(val);
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "id",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            BODY_SELF(obj)
-            return carbon::cast(self->id);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_ValueError, "read only property");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "flags",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            BODY_SELF(obj);
-            return carbon::cast(self->flags);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_ValueError, "read only property");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "species",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            BODY_SELF(obj);
-            if(self->state_vector) {
-                Py_INCREF(self->state_vector);
-                return (PyObject*)self->state_vector;
-            }
-            Py_RETURN_NONE;
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {NULL}
-};
-
-PyTypeObject MxBody_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name =           "Body",
-    .tp_basicsize =      sizeof(MxBodyHandle),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           0,
-    .tp_as_number =      0,
-    .tp_as_sequence =    0,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            0,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags =          Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc =            "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        body_methods,
-    .tp_members =        0,
-    .tp_getset =         body_getsets,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           0,
-    .tp_alloc =          0,
-    .tp_new =            0,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
-
-
-HRESULT _MxBody_Init(PyObject* m) {
-    if (PyType_Ready((PyTypeObject*)&MxBody_Type) < 0) {
-        return E_FAIL;
+MxBody *MxBodyHandle::body() {
+    try {
+        BODY_SELF(this);
+        return self;
     }
-
-    Py_INCREF(&MxBody_Type);
-    if (PyModule_AddObject(m, "Body", (PyObject *)&MxBody_Type) < 0) {
-        Py_DECREF(&MxBody_Type);
-        return E_FAIL;
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
     }
+}
 
-    return S_OK;
+// todo: generate MxBodyHandle python property: position
+MxVector3f MxBodyHandle::getPosition() const {
+    BODY_SELF(this);
+    return self->position;
+}
+
+void MxBodyHandle::setPosition(const MxVector3f &position) {
+    try {
+        BODY_SELF(this);
+        self->position = position;
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+    }
+}
+
+void MxBodyHandle::setPosition(const std::vector<float> &position) {
+    return setPosition(MxVector3f(position));
+}
+
+// todo: generate MxBodyHandle python property: velocity
+MxVector3f MxBodyHandle::getVelocity() const {
+    BODY_SELF(this);
+    return self->velocity;
+}
+
+void MxBodyHandle::setVelocity(const MxVector3f &velocity) {
+    try {
+        BODY_SELF(this);
+        self->velocity = velocity;
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+    }
+}
+
+void MxBodyHandle::setVelocity(const std::vector<float> &velocity) {
+    return setVelocity(MxVector3f(velocity));
+}
+
+// todo: generate MxBodyHandle python property: force
+MxVector3f MxBodyHandle::getForce() const {
+    BODY_SELF(this);
+    return self->force;
+}
+
+void MxBodyHandle::setForce(const MxVector3f &force) {
+    try {
+        BODY_SELF(this);
+        self->force = force;
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+    }
+}
+
+void MxBodyHandle::setForce(const std::vector<float> &force) {
+    return setForce(MxVector3f(force));
+}
+
+MxQuaternionf MxBodyHandle::getOrientation() const {
+    BODY_SELF(this);
+    return self->orientation;
+}
+
+void MxBodyHandle::setOrientation(const MxQuaternionf &orientation) {
+    try {
+        BODY_SELF(this);
+        self->orientation = orientation;
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+    }
+}
+
+void MxBodyHandle::setOrientation(const std::vector<float> &orientation) {
+    return setOrientation(MxQuaternionf(orientation));
+}
+
+MxVector3f MxBodyHandle::getSpin() const {
+    BODY_SELF(this);
+    return self->spin;
+}
+
+void MxBodyHandle::setSpin(const MxVector3f &spin) {
+    try {
+        BODY_SELF(this);
+        self->spin = spin;
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+    }
+}
+
+void MxBodyHandle::setSpin(const std::vector<float> &spin) {
+    return setSpin(MxVector3f(spin));
+}
+
+MxVector3f MxBodyHandle::getTorque() const {
+    BODY_SELF(this);
+    return self->torque;
+}
+
+void MxBodyHandle::setTorque(const MxVector3f &torque) {
+    try {
+        BODY_SELF(this);
+        self->torque = torque;
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+    }
+}
+
+void MxBodyHandle::setTorque(const std::vector<float> &torque) {
+    return setTorque(MxVector3f(torque));
+}
+
+
+// todo: generate MxBodyHandle python property: species
+MxStateVector *MxBodyHandle::getSpecies() const {
+    BODY_SELF(this);
+    return self->state_vector;
 }

@@ -7,11 +7,9 @@
 
 #include <rendering/MxColorMapper.hpp>
 #include "MxParticle.h"
-#include <CSpecies.hpp>
-#include <CSpeciesList.hpp>
-#include <CStateVector.hpp>
-#include <CConvert.hpp>
-#include <MxConvert.hpp>
+#include <MxLogger.h>
+#include <state/MxSpeciesList.h>
+#include <mx_error.h>
 #include <MxSimulator.h>
 
 #include "colormaps/colormaps.h"
@@ -153,26 +151,27 @@ bool MxColorMapper::set_colormap(const std::string& s) {
     if(index >= 0) {
         this->map = colormap_items[index].func;
         
-        MxSimulator_Redraw();
+        MxSimulator::get()->redraw();
         
         return true;
     }
     return false;
 }
 
-MxColorMapper *MxColorMapper_New(struct MxParticleType *partType,
-                                 const char* speciesName,
-                                 const char* name, float min, float max) {
+MxColorMapper::MxColorMapper(MxParticleType *partType,
+                             const std::string &speciesName,
+                             const std::string &name, float min, float max) {
     
     if(partType->species == NULL) {
         std::string msg = "can not create color map for particle type \"";
         msg += partType->name;
         msg += "\" without any species defined";
-        PyErr_WarnEx(PyExc_Warning, msg.c_str(), 2);
-        return NULL;
+        mx_exp(std::invalid_argument(msg));
+        return;
     }
     
     int index = partType->species->index_of(speciesName);
+    Log(LOG_DEBUG) << "Got species index: " << index;
     
     if(index < 0) {
         std::string msg = "can not create color map for particle type \"";
@@ -180,146 +179,26 @@ MxColorMapper *MxColorMapper_New(struct MxParticleType *partType,
         msg += "\", does not contain species \"";
         msg += speciesName;
         msg += "\"";
-        PyErr_WarnEx(PyExc_Warning, msg.c_str(), 2);
-        return NULL;
+        mx_exp(std::invalid_argument(msg));
+        return;
     }
     
-    MxColorMapper *obj = (MxColorMapper*)PyType_GenericAlloc(&MxColormap_Type, 0);
-    
-    int cmap_index = colormap_index_of_name(name);
+    int cmap_index = colormap_index_of_name(name.c_str());
     
     if(cmap_index >= 0) {
-        obj->map = colormap_items[cmap_index].func;
+        this->map = colormap_items[cmap_index].func;
     }
     else {
-        obj->map = bgyr_35_85_c72;
+        this->map = bgyr_35_85_c72;
     }
     
-    obj->species_index = index;
-    obj->min_val = min;
-    obj->max_val = max;
-    
-    return obj;
+    this->species_index = index;
+    this->min_val = min;
+    this->max_val = max;
 }
 
-MxColorMapper *MxColorMapper_New(PyObject *args, PyObject *kwargs) {
-    if(args == nullptr) {
-        PyErr_WarnEx(PyExc_Warning, "args to MxColorMapper_New is NULL", 2);
-        return NULL;
-    }
-    
-    MxParticleType *type = MxParticleType_Get(args);
-    if(type == nullptr) {
-        PyErr_WarnEx(PyExc_Warning, "args to MxColorMapper_New is not a ParticleType", 2);
-        return NULL;
-    }
-    
-    if(type->species == NULL) {
-        PyErr_WarnEx(PyExc_Warning, "can't create color map on a type without any species", 2);
-        return NULL;
-    }
-    
-    MxColorMapper *obj = NULL;
-    
-    
-    
-    try {
-        // always needs a species
-        std::string species = carbon::cast<std::string>(PyDict_GetItemString(kwargs, "species"));
-        
-        PyObject *pmap = PyDict_GetItemString(kwargs, "map");
-        
-        std::string map = pmap ? carbon::cast<std::string>(pmap) : "rainbow";
-        
-        return MxColorMapper_New(type, species.c_str(), map.c_str(), 0, 1);
-    }
-    catch(const std::exception &ex) {
-        delete obj;
-        PyErr_WarnEx(PyExc_Warning, ex.what(), 2);
-        return NULL;
-    }
-    
-    return obj;
+std::vector<std::string> MxColorMapper::getNames() {
+    std::vector<std::string> result;
+    for (auto c : colormap_items) result.push_back(c.name);
+    return result;
 }
-
-static PyObject *colormap_names(PyObject *) {
-    int size = sizeof(colormap_items) / sizeof(ColormapItem);
-    PyObject *items = PyList_New(size);
-    
-    for(int i = 0; i < size; ++i) {
-        PyObject *s = PyUnicode_FromString(colormap_items[i].name);
-        PyList_SET_ITEM(items, i, s);
-    }
-    
-    return items;
-}
-
-static PyMethodDef colormap_methods[] = {
-    { "names", (PyCFunction)colormap_names, METH_STATIC | METH_NOARGS, NULL },
-    { NULL, NULL, 0, NULL }
-};
-
-
-
-PyTypeObject MxColormap_Type = {
-    CVarObject_HEAD_INIT(NULL, 0)
-    "Colormap"                        , // .tp_name
-    sizeof(MxColorMapper)                 , // .tp_basicsize
-    0                                     , // .tp_itemsize
-    0    , // .tp_dealloc
-    0                                     , // .tp_print
-    0                                     , // .tp_getattr
-    0                                     , // .tp_setattr
-    0                                     , // .tp_as_async
-    0                                     , // .tp_repr
-    0                                     , // .tp_as_number
-    0                                     , // .tp_as_sequence
-    0                                     , // .tp_as_mapping
-    0                                     , // .tp_hash
-    0                                     , // .tp_call
-    0                                     , // .tp_str
-    0                                     , // .tp_getattro
-    0                                     , // .tp_setattro
-    0                                     , // .tp_as_buffer
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_TYPE_SUBCLASS, // .tp_flags
-    0                                     , // .tp_doc
-    0                                     , // .tp_traverse
-    0                                     , // .tp_clear
-    0                                     , // .tp_richcompare
-    0                                     , // .tp_weaklistoffset
-    0                                     , // .tp_iter
-    0                                     , // .tp_iternext
-    colormap_methods                     , // .tp_methods
-    0                                     , // .tp_members
-    0                 , // .tp_getset
-    0                                     , // .tp_base
-    0                                     , // .tp_dict
-    0                                     , // .tp_descr_get
-    0                                     , // .tp_descr_set
-    0                                     , // .tp_dictoffset
-    0          , // .tp_init
-    0                                     , // .tp_alloc
-    PyType_GenericNew                     , // .tp_new
-    0                                     , // .tp_free
-    0                                     , // .tp_is_gc
-    0                                     , // .tp_bases
-    0                                     , // .tp_mro
-    0                                     , // .tp_cache
-    0                                     , // .tp_subclasses
-    0                                     , // .tp_weaklist
-    0                                     , // .tp_del
-    0                                     , // .tp_version_tag
-    0                                     , // .tp_finalize
-#ifdef COUNT_ALLOCS
-    0                                     , // .tp_allocs
-    0                                     , // .tp_frees
-    0                                     , // .tp_maxalloc
-    0                                     , // .tp_prev
-    0                                     , // .tp_next
-#endif
-};
-
-
-MX_BASIC_PYTHON_TYPE_INIT(Colormap)
-
-

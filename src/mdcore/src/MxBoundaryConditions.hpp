@@ -9,10 +9,12 @@
 #define SRC_MDCORE_SRC_BOUNDARYCONDITIONS_H_
 
 #include <platform.h>
-#include <Magnum/Magnum.h>
-#include <Magnum/Math/Vector3.h>
+#include <MxPy.h>
+#include "../../types/mx_types.h"
 
-enum BoundaryConditionKind {
+#include <unordered_map>
+
+enum BoundaryConditionKind : unsigned int {
     BOUNDARY_VELOCITY       = 1 << 0,
     BOUNDARY_PERIODIC       = 1 << 1,
     BOUNDARY_FREESLIP       = 1 << 2,
@@ -22,19 +24,22 @@ enum BoundaryConditionKind {
     BOUNDARY_ACTIVE         = BOUNDARY_FREESLIP | BOUNDARY_VELOCITY | BOUNDARY_POTENTIAL
 };
 
-struct MxBoundaryCondition : PyObject {
+struct MxParticleType;
+struct MxPotential;
+
+struct MxBoundaryCondition {
     BoundaryConditionKind kind;
 
     // id of this boundary, id's go from 0 to 6 (top, bottom, etc..)
     int id;
-    Magnum::Vector3 velocity;
+    MxVector3f velocity;
 
     // restoring percent
     float restore;
 
     const char* name;
     
-    Magnum::Vector3 normal;
+    MxVector3f normal;
 
     /**
      * pointer to offset in main array allocated in MxBoundaryConditions.
@@ -51,10 +56,17 @@ struct MxBoundaryCondition : PyObject {
      */
     void set_potential(struct MxParticleType *ptype, struct MxPotential *pot);
 
+    std::string kindStr() const;
     std::string str(bool show_name) const;
+
+    unsigned init(const unsigned &kind);
+    unsigned init(const MxVector3f &velocity, const float *restore=NULL);
+    unsigned init(const std::unordered_map<std::string, unsigned int> vals, 
+                  const std::unordered_map<std::string, MxVector3f> vels, 
+                  const std::unordered_map<std::string, float> restores);
 };
 
-struct MxBoundaryConditions: PyObject {
+struct MxBoundaryConditions {
 
     MxBoundaryCondition top;
     MxBoundaryCondition bottom;
@@ -69,6 +81,14 @@ struct MxBoundaryConditions: PyObject {
     // allocated in MxBoundaryConditions_Init.
     struct MxPotential **potenntials;
 
+    MxBoundaryConditions() {}
+    MxBoundaryConditions(int *cells);
+    MxBoundaryConditions(int *cells, const int &value);
+    MxBoundaryConditions(int *cells, 
+                         const std::unordered_map<std::string, unsigned int> vals, 
+                         const std::unordered_map<std::string, MxVector3f> vels, 
+                         const std::unordered_map<std::string, float> restores);
+
     /**
      * sets a potential for ALL boundary conditions and the given potential.
      */
@@ -78,11 +98,45 @@ struct MxBoundaryConditions: PyObject {
      * bitmask of periodic boundary conditions
      */
     uint32_t periodic;
+
+    std::string str();
+
+private:
+
+    HRESULT _initIni();
+    HRESULT _initFin(int *cells);
+
+    // processes directional initialization inputs
+    void _initDirections(const std::unordered_map<std::string, unsigned int> vals);
+
+    // processes sides initialization inputs
+    void _initSides(const std::unordered_map<std::string, unsigned int> vals, 
+                    const std::unordered_map<std::string, MxVector3f> vels, 
+                    const std::unordered_map<std::string, float> restores);
 };
 
-int MxBoundaryCondition_Check(const PyObject *obj);
+struct MxBoundaryConditionsArgsContainer {
+    int *bcValue;
+    std::unordered_map<std::string, unsigned int> *bcVals;
+    std::unordered_map<std::string, MxVector3f> *bcVels;
+    std::unordered_map<std::string, float> *bcRestores;
 
-int MxBoundaryConditions_Check(const PyObject *obj);
+    void setValueAll(const int &_bcValue);
+    void setValue(const std::string &name, const unsigned int &value);
+    void setVelocity(const std::string &name, const MxVector3f &velocity);
+    void setRestore(const std::string &name, const float restore);
+
+    MxBoundaryConditions *create(int *cells);
+
+    MxBoundaryConditionsArgsContainer(int *_bcValue=NULL, 
+                                      std::unordered_map<std::string, unsigned int> *_bcVals=NULL, 
+                                      std::unordered_map<std::string, MxVector3f> *_bcVels=NULL, 
+                                      std::unordered_map<std::string, float> *_bcRestores=NULL);
+    MxBoundaryConditionsArgsContainer(PyObject *obj);
+
+private:
+    void switchType(const bool &allSides);
+};
 
 /**
  * a particle moved from one cell to another, this checks if its a periodic
@@ -90,23 +144,5 @@ int MxBoundaryConditions_Check(const PyObject *obj);
  */
 void apply_boundary_particle_crossing(struct MxParticle *p, const int *delta,
                                      const struct space_cell *source_cell, const struct space_cell *dest_cell);
-
-/**
- * initialize a boundary condition with either a number that's a bitmask of the
- * BC types, or a dictionary.
- *
- * cells: pointer to 3-vector of cell count, this method will adjust cell count
- * if periodic, make sure cell count is at least 3 in peridic directions.
- *
- * initializes a boundary conditions bitmask from the stuff in the py dict.
- */
-
-HRESULT MxBoundaryConditions_Init(MxBoundaryConditions *bc, int *cells, PyObject *args);
-
-
-/**
- * internal method, initialze the types
- */
-HRESULT _MxBoundaryConditions_Init(PyObject* m);
 
 #endif /* SRC_MDCORE_SRC_BOUNDARYCONDITIONS_H_ */

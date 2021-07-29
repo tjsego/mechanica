@@ -29,6 +29,7 @@ message("mx config file: ${CMAKE_CURRENT_BINARY_DIR}/mx_config.h")
 
 set (_PUBLIC_HEADERS_STATIC
   Mechanica.h
+  mx_port.h
   mx_runtime.h
   NOMStyle.h
 )

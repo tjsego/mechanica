@@ -14,6 +14,8 @@ struct MxPolygonSurfaceTensionForce : IForce
 {
     MxPolygonSurfaceTensionForce(float surfaceTension);
 
+    FORCABLE_TYPE dataType() { return FORCABLE_TYPE::FORCABLE_POLYGON; }
+
     /**
      * Called when the main time step changes.
      */
@@ -22,7 +24,7 @@ struct MxPolygonSurfaceTensionForce : IForce
     /**
      * Apply forces to a set of objects.
      */
-    virtual HRESULT applyForce(float time, CObject **objs, uint32_t len) const;
+    virtual HRESULT applyForce(float time, const std::vector<MxForcable*> &objs) const;
 
     float surfaceTension;
 };

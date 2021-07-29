@@ -63,7 +63,7 @@ public:
     MxUniverseRenderer *getRenderer() override;
     
     
-    HRESULT createContext(const MxSimulator::Config &conf) override;
+    HRESULT createContext(const MxSimulator_Config &conf) override;
 
 
 

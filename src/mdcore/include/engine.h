@@ -20,7 +20,6 @@
 #ifndef INCLUDE_ENGINE_H_
 #define INCLUDE_ENGINE_H_
 
-#include "carbon.h"
 #include "platform.h"
 #include "pthread.h"
 #include "space.h"
@@ -28,6 +27,7 @@
 #include "MxBoundaryConditions.hpp"
 #include <mutex>
 #include <thread>
+#include "../../event/MxEventList.h"
 
 
 /* engine error codes */
@@ -359,7 +359,7 @@ typedef struct engine {
     
     long timer_output_period;
 
-	struct CMulticastTimeEvent *on_time;
+	MxEventBaseList *events;
 
 
     /**
@@ -395,7 +395,7 @@ typedef struct engine {
     /**
      * saved objects from init
      */
-    PyObject *_init_boundary_conditions;
+    MxBoundaryConditionsArgsContainer *_init_boundary_conditions;
     int _init_cells[3];
 } engine;
 
@@ -453,9 +453,9 @@ CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e ,
                                             struct MxForce *p , int typeId, int stateVectorId);
 
 /**
- * allocates a new angle, returns a pointer to it.
+ * allocates a new angle, returns its id.
  */
-CAPI_FUNC(int) engine_angle_alloc (struct engine *e , PyTypeObject *type, struct MxAngle **result );
+CAPI_FUNC(int) engine_angle_alloc(struct engine *e);
 
 /**
  * @brief Add a angle potential.
@@ -598,7 +598,7 @@ CAPI_FUNC(int) engine_addtype ( struct engine *e , double mass , double charge ,
  * @return #engine_err_ok or < 0 on error (see #engine_err).
  */
 CAPI_FUNC(int) engine_init ( struct engine *e , const double *origin , const double *dim , int *cells ,
-		double cutoff , PyObject *boundaryConditions , int max_type , unsigned int flags );
+		double cutoff , MxBoundaryConditionsArgsContainer *boundaryConditions , int max_type , unsigned int flags );
 
 
 /**
@@ -697,8 +697,9 @@ CAPI_FUNC(int) engine_split_METIS ( struct engine *e, int N, int flags);
 CAPI_FUNC(int) engine_split_METIS ( struct engine *e, int N, int flags);
 #endif
 
-
-Magnum::Vector3 engine_center();
+MxVector3f engine_origin();
+MxVector3f engine_dimensions();
+MxVector3f engine_center();
 
 /**
  * Single static instance of the md engine per process.
@@ -717,17 +718,17 @@ inline MxParticle *MxParticle::particle(int i) {
     return _Engine.s.partlist[this->parts[i]];
 };
 
-inline Magnum::Vector3 MxParticle::global_position() {
+inline MxVector3f MxParticle::global_position() {
     double *o = _Engine.s.celllist[this->id]->origin;
-    return this->position + Magnum::Vector3 {
+    return this->position + MxVector3f {
         static_cast<float>(o[0]), static_cast<float>(o[1]), static_cast<float>(o[2])
     };
 }
 
-inline void MxParticle::set_global_position(const Magnum::Vector3& pos) {
+inline void MxParticle::set_global_position(const MxVector3f& pos) {
     double *o = _Engine.s.celllist[this->id]->origin;
     // TODO: need to update cells...
-    this->position = pos - Magnum::Vector3 {
+    this->position = pos - MxVector3f {
         static_cast<float>(o[0]), static_cast<float>(o[1]), static_cast<float>(o[2])
     };
 }
@@ -735,6 +736,10 @@ inline void MxParticle::set_global_position(const Magnum::Vector3& pos) {
 inline MxParticle *MxParticleHandle::part() {
     return _Engine.s.partlist[this->id];
 };
+
+inline MxParticleType *MxParticleHandle::type() {
+	return &_Engine.types[this->typeId];
+}
 
 inline MxParticle *MxParticle_FromId(int id) {
     return _Engine.s.partlist[id];

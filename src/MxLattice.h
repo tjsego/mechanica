@@ -10,7 +10,7 @@
 
 #include "mechanica_private.h"
 
-struct MxLattice : CObject {
+struct MxLattice {
 };
 
 
@@ -26,7 +26,7 @@ struct CubicVoxel {
 
 };
 
-struct MxCubicVoxel : CObject {
+struct MxCubicVoxel {
 	/**
 	 * each unitcell is owned by the lattice.
 	 */

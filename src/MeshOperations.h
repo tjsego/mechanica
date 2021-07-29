@@ -109,7 +109,7 @@ HRESULT Mx_SplitPolygonSemiMajorAxisAngle(MeshPtr mesh, PolygonPtr poly,
  * chooses the first two edges that it encounters.
  */
 HRESULT Mx_SplitPolygonBisectPlane(MeshPtr mesh, PolygonPtr poly,
-        Vector3 *normal, PolygonPtr *p1, PolygonPtr *p2);
+        MxVector3f *normal, PolygonPtr *p1, PolygonPtr *p2);
 
 
 

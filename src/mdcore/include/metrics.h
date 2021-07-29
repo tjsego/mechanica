@@ -10,9 +10,9 @@
 
 #include "platform.h"
 #include "mdcore_config.h"
-#include "Magnum/Magnum.h"
-#include "Magnum/Math/Vector3.h"
+#include "MxParticle.h"
 #include <set>
+#include <vector>
 
 /**
  * @origin [in] origin of the sphere where we will comptute
@@ -77,17 +77,15 @@ HRESULT MxParticles_MomentOfInertia(int32_t *parts, uint16_t nr_parts, float* re
  * converts cartesian to spherical in global coord space.
  * createsa a numpy array.
  */
-PyObject* MPyCartesianToSpherical(const Magnum::Vector3& postion,
-                                             const Magnum::Vector3& origin);
+PyObject* MPyCartesianToSpherical(const MxVector3f& postion, const MxVector3f& origin);
 
 
 /**
  * converts cartesian to spherical, writes spherical
  * coords in to result array.
- * return Magnum::Vector3{radius, theta, phi};
+ * return MxVector3f{radius, theta, phi};
  */
-Magnum::Vector3 MxCartesianToSpherical(const Magnum::Vector3& postion,
-                                          const Magnum::Vector3& origin);
+MxVector3f MxCartesianToSpherical(const MxVector3f& postion, const MxVector3f& origin);
 
 /**
  * Searches and enumerates a location of space for all particles there.
@@ -108,13 +106,11 @@ CAPI_FUNC(HRESULT) MxParticle_Neighbors(struct MxParticle *part,
 
 
 /**
- * Creates an numpy ndarray of ParticleList objects.
+ * Creates an array of ParticleList objects.
  */
-CAPI_FUNC(PyObject*) MxParticle_Grid(const Magnum::Vector3i &shape,
-                                     const std::set<short int> *typeIds);
+std::vector<std::vector<std::vector<MxParticleList*> > > MxParticle_Grid(const MxVector3i &shape);
 
-
-
+CAPI_FUNC(HRESULT) MxParticle_Grid(const MxVector3i &shape, MxParticleList **result);
 
 
 #endif /* SRC_MDCORE_INCLUDE_METRICS_H_ */

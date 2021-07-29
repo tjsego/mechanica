@@ -27,10 +27,7 @@ import numpy
 import math
 from collections import namedtuple
 
-if __name__ == 'mechanica.lattice':
-    from . import _mechanica as m
-else:
-    import mechanica as m
+import mechanica as m
 
 
 # Multiply two quaternions
@@ -489,7 +486,7 @@ def create_lattice(unitcell, n, origin=None):
         for j in range(n[1]):
             for k in range(n[2]):
                 pos = origin + unitcell.a1 * i + unitcell.a2 * j + unitcell.a3 * k
-                parts = [type(pos) for (type, pos) in zip(unitcell.types, unitcell.position + pos)]
+                parts = [type(pos.tolist()) for (type, pos) in zip(unitcell.types, unitcell.position + pos)]
                 lattice[i, j, k] = parts
 
     if unitcell.bonds:
@@ -514,7 +511,7 @@ def create_lattice(unitcell, n, origin=None):
                         # print("ci: ", ci)
                         # print("cj: ", cj)
 
-                        m.Logger.log(m.Logger.LOG_TRACE, "bonding: ", ci[bond.part_ids[0]], cj[bond.part_ids[1]])
+                        m.Logger.log(m.Logger.TRACE, f"bonding: {ci[bond.part_ids[0]]}, {cj[bond.part_ids[1]]}")
 
                         bond.func(ci[bond.part_ids[0]], cj[bond.part_ids[1]])
 

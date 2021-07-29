@@ -41,17 +41,17 @@
 #endif
 
 /* Include local headers */
+#include "../../mx_error.h"
+#include "../../MxUtil.h"
+#include "../../MxLogger.h"
 #include "cycle.h"
 #include "errs.h"
 #include "fptype.h"
 #include "lock.h"
-#include <MxParticle.h>
-#include <MxPotential.h>
 #include "potential_eval.hpp"
 #include <space_cell.h>
 #include "space.h"
 #include "engine.h"
-#include "MxConvert.hpp"
 
 #include <iostream>
 
@@ -70,12 +70,6 @@ const char *angle_err_msg[2] = {
 	"Nothing bad happened.",
     "An unexpected NULL pointer was encountered."
 	};
-
-
-static int angle_init(MxAngle*, PyObject *, PyObject *);
-
-static MxAngle *angle_alloc(PyTypeObject *type, Py_ssize_t);
-
     
 
 /**
@@ -88,7 +82,6 @@ static MxAngle *angle_alloc(PyTypeObject *type, Py_ssize_t);
  * 
  * @return #angle_err_ok or <0 on error (see #angle_err)
  */
- 
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out ) {
 
     int aid, pid, pjd, pkd, k, *loci, *locj, *lock, shift;
@@ -184,7 +177,7 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
         if(ctheta == 0 || ctheta == -1) {
             std::uniform_real_distribution<float> dist{-1, 1};
             // make a random vector
-            Magnum::Vector3 x{dist(CRandom), dist(CRandom), dist(CRandom)};
+            Magnum::Vector3 x{dist(MxRandom), dist(MxRandom), dist(MxRandom)};
             
             // vector between outer particles
             Magnum::Vector3 vik = xi - xk;
@@ -350,7 +343,6 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
  * 
  * @return #angle_err_ok or <0 on error (see #angle_err)
  */
- 
 int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , double *epot_out ) {
 
     int aid, pid, pjd, pkd, k, *loci, *locj, *lock, shift;
@@ -576,6 +568,7 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
     
 }
 
+#if 0
 MxAngle* MxAngle_NewFromIds(int i, int j, int k, int pid)
 {
     return NULL;
@@ -586,122 +579,26 @@ MxAngle* MxAngle_NewFromIdsAndPotential(int i, int j, int k,
 {
     return NULL;
 }
+#endif
 
-
-
-PyTypeObject MxAngle_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "Angle",
-    .tp_basicsize = sizeof(MxAngle),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           0,
-    .tp_as_number =      0,
-    .tp_as_sequence =    0,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            0,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        0,
-    .tp_members =        0,
-    .tp_getset =         0,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           (initproc)angle_init,
-    .tp_alloc =          (allocfunc)angle_alloc,
-    .tp_new =            PyType_GenericNew,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
-
-HRESULT _MxAngle_init(PyObject *module)
-{
-    if (PyType_Ready((PyTypeObject*)&MxAngle_Type) < 0) {
-        return c_error(E_FAIL, "could not initialize MxAngle_Type " );
-    }
-
-
-    Py_INCREF(&MxAngle_Type);
-    if (PyModule_AddObject(module, "Angle", (PyObject *)&MxAngle_Type) < 0) {
-        Py_DECREF(&MxAngle_Type);
-        return E_FAIL;
-    }
-
-    return S_OK;
+void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3) {
+    this->potential = potential;
+    this->i = p1->id;
+    this->j = p2->id;
+    this->k = p3->id;
 }
 
-int angle_init(MxAngle *self, PyObject *args, PyObject *kwargs) {
-    
-    Log(LOG_TRACE);
-    
-    try {
-        PyObject *pot  = mx::arg<PyObject*>("potential", 0, args, kwargs);
-        PyObject *p1  = mx::arg<PyObject*>("p1", 1, args, kwargs);
-        PyObject *p2  = mx::arg<PyObject*>("p2", 2, args, kwargs);
-        PyObject *p3  = mx::arg<PyObject*>("p3", 3, args, kwargs);
-        
-        
-        if(PyObject_IsInstance(pot, (PyObject*)&MxPotential_Type) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "potential is not a instance of Potential");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p1) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p1 is not a instance of Particle");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p2) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p2 is not a instance Particle");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p3) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p3 is not a instance Particle");
-            return -1;
-        }
-        
-        self->potential = (MxPotential*)pot;
-        self->i = ((MxParticleHandle*)p1)->id;
-        self->j = ((MxParticleHandle*)p2)->id;
-        self->k = ((MxParticleHandle*)p3)->id;
-        
-        Py_XINCREF(pot);
-    }
-    catch (const std::exception &e) {
-        return C_EXP(e);
-    }
-    return 0;
+MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3) {
+    auto id = engine_angle_alloc(&_Engine);
+    MxAngleHandle *handle = new MxAngleHandle(id);
+    auto angle = handle->angle();
+    if(!angle) return NULL;
+    handle->angle()->init(potential, p1, p2, p3);
+    return handle;
 }
 
-MxAngle *angle_alloc(PyTypeObject *type, Py_ssize_t) {
-    MxAngle *result = NULL;
-    uint32_t err = engine_angle_alloc(&_Engine, type, &result);
-    return result;
+MxAngle *MxAngleHandle::angle() {
+    if(id >= _Engine.nr_angles) throw std::range_error("Angle id invalid");
+    if (id < 0) return NULL;
+    return &_Engine.angles[id];
 }

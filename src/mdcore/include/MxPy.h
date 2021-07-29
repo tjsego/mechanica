@@ -4,91 +4,179 @@
  *  Created on: Apr 21, 2020
  *      Author: andy
  */
+// todo: decide whether to leave most of this here, or isolate
 
 #pragma once
 #ifndef SRC_MDCORE_SRC_MXPY_H_
 #define SRC_MDCORE_SRC_MXPY_H_
 
-#include <c_port.h>
+#include <mx_port.h>
+#include <../../types/mx_types.h>
+
 #include <Magnum/Magnum.h>
+#include <Magnum/Math/Vector3.h>
 #include <Magnum/Math/Vector4.h>
+#include <Magnum/Math/Matrix3.h>
+
+#include <string>
+
+std::string pyerror_str();
+CAPI_FUNC(PyObject*) PyImport_ImportString(const std::string &name);
+CAPI_FUNC(PyObject*) MxIPython_Get();
+CAPI_FUNC(bool) Mx_TerminalInteractiveShell();
+CAPI_FUNC(bool) Mx_ZMQInteractiveShell();
+
+namespace mx {
+
+    /**
+     * convert from c++ to python type
+     */
+    template <typename T>
+    PyObject *cast(const T& x);
+        
+    /**
+     * convert from python to c++ type
+     */
+    template <typename T>
+    T cast(PyObject *o);
+
+    template<>
+    Magnum::Vector2 cast(PyObject *obj);
+
+    template<>
+    Magnum::Vector3 cast(PyObject *obj);
+
+    template<>
+    Magnum::Vector4 cast(PyObject *obj);
+
+    template<>
+    Magnum::Vector2i cast(PyObject *obj);
+
+    template<>
+    Magnum::Vector3i cast(PyObject *obj);
+
+    template<>
+    MxVector2f cast(PyObject *obj);
+
+    template<>
+    MxVector3f cast(PyObject *obj);
+
+    template<>
+    MxVector4f cast(PyObject *obj);
+
+    template<>
+    MxVector2i cast(PyObject *obj);
+
+    template<>
+    MxVector3i cast(PyObject *obj);
+
+    template<>
+    PyObject* cast(const int16_t &i);
+
+    template<>
+    PyObject* cast(const uint16_t &i);
+
+    template<>
+    PyObject* cast(const uint32_t &i);
+
+    template<>
+    PyObject* cast(const uint64_t &i);
+
+    template<>
+    PyObject* cast(const float &f);
+
+    template<>
+    float cast(PyObject *obj);
+
+    template<>
+    PyObject* cast(const bool &f);
+
+    template<>
+    bool cast(PyObject *obj);
+
+    template<>
+    PyObject* cast(const double &f);
+
+    template<>
+    double cast(PyObject *obj);
+
+    template<>
+    PyObject* cast(const int &i);
+
+    template<>
+    int cast(PyObject *obj);
+
+    template<>
+    PyObject* cast(const std::string &s);
+
+    template<>
+    std::string cast(PyObject *o);
+
+    template<>
+    int16_t cast(PyObject *o);
+
+    template<>
+    uint16_t cast(PyObject *o);
+
+    template<>
+    uint32_t cast(PyObject *o);
+
+    template<>
+    uint64_t cast(PyObject *o);
+
+    /**
+     * check if type can be converted
+     */
+    template <typename T>
+    bool check(PyObject *o);
+
+    // template <>
+    // bool check<bool>(PyObject *o);
+
+    // template <>
+    // bool check<std::string>(PyObject *o);
+
+    // template <>
+    // bool check<float>(PyObject *o);
 
 
-enum {
-    MxGetSetDef_Error = 0,
-    MxGetSetDef_Int,
-    MxGetSetDef_Float,
-    MxGetSetDef_Double,
-    MxGetSetDef_Vector2f,
-    MxGetSetDef_Vector3f
-};
+    /**
+     * grab either the i'th arg from the args, or keywords.
+     *
+     * gets a reference to the object, NULL if not exist.
+     */
+    PyObject *py_arg(const char* name, int index, PyObject *_args, PyObject *_kwargs);
 
-struct MxGetSetDefInfo {
-    uint16_t offset;
-    uint16_t kind;
-    uint16_t options;
-    uint16_t padd;
-};
+        /**
+         * gets the __repr__ / __str__ representations of python objects
+         */
+    std::string repr(PyObject *o);
+    std::string str(PyObject *o);
 
-typedef PyObject *(*MxGetSetDefGetter)(PyObject *, MxGetSetDefInfo);
-typedef int (*MxGetSetDefSetter)(PyObject *, PyObject *, MxGetSetDefInfo);
+    /**
+     * get the python error string, empty string if no error.
+     */
+    std::string pyerror_str();
 
+    template<typename T>
+    T arg(const char* name, int index, PyObject *args, PyObject *kwargs) {
+        PyObject *value = py_arg(name, index, args, kwargs);
+        if(value) {
+            return cast<T>(value);
+        }
+        throw std::runtime_error(std::string("missing argument ") + name);
+    };
 
-struct MxGetSetDef {
-    const char *name;
-    MxGetSetDefGetter get;
-    MxGetSetDefSetter set;
-    const char *doc;
-    MxGetSetDefInfo info;
-};
+    template<typename T>
+    T arg(const char* name, int index, PyObject *args, PyObject *kwargs, T deflt) {
 
+        PyObject *value = py_arg(name, index, args, kwargs);
+        if(value) {
+            return cast<T>(value);
+        }
+        return deflt;
+    };
 
-template<typename T>   // primary template
-struct PyGetSetDef_Kind : std::integral_constant<uint16_t, MxGetSetDef_Error> {};
-
-template<>  // explicit specialization for T = int
-struct PyGetSetDef_Kind<int> : std::integral_constant<uint16_t, MxGetSetDef_Int> {};
-
-template<>  // explicit specialization for T = int
-struct PyGetSetDef_Kind<float> : std::integral_constant<uint16_t, MxGetSetDef_Float> {};
-
-template<>  // explicit specialization for T = int
-struct PyGetSetDef_Kind<double> : std::integral_constant<uint16_t, MxGetSetDef_Double> {};
-
-template<>  // explicit specialization for T = Vector3
-struct PyGetSetDef_Kind<Magnum::Vector3> : std::integral_constant<uint16_t, MxGetSetDef_Vector3f> {};
-
-
-
-PyObject *_MxGetSetDef_Getter(PyObject *obj, MxGetSetDefInfo info);
-
-int _MxGetSetDef_Setter(PyObject *, PyObject *, MxGetSetDefInfo);
-
-
-template <typename Type, typename Klass>
-inline size_t constexpr offset_of(Type Klass::*member) {
-    constexpr Klass object {};
-    return size_t(&(object.*member)) - size_t(&object);
 }
-
-
-std::ostream& operator<<(std::ostream& os, const PyObject *obj);
-
-
-PyObject *PyImport_ImportString(const char* name);
-
-
-/**
- * same as python delitemstring, except no error if no key.
- */
-bool MxDict_DelItemStringNoErr(PyObject *p, const char *key);
-
-
-// was added in 3.7, dup it here for python 3.6
-#if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION < 7
-    PyObject *PyImport_GetModule(PyObject *name);
-#endif
-
-
 
 #endif /* SRC_MDCORE_SRC_MXPY_H_ */

@@ -14,33 +14,46 @@ struct MxCluster : MxParticle
 {
 };
 
+struct MxClusterParticleHandle;
 
-/**
- * pointer the cluster  type,
- *
- * this is a derived type, so this is actually the 2nd element in
- * the gloabl types array.
- */
-CAPI_DATA(MxParticleType*) MxCluster_TypePtr;
+struct MxClusterParticleType : MxParticleType {
 
-/**
- * shim object (or maybe a 'closure') to package up a cluster, and
- * particle type to act as a particle constructor in a cluster.
- */
-struct MxParticleConstructor;
+    MxClusterParticleType(const bool &noReg=false);
 
-/**
- * creates a particle constructor (internal method).
- *
- * creates a python descrptor that gets stuffed in the cluster dict
- * that makes new partice instances in the particle.
- */
-PyObject *MxClusterParticleCtor_New(
-    MxParticleType *clusterType, MxParticleType *containedParticleType);
+    bool hasType(const MxParticleType *type);
 
-PyObject *makeThing();
+    // Registers a type with the engine. 
+    // Note that this does not occur automatically for basic usage, to allow type-specific operations independently of the engine
+    // Also registers all unregistered constituent types
+    HRESULT registerType();
 
-CAPI_FUNC(int) MxCluster_Check(PyObject *p);
+};
+
+struct MxClusterParticleHandle : MxParticleHandle {
+    MxClusterParticleHandle();
+    MxClusterParticleHandle(const int &id, const int &typeId);
+
+    // Constituent particle constructor
+    MxParticleHandle *operator()(MxParticleType *partType, 
+                                 MxVector3f *position=NULL, 
+                                 MxVector3f *velocity=NULL);
+
+    MxParticleHandle* fission(MxVector3f *axis=NULL, 
+                              bool *random=NULL, 
+                              float *time=NULL, 
+                              MxVector3f *normal=NULL, 
+                              MxVector3f *point=NULL);
+    MxParticleHandle* split(MxVector3f *axis=NULL, 
+                            bool *random=NULL, 
+                            float *time=NULL, 
+                            MxVector3f *normal=NULL, 
+                            MxVector3f *point=NULL);
+    
+    float getRadiusOfGyration();
+    MxVector3f getCenterOfMass();
+    MxVector3f getCentroid();
+    MxMatrix3f getMomentOfInertia();
+};
 
 /**
  * adds an existing particle to the cluster.
@@ -57,24 +70,23 @@ CAPI_FUNC(int) MxCluster_ComputeAggregateQuantities(struct MxCluster *cluster);
 /**
  * creates a new particle, and adds it to the cluster.
  */
-CAPI_FUNC(PyObject*) MxCluster_CreateParticle(PyObject *self,
-    PyObject* particleType, PyObject *args, PyObject *kwargs);
-
+CAPI_FUNC(MxParticle*) MxCluster_CreateParticle(MxCluster *cluster,
+                                                MxParticleType* particleType, 
+                                                MxVector3f *position=NULL, 
+                                                MxVector3f *velocity=NULL);
 
 /**
- * sequence methods for the cluster, should proably not be public,
- * but these are defined in cluster.cpp, as there is already way too much
- * stuff in particle.cpp
+ * @brief Get a registered cluster type by type name
+ * 
+ * @param name name of cluster type
+ * @return MxClusterParticleType* 
  */
-CAPI_DATA(PySequenceMethods) MxCluster_Sequence;
-
-
-HRESULT MxClusterType_Init(MxParticleType *self, PyObject *_dict);
+CAPI_FUNC(MxClusterParticleType*) MxClusterParticleType_FindFromName(const char* name);
 
 /**
  * internal function to initalize the particle and particle types
  */
-HRESULT _MxCluster_init(PyObject *m);
+HRESULT _MxCluster_init();
 
 
 #endif /* SRC_MDCORE_SRC_MXCLUSTER_H_ */

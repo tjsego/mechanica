@@ -107,13 +107,4 @@ struct MxCylinderModel : public MxModel {
      virtual HRESULT getStateVectorRate(float time, const float *y, float* dydt=0);
 };
 
-
-/**
- * The type object for a MxSymbol.
- */
-CAPI_DATA(PyTypeObject) *MxCylinderModel_Type;
-
-HRESULT MxCylinderModel_init(PyObject *m);
-
-
 #endif /* _INCLUDED_MX_CYLINDERMODEL_H_ */

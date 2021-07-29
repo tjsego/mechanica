@@ -52,6 +52,7 @@
 #include "exclusion.h"
 #include "reader.h"
 #include "engine.h"
+#include "../../MxLogger.h"
 
 #pragma clang diagnostic ignored "-Wwritable-strings"
 
@@ -1082,9 +1083,9 @@ int engine_dihedral_add ( struct engine *e , int i , int j , int k , int l , int
 }
 
 /**
- * allocates a new angle, returns a pointer to it.
+ * allocates a new angle, returns its id.
  */
-int engine_angle_alloc (struct engine *e , PyTypeObject *type, MxAngle **result ) {
+int engine_angle_alloc (struct engine *e) {
     
     struct MxAngle *dummy;
     
@@ -1108,25 +1109,12 @@ int engine_angle_alloc (struct engine *e , PyTypeObject *type, MxAngle **result 
     
     ::memset(&e->angles[e->nr_angles], 0, sizeof(MxAngle));
     
-    if (type->tp_flags & Py_TPFLAGS_HEAPTYPE)
-    Py_INCREF(type);
-    
-    PyObject_INIT(&e->angles[e->nr_angles], type);
-    
-    if (PyType_IS_GC(type)) {
-        assert(0 && "should not get here");
-        //  _PyObject_GC_TRACK(obj);
-    }
-    
-    *result = &e->angles[e->nr_angles];
-    
-    // increase the ref count, as the engine owns it.
-    Py_INCREF(&e->angles[e->nr_angles]);
+    auto result = e->nr_angles;
     
     e->nr_angles += 1;
     
     /* It's the end of the world as we know it. */
-    return engine_err_ok;
+    return result;
 }
 
 
@@ -1352,6 +1340,8 @@ int engine_bond_alloc (struct engine *e , MxBond **out ) {
     int result = e->bonds[bond_id].id = bond_id;
 
     *out = &e->bonds[bond_id];
+
+	Log(LOG_TRACE) << "Allocated bond: " << bond_id;
 
     /* It's the end of the world as we know it. */
     return result;

@@ -10,19 +10,38 @@
 
 #include "mechanica_private.h"
 #include "mdcore_single.h"
-
+#include <unordered_map>
 
 struct CAPI_EXPORT MxUniverse  {
 
-    static Magnum::Vector3 origin();
+    static MxVector3f origin();
 
-    static  Magnum::Vector3 dim();
+    static  MxVector3f dim();
 
 
     bool isRunning;
 
     // name of the model / script, usually picked up from command line;
     std::string name;
+    
+    static MxMatrix3f *virial(MxVector3f *origin=NULL, float *radius=NULL, std::vector<MxParticleType*> *types=NULL);
+    static MxVector3f getCenter();
+
+    static inline HRESULT step(const double &until=0, const double &dt=0);
+    static inline HRESULT stop();
+    static inline HRESULT start();
+    static inline HRESULT reset();
+    static inline MxParticleList *particles();
+    static inline void resetSpecies();
+    static inline std::vector<std::vector<std::vector<MxParticleList*> > > grid(MxVector3i shape);
+    static inline std::vector<MxBondHandle*> *bonds();
+
+    double getTemperature();
+    double getTime();
+    double getDt();
+    MxEventList *getEventList();
+    MxBoundaryConditions *getBoundaryConditions();
+    double getKineticEnergy();
 };
 
 /**
@@ -54,9 +73,9 @@ struct CAPI_EXPORT MxUniverse  {
  */
 
 struct CAPI_EXPORT MxUniverseConfig {
-    Magnum::Vector3 origin;
-    Magnum::Vector3 dim;
-    Magnum::Vector3i spaceGridSize;
+    MxVector3f origin;
+    MxVector3f dim;
+    MxVector3i spaceGridSize;
     double cutoff;
     uint32_t flags;
     uint32_t maxTypes;
@@ -66,9 +85,10 @@ struct CAPI_EXPORT MxUniverseConfig {
     int threads;
     EngineIntegrator integrator;
     
-    // pointer to python object for the boundary conditions, should be
-    // a dictionary or integer, parse this object when we initialize the engine.
-    PyObject *boundaryConditionsPtr;
+    // pointer to boundary conditions ctor data
+    // these objects are parsed initializing the engine.
+    MxBoundaryConditionsArgsContainer *boundaryConditionsPtr;
+
     double max_distance;
     
     
@@ -80,48 +100,18 @@ struct CAPI_EXPORT MxUniverseConfig {
     MxUniverseConfig();
     
     // just set the object, borow a pointer to python handle
-    void setBoundaryConditions(PyObject *obj) {
-        if(boundaryConditionsPtr) {
-            Py_DECREF(boundaryConditionsPtr);
-        }
-        boundaryConditionsPtr = obj;
-        Py_INCREF(boundaryConditionsPtr);
+    void setBoundaryConditions(MxBoundaryConditionsArgsContainer *_bcArgs) {
+        boundaryConditionsPtr = _bcArgs;
     }
     
     ~MxUniverseConfig() {
         if(boundaryConditionsPtr) {
-            Py_DECREF(boundaryConditionsPtr);
+            delete boundaryConditionsPtr;
+            boundaryConditionsPtr = 0;
         }
     }
 };
 
-CAPI_FUNC(HRESULT) MxUniverse_Init(const MxUniverseConfig &conf);
-
-CAPI_FUNC(HRESULT) MxUniverse_Bind(PyObject *args, PyObject *kwargs, PyObject **result);
-
-CAPI_FUNC(HRESULT) MxUniverse_BindThing3(PyObject *thing, PyObject *a, PyObject *b, PyObject *c);
-
-CAPI_FUNC(HRESULT) MxUniverse_BindThing2(PyObject *thing, PyObject *a, PyObject *b);
-
-CAPI_FUNC(HRESULT) MxUniverse_BindThing1(PyObject *thing, PyObject *a);
-
-
-PyObject* MxUniverse_ResetSpecies(PyObject *self, PyObject *args, PyObject *kwargs);
-
-
-/**
- * generate a surface mesh and bind it with a potential.
- *
- * args:
- *     potential
- *     number of subdivisions
- *     tuple of starting / stopping theta (polar angle)
- *     center of sphere
- *     radius of sphere
- */
-CAPI_FUNC(PyObject*) MxUniverse_BindSphere(PyObject *thing, PyObject *a);
-
-PyObject *MxPyUniverse_BindPairwise(PyObject *_args, PyObject *_kwargs);
 
 /**
  * runs the universe a pre-determined period of time, until.
@@ -169,12 +159,10 @@ CAPI_FUNC(HRESULT) MxUniverse_SetFlag(MxUniverse_Flags flag, int value);
  */
 CAPI_DATA(MxUniverse) Universe;
 
-
 /**
- * Init and add to python module
+ * Universe instance accessor
+ * 
  */
-HRESULT _MxUniverse_init(PyObject *m);
-
-
+CAPI_FUNC(MxUniverse*) getUniverse();
 
 #endif /* SRC_MXUNIVERSE_H_ */

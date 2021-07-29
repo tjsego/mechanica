@@ -22,7 +22,7 @@
 #define INCLUDE_ERRS_H_
 #include "platform.h"
 #include "stdio.h"
-
+#include <string>
 
 /* Some defines. */
 #define errs_maxstack                           100

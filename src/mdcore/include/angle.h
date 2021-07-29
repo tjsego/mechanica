@@ -23,8 +23,8 @@
 
 /* Include configuration header */
 #include "mdcore_config.h"
-
-
+#include <MxParticle.h>
+#include <MxPotential.h>
 
 /* angle error codes */
 #define angle_err_ok                     0
@@ -45,9 +45,10 @@ typedef enum MxAngleFlags {
     ANGLE_FOO   = 1 << 1,
 } MxAngleFlags;
 
+struct MxAngleHandle;
 
 /** The angle structure */
-typedef struct MxAngle : PyObject {
+typedef struct MxAngle {
 
     uint32_t flags;
 
@@ -57,9 +58,27 @@ typedef struct MxAngle : PyObject {
 	/* id of the potential. */
 	struct MxPotential *potential;
 
+    void init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3);
+    static MxAngleHandle *create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3);
+
 } MxAngle;
 
+struct MxAngleHandle {
+    int id;
 
+    /**
+     * @brief Gets the angle of this handle
+     * 
+     * @return MxAngle* 
+     */
+    MxAngle *angle();
+
+    MxAngleHandle() : id(-1) {}
+    MxAngleHandle(const int &_id) : id(_id) {}
+};
+
+// todo: implement new angle interactions when supported by engine (engine_angle_add)
+#if 0
 /**
  * @brief Add a angle interaction to the engine.
  *
@@ -84,18 +103,10 @@ CAPI_FUNC(MxAngle*) MxAngle_NewFromIds(int i , int j , int k , int pid );
  * otherwise, adds the potential to the engine.
  */
 CAPI_FUNC(MxAngle*) MxAngle_NewFromIdsAndPotential(int i , int j , int k , struct MxPotential *pot);
-
-
-/**
- * Internal function to initialize the angle Python api.
- */
-HRESULT _MxAngle_init(PyObject *module);
-
-
+#endif
 
 /* associated functions */
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out );
 int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , double *epot_out );
-
 
 #endif // INCLUDE_ANGLE_H

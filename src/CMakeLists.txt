@@ -76,7 +76,15 @@ set(SRC
   MxCylinderModel.cpp
   MxUniverse.cpp
 
+  MxLogger.cpp
   MxUtil.cpp
+  mx_error.cpp
+
+  event/MxEvent.cpp
+  event/MxEventList.cpp
+  event/MxEventPyExecutor.cpp
+  event/MxParticleEvent.cpp
+  event/MxTimeEvent.cpp
 
   rendering/ArcBallInteractor.cpp
   rendering/MxGlfwApplication.cpp
@@ -113,6 +121,11 @@ set(SRC
   shaders/ParticleSphereShader.cpp
 
   shaders/MxPhong.cpp
+
+  state/MxSpecies.cpp
+  state/MxSpeciesList.cpp
+  state/MxSpeciesValue.cpp
+  state/MxStateVector.cpp
 
   # ${AST_SRC}
 #  ${X3D_SRC}
@@ -164,7 +177,15 @@ set(HEADERS
   MxCylinderModel.h
   MxUniverse.h
 
+  MxLogger.h
   MxUtil.h
+  mx_error.h
+
+  event/MxEvent.h
+  event/MxEventList.h
+  event/MxEventPyExecutor
+  event/MxParticleEvent.h
+  event/MxTimeEvent.h
 
   rendering/ArcBallInteractor.h
   rendering/MxGlfwApplication.h
@@ -197,6 +218,8 @@ set(HEADERS
 
   rendering/MxGlInfo.h
 
+  rendering/MxEglInfo.h
+
   rendering/MxClipPlane.hpp
 
   rendering/colormaps/colormaps.h
@@ -204,6 +227,21 @@ set(HEADERS
   shaders/ParticleSphereShader.h
 
   shaders/MxPhong.h
+
+  state/MxSpecies.h
+  state/MxSpeciesList.h
+  state/MxSpeciesValue.h
+  state/MxStateVector.h
+
+  types/mx_types.h
+  types/MxVector.h
+  types/MxVector2.h
+  types/MxVector3.h
+  types/MxVector4.h
+  types/MxMatrix.h
+  types/MxMatrix3.h
+  types/MxMatrix4.h
+  types/MxQuaternion.h
   )
 
 
@@ -260,32 +298,17 @@ target_include_directories(mechanica_obj PRIVATE
 target_include_directories(mechanica_obj PUBLIC
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
   #${NUMPY_INCLUDE_DIR}
   $<INSTALL_INTERFACE:include/mechanica>
 )
 
-
-message("Carbon Includes:")
-get_target_property(dirs Carbon::Static INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message("carbon include='${dir}'")
-endforeach()
-
-
-message("Carbon Interface Includes:")
-
-get_target_property(dirs Carbon::Static INTERFACE_INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message( "carbon interface include='${dir}'")
-endforeach()
-
-
 target_link_libraries(mechanica_obj
-  Carbon::Static
   DirectXMath
   glfw
+  LibSBML::LibSBML
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
@@ -300,8 +323,10 @@ if(MX_ASSIMP)
 endif()
 
 source_group("Public Header Files" FILES ${MECHANICA_PUBLIC_HEADERS})
+source_group("Event" REGULAR_EXPRESSION "event/.*")
 source_group("Rendering" REGULAR_EXPRESSION "rendering/.*")
 source_group("Shaders" REGULAR_EXPRESSION "shaders/.*")
+source_group("State" REGULAR_EXPRESSION "state/.*")
 
 
 #message("MECHANICA_PUBLIC_HEADERS: ${MECHANICA_PUBLIC_HEADERS}")
@@ -337,6 +362,7 @@ set_target_properties(mechanica_shared PROPERTIES OUTPUT_NAME mechanica)
 target_include_directories(mechanica_shared PUBLIC
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
   #${NUMPY_INCLUDE_DIR}
@@ -345,19 +371,21 @@ target_include_directories(mechanica_shared PUBLIC
 
 target_include_directories(mechanica_shared PRIVATE ${PYBIND11_INCLUDE_DIR})
 
+find_package(SWIG 4.0 REQUIRED COMPONENTS python)
+include(UseSWIG)
 
 # shared and static libraries built from the same object files
-add_library(mechanica_py SHARED
-  mechanica.cpp
-  $<TARGET_OBJECTS:mechanica_obj>
-  $<TARGET_OBJECTS:mdcore_single>
-  )
+
+set_source_files_properties(mechanica.i PROPERTIES CPLUSPLUS ON SWIG_FLAGS "-keyword;-py3")
+
+swig_add_library(mechanica_py TYPE SHARED LANGUAGE python SOURCES mechanica.i $<TARGET_OBJECTS:mechanica_obj>)
 
 target_compile_definitions(mechanica_py PRIVATE C_BUILDING_DLL)
 
 set_target_properties(mechanica_py PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   VISIBILITY_INLINES_HIDDEN 1
+  SWIG_USE_TARGET_INCLUDE_DIRECTORIES TRUE
   )
 
 
@@ -382,6 +410,7 @@ set_target_properties(mechanica_py PROPERTIES
 target_include_directories(mechanica_py PRIVATE
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
   #${NUMPY_INCLUDE_DIR}
@@ -390,14 +419,10 @@ target_include_directories(mechanica_py PRIVATE
 
 target_include_directories(mechanica_py PRIVATE ${PYBIND11_INCLUDE_DIR})
 
-#target_link_libraries(mechanica_py PUBLIC
-#  Carbon::Static
-#  )
-
-target_link_libraries(mechanica_py PRIVATE
-  Carbon::Static
+swig_link_libraries(mechanica_py PRIVATE
   mdcore_single
   glfw
+  LibSBML::LibSBML 
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
@@ -415,11 +440,11 @@ target_link_libraries(mechanica_py PRIVATE
 if(WIN32 OR CYGWIN OR (UNIX AND NOT APPLE))
 
   # weird bug with CMake / clang on windows, need to add link dir here
-  target_link_directories(mechanica_py PUBLIC ${Python_LIBRARY_DIRS})
+  # target_link_directories(mechanica_py PUBLIC ${Python_LIBRARY_DIRS})
 
   # Link against the Python shared library on Windows
   # target_link_libraries(mechanica_py PRIVATE Python::Python)
-  target_link_libraries(mechanica_py PRIVATE ${Python_LIBRARY_RELEASE})
+  swig_link_libraries(mechanica_py PRIVATE ${Python_LIBRARIES})
 
 elseif(APPLE)
   # It's quite common to have multiple copies of the same Python version
@@ -452,15 +477,15 @@ if(UNIX)
 endif()
 
 if(MX_ASSIMP)
-  target_link_libraries(mechanica_py   Assimp::Assimp)
+  swig_link_libraries(mechanica_py   Assimp::Assimp)
 endif()
 
 if(MX_APPLE)
-  target_link_libraries(mechanica_py PRIVATE MagnumWindowlessCglApplication)
+  swig_link_libraries(mechanica_py PRIVATE MagnumWindowlessCglApplication)
 elseif(MX_LINUX)
-  target_link_libraries(mechanica_py PRIVATE MagnumWindowlessEglApplication)
+  swig_link_libraries(mechanica_py PRIVATE MagnumWindowlessEglApplication)
 elseif(MX_WINDOWS)
-  target_link_libraries(mechanica_py PRIVATE MagnumWindowlessWglApplication)
+  swig_link_libraries(mechanica_py PRIVATE MagnumWindowlessWglApplication)
 endif()
 
 
@@ -502,17 +527,17 @@ endif()
 
 file(COPY setup.py DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY __init__.py DESTINATION ${MX_PYPKG_DIR})
-file(COPY mechanica.py DESTINATION ${MX_PYPKG_DIR})
 file(COPY lattice.py DESTINATION ${MX_PYPKG_DIR})
 file(COPY jwidget.py DESTINATION ${MX_PYPKG_DIR})
+file(COPY particle_type.py DESTINATION ${MX_PYPKG_DIR})
 
 
 target_link_libraries(mechanica_shared
   PUBLIC
-  Carbon::Static
   Python::NumPy
   mdcore_single
   glfw
+  LibSBML::LibSBML
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
@@ -593,11 +618,12 @@ install(TARGETS mechanica_shared
 )
 
 install(TARGETS mechanica_py DESTINATION ${MX_SITEPACKAGES_REL}/mechanica)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mechanica.py DESTINATION ${MX_SITEPACKAGES_REL}/mechanica)
 install(FILES 
         __init__.py 
-        mechanica.py 
         lattice.py 
         jwidget.py
+        particle_type.py 
         DESTINATION 
         ${MX_SITEPACKAGES_REL}/mechanica
 )

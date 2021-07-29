@@ -1,5 +1,5 @@
 /*
- * XVertex.h
+ * Vertex.hpp
  *
  *  Created on: Dec 10, 2020
  *      Author: andy
@@ -15,16 +15,9 @@ struct Vertex
 {
 };
 
-struct VertexHandle : PyObject
+struct VertexHandle
 {
     int32_t id;
 };
-
-/**
- * vertex is special, it extends particle.
- */
-CAPI_DATA(MxParticleType*) Vertex_TypePtr;
-
-HRESULT _vertex_init(PyObject *m);
 
 #endif /* SRC_MDCORE_SRC_XVERTEX_H_ */

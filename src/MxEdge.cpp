@@ -7,18 +7,9 @@
 
 #include <MxEdge.h>
 #include "MeshRelationships.h"
+#include <mx_error.h>
 #include <string>
 
-
-
-static CType edgeType{} ;
-CType *MxEdge_Type = &edgeType;
-
-
-//MxEdge::MxEdge(uint id) : CObject{0, MxEdge_Type}, id{id}
-//{
-//}
-    
 
 MxEdge::MxEdge(uint id) : id{id}
 {
@@ -27,14 +18,6 @@ MxEdge::MxEdge(uint id) : id{id}
 MxEdge::~MxEdge()
 {
     // TODO Auto-generated destructor stub
-}
-
-void foo(CObject *o) {
-    MxEdge *x = dyn_cast<MxEdge>(o);
-
-    if(x) {
-        std::cout << "foo";
-    }
 }
 
 HRESULT connectEdgeVertices(EdgePtr edge, VertexPtr v0,

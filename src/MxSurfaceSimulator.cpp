@@ -36,166 +36,6 @@
 using namespace Math::Literals;
 
 
-
-/**
- * tp_alloc(type) to allocate storage
- * tp_new(type, args) to create blank object
- * tp_init(obj, args) to initialize object
- */
-
-static int _init(PyObject *obj, PyObject *args, PyObject *kwds)
-{
-    std::cout << MX_FUNCTION << std::endl;
-    std::cout << "count: " << obj->ob_refcnt << std::endl;
-    std::cout << "ob_type: " << obj->ob_type << std::endl;
-    std::cout << "name: " << obj->ob_type->tp_name << std::endl;
-    std::cout << "size: " << obj->ob_type->tp_basicsize << std::endl;
-
-    const std::string dirName = MX_MODEL_DIR;
-    std::string modelPath = dirName  + "/hex_cylinder.1.obj";
-
-    MxSurfaceSimulator_Config simConf = {{900,500}, modelPath.c_str()};
-    
-
-    MxSurfaceSimulator *self = new(obj) MxSurfaceSimulator(simConf);
-
-
-    std::cout << MX_FUNCTION << "completed initialization" << std::endl;
-    return 0;
-}
-
-static PyObject* _name(MxSurfaceSimulator* self)
-{
-    return PyUnicode_FromFormat("%s %s", "foo", "bar");
-}
-
-static PyObject* _imageData(MxSurfaceSimulator* self, PyObject* args) {
-
-    const GL::PixelFormat format = self->frameBuffer.implementationColorReadFormat();
-    Image2D image = self->frameBuffer.read(self->frameBuffer.viewport(), PixelFormat::RGBA8Unorm);
-
-    auto jpegData = convertImageDataToJpeg(image);
-
-    /* Open file */
-    if(!Utility::Directory::write("SurfaceSimulator.jpg", jpegData)) {
-        Error() << "Trade::AbstractImageConverter::exportToFile(): cannot write to file" << "triangle.jpg";
-        return NULL;
-    }
-
-    return PyBytes_FromStringAndSize(jpegData.data(), jpegData.size());
-}
-
-
-
-static PyMethodDef methods[] = {
-    {"name", (PyCFunction)_name, METH_NOARGS,  "Return the name, combining the first and last name"},
-    {"imageData", (PyCFunction)_imageData, METH_VARARGS,  "Return the name, combining the first and last name"},
-    {NULL}  /* Sentinel */
-};
-
-
-static PyTypeObject SurfaceSimulatorType = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
-    .tp_name = "mechanica.SurfaceSimulator",
-    .tp_basicsize = sizeof(MxSurfaceSimulator),
-    .tp_itemsize = 0,
-    .tp_dealloc = 0,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr = 0, 
-    .tp_setattr = 0, 
-    .tp_as_async = 0, 
-    .tp_repr = 0, 
-    .tp_as_number = 0, 
-    .tp_as_sequence = 0, 
-    .tp_as_mapping = 0, 
-    .tp_hash = 0, 
-    .tp_call = 0, 
-    .tp_str = 0, 
-    .tp_getattro = 0, 
-    .tp_setattro = 0, 
-    .tp_as_buffer = 0, 
-    .tp_flags = Py_TPFLAGS_DEFAULT, 
-    .tp_doc = 0, 
-    .tp_traverse = 0, 
-    .tp_clear = 0, 
-    .tp_richcompare = 0, 
-    .tp_weaklistoffset = 0, 
-    .tp_iter = 0, 
-    .tp_iternext = 0, 
-    .tp_methods = methods, 
-    .tp_members = 0, 
-    .tp_getset = 0, 
-    .tp_base = 0, 
-    .tp_dict = 0, 
-    .tp_descr_get = 0, 
-    .tp_descr_set = 0, 
-    .tp_dictoffset = 0, 
-    .tp_init = (initproc)_init,
-    .tp_alloc = 0, 
-    .tp_new = PyType_GenericNew, 
-    .tp_free = 0,  
-    .tp_is_gc = 0, 
-    .tp_bases = 0, 
-    .tp_mro = 0, 
-    .tp_cache = 0, 
-    .tp_subclasses = 0, 
-    .tp_weaklist = 0, 
-    .tp_del = 0, 
-    .tp_version_tag = 0, 
-    .tp_finalize = 0, 
-};
-
-
-/*
-static PyTypeObject SurfaceSimulatorType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "mechanica.SurfaceSimulator",
-    .tp_doc = "Custom objects",
-    .tp_basicsize = sizeof(MxSurfaceSimulator),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = PyType_GenericNew,
-    .tp_init = init,
-    .tp_methods = methods
-};
-*/
-
-PyTypeObject *MxSurfaceSimuator_Type = &SurfaceSimulatorType;
-
-MxSurfaceSimulator* MxSurfaceSimulator_New(
-        const MxSurfaceSimulator_Config* conf)
-{
-    PyObject *obj = PyType_GenericNew(MxSurfaceSimuator_Type, nullptr, nullptr);
-    
-    std::cout << "count: " << obj->ob_refcnt << std::endl;
-    std::cout << "ob_type: " << obj->ob_type << std::endl;
-    std::cout << "name: " << obj->ob_type->tp_name << std::endl;
-    std::cout << "size: " << obj->ob_type->tp_basicsize << std::endl;
-
-
-    MxSurfaceSimulator *result = new(obj) MxSurfaceSimulator(*conf);
-    
-    std::cout << "after ctor:" << std::endl;
-    std::cout << "count: " << obj->ob_refcnt << std::endl;
-    std::cout << "ob_type: " << obj->ob_type << std::endl;
-    std::cout << "name: " << obj->ob_type->tp_name << std::endl;
-    std::cout << "size: " << obj->ob_type->tp_basicsize << std::endl;
-
-    return result;
-}
-
-HRESULT MxSurfaceSimulator_init(PyObject* m) {
-
-    if (PyType_Ready((PyTypeObject *)MxSurfaceSimuator_Type) < 0)
-        return E_FAIL;
-
-
-    Py_INCREF(MxSurfaceSimuator_Type);
-    PyModule_AddObject(m, "SurfaceSimulator", (PyObject *) MxSurfaceSimuator_Type);
-
-    return 0;
-}
-
 MxSurfaceSimulator::MxSurfaceSimulator(const Configuration& config) :
         frameBuffer{Magnum::NoCreate}
 {
@@ -267,6 +107,10 @@ void MxSurfaceSimulator::loadModel(const char* fileName)
     draw();
 }
 
+void MxSurfaceSimulator::step(float dt) {
+    MX_NOTIMPLEMENTED_NORET
+}
+
 void MxSurfaceSimulator::draw() {
     
     frameBuffer.bind();
@@ -312,19 +156,38 @@ void MxSurfaceSimulator::draw() {
     renderer->draw();
 }
 
-PyObject* MxSurfaceSimulator_ImageData(MxSurfaceSimulator* self,
-        const char* path)
+void MxSurfaceSimulator::mouseMove(double xpos, double ypos) {
+    MX_NOTIMPLEMENTED_NORET
+}
+
+void MxSurfaceSimulator::mouseClick(int button, int action, int mods) {
+    MX_NOTIMPLEMENTED_NORET
+}
+
+std::tuple<char*, size_t> MxSurfaceSimulator::imageData(const char* path)
 {
-    const GL::PixelFormat format = self->frameBuffer.implementationColorReadFormat();
-    Image2D image = self->frameBuffer.read(self->frameBuffer.viewport(), PixelFormat::RGBA8Unorm);
+    const GL::PixelFormat format = this->frameBuffer.implementationColorReadFormat();
+    Image2D image = this->frameBuffer.read(this->frameBuffer.viewport(), PixelFormat::RGBA8Unorm);
 
     auto jpegData = convertImageDataToJpeg(image);
 
     /* Open file */
     if(!Utility::Directory::write(path, jpegData)) {
         Error() << "Trade::AbstractImageConverter::exportToFile(): cannot write to file" << "triangle.jpg";
-        return NULL;
+        return std::make_tuple((char*)NULL, (size_t)0);
     }
 
-    return PyBytes_FromStringAndSize(jpegData.data(), jpegData.size());
+    return std::make_tuple(jpegData.data(), jpegData.size());
+}
+
+PyObject* MxSurfaceSimulatorPy::imageDataPy(const char* path)
+{
+    char *data;
+    size_t size;
+    std::tie(data, size) = imageData(path);
+    if(data==NULL) {
+        Error() << "Trade::AbstractImageConverter::exportToFile(): cannot write to file" << "triangle.jpg";
+        return NULL;
+    }
+    return PyBytes_FromStringAndSize(data, size);
 }

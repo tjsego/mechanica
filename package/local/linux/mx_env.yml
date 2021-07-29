@@ -13,6 +13,7 @@ dependencies:
   - swig
   - numpy
   - jpeg
+  - bzip2
   - libxml2
   - matplotlib
   - xorg-libxrandr

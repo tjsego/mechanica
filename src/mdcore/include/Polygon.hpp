@@ -18,7 +18,7 @@ struct PartialPolygon
     int32_t polygon_id;
 };
 
-struct PartialPolygonHandle : PyObject
+struct PartialPolygonHandle
 {
     int32_t id;
 };
@@ -216,16 +216,9 @@ struct Polygon
 //                                                           CEdgePtr e0, CEdgePtr e1,  EdgePtr edge, VertexPtr v0, VertexPtr v1);
 };
 
-struct PolygonHandle : PyObject
+struct PolygonHandle
 {
     int32_t id;
 };
-
-/**
- */
-CAPI_DATA(PyTypeObject) PartialPolygon_Type;
-CAPI_DATA(PyTypeObject) Polygon_Type;
-
-HRESULT _polygon_init(PyObject *m);
 
 #endif /* SRC_MDCORE_SRC_POLYGON_H_ */

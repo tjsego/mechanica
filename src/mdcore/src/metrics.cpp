@@ -7,14 +7,9 @@
 
 #include <metrics.h>
 #include <engine.h>
-#include <Magnum/Magnum.h>
-#include <Magnum/Math/Vector3.h>
-#include "MxConvert.hpp"
-#include "MxNumpy.h"
 #include "space.h"
 #include "space_cell.h"
 #include "runner.h"
-#include "MxParticle.h"
 #include "dpd_eval.hpp"
 
 
@@ -23,18 +18,18 @@ static HRESULT virial_pair (float cutoff,
                               space_cell *cell_i,
                               space_cell *cell_j,
                               int sid,
-                              const Magnum::Vector3 &shift,
-                              Magnum::Matrix3 &m);
+                              const MxVector3f &shift,
+                              MxMatrix3f &m);
 
 /**
  * search a pair of cells for particles
  */
-static HRESULT enum_particles(const Magnum::Vector3 &origin,
+static HRESULT enum_particles(const MxVector3f &origin,
                               float radius,
                               space_cell *cell,
                               const std::set<short int> *typeIds,
                               int32_t exceptPartId,
-                              const Magnum::Vector3 &shift,
+                              const MxVector3f &shift,
                               std::vector<int32_t> &ids);
 
 
@@ -42,9 +37,9 @@ HRESULT MxCalculateVirial(FPTYPE *_origin,
                             FPTYPE radius,
                             const std::set<short int> &typeIds,
                             FPTYPE *tensor) {
-    Magnum::Vector3 origin = Magnum::Vector3::from(_origin);
+    MxVector3f origin = MxVector3f::from(_origin);
     
-    Magnum::Matrix3 m{0.0};
+    MxMatrix3f m{0.0};
     
     // cell id of target cell
     int cid, ijk[3];
@@ -72,7 +67,7 @@ HRESULT MxCalculateVirial(FPTYPE *_origin,
     space_cell *cj;
     
     // shift vector between cells.
-    Magnum::Vector3 shift;
+    MxVector3f shift;
     
     /* Get the span of the cells we will search for pairs. */
     for (int k = 0 ; k < 3 ; k++ ) {
@@ -140,29 +135,18 @@ HRESULT MxCalculateVirial(FPTYPE *_origin,
 }
 
 
-
-/**
- * converts cartesian to spherical in global coord space.
- * createsa a numpy array.
- */
-PyObject* MPyCartesianToSpherical(const Magnum::Vector3& postion,
-                                  const Magnum::Vector3& origin) {
-    return mx::cast(MxCartesianToSpherical(postion, origin));
-}
-
-
 /**
  * converts cartesian to spherical, writes spherical
  * coords in to result array.
  */
-Magnum::Vector3 MxCartesianToSpherical(const Magnum::Vector3& pos,
-                                       const Magnum::Vector3& origin) {
-    Magnum::Vector3 vec = pos - origin;
+MxVector3f MxCartesianToSpherical(const MxVector3f& pos,
+                                       const MxVector3f& origin) {
+    MxVector3f vec = pos - origin;
     
     float radius = vec.length();
     float theta = std::atan2(vec.y(), vec.x());
     float phi = std::acos(vec.z() / radius);
-    return Magnum::Vector3{radius, theta, phi};
+    return MxVector3f{radius, theta, phi};
 }
 
 
@@ -171,17 +155,17 @@ static HRESULT virial_pair (float cutoff,
                               space_cell *cell_i,
                               space_cell *cell_j,
                               int sid,
-                              const Magnum::Vector3 &shift,
-                              Magnum::Matrix3 &m) {
+                              const MxVector3f &shift,
+                              MxMatrix3f &m) {
     
     int i, j, k, count_i, count_j;
     FPTYPE cutoff2, r2;
     struct MxParticle *part_i, *part_j, *parts_i, *parts_j;
-    Magnum::Vector4 dx;
-    Magnum::Vector4 pix;
+    MxVector4f dx;
+    MxVector4f pix;
     MxPotential *pot;
     float w = 0, e = 0, f = 0;
-    Magnum::Vector3 force;
+    MxVector3f force;
     
 
     /* break early if one of the cells is empty */
@@ -330,7 +314,7 @@ static HRESULT virial_pair (float cutoff,
 HRESULT MxParticles_RadiusOfGyration(int32_t *parts, uint16_t nr_parts,
         float *result)
 {
-    Magnum::Vector3 r, dx;
+    MxVector3f r, dx;
     
     float r2 = 0;
 
@@ -366,7 +350,7 @@ HRESULT MxParticles_RadiusOfGyration(int32_t *parts, uint16_t nr_parts,
 HRESULT MxParticles_CenterOfMass(int32_t *parts, uint16_t nr_parts,
         float *result)
 {
-    Magnum::Vector3 r;
+    MxVector3f r;
     float m = 0;
     
     // center of geometry
@@ -391,7 +375,7 @@ HRESULT MxParticles_CenterOfMass(int32_t *parts, uint16_t nr_parts,
 HRESULT MxParticles_CenterOfGeometry(int32_t *parts, uint16_t nr_parts,
         float *result)
 {
-    Magnum::Vector3 r;
+    MxVector3f r;
     
     // center of geometry
     for(int i = 0; i < nr_parts; ++i) {
@@ -414,12 +398,12 @@ HRESULT MxParticles_CenterOfGeometry(int32_t *parts, uint16_t nr_parts,
 HRESULT MxParticles_MomentOfInertia(int32_t *parts, uint16_t nr_parts,
         float *tensor)
 {
-    Magnum::Matrix3 m{0.0};
+    MxMatrix3f m{0.0};
     int i;
     struct MxParticle *part_i;
-    Magnum::Vector3 dx;
-    Magnum::Vector3 pix;
-    Magnum::Vector3 cm;
+    MxVector3f dx;
+    MxVector3f pix;
+    MxVector3f cm;
     HRESULT result = MxParticles_CenterOfMass(parts, nr_parts,cm.data());
     
     if(FAILED(result)) {
@@ -470,14 +454,14 @@ CAPI_FUNC(HRESULT) MxParticles_Virial(int32_t *parts,
                                                    uint16_t nr_parts,
                                                    uint32_t flags,
                                                    FPTYPE *tensor) {
-    Magnum::Matrix3 m{0.0};
+    MxMatrix3f m{0.0};
     int i, j, k;
     struct MxParticle *part_i, *part_j;
-    Magnum::Vector4 dx;
-    Magnum::Vector4 pix, pjx;
+    MxVector4f dx;
+    MxVector4f pix, pjx;
     MxPotential *pot;
     float w = 0, e = 0, f = 0;
-    Magnum::Vector3 force;
+    MxVector3f force;
     
     /* get the space and cutoff */
     pix[3] = FPTYPE_ZERO;
@@ -564,7 +548,7 @@ HRESULT MxParticle_Neighbors(MxParticle *part,
                                uint16_t *nr_parts,
                                int32_t **pparts)  {
     // origin in global space
-    Magnum::Vector3 origin = part->global_position();
+    MxVector3f origin = part->global_position();
     
     // cell id of target cell
     int cid, ijk[3];
@@ -593,7 +577,7 @@ HRESULT MxParticle_Neighbors(MxParticle *part,
     space_cell *c = &s->cells[cid];
     
     // origin in the target cell's coordinate system
-    Magnum::Vector3 local_origin = {
+    MxVector3f local_origin = {
         (float)(origin[0] - c->origin[0]),
         (float)(origin[1] - c->origin[1]),
         (float)(origin[2] - c->origin[2])
@@ -603,7 +587,7 @@ HRESULT MxParticle_Neighbors(MxParticle *part,
     space_cell *cj, *ci;
     
     // shift vector between cells.
-    Magnum::Vector3 shift;
+    MxVector3f shift;
     
     /* Get the span of the cells we will search for pairs. */
     for (int k = 0 ; k < 3 ; k++ ) {
@@ -709,20 +693,20 @@ HRESULT MxParticle_Neighbors(MxParticle *part,
 }
 
 
-HRESULT enum_particles(const Magnum::Vector3 &_origin,
+HRESULT enum_particles(const MxVector3f &_origin,
                        float radius,
                        space_cell *cell,
                        const std::set<short int> *typeIds,
                        int32_t exceptPartId,
-                       const Magnum::Vector3 &shift,
+                       const MxVector3f &shift,
                        std::vector<int32_t> &ids) {
     
     int i, count;
     FPTYPE cutoff2, r2;
     struct MxParticle *part, *parts;
-    Magnum::Vector4 dx;
-    Magnum::Vector4 pix;
-    Magnum::Vector4 origin;
+    MxVector4f dx;
+    MxVector4f pix;
+    MxVector4f origin;
     
     /* break early if one of the cells is empty */
     count = cell->count;
@@ -774,25 +758,25 @@ HRESULT enum_particles(const Magnum::Vector3 &_origin,
     return runner_err_ok;
 }
 
-void do_it(const Magnum::Vector3 &origin, const MxParticle *part, Magnum::Matrix3 &m) {
+void do_it(const MxVector3f &origin, const MxParticle *part, MxMatrix3f &m) {
     
 }
 
 
-HRESULT enum_thing(const Magnum::Vector3 &_origin,
+HRESULT enum_thing(const MxVector3f &_origin,
                        float radius,
                        space_cell *cell,
                        const std::set<short int> *typeIds,
                        int32_t exceptPartId,
-                       const Magnum::Vector3 &shift,
-                       Magnum::Matrix3 &m) {
+                       const MxVector3f &shift,
+                       MxMatrix3f &m) {
     
     int i, count;
     FPTYPE cutoff2, r2;
     struct MxParticle *part, *parts;
-    Magnum::Vector4 dx;
-    Magnum::Vector4 pix;
-    Magnum::Vector4 origin;
+    MxVector4f dx;
+    MxVector4f pix;
+    MxVector4f origin;
     
     /* break early if one of the cells is empty */
     count = cell->count;
@@ -844,27 +828,10 @@ HRESULT enum_thing(const Magnum::Vector3 &_origin,
     return runner_err_ok;
 }
 
-static void fill_object_array_with_particle_lists(PyArrayObject *arr, int init_size)
-{
-    npy_intp i,n;
-    n = PyArray_SIZE(arr);
-    
-    assert(PyArray_DESCR(arr)->type_num == NPY_OBJECT);
-    
-    PyObject **optr;
-    optr = (PyObject **)(PyArray_DATA(arr));
-
-    for (i = 0; i < n; i++) {
-        PyObject *obj = (PyObject*)MxParticleList_New(init_size);
-        *optr++ = obj;
-    }
-}
-
-
 /**
- * Creates an numpy ndarray of ParticleList objects.
+ * Creates an array of ParticleList objects.
  */
-PyObject* MxParticle_Grid(const Magnum::Vector3i &shape, const std::set<short int> *typeIds) {
+std::vector<std::vector<std::vector<MxParticleList*> > > MxParticle_Grid(const MxVector3i &shape) {
     
     VERIFY_PARTICLES();
     
@@ -872,22 +839,21 @@ PyObject* MxParticle_Grid(const Magnum::Vector3i &shape, const std::set<short in
         throw std::domain_error("shape must have positive, non-zero values for all dimensions");
     }
     
-    npy_intp npy_shape[] = {shape[0], shape[1], shape[2]};
+    std::vector<std::vector<std::vector<MxParticleList*> > > result(
+        shape[0], std::vector<std::vector<MxParticleList*> >(
+            shape[1], std::vector<MxParticleList*>(
+                shape[2], new MxParticleList())));
     
-    PyArrayObject *result = (PyArrayObject*)PyArray_SimpleNew(3, npy_shape,  NPY_OBJECT);
+    MxVector3f dim = {(float)_Engine.s.dim[0], (float)_Engine.s.dim[1], (float)_Engine.s.dim[2]};
     
-    fill_object_array_with_particle_lists(result, _Engine.s.nr_parts / (shape[0] * shape[1] * shape[2]));
-    
-    Magnum::Vector3 dim = {(float)_Engine.s.dim[0], (float)_Engine.s.dim[1], (float)_Engine.s.dim[2]};
-    
-    Magnum::Vector3 scale = {shape[0] / dim[0], shape[1] / dim[1], shape[2] / dim[2]};
+    MxVector3f scale = {shape[0] / dim[0], shape[1] / dim[1], shape[2] / dim[2]};
     
     for (int cid = 0 ; cid < _Engine.s.nr_cells ; cid++ ) {
         space_cell *cell = &_Engine.s.cells[cid];
         for (int pid = 0 ; pid < cell->count ; pid++ ) {
             MxParticle *part  = &cell->parts[pid];
             
-            Magnum::Vector3 pos = part->global_position();
+            MxVector3f pos = part->global_position();
             // relative position of part in universe, scaled from 0-1, then
             // scaled to index in array
             int i = std::floor(pos[0] * scale[0]);
@@ -898,9 +864,7 @@ PyObject* MxParticle_Grid(const Magnum::Vector3i &shape, const std::set<short in
             assert(j >= 0 && j <= shape[1]);
             assert(k >= 0 && k <= shape[2]);
             
-            PyObject** ptr = (PyObject**)PyArray_GETPTR3(result, i, j, k);
-            
-            MxParticleList *list = (MxParticleList*)(*ptr);
+            MxParticleList *list = result[i][j][k];
             
             list->insert(part->id);
         }
@@ -909,7 +873,7 @@ PyObject* MxParticle_Grid(const Magnum::Vector3i &shape, const std::set<short in
     for (int pid = 0 ; pid < _Engine.s.largeparts.count ; pid++ ) {
         MxParticle *part  = &_Engine.s.largeparts.parts[pid];
         
-        Magnum::Vector3 pos = part->global_position();
+        MxVector3f pos = part->global_position();
         // relative position of part in universe, scaled from 0-1, then
         // scaled to index in array
         int i = std::floor(pos[0] * scale[0]);
@@ -920,15 +884,22 @@ PyObject* MxParticle_Grid(const Magnum::Vector3i &shape, const std::set<short in
         assert(j >= 0 && j <= shape[1]);
         assert(k >= 0 && k <= shape[2]);
         
-        PyObject** ptr = (PyObject**)PyArray_GETPTR3(result, i, j, k);
-        
-        MxParticleList *list = (MxParticleList*)(*ptr);
+        MxParticleList *list = result[i][j][k];
         
         list->insert(part->id);
     }
     
-    return (PyObject*)result;
+    return result;
 }
 
+HRESULT MxParticle_Grid(const MxVector3i &shape, MxParticleList **result) {
+    auto pl = MxParticle_Grid(shape);
+    unsigned int idx = 0;
+    for(unsigned int i2 = 0; i2 < shape[2]; ++i2)
+        for(unsigned int i1 = 0; i1 < shape[1]; ++i1)
+            for(unsigned int i0 = 0; i0 < shape[0]; ++i0, ++idx)
+                result[idx] = pl[i0][i1][i2];
 
+    return S_OK;
+}
 

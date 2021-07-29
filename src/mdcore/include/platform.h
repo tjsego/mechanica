@@ -13,7 +13,7 @@
 #ifndef INCLUDE_PLATFORM_H_
 #define INCLUDE_PLATFORM_H_
 
-#include "carbon.h"
+#include "mx_port.h"
 
 /* Get the inlining right. */
 #ifndef INLINE

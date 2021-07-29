@@ -46,7 +46,6 @@
 #include "errs.h"
 #include "fptype.h"
 #include "lock.h"
-#include <MxParticle.h>
 #include <MxPotential.h>
 #include "potential_eval.hpp"
 #include <space_cell.h>
@@ -54,11 +53,12 @@
 #include "engine.h"
 #include <bond.h>
 
-#include <MxConvert.hpp>
+#include <../../MxLogger.h>
 #include <../../MxUtil.h>
+#include <../../mx_error.h>
 #include <../../rendering/NOMStyle.hpp>
 
-NOMStyle *MxBond_StylePtr = NULL;
+NOMStyle *MxBond_StylePtr = new NOMStyle("lime");
 
 /* Global variables. */
 /** The ID of the last error. */
@@ -74,16 +74,11 @@ const char *bond_err_msg[2] = {
     "An unexpected NULL pointer was encountered."
 };
 
-static PyObject* bond_destroy(MxBondHandle *_self, PyObject *args, PyObject *kwargs);
-static PyObject* bond_energy(MxBondHandle *_self);
-static PyObject *bond_bonds(PyObject *self);
-
-
 /**
  * check if a type pair is in a list of pairs
- * pairs has to be a python list of tuples of types
+ * pairs has to be a vector of pairs of types
  */
-static bool pair_check(PyObject *pairs, short a_typeid, short b_typeid);
+static bool pair_check(std::vector<std::pair<MxParticleType*, MxParticleType*>* > *pairs, short a_typeid, short b_typeid);
 
 /**
  * @brief Evaluate a list of bonded interactoins
@@ -491,18 +486,25 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
     /* We're done here. */
     return bond_err_ok;
     
-    }
+}
 
-
-static int _bond_init(MxBondHandle *self, uint32_t flags, int32_t i, int32_t j,
-        double half_life, double bond_energy, struct MxPotential *potential) {
+int MxBondHandle::_init(uint32_t flags, 
+                        int32_t i, 
+                        int32_t j, 
+                        double half_life, 
+                        double bond_energy, 
+                        struct MxPotential *potential) 
+{
+    // check whether this handle has previously been initialized and return without error if so
+    if (this->id > 0 && _Engine.nr_bonds > 0) return 0;
 
     MxBond *bond = NULL;
     
-    int result = engine_bond_alloc (&_Engine, &bond );
+    int result = engine_bond_alloc(&_Engine, &bond);
     
     if(result < 0) {
-        return c_error(E_FAIL, "could not allocate bond");
+        throw std::runtime_error("could not allocate bond");
+        return E_FAIL;
     }
     
     bond->flags = flags;
@@ -510,8 +512,7 @@ static int _bond_init(MxBondHandle *self, uint32_t flags, int32_t i, int32_t j,
     bond->j = j;
     bond->half_life = half_life;
     bond->dissociation_energy = bond_energy;
-    bond->style = MxBond_StylePtr;
-    Py_IncRef(bond->style);
+    if (!bond->style) bond->style = MxBond_StylePtr;
     
     if(bond->i >= 0 && bond->j >= 0) {
         bond->flags = bond->flags | BOND_ACTIVE;
@@ -519,383 +520,147 @@ static int _bond_init(MxBondHandle *self, uint32_t flags, int32_t i, int32_t j,
     }
 
     if(potential) {
-        Py_INCREF(potential);
         bond->potential = potential;
     }
     
-    self->id = result;
+    this->id = result;
+
+    Log(LOG_TRACE) << "Created bond: " << this->id  << ", i: " << bond->i << ", j: " << bond->j;
 
     return 0;
 }
 
-static int bond_init(MxBondHandle *self, PyObject *args, PyObject *kwargs) {
+MxBondHandle *MxBond::create(struct MxPotential *potential, 
+                             MxParticleHandle *i, 
+                             MxParticleHandle *j, 
+                             double *half_life, 
+                             double *bond_energy, 
+                             uint32_t flags)
+{
+    if(!potential || !i || !j) return NULL;
+
+    auto _half_life = half_life ? *half_life : std::numeric_limits<double>::max();
+    auto _bond_energy = bond_energy ? *bond_energy : std::numeric_limits<double>::max();
+    return new MxBondHandle(potential, i->id, j->id, _half_life, _bond_energy, flags);
+}
+
+MxBond *MxBondHandle::get() {
+#ifdef INCLUDE_ENGINE_H_
+    return &_Engine.bonds[this->id];
+#else
+    return NULL;
+#endif
+};
+
+MxBondHandle::MxBondHandle(int id) {
+    if(id >= 0 && id < _Engine.nr_bonds) this->id = id;
+    else throw std::range_error("invalid id");
+}
+
+MxBondHandle::MxBondHandle(struct MxPotential *potential, int32_t i, int32_t j,
+        double half_life, double bond_energy, uint32_t flags) : 
+    MxBondHandle()
+{
+    _init(flags, i, j, half_life, bond_energy, potential);
+}
+
+int MxBondHandle::init(MxPotential *pot, 
+                       MxParticleHandle *p1, 
+                       MxParticleHandle *p2, 
+                       const double &half_life, 
+                       const double &bond_energy, 
+                       uint32_t flags) 
+{
 
     Log(LOG_DEBUG);
 
     try {
-        PyObject *pot  = mx::arg<PyObject*>("potential", 0, args, kwargs);
-        PyObject *p1  = mx::arg<PyObject*>("p1", 1, args, kwargs);
-        PyObject *p2  = mx::arg<PyObject*>("p2", 2, args, kwargs);
-        
-        double half_life = mx::arg<double>("half_life", 3, args, kwargs, std::numeric_limits<double>::max());
-        double bond_energy = mx::arg<double>("dissociation_energy", 4, args, kwargs, std::numeric_limits<double>::max());
-        uint32_t flags = mx::arg<uint32_t>("flags", 5, args, kwargs, 0);
-        
-        if(PyObject_IsInstance(pot, (PyObject*)&MxPotential_Type) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "potential is not a instance of Potential");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p1) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p1 is not a instance of Particle");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p2) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p2 is not a instance Particle");
-            return -1;
-        }
-        
-        return _bond_init(self, flags, ((MxParticleHandle*)p1)->id, ((MxParticleHandle*)p2)->id,
-                   half_life, bond_energy, (MxPotential*)pot);
-
+        return _init(flags, p1->id, p2->id, half_life, bond_energy, pot);
     }
     catch (const std::exception &e) {
-        return C_EXP(e);
+        return mx_exp(e);
     }
 }
 
-static PyObject* bond_str(MxBondHandle *bh) {
+std::string MxBondHandle::str() {
     std::stringstream  ss;
-    MxBond *bond = &_Engine.bonds[bh->id];
+    MxBond *bond = &_Engine.bonds[this->id];
     
+    ss << "Bond(i=" << bond->i << ", j=" << bond->j << ")";
     
-    ss << "Bond(i="
-       << bond->i
-       << ", j="
-       << bond->j
-       << ")";
-    
-    return PyUnicode_FromString(ss.str().c_str());
+    return ss.str();
 }
 
-static PyGetSetDef bond_getset[] = {
-    {
-        .name = "parts",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            if(bond->flags & BOND_ACTIVE) {
-                return MxParticleList_Pack(2, bond->i, bond->j);
-            }
-            Py_RETURN_NONE;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "potential",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            if(bond->flags & BOND_ACTIVE) {
-                PyObject *pot = bond->potential;
-                Py_INCREF(pot);
-                return pot;
-            }
-            Py_RETURN_NONE;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "id",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            if(bond->flags & BOND_ACTIVE) {
-                // WARNING: need the (int) cast here to pick up the
-                // correct mx::cast template specialization, won't build wiht
-                // an int32_specializations, claims it's duplicate for int.
-                return mx::cast((int)bond->id);
-            }
-            Py_RETURN_NONE;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "dissociation_energy",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            return mx::cast(bond->dissociation_energy);
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            try {
-                MxBond *bond = ((MxBondHandle*)_obj)->get();
-                bond->dissociation_energy = mx::cast<float>(val);
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "active",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            return mx::cast((bool)(bond->flags & BOND_ACTIVE));
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "style",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            Py_INCREF(bond->style);
-            return bond->style;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            if(!NOMStyle_Check(val)) {
-                PyErr_SetString(PyExc_TypeError, "style must be a Style object");
-                return -1;
-            }
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            Py_DECREF(bond->style);
-            bond->style = (NOMStyle*)val;
-            Py_INCREF(bond->style);
-            return 0;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {NULL}
-};
-
-PyObject *bond_bonds(PyObject *self) {
-    PyObject *list = PyList_New(_Engine.nr_bonds);
-    
-    for(int i = 0; i < _Engine.nr_bonds; ++i) {
-        PyList_SET_ITEM(list, i, MxBondHandle_FromId(i));
-    }
-    
-    return list;
+bool MxBondHandle::check() {
+    return (bool)this->get();
 }
 
-
-static Py_ssize_t bond_length(PyObject *o) {
-    return 2;
+double MxBondHandle::getEnergy()
+{
+    Log(LOG_DEBUG);
+    
+    MxBond *bond = this->get();
+    double energy = 0;
+    
+    MxBond_Energy(bond, &energy);
+    
+    return energy;
 }
 
-static PyObject *bond_item(PyObject *o, Py_ssize_t i) {
- 
-    MxBond *self = MxBond_Get(o);
-    MxParticleHandle *result;
-    
-    if(i == 0) {
-        MxParticle *p = MxParticle_FromId(self->i);
-        result = p->py_particle();
-        Py_INCREF(result);
-        return result;
+std::vector<int32_t> MxBondHandle::getParts() {
+    std::vector<int32_t> result;
+    MxBond *bond = get();
+    if(bond && bond->flags & BOND_ACTIVE) {
+        result = std::vector<int32_t>{bond->i, bond->j};
+    }
+    return result;
+}
 
+MxPotential *MxBondHandle::getPotential() {
+    MxBond *bond = get();
+    if(bond && bond->flags & BOND_ACTIVE) {
+        return bond->potential;
     }
-    else if (i == 1) {
-        MxParticle *p = MxParticle_FromId(self->j);
-        result = p->py_particle();
-        Py_INCREF(result);
-        return result;
-    }
-    PyErr_SetString(PyExc_IndexError, "bond index out of range, index must be 0 or 1");
     return NULL;
 }
 
-static int bond_ass_item(PyObject *o, Py_ssize_t i, PyObject *x) {
-    MxBond *self = MxBond_Get(o);
-    MxParticle *p = MxParticle_Get(x);
-    
-    if(!p) {c_error(E_FAIL, "can only assign particle to bonds"); return -1;}
-    
-    if(i == 0) {
-        self->i = p->id;
-        return 0;
+uint32_t MxBondHandle::getId() {
+    MxBond *bond = get();
+    if(bond && bond->flags & BOND_ACTIVE) {
+        // WARNING: need the (int) cast here to pick up the
+        // correct mx::cast template specialization, won't build wiht
+        // an int32_specializations, claims it's duplicate for int.
+        return bond->id;
     }
-    else if (i == 1) {
-        self->j = p->id;
-        return 0;
-    }
-    PyErr_SetString(PyExc_IndexError, "bond index out of range, index must be 0 or 1");
-    return -1;
+    return NULL;
 }
 
-static int bond_contains(PyObject *o, PyObject *x) {
-    MxBond *self = MxBond_Get(o);
-    MxParticle *p = MxParticle_Get(x);
-    return self && p && (self->i == p->id || self->j == p->id);
+float MxBondHandle::getDissociationEnergy() {
+    float result;
+    MxBond *bond = get();
+    if (bond) result = bond->dissociation_energy;
+    return result;
 }
 
-static PySequenceMethods bond_sequence = {
-     .sq_length = bond_length,
-     .sq_concat = NULL,
-     .sq_repeat = NULL,
-     .sq_item = bond_item,
-     .was_sq_slice = NULL,
-     .sq_ass_item = bond_ass_item,
-     .was_sq_ass_slice = NULL,
-     .sq_contains = bond_contains,
-     .sq_inplace_concat = NULL,
-     .sq_inplace_repeat = NULL,
-};
-
-
-
-static PyMethodDef bond_methods[] = {
-    { "destroy", (PyCFunction)bond_destroy, METH_VARARGS | METH_KEYWORDS, NULL },
-    { "energy", (PyCFunction)bond_energy, METH_NOARGS, NULL },
-    { "bonds", (PyCFunction)bond_bonds, METH_STATIC | METH_NOARGS, NULL },
-    { "items", (PyCFunction)bond_bonds, METH_STATIC | METH_NOARGS, NULL },
-    { NULL, NULL, 0, NULL }
-};
-
-
-PyTypeObject MxBondHandle_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "Bond",
-    .tp_basicsize = sizeof(MxBondHandle),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           (reprfunc)bond_str,
-    .tp_as_number =      0,
-    .tp_as_sequence =    &bond_sequence,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            (reprfunc)bond_str,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        bond_methods,
-    .tp_members =        0,
-    .tp_getset =         bond_getset,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           (initproc)bond_init,
-    .tp_alloc =          0,
-    .tp_new =            PyType_GenericNew,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
-
-
-static PyMethodDef methods[] = {
-    { NULL, NULL, 0, NULL }
-};
-
-static struct PyModuleDef moduledef = {
-        PyModuleDef_HEAD_INIT,
-        "bonds",   /* name of module */
-        NULL, /* module documentation, may be NULL */
-        -1,       /* size of per-interpreter state of the module,
-                 or -1 if the module keeps state in global variables. */
-        methods
-};
-
-static PyObject *bonds_module = NULL;
-
-HRESULT _MxBond_init(PyObject *m)
-{
-    if (PyType_Ready((PyTypeObject*)&MxBondHandle_Type) < 0) {
-        Log(LOG_ERROR) << "could not initialize MxBondHandle_Type ";
-        return E_FAIL;
-    }
-
-    bonds_module = PyModule_Create(&moduledef);
-
-    Py_INCREF(&MxBondHandle_Type);
-    if (PyModule_AddObject(m, "Bond", (PyObject *)&MxBondHandle_Type) < 0) {
-        Py_DECREF(&MxBondHandle_Type);
-        return E_FAIL;
-    }
-
-    if (PyModule_AddObject(m, "bonds", (PyObject *)bonds_module) < 0) {
-        Py_DECREF(&MxBondHandle_Type);
-        Py_DECREF(&bonds_module);
-        return E_FAIL;
-    }
-    
-    MxBond_StylePtr = NOMStyle_NewEx(Color3_Parse("lime"));
-    
-    if(MxBondHandle_Type.tp_dict) {
-        PyDict_SetItemString(MxBondHandle_Type.tp_dict, "style", MxBond_StylePtr);
-    }
-
-    return S_OK;
+bool MxBondHandle::getActive() {
+    MxBond *bond = get();
+    if (bond) return (bool)(bond->flags & BOND_ACTIVE);
+    return false;
 }
 
-MxBondHandle* MxBondHandle_New(uint32_t flags, int32_t i, int32_t j,
-        double half_life, double bond_energy, struct MxPotential *potential)
-{
-    MxBondHandle *bond = (MxBondHandle*)PyType_GenericAlloc(&MxBondHandle_Type, 0);
-
-    _bond_init(bond, flags, i, j, half_life, bond_energy, potential);
-
-    return bond;
+NOMStyle *MxBondHandle::getStyle() {
+    MxBond *bond = get();
+    if (bond) return bond->style;
+    return NULL;
 }
-
-// list of pairs...
-struct Pair {
-    int32_t i;
-    int32_t j;
-};
-
-typedef std::vector<Pair> PairList;
 
 static void make_pairlist(const MxParticleList *parts,
-                          float cutoff, PyObject *paircheck_list,
+                          float cutoff, std::vector<std::pair<MxParticleType*, MxParticleType*>* > *paircheck_list,
                           PairList& pairs) {
     int i, j;
     struct MxParticle *part_i, *part_j;
-    Magnum::Vector4 dx;
-    Magnum::Vector4 pix, pjx;
+    MxVector4f dx;
+    MxVector4f pix, pjx;
  
     /* get the space and cutoff */
     pix[3] = FPTYPE_ZERO;
@@ -941,69 +706,11 @@ static void make_pairlist(const MxParticleList *parts,
     } /* loop over all particles */
 }
 
-PyObject* MxBond_PairwiseNew(
-    struct MxPotential* pot,
-    struct MxParticleList *parts,
-    float cutoff,
-    PyObject *ppairs,
-    PyObject *args,
-    PyObject *kwds) {
-    
-    PairList pairs;
-    PyObject *bonds = NULL;
-    MxBondHandle *bond = NULL;
-    
-    try {
-        make_pairlist(parts, cutoff, ppairs, pairs);
-        
-        bonds = PyList_New(pairs.size());
-        Log(LOG_DEBUG) << "list size: " << PyList_Size(bonds);
-        
-        double half_life = mx::arg<double>("half_life", 3, args, kwds, std::numeric_limits<double>::max());
-        double bond_energy = mx::arg<double>("bond_energy", 4, args, kwds, std::numeric_limits<double>::max());
-        uint32_t flags = mx::arg<uint32_t>("flags", 5, args, kwds, 0);
-        
-        for(int i = 0; i < pairs.size(); ++i) {
-            bond = (MxBondHandle*)PyType_GenericAlloc(&MxBondHandle_Type, 0);
-            if(!bond) {
-                throw std::logic_error("failed to allocated bond");
-            }
-            
-            if(_bond_init(bond, flags, pairs[i].i, pairs[i].j, half_life, bond_energy, (MxPotential*)pot) != 0) {
-                throw std::logic_error("failed to init bond");
-            }
-                
-            // each new bond has a refcount of 1
-            PyList_SET_ITEM(bonds, i, bond);
-        }
-        
-        return bonds;
-    }
-    catch (const std::exception &e) {
-        if(bonds) {
-            Py_DecRef(bonds);
-        }
-        C_EXP(e);
-    }
-    return NULL;
-}
-
-MxBondHandle* MxBondHandle_FromId(int id) {
-    if(id >= 0 && id < _Engine.nr_bonds) {
-        MxBondHandle *h = (MxBondHandle*)PyType_GenericAlloc(&MxBondHandle_Type, 0);
-        h->id = id;
-        return h;
-    }
-    PyErr_SetString(PyExc_ValueError, "invalid id");
-    return NULL;
-}
-
 CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b) {
     
     std::unique_lock<std::mutex> lock(_Engine.bonds_mutex);
     
     if(b->flags & BOND_ACTIVE) {
-        Py_DecRef(b->potential);
         // this clears the BOND_ACTIVE flag
         bzero(b, sizeof(MxBond));
         _Engine.nr_active_bonds -= 1;
@@ -1011,29 +718,72 @@ CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b) {
     return S_OK;
 }
 
+std::vector<MxBondHandle*>* MxBondHandle::pairwise(struct MxPotential* pot,
+                                                   struct MxParticleList *parts,
+                                                   const double &cutoff,
+                                                   std::vector<std::pair<MxParticleType*, MxParticleType*>* > *ppairs,
+                                                   const double &half_life,
+                                                   const double &bond_energy,
+                                                   uint32_t flags) 
+{
+    
+    PairList pairs;
+    std::vector<MxBondHandle*> *bonds = new std::vector<MxBondHandle*>();
+    
+    try {
+        make_pairlist(parts, cutoff, ppairs, pairs);
+        
+        for(auto &pair : pairs) {
+            auto bond = new MxBondHandle(pot, pair.i, pair.j, half_life, bond_energy, flags);
+            if(!bond) {
+                throw std::logic_error("failed to allocated bond");
+            }
+            
+            bonds->push_back(bond);
+        }
+        
+        return bonds;
+    }
+    catch (const std::exception &e) {
+        delete bonds;
+        mx_exp(e);
+    }
+    return NULL;
+}
 
-PyObject* bond_destroy(MxBondHandle *self, PyObject *args, PyObject *kwargs)
+HRESULT MxBondHandle::destroy()
 {
     Log(LOG_DEBUG);
     
-    MxBond_Destroy(self->get());
-    Py_RETURN_NONE;
+    return MxBond_Destroy(this->get());
 }
 
-PyObject* bond_energy(MxBondHandle *self)
-{
-    Log(LOG_DEBUG);
+std::vector<MxBondHandle*> MxBondHandle::bonds() {
+    std::vector<MxBondHandle*> list;
     
-    MxBond *bond = self->get();
-    double energy = 0;
+    for(int i = 0; i < _Engine.nr_bonds; ++i) 
+        list.push_back(new MxBondHandle(i));
     
-    MxBond_Energy (bond, &energy);
-    
-    return mx::cast(energy);
-    
-    Py_RETURN_NONE;
+    return list;
 }
 
+std::vector<MxBondHandle*> MxBondHandle::items() {
+    return bonds();
+}
+
+MxParticleHandle *MxBondHandle::operator[](unsigned int index) {
+    auto *b = get();
+    if(!b) {
+        Log(LOG_ERROR) << "Invalid bond handle";
+        return NULL;
+    }
+
+    if(index == 0) return MxParticle_FromId(b->i)->py_particle();
+    else if(index == 1) return MxParticle_FromId(b->j)->py_particle();
+    
+    mx_exp(std::range_error("Index out of range (must be 0 or 1)"));
+    return NULL;
+}
 
 HRESULT MxBond_Energy (MxBond *b, double *epot_out) {
     
@@ -1130,39 +880,45 @@ std::vector<int32_t> MxBond_IdsForParticle(int32_t pid) {
     return bonds;
 }
 
-
-bool pair_check(PyObject *pairs, short a_typeid, short b_typeid) {
+bool pair_check(std::vector<std::pair<MxParticleType*, MxParticleType*>* > *pairs, short a_typeid, short b_typeid) {
     if(!pairs) {
         return true;
     }
     
-    PyObject *a = (PyObject*)&_Engine.types[a_typeid];
-    PyObject *b = (PyObject*)&_Engine.types[b_typeid];
+    auto *a = &_Engine.types[a_typeid];
+    auto *b = &_Engine.types[b_typeid];
     
-    for (int i = 0; i < PyList_Size(pairs); ++i) {
-        PyObject *o = PyList_GetItem(pairs, i);
-        if(PyTuple_Check(o) && PyTuple_Size(o) == 2) {
-            if((a == PyTuple_GET_ITEM(o, 0) && b == PyTuple_GET_ITEM(o, 1)) ||
-               (b == PyTuple_GET_ITEM(o, 0) && a == PyTuple_GET_ITEM(o, 1))) {
-                return true;
-            }
+    for (int i = 0; i < (*pairs).size(); ++i) {
+        std::pair<MxParticleType*, MxParticleType*> *o = (*pairs)[i];
+        if((a == std::get<0>(*o) && b == std::get<1>(*o)) ||
+            (b == std::get<0>(*o) && a == std::get<1>(*o))) {
+            return true;
         }
     }
     return false;
 }
 
-
-MxBond *MxBond_Get(PyObject *o) {
-    if(MxBondHandle_Check(o)) {
-        MxBondHandle *h = (MxBondHandle*)o;
-        return h->get();
-    }
-    return NULL;
-}
-
-bool MxBondHandle_Check(PyObject *o) {
-    if(o) {
-        return PyObject_IsInstance(o, (PyObject*)&MxBondHandle_Type);
+bool contains_bond(const std::vector<MxBondHandle*> &bonds, int a, int b) {
+    for(auto h : bonds) {
+        MxBond *bond = &_Engine.bonds[h->id];
+        if((bond->i == a && bond->j == b) || (bond->i == b && bond->j == a)) {
+            return true;
+        }
     }
     return false;
+}
+
+int insert_bond(std::vector<MxBondHandle*> &bonds, int a, int b,
+                MxPotential *pot, MxParticleList *parts) {
+    int p1 = parts->parts[a];
+    int p2 = parts->parts[b];
+    if(!contains_bond(bonds, p1, p2)) {
+        MxBondHandle *bond = new MxBondHandle(pot, p1, p2,
+                                              std::numeric_limits<double>::max(),
+                                              std::numeric_limits<double>::max(),
+                                              0);
+        bonds.push_back(bond);
+        return 1;
+    }
+    return 0;
 }

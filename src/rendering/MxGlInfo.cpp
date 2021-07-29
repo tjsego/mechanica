@@ -5,7 +5,6 @@
  *      Author: andy
  */
 
-#include <carbon.h>
 #include <rendering/MxGlInfo.h>
 
 #include <Corrade/Utility/Arguments.h>
@@ -657,46 +656,62 @@ std::string gl_info() {
 }
 
 
+const std::unordered_map<std::string, std::string> MxGLInfo::getInfo() {
 
+    std::unordered_map<std::string, std::string> o;
 
-PyObject *Mx_GlInfo(PyObject *args, PyObject *kwds) {
-
-    std::string str = gl_info();
+    if(Magnum::GL::Context::hasCurrent()) {
+        Magnum::GL::Context& context = Magnum::GL::Context::current();
+        context.detectedDriver();
+        
+        o["vendor"] = context.vendorString();
+        o["version"] = context.versionString();
+        o["renderer"] = context.rendererString();
+        o["shading_language_version"] = context.shadingLanguageVersionString();
+    }
     
+    return o;
+
+}
+
+const std::vector<std::string> MxGLInfo::getExtensionsInfo() {
+    std::vector<std::string> o;
+
     if(Magnum::GL::Context::hasCurrent()) {
         Magnum::GL::Context& context = Magnum::GL::Context::current();
         
-        PyObject *dict = PyDict_New();
-        
         context.detectedDriver();
-        
 
+        for (auto s : context.extensionStrings())
+            o.push_back(s);
         
-        PyDict_SetItemString(dict, "vendor", mx::cast(context.vendorString()));
-        
-        PyDict_SetItemString(dict, "version", mx::cast(context.versionString()));
-        
-        PyDict_SetItemString(dict, "renderer", mx::cast(context.rendererString()));
-        
-        PyDict_SetItemString(dict, "shading_language_version", mx::cast(context.shadingLanguageVersionString()));
-        
-        {
-            std::vector<std::string> extensions = context.extensionStrings();
-            PyObject *ex = PyList_New(extensions.size());
-            
-            for (int i = 0; i < extensions.size(); ++i) {
-                PyList_SetItem(ex, i, mx::cast(extensions[i]));
+    }
+
+    return o;
+}
+
+std::unordered_map<std::string, std::string> Mx_GlInfo() {
+    std::unordered_map<std::string, std::string> result;
+    
+    if(Magnum::GL::Context::hasCurrent()) {
+        auto info = MxGLInfo::getInfo();
+        auto extInfo = MxGLInfo::getExtensionsInfo();
+
+        for (auto &i : info)
+            result[i.first] = i.second;
+
+        std::string extInfoStr;
+        if(extInfo.size() > 0) {
+            extInfoStr = extInfo[0];
+            if(extInfo.size() > 1) {
+                for(unsigned int i = 1; i < extInfo.size(); ++i)
+                    extInfoStr += ", " + extInfo[i];
             }
-            
-            PyDict_SetItemString(dict, "extensions", ex);
         }
-        
-        return dict;
+        result["extensions"] = extInfoStr;
     }
     
-    else {
-        Py_RETURN_NONE;
-    }
+    return result;
 }
 
 

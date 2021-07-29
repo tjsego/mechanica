@@ -38,9 +38,9 @@ MX_ALWAYS_INLINE bool dpd_eval(DPDPotential *p, float gaussian,
     assert(r >= p->a);
     
     // unit vector
-    Magnum::Vector3 e = {dx[0] / r, dx[1] / r, dx[2] / r};
+    MxVector3f e = {dx[0] / r, dx[1] / r, dx[2] / r};
     
-    Magnum::Vector3 v = pi->velocity - pj->velocity;
+    MxVector3f v = pi->velocity - pj->velocity;
     
     float shifted_r = shifted ? r - ri - rj : r;
     
@@ -52,7 +52,7 @@ MX_ALWAYS_INLINE bool dpd_eval(DPDPotential *p, float gaussian,
     // dissapative force
     float omega_d = omega_c * omega_c;
     
-    float fd = -p->gamma * omega_d * Magnum::Math::dot(e, v);
+    float fd = -p->gamma * omega_d * e.dot(v);
     
     float fr = p->sigma * omega_c * delta;
     
@@ -82,9 +82,9 @@ MX_ALWAYS_INLINE bool dpd_boundary_eval(DPDPotential *p, float gaussian,
     float r = std::sqrt(r2);
     
     // unit vector
-    Magnum::Vector3 e = {dx[0] / r, dx[1] / r, dx[2] / r};
+    MxVector3f e = {dx[0] / r, dx[1] / r, dx[2] / r};
     
-    Magnum::Vector3 v = {pi->velocity[0] - velocity[0], pi->velocity[1] - velocity[1], pi->velocity[2] - velocity[2]};
+    MxVector3f v = {pi->velocity[0] - velocity[0], pi->velocity[1] - velocity[1], pi->velocity[2] - velocity[2]};
     
     // conservative force
     float omega_c = (1 - r / cutoff);
@@ -94,7 +94,7 @@ MX_ALWAYS_INLINE bool dpd_boundary_eval(DPDPotential *p, float gaussian,
     // dissapative force
     float omega_d = omega_c * omega_c;
     
-    float fd = -p->gamma * omega_d * Magnum::Math::dot(e, v);
+    float fd = -p->gamma * omega_d * e.dot(v);
     
     float fr = p->sigma * omega_c * delta;
     

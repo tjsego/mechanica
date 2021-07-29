@@ -8,14 +8,12 @@
 #ifndef SRC_MXWINDOW_H_
 #define SRC_MXWINDOW_H_
 
-#include <carbon.h>
 #include <mechanica_private.h>
 #include <Magnum/Magnum.h>
-#include <Magnum/Math/Vector2.h>
 #include <Magnum/GL/AbstractFramebuffer.h>
 #include <GLFW/glfw3.h>
 
-struct MxWindow : PyObject
+struct MxWindow
 {
     
     enum MouseButton {
@@ -39,23 +37,11 @@ struct MxWindow : PyObject
         Repeat = GLFW_REPEAT
     };
 
-    virtual Magnum::Vector2i windowSize() const = 0;
+    virtual MxVector2i windowSize() const = 0;
     
     virtual Magnum::GL::AbstractFramebuffer& framebuffer() = 0;
     
     virtual void redraw() = 0;
 };
-
-/**
- * The the particle type type
- */
-CAPI_DATA(PyTypeObject) MxWindow_Type;
-
-
-
-/**
- * Init and add to python module
- */
-HRESULT MxWindow_init(PyObject *m);
 
 #endif /* SRC_MXWINDOW_H_ */

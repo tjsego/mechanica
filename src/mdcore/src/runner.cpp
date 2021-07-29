@@ -56,7 +56,7 @@
 #include <MxPotential.h>
 #include "engine.h"
 #include "runner.h"
-
+#include "../../MxLogger.h"
 
 
 

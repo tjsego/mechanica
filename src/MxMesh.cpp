@@ -11,13 +11,14 @@
 #include "MeshRelationships.h"
 #include <Magnum/Math/Math.h>
 #include <Corrade/Containers/Optional.h>
+#include <mx_error.h>
 
 #include <deque>
 #include <limits>
 #include <cmath>
 
 
-int MxMesh::findVertex(const Magnum::Vector3& pos, double tolerance) {
+int MxMesh::findVertex(const MxVector3f& pos, double tolerance) {
     for (int i = 1; i < vertices.size(); ++i) {
         float dist = (vertices[i]->position - pos).dot();
         if (dist <= tolerance) {
@@ -27,7 +28,7 @@ int MxMesh::findVertex(const Magnum::Vector3& pos, double tolerance) {
     return -1;
 }
 
-VertexPtr MxMesh::createVertex(const Magnum::Vector3& pos, const CType *type) {
+VertexPtr MxMesh::createVertex(const MxVector3f& pos) {
 
     VertexPtr retval = nullptr;
     retval = new MxVertex{0., 0., pos};
@@ -38,27 +39,23 @@ VertexPtr MxMesh::createVertex(const Magnum::Vector3& pos, const CType *type) {
     return retval;
 }
 
-
-CObject *MxMesh::alloc(const CType* type)
-{
-    VertexPtr retval = nullptr;
-    if(type == MxVertex_Type) {
-        retval = new MxVertex();
-        vertices.push_back(retval);
-        return retval;
-    }
-    else if(type == MxEdge_Type) {
-        MxEdge *e = new MxEdge(edges.size());
-        edges.push_back(e);
-        return e;
-    }
-    else {
-        assert(0);
-        return nullptr;
-    }
+// todo: specialize alloc for MxVertex
+template<>
+MxVertex *MxMesh::alloc() {
+    auto v = new MxVertex();
+    vertices.push_back(v);
+    return v;
 }
 
-CellPtr MxMesh::createCell(CType *type, const std::string& name) {
+// todo: specialize alloc for MxEdge
+template<>
+MxEdge *MxMesh::alloc() {
+    MxEdge *e = new MxEdge(edges.size());
+    edges.push_back(e);
+    return e;
+}
+
+CellPtr MxMesh::createCell(MxCellType *type, const std::string& name) {
     CellPtr cell = new MxCell{(uint)cells.size(), type, this, nullptr, name};
     cells.push_back(cell);
     return cell;
@@ -75,10 +72,10 @@ void MxMesh::dump(uint what) {
     }
 }
 
-std::tuple<Magnum::Vector3, Magnum::Vector3> MxMesh::extents() const {
+std::tuple<MxVector3f, MxVector3f> MxMesh::extents() const {
 
-    auto min = Vector3{std::numeric_limits<float>::max()};
-    auto max = Vector3{std::numeric_limits<float>::min()};
+    auto min = MxVector3f{std::numeric_limits<float>::max()};
+    auto max = MxVector3f{std::numeric_limits<float>::min()};
 
 
     for(auto& v : vertices) {
@@ -94,20 +91,14 @@ struct UniverseCellType : MxCellType {
         return Color4{0., 0., 0., 0.};
     }
 
-    UniverseCellType() : MxCellType{"UniverseCellType", MxCell_Type} {};
+    UniverseCellType() : MxCellType{"UniverseCellType"} {};
 };
 
 UniverseCellType universeCellType;
-MxCellType *MxUniverseCell_Type = &universeCellType;
-
-CType universePartialTriangleType = {};
-
-CType *MxUniversePartialTriangle_Type =
-        &universePartialTriangleType;
 
 MxMesh::MxMesh() /*: meshOperations(this, 0, 1.5)*/
 {
-    _rootCell = new MxCell{(uint)cells.size(), MxUniverseCell_Type, this, nullptr, "RootCell"};
+    _rootCell = new MxCell{(uint)cells.size(), &universeCellType, this, nullptr, "RootCell"};
     cells.push_back(_rootCell);
 }
 
@@ -233,7 +224,7 @@ HRESULT MxMesh::applyMeshOperations() {
     return positionsChanged();
 }
 
-PolygonPtr MxMesh::createPolygon(CType* type,  const std::vector<VertexPtr> &vertices) {
+PolygonPtr MxMesh::createPolygon(MxPolygonType* type,  const std::vector<VertexPtr> &vertices) {
 
     PolygonPtr poly = new MxPolygon{(uint)polygons.size(), type};
 
@@ -253,7 +244,7 @@ HRESULT MxMesh::positionsChanged()
         VertexPtr v = vertices[i];
         v->mass = 0;
         v->area = 0;
-        v->force = {{0.f, 0.f, 0.f}};
+        v->force = {0.f, 0.f, 0.f};
     }
 
     for(PolygonPtr tri : polygons) {
@@ -283,15 +274,15 @@ EdgePtr MxMesh::findEdge(CVertexPtr a, CVertexPtr b) const
 }
 
 
-EdgePtr MxMesh::createEdge(CType* type, VertexPtr a, VertexPtr b)
+EdgePtr MxMesh::createEdge(VertexPtr a, VertexPtr b)
 {
-    EdgePtr e = (EdgePtr)alloc(type);
+    EdgePtr e = alloc<MxEdge>();
     VERIFY(connectEdgeVertices(e, a, b));
     return e;
 }
 
 
-HRESULT MxMesh::setPositions(uint32_t len, const Vector3* positions)
+HRESULT MxMesh::setPositions(uint32_t len, const MxVector3f* positions)
 {
     HRESULT result;
 
@@ -327,54 +318,48 @@ HRESULT MxMesh::setPositions(uint32_t len, const Vector3* positions)
     return S_OK;
 }
 
-CObject* MxMesh::selectedObject() const {
-    return _selectedObject;
+HRESULT MxMesh::selectObject(MxMesh_TYPESEL type, uint index) {
+    switch (type)
+    {
+    case MxMesh_TYPESEL::MxMesh_TYPEEDGE:
+        return selectEdge(index);
+    case MxMesh_TYPESEL::MxMesh_TYPEPOLYGON:
+        return selectPolygon(index);
+    case MxMesh_TYPESEL::MxMesh_TYPENONE:
+        return deselectObject();
+    default:
+        break;
+    }
+    return E_FAIL;
 }
 
-HRESULT MxMesh::selectObject(CType* type, uint index) {
-    if(type == nullptr ) {
-        _selectedObject = nullptr;
-        return S_OK;
-    }
+HRESULT MxMesh::selectEdge(uint index) {
 
-    if(type == MxEdge_Type) {
+    if(index >= edges.size()) return mx_error(E_FAIL, "index out of range");
 
-        if(index >= edges.size()) {
-            return mx_error(E_FAIL, "index out of range");
-        }
+    *_selectedObject = edges[index];
+    return S_OK;
 
-        _selectedObject = edges[index];
-        return S_OK;
-    }
-
-    if(type == MxPolygon_Type) {
-
-        if(index >= polygons.size()) {
-            return mx_error(E_FAIL, "index out of range");
-        }
-
-        _selectedObject = polygons[index];
-        return S_OK;
-    }
-
-    return mx_error(E_FAIL, "type must be either MxEdge_Type or MxPolygon_Type");
 }
 
-PolygonPtr MxMesh::createPolygon(CType* type)
+HRESULT MxMesh::selectPolygon(uint index) {
+
+    if(index >= polygons.size()) return mx_error(E_FAIL, "index out of range");
+
+    *_selectedObject = polygons[index];
+    return S_OK;
+}
+
+HRESULT MxMesh::deselectObject() {
+    *_selectedObject = MxMesh::NoneSelectedType();
+    return S_OK;
+}
+
+PolygonPtr MxMesh::createPolygon(MxPolygonType* type)
 {
     PolygonPtr poly = new MxPolygon{(uint)polygons.size(), type};
 
     polygons.push_back(poly);
 
     return poly;
-}
-
-HRESULT MxMesh::addObjectDeleteListener(CObjectChangedHandler, void* userData)
-{
-	return E_NOTIMPL;
-}
-
-HRESULT MxMesh::removeObjectDeleteListener(void* userData)
-{
-	return E_NOTIMPL;
 }

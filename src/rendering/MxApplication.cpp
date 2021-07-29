@@ -28,6 +28,7 @@
 #include <Magnum/Math/Color.h>
 
 #include <MxUtil.h>
+#include <MxLogger.h>
 
 using namespace Magnum;
 
@@ -68,8 +69,7 @@ static void _test_draw(Magnum::GL::AbstractFramebuffer &framebuffer) {
     shader.draw(mesh);
 }
 
-PyObject* MxTestImage(PyObject *module, PyObject* self, PyObject* args) {
-    
+std::tuple<char*, size_t> MxTestImage() {
     GL::Renderbuffer renderbuffer;
     renderbuffer.setStorage(GL::RenderbufferFormat::RGBA8, {640, 480});
     GL::Framebuffer framebuffer{{{}, {640, 480}}};
@@ -86,17 +86,26 @@ PyObject* MxTestImage(PyObject *module, PyObject* self, PyObject* args) {
     /* Open file */
     if(!Utility::Directory::write("triangle.jpg", jpegData)) {
         Error() << "Trade::AbstractImageConverter::exportToFile(): cannot write to file" << "triangle.jpg";
-        return NULL;
+        return std::make_tuple((char*)NULL, (size_t)0);
     }
 
-    return PyBytes_FromStringAndSize(jpegData.data(), jpegData.size());
+    return std::make_tuple(jpegData.data(), jpegData.size());
+}
+
+PyObject* MxTestImage(PyObject* dummyo) {
+
+    char *data;
+    size_t size;
+    std::tie(data, size) = MxTestImage();
+
+    if (data == NULL)
+        return NULL;
+    
+    return PyBytes_FromStringAndSize(data, size);
 }
 
 
-
-
-PyObject* MxFramebufferImageData(PyObject *module, PyObject* self, PyObject* args) {
-    
+std::tuple<char*, size_t> MxFramebufferImageData() {
     PerformanceTimer t1(engine_timer_image_data);
     PerformanceTimer t2(engine_timer_render_total);
     
@@ -106,26 +115,33 @@ PyObject* MxFramebufferImageData(PyObject *module, PyObject* self, PyObject* arg
     Log(LOG_TRACE);
     
     if(!Magnum::GL::Context::hasCurrent()) {
-        PyErr_SetString(PyExc_RuntimeError, "No current OpenGL context");
-        return NULL;
+        Error() << "No current OpenGL context";
+        return std::make_tuple((char*)NULL, (size_t)0);
     }
     
-    MxSimulator *sim = MxSimulator_Get();
-    
-    //Py_BEGIN_ALLOW_THREADS
+    MxSimulator *sim = MxSimulator::get();
     
     sim->app->redraw();
-    
-    //Py_END_ALLOW_THREADS
     
     Magnum::GL::AbstractFramebuffer &framebuffer = sim->app->framebuffer();
 
     Image2D image = framebuffer.read(framebuffer.viewport(), PixelFormat::RGBA8Unorm);
     
     auto jpegData = convertImageDataToJpeg(image);
+
+    return std::make_tuple(jpegData.data(), jpegData.size());
+}
+
+PyObject* MxFramebufferImageData(PyObject *dummyo) {
     
-    data = jpegData.data();
-    size = jpegData.size();
+    char *data;
+    size_t size;
+    std::tie(data, size) = MxFramebufferImageData();
+
+    if (data == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "No current OpenGL context");
+        return NULL;
+    }
     
     return PyBytes_FromStringAndSize(data, size);
 }
@@ -165,7 +181,7 @@ HRESULT MxApplication::simulationStep() {
     currentStep += 1;
     
     // TODO: get rid of this
-    return  MxUniverse_Step(0,0);
+    return MxUniverse::step(0,0);
 }
 
 HRESULT MxApplication::run(double et)
@@ -176,7 +192,3 @@ HRESULT MxApplication::run(double et)
     MxUniverse_SetFlag(MX_RUNNING, false);
     return result;
 }
-
-
-
-

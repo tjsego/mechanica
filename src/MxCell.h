@@ -13,31 +13,29 @@
 #include <array>
 #include <Magnum/Magnum.h>
 #include "Magnum/Math/Color.h"
-#include <Magnum/Math/Vector3.h>
-#include <Magnum/Math/Matrix3.h>
 #include <MxPolygon.h>
 #include "MxMeshCore.h"
 #include "MeshRelationships.h"
+#include "MxConstraints.h"
+#include "MxForces.h"
 
 
-struct MxCellRendererType : CObject {
+struct MxCellRendererType {
 
 };
 
 
-struct MxCellRenderer : CObject {
+struct MxCellRenderer {
 
     virtual HRESULT invalidate() = 0;
     virtual ~MxCellRenderer() {};
 };
 
-CAPI_DATA(struct CType*) MxCell_Type;
+struct MxCellType : MxConstrainableType, MxForcableType {
 
-struct MxCellType : CType {
+    std::string name;
 
-    MxCellType(const char* name, CType *type)  {};
-
-    //MxCellType() : CType{CType_Type} {};
+    MxCellType(const std::string &name="") : name(name) {}
 
     /**
      * Store the stoichiometry matrix in the type, initially Mechanica will
@@ -94,12 +92,10 @@ struct MxCellType : CType {
  * The way we do v-tables, derived types can contain objects, and stuff their
  * v-tables in the main v-table to do containment correctly.
  */
-struct MxCell : CObject, MxMeshNode {
+struct MxCell : MxConstrainable, MxForcable, MxMeshNode {
 
-    static CType *type() { return MxCell_Type; };
-
-    MxCell(uint id, CType *type, MeshPtr msh, MxReal *stateVector, const std::string& nm = "")
-    : CObject(MxCell_Type), MxMeshNode(msh, id)
+    MxCell(uint id, MxCellType *type, MeshPtr msh, MxReal *stateVector, const std::string& nm = "")
+    : MxConstrainable(type), MxForcable(type), MxMeshNode(msh, id)
     {
 
     };
@@ -183,11 +179,11 @@ struct MxCell : CObject, MxMeshNode {
 
     void writePOV(std::ostream &out);
 
-    Vector3 centerOfMass() const;
+    MxVector3f centerOfMass() const;
 
-    Vector3 radiusMeanVarianceStdDev() const;
+    MxVector3f radiusMeanVarianceStdDev() const;
 
-    Matrix3 momentOfInertia() const;
+    MxMatrix3f momentOfInertia() const;
 
     /**
      * sum of all of the triangle areas.
@@ -212,7 +208,7 @@ struct MxCell : CObject, MxMeshNode {
 
     std::string name;
 
-    Vector3 centroid = {0., 0., 0.};
+    MxVector3f centroid = {0., 0., 0.};
 
     MxCellRenderer *renderer = nullptr;
 
@@ -232,8 +228,8 @@ std::ostream& operator << (std::ostream& stream, const MxCell *cell);
  */
 struct VertexAttribute
 {
-    Magnum::Vector3 position;
-    Magnum::Vector3 normal;
+    MxVector3f position;
+    MxVector3f normal;
     Magnum::Color4 color;
 };
 

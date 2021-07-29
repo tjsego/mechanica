@@ -1,20 +1,23 @@
-import mechanica as m
+import mechanica as mx
 
-m.init(dim=[6.5, 6.5, 6.5], bc=m.FREESLIP_FULL)
+mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL)
 
-class A (m.Particle):
+
+class AType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap" : {"species" : "S1",
-                           "map" : "rainbow",
-                           "range" : "auto"}}
+    style = {"colormap": {"species": "S1",
+                          "map": "rainbow",
+                          "range": "auto"}}
 
-m.flux(A, A, "S1", 5, 0.001)
 
-uc = m.lattice.sc(0.25, A)
+A = AType.get()
+mx.Fluxes.flux(A, A, "S1", 5, 0.001)
 
-parts = m.lattice.create_lattice(uc, [25, 25, 25])
+uc = mx.lattice.sc(0.25, A)
 
-parts[24,0,24][0].species.S1 = 5000
+parts = mx.lattice.create_lattice(uc, [25, 25, 25])
 
-m.show()
+parts[24, 0, 24][0].species.S1 = 5000
+
+mx.run()

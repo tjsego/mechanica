@@ -1,47 +1,58 @@
-import mechanica as m
+import mechanica as mx
 import numpy as np
 
-m.init(dt=0.1, dim=[15, 12, 10]) #, bc=m.FREESLIP_FULL)
+mx.init(dt=0.1, dim=[15, 12, 10])
 
 # lattice spacing
 a = 0.65
 
-class A (m.Particle):
-    radius = 0.3
-    style={"color":"seagreen"}
-    dynamics = m.Overdamped
 
-class B (m.Particle):
+class AType(mx.ParticleType):
     radius = 0.3
-    style={"color":"red"}
-    dynamics = m.Overdamped
+    style = {"color": "seagreen"}
+    dynamics = mx.Overdamped
 
-class Fixed (m.Particle):
+
+A = AType.get()
+
+
+class BType(mx.ParticleType):
     radius = 0.3
-    style={"color":"blue"}
+    style = {"color": "red"}
+    dynamics = mx.Overdamped
+
+
+B = BType.get()
+
+
+class FixedType(mx.ParticleType):
+    radius = 0.3
+    style = {"color": "blue"}
     frozen = True
 
-repulse = m.Potential.coulomb(q=0.08, min=0.01, max=2*a)
 
-m.bind(repulse, A, A)
-m.bind(repulse, A, B)
+Fixed = FixedType.get()
 
-f = m.forces.ConstantForce(
-    lambda: [0.3, 1 * np.sin( 0.4 * m.Universe.time), 0], 0.01)
+repulse = mx.Potential.coulomb(q=0.08, min=0.01, max=2 * a)
 
-m.bind(f, B)
+mx.bind(repulse, A, A)
+mx.bind(repulse, A, B)
 
-pot = m.Potential.power(r0=0.5*a, alpha=2)
+f = mx.ConstantForce(lambda: [0.3, 1 * np.sin(0.4 * mx.Universe.time), 0], 0.01)
 
-uc = m.lattice.sc(a, A,
-                  lambda i, j: m.Bond(pot, i, j, dissociation_energy=1.3))
+mx.bind(f, B)
 
-parts = m.lattice.create_lattice(uc, [15, 15, 15])
+pot = mx.Potential.power(r0=0.5 * a, alpha=2)
 
-for p in parts[14,:].flatten(): p[0].become(B)
+uc = mx.lattice.sc(a, A,
+                   lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=1.3))
 
-for p in parts[0,:].flatten(): p[0].become(Fixed)
+parts = mx.lattice.create_lattice(uc, [15, 15, 15])
 
-m.show()
+for p in parts[14, :].flatten():
+    p[0].become(B)
 
+for p in parts[0, :].flatten():
+    p[0].become(Fixed)
 
+mx.show()

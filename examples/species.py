@@ -1,31 +1,37 @@
-import mechanica as m
+import mechanica as mx
 import numpy as n
 
-m.init()
+mx.init()
 
-print(m.carbon.Species("S1"))
+print(mx.Species("S1"))
 
-s1 = m.carbon.Species("$S1")
+s1 = mx.Species("$S1")
 
-s1 = m.carbon.Species("const S1")
+s1 = mx.Species("const S1")
 
-s1 = m.carbon.Species("const $S1")
+s1 = mx.Species("const $S1")
 
-s1 = m.carbon.Species("S1 = 1")
+s1 = mx.Species("S1 = 1")
 
-s1 = m.carbon.Species("const S1 = 234234.5")
+s1 = mx.Species("const S1 = 234234.5")
 
 
-class A(m.Particle):
+class AType(mx.ParticleType):
 
     species = ['S1', 'S2', 'S3']
 
-    style = {"colormap" : {"species" : "S1", "map" : "rainbow", "range" : "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
 
-    def update(self, time):
-        self.species.S1 = (1 + n.sin(2. * time))/2
+    @staticmethod
+    def on_register(ptype):
+        def update(event: mx.ParticleTimeEvent):
+            for p in ptype.items():
+                p.species.S1 = (1 + n.sin(2. * mx.Universe.time)) / 2
 
-m.on_time(A.update, period=0.01)
+        mx.on_particletime(ptype=ptype, invoke_method=update, period=0.01)
+
+
+A = AType.get()
 
 
 print("A.species:")
@@ -37,7 +43,6 @@ a = A()
 print("f.species")
 print(a.species)
 
-
 print("A.species.S1: ", A.species.S1)
 
-m.show()
+mx.run()

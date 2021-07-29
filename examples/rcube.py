@@ -1,25 +1,28 @@
-import mechanica as m
-import numpy as np
+import mechanica as mx
 
-m.init(dim=[20., 20., 20.], cutoff=8, bc=m.BOUNDARY_NONE)
+mx.init(dim=[20., 20., 20.], cutoff=8, bc=mx.BOUNDARY_NONE)
 
-class Bead(m.Particle):
+
+class BeadType(mx.ParticleType):
     mass = 1
     radius = 0.1
-    dynamics = m.Overdamped
+    dynamics = mx.Overdamped
 
 
-class Blue(m.Particle):
+class BlueType(mx.ParticleType):
     mass = 1
     radius = 0.1
-    dynamics = m.Overdamped
-    style = {'color':'blue'}
+    dynamics = mx.Overdamped
+    style = {'color': 'blue'}
 
 
-pot = m.Potential.harmonic(k=1, r0=0.1, max = 3)
+Bead = BeadType.get()
+Blue = BlueType.get()
 
-pts = m.random_points(m.SolidCube, 10000) * 18 + m.Universe.center
+pot = mx.Potential.harmonic(k=1, r0=0.1, max = 3)
+
+pts = [p * 18 + mx.Universe.center for p in mx.random_points(mx.PointsType.SolidCube, 10000)]
 
 beads = [Bead(p) for p in pts]
 
-m.show()
+mx.run()

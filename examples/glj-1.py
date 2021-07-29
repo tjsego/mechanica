@@ -1,28 +1,29 @@
-import mechanica as m
-import numpy as np
+import mechanica as mx
 
 cutoff = 8
 count = 3
 
 # dimensions of universe
-dim=np.array([20., 20., 20.])
-center = dim / 2
+dim = [20., 20., 20.]
 
-m.init(dim=dim, cutoff=cutoff)
+mx.init(dim=dim, cutoff=cutoff)
 
-class B(m.Particle):
+
+class BType(mx.ParticleType):
     mass = 1
-    dynamics = m.Overdamped
+    dynamics = mx.Overdamped
 
+
+B = BType.get()
 # make a glj potential, this automatically reads the
 # particle radius to determine rest distance.
-pot = m.Potential.glj(e=1)
+pot = mx.Potential.glj(e=1)
 
-m.bind(pot, B, B)
+mx.bind.types(pot, B, B)
 
-p1 = B(center + (-2, 0, 0))
-p2 = B(center + (2, 0, 0))
+p1 = B(mx.Universe.center + (-2, 0, 0))
+p2 = B(mx.Universe.center + (2, 0, 0))
 p1.radius = 1
 p2.radius = 2
 
-m.Simulator.run()
+mx.run()

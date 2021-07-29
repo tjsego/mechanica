@@ -1,23 +1,25 @@
-import mechanica as m
+import mechanica as mx
 
-m.init(dt=0.1, dim=[15, 5, 5], cutoff = 3,
-       bc={'x':('periodic','reset')})
+mx.init(dt=0.1, dim=[15, 5, 5],
+        bc={'x': ('periodic', 'reset')})
 
-class A(m.Particle):
+
+class AType(mx.ParticleType):
     species = ['S1', 'S2', 'S3']
-    style = {"colormap" : {"species" : "S1",
-                           "map" : "rainbow",
-                           "range" : "auto"}}
+    style = {"colormap": {"species": "S1",
+                          "map": "rainbow"}}
 
 
-a1 = A(m.universe.center - [0, 1, 0])
-a2 = A(m.universe.center + [-5, 1, 0], velocity=[0.5, 0, 0])
+A = AType.get()
 
-pressure = m.forces.ConstantForce([0.1, 0, 0])
+a1 = A(mx.Universe.center + [0, -1, 0])
+a2 = A(mx.Universe.center + [-5, 1, 0], velocity=[0.5, 0, 0])
 
-m.bind(pressure, A, "S1")
+pressure = mx.ConstantForce([0.1, 0, 0])
+
+mx.bind.force(pressure, A, "S1")
 
 a1.species.S1 = 0
 a2.species.S1 = 0.1
 
-m.run()
+mx.run()

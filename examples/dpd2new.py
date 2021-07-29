@@ -1,37 +1,38 @@
-import mechanica as m
-import numpy as np
+import mechanica as mx
 
-m.init(dt=0.1, dim=[15, 12, 10],
-       bc={'x':'no_slip',
-           'y':'periodic',
-           'bottom':'no_slip',
-           'top':{'velocity':[-0.4, 0, 0]}},
-       perfcounter_period=100)
+mx.init(dt=0.1, dim=[15, 12, 10],
+        bc={'x': 'no_slip',
+            'y': 'periodic',
+            'bottom': 'no_slip',
+            'top': {'velocity': [-0.4, 0, 0]}},
+        perfcounter_period=100)
 
 # lattice spacing
 a = 0.3
 
-#m.universe.boundary_conditions.left.restore = 0.5
 
-class A (m.Particle):
+class AType(mx.ParticleType):
     radius = 0.2
-    style={"color":"seagreen"}
-    dynamics = m.Newtonian
-    mass=10
-
-dpd = m.Potential.dpd(alpha=0.3, gamma=1, sigma=1, cutoff=0.6)
-dpd_wall = m.Potential.dpd(alpha=0.5, gamma=10, sigma=1, cutoff=0.1)
-dpd_left = m.Potential.dpd(alpha=1, gamma=100, sigma=0, cutoff=0.5)
-
-m.bind(dpd, A, A)
-m.bind(dpd_wall, A, m.Universe.boundary_conditions.top)
-m.bind(dpd_left, A, m.Universe.boundary_conditions.left)
+    style = {"color": "seagreen"}
+    dynamics = mx.Newtonian
+    mass = 10
 
 
-uc = m.lattice.sc(a, A)
+A = AType.get()
 
-parts = m.lattice.create_lattice(uc, [25, 25, 25])
+dpd = mx.Potential.dpd(alpha=0.3, gamma=1, sigma=1, cutoff=0.6)
+dpd_wall = mx.Potential.dpd(alpha=0.5, gamma=10, sigma=1, cutoff=0.1)
+dpd_left = mx.Potential.dpd(alpha=1, gamma=100, sigma=0, cutoff=0.5)
 
-print(m.universe.boundary_conditions)
+mx.bind.types(dpd, A, A)
+mx.bind.boundaryCondition(dpd_wall, mx.Universe.boundary_conditions.top, A)
+mx.bind.boundaryCondition(dpd_left, mx.Universe.boundary_conditions.left, A)
 
-m.show()
+
+uc = mx.lattice.sc(a, A)
+
+parts = mx.lattice.create_lattice(uc, [25, 25, 25])
+
+print(mx.Universe.boundary_conditions)
+
+mx.show()

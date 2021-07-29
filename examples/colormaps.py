@@ -1,36 +1,41 @@
-import mechanica as m
+import mechanica as mx
 
-m.init()
+mx.init()
 
-class Bead(m.Particle):
+
+class BeadType(mx.ParticleType):
     species = ['S1']
     radius = 3
 
-    style = {"colormap" : {"species" : "S1", "map" : "rainbow", "range" : "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow"}}
 
     def __init__(self, pos, value):
         super().__init__(pos)
         self.species.S1 = value
 
+
+Bead = BeadType.get()
+
 # make a ring of of 50 particles
-pts = m.points(m.Ring, 100) * 4 + m.Universe.center
+pts = [x * 4 + mx.Universe.center for x in mx.points(mx.PointsType.Ring, 100)]
 
 # constuct a particle for each position, make
 # a list of particles
-beads = [Bead(p, i/100.) for i, p in enumerate(pts)]
+beads = [Bead(p) for p in pts]
 
 Bead.i = 0
 
+
 def keypress(e):
-    names = m.Colormap.names()
+    names = mx.ColorMap.names
     name = None
 
-    if (e.key_name == "n"):
+    if e.key_name == "n":
         Bead.i = (Bead.i + 1) % len(names)
         name = names[Bead.i]
         print("setting colormap to: ", name)
 
-    elif (e.key_name == "p"):
+    elif e.key_name == "p":
         Bead.i = (Bead.i - 1) % len(names)
         name = names[Bead.i]
         print("setting colormap to: ", name)
@@ -38,7 +43,7 @@ def keypress(e):
     Bead.style.colormap = name
 
 
-m.on_keypress(keypress)
+mx.on_keypress(keypress)
 
 # run the model
-m.show()
+mx.show()

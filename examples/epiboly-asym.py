@@ -1,80 +1,82 @@
-import mechanica as m
+import mechanica as mx
 import numpy as np
 
 # dimensions of universe
-dim=np.array([30., 30., 30.])
+dim = [30., 30., 30.]
 
-m.init(dim=dim,
-       cutoff=5,
-       integrator=m.FORWARD_EULER,
-       dt=0.001)
+mx.init(dim=dim,
+        cutoff=5,
+        integrator=mx.FORWARD_EULER,
+        dt=0.001)
 
-class A(m.Particle):
-    radius=0.5
-    dynamics = m.Overdamped
-    mass=5
-    style={"color":"MediumSeaGreen"}
 
-class B(m.Particle):
-    radius=0.2
-    dynamics = m.Overdamped
-    mass=10
-    style={"color":"skyblue"}
+class AType(mx.ParticleType):
+    radius = 0.5
+    dynamics = mx.Overdamped
+    mass = 5
+    style = {"color": "MediumSeaGreen"}
 
-class C(m.Particle):
-    radius=10
+
+class BType(mx.ParticleType):
+    radius = 0.2
+    dynamics = mx.Overdamped
+    mass = 10
+    style = {"color": "skyblue"}
+
+
+class CType(mx.ParticleType):
+    radius = 10
     frozen = True
-    style={"color":"orange"}
+    style = {"color": "orange"}
 
-pc  = m.Potential.glj(e=10, m=3, max=5)
-pa   = m.Potential.glj(e=2, m=4, max=3.0)
-pb   = m.Potential.glj(e=1, m=4, max=1)
-pab  = m.Potential.harmonic(k=10, r0=0, min=0.01, max=0.55)
+
+A = AType.get()
+B = BType.get()
+C = CType.get()
+
+pc = mx.Potential.glj(e=10, m=3, max=5)
+pa = mx.Potential.glj(e=2, m=4, max=3.0)
+pb = mx.Potential.glj(e=1, m=4, max=1)
+pab = mx.Potential.harmonic(k=10, r0=0, min=0.01, max=0.55)
 
 
 # simple harmonic potential to pull particles
-h = m.Potential.harmonic(k=40, r0=0.001, max = 5)
+h = mx.Potential.harmonic(k=40, r0=0.001, max=5)
 
-m.bind(pc, A, C)
-m.bind(pc, B, C)
-m.bind(pa, A, A)
-#m.bind(pb, B, B)
-#m.bind(pab, A, B)
+mx.bind.types(pc, A, C)
+mx.bind.types(pc, B, C)
+mx.bind.types(pa, A, A)
 
-r = m.forces.random(0, 5)
+r = mx.Force.random(0, 5)
 
-m.bind(r, A)
-#m.bind(r, B)
+mx.bind.force(r, A)
 
 
-c = C(m.Universe.center)
+c = C(mx.Universe.center)
 
-pos_a = m.random_points(m.SolidSphere, 3000, dr=0.25, phi=(0, 0.60 * np.pi)) \
-    * ((1 + 0.25/2) * C.radius)  + m.Universe.center
+pos_a = [p * ((1 + 0.125) * C.radius) + mx.Universe.center for p in mx.random_points(mx.PointsType.SolidSphere,
+                                                                                     3000,
+                                                                                     dr=0.25,
+                                                                                     phi1=0.60 * np.pi)]
 
-parts, bonds = m.bind_sphere(h, type=B, n=4, phi=(0.6 * np.pi, np.pi), radius = C.radius + B.radius)
+parts, bonds = mx.bind.sphere(h, type=B, n=4, phi=(0.6 * np.pi, np.pi), radius=C.radius + B.radius)
 
 [A(p) for p in pos_a]
 
 # grab a vertical slice of the neighbors of the yolk:
-slice_parts = [p for p in c.neighbors() if p.spherical()[1] > 0]
+slice_parts = [p for p in c.neighbors() if p.sphericalPosition()[1] > 0]
 
-m.bind_pairwise(pab, slice_parts, cutoff=5*A.radius, pairs=[(A,B)])
-
-#A.style.visible = False
+mx.bind.bonds(pab, slice_parts, cutoff=5 * A.radius, pairs=[(A, B)])
 
 C.style.visible = False
 B.style.visible = False
-#A.style.visible = False
-
-
 
 
 def update(e):
-    print(B.items().center_of_mass())
-
-m.on_time(update, period=0.01)
+    print(B.items().center_of_mass.as_list())
 
 
+mx.on_time(invoke_method=update, period=0.01)
 
-m.show()
+
+mx.run()

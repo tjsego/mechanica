@@ -1,67 +1,78 @@
-import mechanica as m
-import numpy as np
+import mechanica as mx
 
 # dimensions of universe
-dim=np.array([30., 30., 30.])
-center = dim / 2
+dim = [30., 30., 30.]
 
-m.init(dim=dim,
-       cutoff=3,
-       integrator=m.FORWARD_EULER,
-       dt=0.001)
-
-class C(m.Cluster):
-    radius=2.3
-
-    class B(m.Particle):
-        radius=0.25
-        dynamics = m.Overdamped
-        mass=15
-        style={"color":"skyblue"}
-
-    def split(self, event):
-        print("C.split(" + str(self) + ", event: " + str(event) + ")")
-        axis = self.position - C.yolk_pos
-        print("axis: " + str(axis))
-        m.Cluster.split(self, axis=axis)
+mx.init(dim=dim,
+        cutoff=3,
+        integrator=mx.FORWARD_EULER,
+        dt=0.001)
 
 
-m.on_time(C.split, period=0.2, predicate="largest")
+class BType(mx.ParticleType):
+    radius = 0.25
+    dynamics = mx.Overdamped
+    mass = 15
+    style = {"color": "skyblue"}
 
-class Yolk(m.Particle):
+
+B = BType.get()
+
+
+class CType(mx.ClusterType):
+    radius = 2.3
+
+    types = [B]
+
+
+C = CType.get()
+
+
+def split(event: mx.ParticleTimeEvent):
+    particle: mx.ClusterHandle = event.targetParticle
+    ptype: mx.ClusterType = event.targetType
+
+    print("split(" + str(ptype.name) + ")")
+    axis = particle.position - yolk.position
+    print("axis: " + str(axis))
+
+    particle.split(axis=axis)
+
+
+mx.on_particletime(ptype=C, invoke_method=split, period=0.2, selector="largest")
+
+
+class YolkType(mx.ParticleType):
     radius = 10
     mass = 1000000
-    dynamics=m.Overdamped
-    flozen=True
-    style={"color":"gold"}
+    dynamics = mx.Overdamped
+    frozen = True
+    style = {"color": "gold"}
+
+
+Yolk = YolkType.get()
 
 total_height = 2 * Yolk.radius + 2 * C.radius
 yshift = total_height/2 - Yolk.radius
 cshift = total_height/2 - C.radius - 1
 
-yolk = Yolk(position=center-[0., 0., yshift])
+yolk = Yolk(position=mx.Universe.center + [0., 0., -yshift])
 
-c = C(position=center+[0., 0., cshift])
+c = C(position=mx.Universe.center + [0., 0., cshift])
 
-C.yolk_pos = yolk.position
+[c(B) for _ in range(4000)]
 
-c.B(4000)
+pb = mx.Potential.soft_sphere(kappa=300, epsilon=6, r0=0.5, eta=2, tol=0.05, min=0.01, max=3)
 
-pb  = m.Potential.soft_sphere(kappa=300, epsilon=6, r0=0.5, \
-                              eta=2, tol = 0.05, min=0.01, max=3)
+pub = mx.Potential.soft_sphere(kappa=400, epsilon=0, r0=0.5, eta=2, tol=0.05, min=0.01, max=1.5)
 
-pub = m.Potential.soft_sphere(kappa=400, epsilon=0, r0=0.5, \
-                              eta=2, tol = 0.05, min=0.01, max=1.5)
+py = mx.Potential.soft_sphere(kappa=300, epsilon=25, r0=1, eta=2, tol=0.04, min=0.01, max=10, shift=True)
 
-py = m.Potential.soft_sphere(kappa=300, epsilon=25, r0=1, \
-                             eta=2, tol = 0.04, min=0.01, \
-                             max=10, shift=True)
+rforce = mx.Force.random(0, 1)
 
-rforce = m.forces.random(0, 1)
+mx.bind.force(rforce, B)
+mx.bind.types(pb, C, B, bound=True)
+mx.bind.types(pub, C, B, bound=False)
+mx.bind.types(py, Yolk, B)
 
-m.bind(rforce, C.B)
-m.bind(pb, C.B, C.B, bound=True)
-m.bind(pub, C.B, C.B, bound=False)
-m.bind(py, Yolk, C.B)
-
-m.Simulator.irun()
+mx.Simulator.run()

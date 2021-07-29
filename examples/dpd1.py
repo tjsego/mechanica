@@ -1,29 +1,32 @@
-import mechanica as m
-import numpy as np
+import mechanica as mx
 
-m.init(dt=0.1, dim=[15, 12, 10],
-       bc={'x':'periodic', 'z':'no_slip', 'y' : 'periodic'},
-       perfcounter_period=100)
+mx.init(dt=0.1, dim=[15, 12, 10],
+        bc={'x': 'periodic', 'y': 'periodic', 'z': 'no_slip'},
+        perfcounter_period=100)
 
 # lattice spacing
 a = 0.7
 
-class A (m.Particle):
+
+class AType(mx.ParticleType):
     radius = 0.3
-    style={"color":"seagreen"}
-    dynamics = m.Newtonian
-    mass=10
+    style = {"color": "seagreen"}
+    dynamics = mx.Newtonian
+    mass = 10
 
-dpd = m.Potential.dpd(sigma=1.5)
 
-m.bind(dpd, A, A)
+A = AType.get()
 
-f = m.forces.ConstantForce([0.01, 0, 0])
+dpd = mx.Potential.dpd(sigma=1.5)
 
-m.bind(f, A)
+mx.bind.types(dpd, A, A)
 
-uc = m.lattice.sc(a, A)
+f = mx.ConstantForce([0.01, 0, 0])
 
-parts = m.lattice.create_lattice(uc, [15, 15, 15])
+mx.bind.force(f, A)
 
-m.run()
+uc = mx.lattice.sc(a, A)
+
+parts = mx.lattice.create_lattice(uc, [15, 15, 15])
+
+mx.run()

@@ -1,25 +1,31 @@
-import mechanica as m
+import mechanica as mx
 
-m.init(windowless=True,
-       window_size=[1024,1024],
-       clip_planes = [([2, 2, 2], [1, 1, 0]), ([5, 5, 5], [-1, -1, 0])])
+mx.init(windowless=True,
+        window_size=[1024, 1024],
+        clip_planes=[([2, 2, 2], [1, 1, 0]), ([5, 5, 5], [-1, -1, 0])])
 
-print(m.system.gl_info())
+print(mx.system.gl_info())
 
-class Na (m.Particle):
+
+class NaType(mx.ParticleType):
     radius = 0.4
-    style={"color":"orange"}
+    style = {"color": "orange"}
 
-class Cl (m.Particle):
+
+class ClType(mx.ParticleType):
     radius = 0.25
-    style={"color":"spablue"}
+    style = {"color": "spablue"}
 
-uc = m.lattice.bcc(0.9, [Na, Cl])
 
-m.lattice.create_lattice(uc, [10, 10, 10])
+Na = NaType.get()
+Cl = ClType.get()
 
-# m.system.image_data() is a jpg byte stream of the
+uc = mx.lattice.bcc(0.9, [Na, Cl])
+
+mx.lattice.create_lattice(uc, [10, 10, 10])
+
+# mx.system.image_data() is a jpg byte stream of the
 # contents of the frame buffer.
 
 with open('system.jpg', 'wb') as f:
-    f.write(m.system.image_data())
+    f.write(mx.system.image_data())

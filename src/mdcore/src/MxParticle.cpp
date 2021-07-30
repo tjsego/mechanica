@@ -251,7 +251,9 @@ double MxParticleType::getTargetTemperature() {
 }
 
 MxVector3f MxParticleHandle::getPosition() {
-    return part()->position;
+    MxVector3f vec(0.0);
+    int result = space_getpos(&_Engine.s, this->id, vec.data());
+    return vec;
 }
 
 void MxParticleHandle::setPosition(MxVector3f position) {

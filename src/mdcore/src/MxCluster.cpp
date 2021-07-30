@@ -19,7 +19,6 @@
 
 // python type info
 #include <structmember.h>
-#include <MxNumpy.h>
 #include <MxPy.h>
 #include "engine.h"
 #include "space.h"

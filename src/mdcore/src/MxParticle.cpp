@@ -27,7 +27,6 @@
 #include "space.h"
 #include "mx_runtime.h"
 
-#include <MxParticleEvent.h>
 #include "../../rendering/NOMStyle.hpp"
 #include "MxCluster.hpp"
 #include "metrics.h"

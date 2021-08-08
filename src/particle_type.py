@@ -11,6 +11,7 @@ class ParticleType:
     eps = None
     rmin = None
     dynamics = None
+    frozen = None
     name = None
     name2 = None
     style = None  # Dictionary specification
@@ -25,6 +26,7 @@ class ParticleType:
         'eps',
         'rmin',
         'dynamics',
+        'frozen',
         'name',
         'name2',
         'style',

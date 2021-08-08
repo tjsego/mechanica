@@ -98,7 +98,7 @@
 
         @position.setter
         def position(self, position):
-            self.setPosition(position)
+            self.setPosition(MxVector3f(position))
 
         @property
         def velocity(self):
@@ -106,7 +106,7 @@
 
         @velocity.setter
         def velocity(self, velocity):
-            self.setVelocity(velocity)
+            self.setVelocity(MxVector3f(velocity))
 
         @property
         def force(self):
@@ -114,7 +114,7 @@
 
         @force.setter
         def force(self, force):
-            self.setForce(force)
+            self.setForce(MxVector3f(force))
 
         @property
         def id(self):

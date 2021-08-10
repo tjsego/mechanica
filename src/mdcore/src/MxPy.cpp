@@ -9,9 +9,18 @@
 
 #include "../../MxLogger.h"
 
+bool hasPython() {
+    if(!Py_IsInitialized()) {
+        Log(LOG_DEBUG) << "Python not initialized";
+        return false;
+    }
+    return true;
+}
+
+#define MxCHECKPYRET(x) if(!hasPython()) return x;
 
 PyObject *PyImport_ImportString(const std::string &name) {
-
+    MxCHECKPYRET(0)
 
     PyObject *s = mx::cast<std::string, PyObject*>(name);
     PyObject *mod = PyImport_Import(s);
@@ -21,6 +30,8 @@ PyObject *PyImport_ImportString(const std::string &name) {
 
 std::string pyerror_str()
 {
+    MxCHECKPYRET("")
+
     std::string result;
     // get the error details
     PyObject *pExcType = NULL , *pExcValue = NULL , *pExcTraceback = NULL ;
@@ -63,6 +74,8 @@ std::string pyerror_str()
 }
 
 PyObject* MxIPython_Get() {
+    MxCHECKPYRET(0)
+
     std::string moduleName = "IPython.core.getipython";
     PyObject* moduleString = PyUnicode_FromString(moduleName.c_str());
     
@@ -125,6 +138,8 @@ PyObject* MxIPython_Get() {
 }
 
 bool Mx_TerminalInteractiveShell() {
+    MxCHECKPYRET(false)
+
     PyObject* ipy = MxIPython_Get();
     bool result = false;
 
@@ -154,6 +169,8 @@ namespace mx {
     
     std::string pyerror_str()
     {
+        MxCHECKPYRET("")
+
         std::string result;
         // get the error details
         PyObject *pExcType = NULL , *pExcValue = NULL , *pExcTraceback = NULL ;
@@ -197,6 +214,8 @@ namespace mx {
 
     template<>
     float cast(PyObject *obj) {
+        MxCHECKPYRET(0)
+
         if(PyNumber_Check(obj)) {
             return PyFloat_AsDouble(obj);
         }
@@ -206,6 +225,8 @@ namespace mx {
     static Magnum::Vector3 vector3_from_list(PyObject *obj) {
         Magnum::Vector3 result = {};
         
+        MxCHECKPYRET(result)
+
         if(PyList_Size(obj) != 3) {
             throw std::domain_error("error, must be length 3 list to convert to vector3");
         }
@@ -225,6 +246,8 @@ namespace mx {
 
     static Magnum::Vector4 vector4_from_list(PyObject *obj) {
         Magnum::Vector4 result = {};
+
+        MxCHECKPYRET(result)
         
         if(PyList_Size(obj) != 4) {
             throw std::domain_error("error, must be length 3 list to convert to vector3");
@@ -246,6 +269,8 @@ namespace mx {
     static Magnum::Vector2 vector2_from_list(PyObject *obj) {
         Magnum::Vector2 result = {};
         
+        MxCHECKPYRET(result)
+
         if(PyList_Size(obj) != 2) {
             throw std::domain_error("error, must be length 2 list to convert to vector3");
         }
@@ -265,7 +290,9 @@ namespace mx {
 
     static Magnum::Vector3i vector3i_from_list(PyObject *obj) {
         Magnum::Vector3i result = {};
-        
+
+        MxCHECKPYRET(result)
+
         if(PyList_Size(obj) != 3) {
             throw std::domain_error("error, must be length 3 list to convert to vector3");
         }
@@ -285,7 +312,9 @@ namespace mx {
         
     static Magnum::Vector2i vector2i_from_list(PyObject *obj) {
         Magnum::Vector2i result = {};
-        
+
+        MxCHECKPYRET(result)
+
         if(PyList_Size(obj) != 2) {
             throw std::domain_error("error, must be length 2 list to convert to vector2");
         }
@@ -305,6 +334,9 @@ namespace mx {
 
     template<>
     Magnum::Vector3 cast(PyObject *obj) {
+
+        MxCHECKPYRET(Magnum::Vector3(0))
+
         if(PyList_Check(obj)) {
             return vector3_from_list(obj);
         }
@@ -313,6 +345,9 @@ namespace mx {
 
     template<>
     Magnum::Vector4 cast(PyObject *obj) {
+
+        MxCHECKPYRET(Magnum::Vector4(0))
+
         if(PyList_Check(obj)) {
             return vector4_from_list(obj);
         }
@@ -321,6 +356,9 @@ namespace mx {
 
     template<>
     Magnum::Vector2 cast(PyObject *obj) {
+
+        MxCHECKPYRET(Magnum::Vector2(0))
+
         if(PyList_Check(obj)) {
             return vector2_from_list(obj);
         }
@@ -329,6 +367,9 @@ namespace mx {
         
     template<>
     Magnum::Vector3i cast(PyObject *obj) {
+
+        MxCHECKPYRET(Magnum::Vector3i(0))
+
         if(PyList_Check(obj)) {
             return vector3i_from_list(obj);
         }
@@ -337,6 +378,9 @@ namespace mx {
         
     template<>
     Magnum::Vector2i cast(PyObject *obj) {
+
+        MxCHECKPYRET(Magnum::Vector2i(0))
+
         if(PyList_Check(obj)) {
             return vector2i_from_list(obj);
         }
@@ -360,41 +404,43 @@ namespace mx {
 
     template<>
     PyObject* cast<float, PyObject*>(const float &f) {
-
+        MxCHECKPYRET(0)
 
         return PyFloat_FromDouble(f);
     }
 
     template<>
     PyObject* cast<int16_t, PyObject*>(const int16_t &i) {
-
+        MxCHECKPYRET(0)
 
         return PyLong_FromLong(i);
     }
 
     template<>
     PyObject* cast<uint16_t, PyObject*>(const uint16_t &i) {
-
+        MxCHECKPYRET(0)
 
         return PyLong_FromLong(i);
     }
 
     template<>
     PyObject* cast<uint32_t, PyObject*>(const uint32_t &i) {
-
+        MxCHECKPYRET(0)
 
         return PyLong_FromLong(i);
     }
 
     template<>
     PyObject* cast<uint64_t, PyObject*>(const uint64_t &i) {
-
+        MxCHECKPYRET(0)
 
         return PyLong_FromLong(i);
     }
 
     template<>
     bool cast(PyObject *obj) {
+        MxCHECKPYRET(0)
+
         if(PyBool_Check(obj)) {
             return obj == Py_True ? true : false;
         }
@@ -403,7 +449,7 @@ namespace mx {
 
     template<>
     PyObject* cast<bool, PyObject*>(const bool &b) {
-
+        MxCHECKPYRET(0)
 
         if(b) {
             Py_RETURN_TRUE;
@@ -415,10 +461,14 @@ namespace mx {
 
     template <>
     bool check<bool>(PyObject *o) {
+        MxCHECKPYRET(0)
+
         return PyBool_Check(o);
     }
 
     PyObject *py_arg(const char* name, int index, PyObject *_args, PyObject *_kwargs) {
+        MxCHECKPYRET(0)
+
         PyObject *kwobj = _kwargs ?  PyDict_GetItemString(_kwargs, name) : NULL;
         PyObject *aobj = _args && (PyTuple_Size(_args) > index) ? PyTuple_GetItem(_args, index) : NULL;
         
@@ -432,28 +482,32 @@ namespace mx {
     
     template<>
     PyObject* cast<double, PyObject*>(const double &f){
-
+        MxCHECKPYRET(0)
 
         return PyFloat_FromDouble(f);
     }
 
     template<>
     double cast(PyObject *obj) {
-    if(PyNumber_Check(obj)) {
-        return PyFloat_AsDouble(obj);
-    }
+        MxCHECKPYRET(0)
+
+        if(PyNumber_Check(obj)) {
+            return PyFloat_AsDouble(obj);
+        }
         throw std::domain_error("can not convert to number");
     }
 
     template<>
     PyObject* cast<int, PyObject*>(const int &i) {
-
+        MxCHECKPYRET(0)
 
         return PyLong_FromLong(i);
     }
 
     template<>
     int cast(PyObject *obj){
+        MxCHECKPYRET(0)
+
         if(PyNumber_Check(obj)) {
             return PyLong_AsLong(obj);
         }
@@ -462,13 +516,15 @@ namespace mx {
 
     template<>
     PyObject* cast<std::string, PyObject*>(const std::string &s) {
-
+        MxCHECKPYRET(0)
 
         return PyUnicode_FromString(s.c_str());
     }
 
     template<>
     std::string cast(PyObject *o) {
+        MxCHECKPYRET("")
+
         if(PyUnicode_Check(o)) {
             const char* c = PyUnicode_AsUTF8(o);
             return std::string(c);
@@ -495,15 +551,21 @@ namespace mx {
 
     template <>
     bool check<std::string>(PyObject *o) {
+        MxCHECKPYRET(0)
+
         return o && PyUnicode_Check(o);
     }
 
     template <>
     bool check<float>(PyObject *o) {
+        MxCHECKPYRET(0)
+
         return o && PyNumber_Check(o);
     }
 
     std::string repr(PyObject *o) {
+        MxCHECKPYRET("")
+
         PyObject* pRepr = PyObject_Repr( o ) ;
         
         PyObject * str=PyUnicode_AsASCIIString(pRepr);
@@ -515,6 +577,8 @@ namespace mx {
     }
 
     std::string str(PyObject *o) {
+        MxCHECKPYRET("")
+
         std::string result;
         if(o) {
             PyObject* pStr = PyObject_Str( o ) ;

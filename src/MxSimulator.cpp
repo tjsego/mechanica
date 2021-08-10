@@ -839,10 +839,11 @@ HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
 
         Simulator = sim;
         
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 

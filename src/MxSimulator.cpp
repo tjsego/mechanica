@@ -332,7 +332,7 @@ static void parse_kwargs(const std::vector<std::string> &kwargs, MxSimulator_Con
         // example: 
         // bc=1.0
         s = mx::parse::kwargVal(kwargs, "bc");
-        int *bcValue = new int(mx::cast<std::string, int>(s));
+        int *bcValue = new int(MxBoundaryConditions::boundaryKindFromString(s));
         bcArgs = new MxBoundaryConditionsArgsContainer(bcValue, NULL, NULL, NULL);
 
         Log(LOG_INFORMATION) << "got bc val: " << std::to_string(*bcValue);

@@ -433,6 +433,7 @@ struct CAPI_EXPORT MxParticleType {
     bool isRegistered();
 
     MxParticleType(const bool &noReg=false);
+    virtual ~MxParticleType() {}
 
     inline bool getFrozen();
     inline void setFrozen(const bool &frozen);

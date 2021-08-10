@@ -11,7 +11,9 @@
 
 
 PyObject *PyImport_ImportString(const std::string &name) {
-    PyObject *s = mx::cast(name);
+
+
+    PyObject *s = mx::cast<std::string, PyObject*>(name);
     PyObject *mod = PyImport_Import(s);
     Py_DECREF(s);
     return mod;
@@ -118,7 +120,7 @@ PyObject* MxIPython_Get() {
     Py_DECREF(module);
     Py_DECREF(get_ipython);
     
-    Log(LOG_TRACE) << "succeeded, returning " << mx::cast<std::string>(result);
+    Log(LOG_TRACE) << "succeeded, returning " << mx::cast<PyObject, std::string>(result);
     return result;
 }
 
@@ -342,42 +344,52 @@ namespace mx {
     }
 
     template<>
-    MxVector2f cast(PyObject *obj) { return MxVector2f(cast<Magnum::Vector2>(obj)); }
+    MxVector2f cast(PyObject *obj) { return MxVector2f(cast<PyObject, Magnum::Vector2>(obj)); }
 
     template<>
-    MxVector3f cast(PyObject *obj) { return MxVector3f(cast<Magnum::Vector3>(obj)); }
+    MxVector3f cast(PyObject *obj) { return MxVector3f(cast<PyObject, Magnum::Vector3>(obj)); }
 
     template<>
-    MxVector4f cast(PyObject *obj) { return MxVector4f(cast<Magnum::Vector4>(obj)); }
+    MxVector4f cast(PyObject *obj) { return MxVector4f(cast<PyObject, Magnum::Vector4>(obj)); }
 
     template<>
-    MxVector2i cast(PyObject *obj) { return MxVector2i(cast<Magnum::Vector2i>(obj)); }
+    MxVector2i cast(PyObject *obj) { return MxVector2i(cast<PyObject, Magnum::Vector2i>(obj)); }
 
     template<>
-    MxVector3i cast(PyObject *obj) { return MxVector3i(cast<Magnum::Vector3i>(obj)); }
+    MxVector3i cast(PyObject *obj) { return MxVector3i(cast<PyObject, Magnum::Vector3i>(obj)); }
 
     template<>
-    PyObject* cast(const float &f) {
+    PyObject* cast<float, PyObject*>(const float &f) {
+
+
         return PyFloat_FromDouble(f);
     }
 
     template<>
-    PyObject* cast(const int16_t &i) {
+    PyObject* cast<int16_t, PyObject*>(const int16_t &i) {
+
+
         return PyLong_FromLong(i);
     }
 
     template<>
-    PyObject* cast(const uint16_t &i) {
+    PyObject* cast<uint16_t, PyObject*>(const uint16_t &i) {
+
+
         return PyLong_FromLong(i);
     }
 
     template<>
-    PyObject* cast(const uint32_t &i) {
+    PyObject* cast<uint32_t, PyObject*>(const uint32_t &i) {
+
+
         return PyLong_FromLong(i);
     }
 
     template<>
-    PyObject* cast(const uint64_t &i) {
+    PyObject* cast<uint64_t, PyObject*>(const uint64_t &i) {
+
+
         return PyLong_FromLong(i);
     }
 
@@ -390,7 +402,9 @@ namespace mx {
     }
 
     template<>
-    PyObject* cast(const bool &b) {
+    PyObject* cast<bool, PyObject*>(const bool &b) {
+
+
         if(b) {
             Py_RETURN_TRUE;
         }
@@ -417,7 +431,9 @@ namespace mx {
     }
     
     template<>
-    PyObject* cast(const double &f){
+    PyObject* cast<double, PyObject*>(const double &f){
+
+
         return PyFloat_FromDouble(f);
     }
 
@@ -430,7 +446,9 @@ namespace mx {
     }
 
     template<>
-    PyObject* cast(const int &i) {
+    PyObject* cast<int, PyObject*>(const int &i) {
+
+
         return PyLong_FromLong(i);
     }
 
@@ -443,7 +461,9 @@ namespace mx {
     }
 
     template<>
-    PyObject* cast(const std::string &s) {
+    PyObject* cast<std::string, PyObject*>(const std::string &s) {
+
+
         return PyUnicode_FromString(s.c_str());
     }
 
@@ -462,16 +482,16 @@ namespace mx {
     }
 
     template<>
-    int16_t cast(PyObject *o) {return (int16_t)cast<int>(o);}
+    int16_t cast(PyObject *o) {return (int16_t)cast<PyObject, int>(o);}
 
     template<>
-    uint16_t cast(PyObject *o) {return (uint16_t)cast<int>(o);}
+    uint16_t cast(PyObject *o) {return (uint16_t)cast<PyObject, int>(o);}
 
     template<>
-    uint32_t cast(PyObject *o) {return (uint32_t)cast<int>(o);}
+    uint32_t cast(PyObject *o) {return (uint32_t)cast<PyObject, int>(o);}
 
     template<>
-    uint64_t cast(PyObject *o) {return (uint64_t)cast<int>(o);}
+    uint64_t cast(PyObject *o) {return (uint64_t)cast<PyObject, int>(o);}
 
     template <>
     bool check<std::string>(PyObject *o) {

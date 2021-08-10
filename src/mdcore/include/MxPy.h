@@ -12,6 +12,7 @@
 
 #include <mx_port.h>
 #include <../../types/mx_types.h>
+#include <../../types/mx_cast.h>
 
 #include <Magnum/Magnum.h>
 #include <Magnum/Math/Vector3.h>
@@ -27,18 +28,6 @@ CAPI_FUNC(bool) Mx_TerminalInteractiveShell();
 CAPI_FUNC(bool) Mx_ZMQInteractiveShell();
 
 namespace mx {
-
-    /**
-     * convert from c++ to python type
-     */
-    template <typename T>
-    PyObject *cast(const T& x);
-        
-    /**
-     * convert from python to c++ type
-     */
-    template <typename T>
-    T cast(PyObject *o);
 
     template<>
     Magnum::Vector2 cast(PyObject *obj);
@@ -71,43 +60,43 @@ namespace mx {
     MxVector3i cast(PyObject *obj);
 
     template<>
-    PyObject* cast(const int16_t &i);
+    PyObject* cast<int16_t, PyObject*>(const int16_t &i);
 
     template<>
-    PyObject* cast(const uint16_t &i);
+    PyObject* cast<uint16_t, PyObject*>(const uint16_t &i);
 
     template<>
-    PyObject* cast(const uint32_t &i);
+    PyObject* cast<uint32_t, PyObject*>(const uint32_t &i);
 
     template<>
-    PyObject* cast(const uint64_t &i);
+    PyObject* cast<uint64_t, PyObject*>(const uint64_t &i);
 
     template<>
-    PyObject* cast(const float &f);
+    PyObject* cast<float, PyObject*>(const float &f);
 
     template<>
     float cast(PyObject *obj);
 
     template<>
-    PyObject* cast(const bool &f);
+    PyObject* cast<bool, PyObject*>(const bool &f);
 
     template<>
     bool cast(PyObject *obj);
 
     template<>
-    PyObject* cast(const double &f);
+    PyObject* cast<double, PyObject*>(const double &f);
 
     template<>
     double cast(PyObject *obj);
 
     template<>
-    PyObject* cast(const int &i);
+    PyObject* cast<int, PyObject*>(const int &i);
 
     template<>
     int cast(PyObject *obj);
 
     template<>
-    PyObject* cast(const std::string &s);
+    PyObject* cast<std::string, PyObject*>(const std::string &s);
 
     template<>
     std::string cast(PyObject *o);
@@ -162,7 +151,7 @@ namespace mx {
     T arg(const char* name, int index, PyObject *args, PyObject *kwargs) {
         PyObject *value = py_arg(name, index, args, kwargs);
         if(value) {
-            return cast<T>(value);
+            return cast<PyObject, T>(value);
         }
         throw std::runtime_error(std::string("missing argument ") + name);
     };
@@ -172,7 +161,7 @@ namespace mx {
 
         PyObject *value = py_arg(name, index, args, kwargs);
         if(value) {
-            return cast<T>(value);
+            return cast<PyObject, T>(value);
         }
         return deflt;
     };

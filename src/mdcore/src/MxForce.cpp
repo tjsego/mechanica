@@ -61,7 +61,7 @@ MxVector3f pyConstantForceFunction(PyObject *callable) {
         PyErr_Clear();
         return MxVector3f();
     }
-    MxVector3f out = mx::cast<MxVector3f>(result);
+    MxVector3f out = mx::cast<PyObject, MxVector3f>(result);
     Py_DECREF(result);
     return out;
 }

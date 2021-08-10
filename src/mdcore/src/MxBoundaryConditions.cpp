@@ -573,7 +573,7 @@ MxBoundaryConditionsArgsContainer::MxBoundaryConditionsArgsContainer(int *_bcVal
 MxBoundaryConditionsArgsContainer::MxBoundaryConditionsArgsContainer(PyObject *obj) : 
     MxBoundaryConditionsArgsContainer()
 {
-    if(PyLong_Check(obj)) setValueAll(mx::cast<int>(obj));
+    if(PyLong_Check(obj)) setValueAll(mx::cast<PyObject, int>(obj));
     else if(PyDict_Check(obj)) {
         PyObject *keys = PyDict_Keys(obj);
 
@@ -581,16 +581,16 @@ MxBoundaryConditionsArgsContainer::MxBoundaryConditionsArgsContainer(PyObject *o
             PyObject *key = PyList_GetItem(keys, i);
             PyObject *value = PyDict_GetItem(obj, key);
 
-            std::string name = mx::cast<std::string>(key);
+            std::string name = mx::cast<PyObject, std::string>(key);
             if(PyLong_Check(value)) {
-                unsigned int v = mx::cast<unsigned int>(value);
+                unsigned int v = mx::cast<PyObject, unsigned int>(value);
 
                 Log(LOG_DEBUG) << name << ": " << value;
 
                 setValue(name, v);
             }
             else if(mx::check<std::string>(value)) {
-                std::string s = mx::cast<std::string>(value);
+                std::string s = mx::cast<PyObject, std::string>(value);
 
                 Log(LOG_DEBUG) << name << ": " << s;
 
@@ -603,7 +603,7 @@ MxBoundaryConditionsArgsContainer::MxBoundaryConditionsArgsContainer(PyObject *o
                                                 "dictionary that does not contain a \'velocity\' item, "
                                                 "only velocity boundary conditions support dictionary init");
                 }
-                MxVector3f v = mx::cast<MxVector3f>(vel);
+                MxVector3f v = mx::cast<PyObject, MxVector3f>(vel);
 
                 Log(LOG_DEBUG) << name << ": " << v;
 
@@ -611,7 +611,7 @@ MxBoundaryConditionsArgsContainer::MxBoundaryConditionsArgsContainer(PyObject *o
 
                 PyObject *restore = PyDict_GetItemString(value, "restore");
                 if(restore) {
-                    float r = mx::cast<float>(restore);
+                    float r = mx::cast<PyObject, float>(restore);
 
                     Log(LOG_DEBUG) << name << ": " << r;
 

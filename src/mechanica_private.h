@@ -74,6 +74,7 @@ int _CaAstInit();
 #define MX_NOTIMPLEMENTED_NORET assert("Not Implemented" && 0);
 
 #include "types/mx_types.h"
+#include "types/mx_cast.h"
 
 /**
  * modulus for negative numbers

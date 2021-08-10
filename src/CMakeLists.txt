@@ -127,6 +127,8 @@ set(SRC
   state/MxSpeciesValue.cpp
   state/MxStateVector.cpp
 
+  types/mx_cast.cpp
+
   # ${AST_SRC}
 #  ${X3D_SRC}
   )
@@ -233,6 +235,7 @@ set(HEADERS
   state/MxSpeciesValue.h
   state/MxStateVector.h
 
+  types/mx_cast.h
   types/mx_types.h
   types/MxVector.h
   types/MxVector2.h

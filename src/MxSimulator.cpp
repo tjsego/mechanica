@@ -132,7 +132,7 @@ struct ArgumentsWrapper  {
 
         for(int i = 0; i < PyList_Size(args); ++i) {
             PyObject *o = PyList_GetItem(args, i);
-            strings.push_back(mx::cast<std::string>(o));
+            strings.push_back(mx::cast<PyObject, std::string>(o));
             cstrings.push_back(strings.back().c_str());
 
             Log(LOG_INFORMATION) <<  "args: " << cstrings.back() ;;
@@ -222,7 +222,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     MxVector3f *dim;
     if((o = PyDict_GetItemString(kwargs, "dim"))) {
-        dim = new MxVector3f(mx::cast<Magnum::Vector3>(o));
+        dim = new MxVector3f(mx::cast<PyObject, Magnum::Vector3>(o));
 
         Log(LOG_INFORMATION) << "got dim: " 
                              << std::to_string(dim->x()) << "," 
@@ -233,7 +233,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     double *cutoff;
     if((o = PyDict_GetItemString(kwargs, "cutoff"))) {
-        cutoff = new double(mx::cast<double>(o));
+        cutoff = new double(mx::cast<PyObject, double>(o));
 
         Log(LOG_INFORMATION) << "got cutoff: " << std::to_string(*cutoff);
     }
@@ -241,7 +241,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     MxVector3i *cells;
     if((o = PyDict_GetItemString(kwargs, "cells"))) {
-        cells = new MxVector3i(mx::cast<Vector3i>(o));
+        cells = new MxVector3i(mx::cast<PyObject, Vector3i>(o));
 
         Log(LOG_INFORMATION) << "got cells: " 
                              << std::to_string(cells->x()) << "," 
@@ -252,7 +252,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     unsigned *threads;
     if((o = PyDict_GetItemString(kwargs, "threads"))) {
-        threads = new unsigned(mx::cast<unsigned>(o));
+        threads = new unsigned(mx::cast<PyObject, unsigned>(o));
 
         Log(LOG_INFORMATION) << "got threads: " << std::to_string(*threads);
     }
@@ -260,7 +260,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     int *integrator;
     if((o = PyDict_GetItemString(kwargs, "integrator"))) {
-        integrator = new int(mx::cast<int>(o));
+        integrator = new int(mx::cast<PyObject, int>(o));
 
         Log(LOG_INFORMATION) << "got integrator: " << std::to_string(*integrator);
     }
@@ -268,7 +268,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     double *dt;
     if((o = PyDict_GetItemString(kwargs, "dt"))) {
-        dt = new double(mx::cast<double>(o));
+        dt = new double(mx::cast<PyObject, double>(o));
 
         Log(LOG_INFORMATION) << "got dt: " << std::to_string(*dt);
     }
@@ -284,7 +284,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     double *max_distance;
     if((o = PyDict_GetItemString(kwargs, "max_distance"))) {
-        max_distance = new double(mx::cast<double>(o));
+        max_distance = new double(mx::cast<PyObject, double>(o));
 
         Log(LOG_INFORMATION) << "got max_distance: " << std::to_string(*max_distance);
     }
@@ -292,7 +292,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     bool *windowless;
     if((o = PyDict_GetItemString(kwargs, "windowless"))) {
-        windowless = new bool(mx::cast<bool>(o));
+        windowless = new bool(mx::cast<PyObject, bool>(o));
 
         Log(LOG_INFORMATION) << "got windowless" << *windowless ? "True" : "False";
     }
@@ -300,7 +300,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     MxVector2i *window_size;
     if((o = PyDict_GetItemString(kwargs, "window_size"))) {
-        window_size = new MxVector2i(mx::cast<Magnum::Vector2i>(o));
+        window_size = new MxVector2i(mx::cast<PyObject, Magnum::Vector2i>(o));
 
         Log(LOG_INFORMATION) << "got window_size: " << std::to_string(window_size->x()) << "," << std::to_string(window_size->y());
     }
@@ -308,7 +308,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     uint32_t *perfcounters;
     if((o = PyDict_GetItemString(kwargs, "perfcounters"))) {
-        perfcounters = new uint32_t(mx::cast<uint32_t>(o));
+        perfcounters = new uint32_t(mx::cast<PyObject, uint32_t>(o));
 
         Log(LOG_INFORMATION) << "got perfcounters: " << std::to_string(*perfcounters);
     }
@@ -316,7 +316,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
 
     int *perfcounter_period;
     if((o = PyDict_GetItemString(kwargs, "perfcounter_period"))) {
-        perfcounter_period = new int(mx::cast<int>(o));
+        perfcounter_period = new int(mx::cast<PyObject, int>(o));
 
         Log(LOG_INFORMATION) << "got perfcounter_period: " << std::to_string(*perfcounter_period);
     }
@@ -324,7 +324,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
     
     int *logger_level;
     if((o = PyDict_GetItemString(kwargs, "logger_level"))) {
-        logger_level = new int(mx::cast<int>(o));
+        logger_level = new int(mx::cast<PyObject, int>(o));
 
         Log(LOG_INFORMATION) << "got logger_level: " << std::to_string(*logger_level);
     }
@@ -347,14 +347,14 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
                 Log(LOG_ERROR) << "Clip plane point entry not a list";
                 continue;
             }
-            MxVector3f point = mx::cast<MxVector3f>(pyTupleItem);
+            MxVector3f point = mx::cast<PyObject, MxVector3f>(pyTupleItem);
 
             pyTupleItem = PyTuple_GetItem(pyTuple, 1);
             if(!PyList_Check(pyTupleItem)) {
                 Log(LOG_ERROR) << "Clip plane normal entry not a list";
                 continue;
             }
-            MxVector3f normal = mx::cast<MxVector3f>(pyTupleItem);
+            MxVector3f normal = mx::cast<PyObject, MxVector3f>(pyTupleItem);
 
             clip_planes->push_back(std::make_tuple(point, normal));
             Log(LOG_INFORMATION) << "got clip plane: " << point << ", " << normal;
@@ -634,7 +634,7 @@ static void simulator_interactive_run() {
 
         Log(LOG_DEBUG) << "calling python interactive loop";
         
-        PyObject *mx_str = mx::cast(std::string("mechanica"));
+        PyObject *mx_str = mx::cast<std::string, PyObject*>(std::string("mechanica"));
 
         // Try to import ipython
 
@@ -659,15 +659,15 @@ static void simulator_interactive_run() {
 
         PyObject *pt_inputhooks = PyImport_ImportString("IPython.terminal.pt_inputhooks");
         
-        Log(LOG_INFORMATION) <<  "pt_inputhooks: " << mx::cast<std::string>(pt_inputhooks) ;;
+        Log(LOG_INFORMATION) <<  "pt_inputhooks: " << mx::cast<PyObject, std::string>(pt_inputhooks) ;;
         
         PyObject *reg = PyObject_GetAttrString(pt_inputhooks, "register");
         
-        Log(LOG_INFORMATION) <<  "reg: " << mx::cast<std::string>(reg) ;;
+        Log(LOG_INFORMATION) <<  "reg: " << mx::cast<PyObject, std::string>(reg) ;;
         
         PyObject *ih = (PyObject*)&MxSimulatorPy::_input_hook;
         
-        Log(LOG_INFORMATION) <<  "ih: " << mx::cast<std::string>(ih) ;;
+        Log(LOG_INFORMATION) <<  "ih: " << mx::cast<PyObject, std::string>(ih) ;;
 
         //py::cpp_function ih(MxSimulatorPy::_input_hook);
         
@@ -688,10 +688,10 @@ static void simulator_interactive_run() {
         // import IPython
         // ip = IPython.get_ipython()
         PyObject *ipython = PyImport_ImportString("IPython");
-        Log(LOG_INFORMATION) <<  "ipython: " << mx::cast<std::string>(ipython) ;;
+        Log(LOG_INFORMATION) <<  "ipython: " << mx::cast<PyObject, std::string>(ipython) ;;
         
         PyObject *get_ipython = PyObject_GetAttrString(ipython, "get_ipython");
-        Log(LOG_INFORMATION) <<  "get_ipython: " << mx::cast<std::string>(get_ipython) ;;
+        Log(LOG_INFORMATION) <<  "get_ipython: " << mx::cast<PyObject, std::string>(get_ipython) ;;
         
         args = PyTuple_New(0);
         PyObject *ip = PyObject_Call(get_ipython, args, NULL);
@@ -848,7 +848,7 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
         if(kwargs == NULL || (argv = PyDict_GetItemString(kwargs, "argv")) == NULL) {
             Log(LOG_INFORMATION) << "Getting command-line args";
 
-            PyObject *sys_name = mx::cast(std::string("sys"));
+            PyObject *sys_name = mx::cast<std::string, PyObject*>(std::string("sys"));
             PyObject *sys = PyImport_Import(sys_name);
             argv = PyObject_GetAttrString(sys, "argv");
             
@@ -864,7 +864,7 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
         MxSimulator::GLConfig glConf;
         
         if(PyList_Size(argv) > 0) {
-            std::string name = mx::cast<std::string>(PyList_GetItem(argv, 0));
+            std::string name = mx::cast<PyObject, std::string>(PyList_GetItem(argv, 0));
             Universe.name = name;
             conf.setTitle(name);
         }
@@ -1040,11 +1040,11 @@ PyObject *MxSimulatorPy::_input_hook(PyObject *const *args, Py_ssize_t nargs) {
         if(!ready) {
             PyObject* err = PyErr_Occurred();
             std::string str = "error calling input_is_ready";
-            str += mx::cast<std::string>(err);
+            str += mx::cast<PyObject, std::string>(err);
             throw std::logic_error(str);
         }
         
-        bool bready = mx::cast<bool>(ready);
+        bool bready = mx::cast<PyObject, bool>(ready);
         Py_DECREF(ready);
         return bready;
     };

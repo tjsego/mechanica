@@ -79,6 +79,7 @@ set(SRC
   MxLogger.cpp
   MxUtil.cpp
   mx_error.cpp
+  mx_parse.cpp
 
   event/MxEvent.cpp
   event/MxEventList.cpp
@@ -182,6 +183,7 @@ set(HEADERS
   MxLogger.h
   MxUtil.h
   mx_error.h
+  mx_parse.h
 
   event/MxEvent.h
   event/MxEventList.h

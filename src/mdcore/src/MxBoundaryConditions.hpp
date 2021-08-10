@@ -99,6 +99,8 @@ struct MxBoundaryConditions {
      */
     uint32_t periodic;
 
+    static unsigned boundaryKindFromString(const std::string &s);
+
     std::string str();
 
 private:

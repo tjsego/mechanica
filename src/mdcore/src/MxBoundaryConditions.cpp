@@ -429,6 +429,10 @@ HRESULT MxBoundaryConditions::_initFin(int *cells) {
     return S_OK;
 }
 
+unsigned MxBoundaryConditions::boundaryKindFromString(const std::string &s) {
+    return bc_kind_from_string(s);
+}
+
 std::string MxBoundaryConditions::str() {
     std::string s = "BoundaryConditions(\n";
     s += "  " + left.str(false) + ", \n";

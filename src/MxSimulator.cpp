@@ -23,6 +23,7 @@
 #include <MxCluster.hpp>
 #include <MxLogger.h>
 #include <mx_error.h>
+#include <mx_parse.h>
 #include <MxPy.h>
 
 // mdcore errs.h
@@ -159,7 +160,6 @@ struct ArgumentsWrapper  {
     int argsSeriouslyTakesAFuckingIntReference;
 };
 
-// todo: implement parse_kwargs in C++ startup
 static void parse_kwargs(MxSimulator_Config &conf, 
                          MxVector3f *dim=NULL, 
                          double *cutoff=NULL, 
@@ -210,6 +210,223 @@ static void parse_kwargs(MxSimulator_Config &conf,
     if(perfcounter_period) conf.universeConfig.timer_output_period = *perfcounter_period;
     if(logger_level) MxLogger::setLevel(*logger_level);
     if(clip_planes) conf.clipPlanes = MxParsePlaneEquation(*clip_planes);
+}
+
+// intermediate kwarg parsing
+static void parse_kwargs(const std::vector<std::string> &kwargs, MxSimulator_Config &conf) {
+
+    Log(LOG_INFORMATION) << "parsing vector string input";
+
+    std::string s;
+
+    MxVector3f *dim;
+    if(mx::parse::has_kwarg(kwargs, "dim")) {
+        s = mx::parse::kwargVal(kwargs, "dim");
+        dim = new MxVector3f(mx::parse::strToVec<float>(s));
+
+        Log(LOG_INFORMATION) << "got dim: " 
+                             << std::to_string(dim->x()) << "," 
+                             << std::to_string(dim->y()) << "," 
+                             << std::to_string(dim->z());
+    }
+    else dim = NULL;
+
+    double *cutoff;
+    if(mx::parse::has_kwarg(kwargs, "cutoff")) {
+        s = mx::parse::kwargVal(kwargs, "cutoff");
+        cutoff = new double(mx::cast<std::string, double>(s));
+
+        Log(LOG_INFORMATION) << "got cutoff: " << std::to_string(*cutoff);
+    }
+    else cutoff = NULL;
+
+    MxVector3i *cells;
+    if(mx::parse::has_kwarg(kwargs, "cells")) {
+        s = mx::parse::kwargVal(kwargs, "cells");
+        cells = new MxVector3i(mx::parse::strToVec<int>(s));
+
+        Log(LOG_INFORMATION) << "got cells: " 
+                             << std::to_string(cells->x()) << "," 
+                             << std::to_string(cells->y()) << "," 
+                             << std::to_string(cells->z());
+    }
+    else cells = NULL;
+
+    unsigned *threads;
+    if(mx::parse::has_kwarg(kwargs, "threads")) {
+        s = mx::parse::kwargVal(kwargs, "threads");
+        threads = new unsigned(mx::cast<std::string, unsigned>(s));
+
+        Log(LOG_INFORMATION) << "got threads: " << std::to_string(*threads);
+    }
+    else threads = NULL;
+
+    int *integrator;
+    if(mx::parse::has_kwarg(kwargs, "integrator")) {
+        s = mx::parse::kwargVal(kwargs, "integrator");
+        integrator = new int(mx::cast<std::string, int>(s));
+
+        Log(LOG_INFORMATION) << "got integrator: " << std::to_string(*integrator);
+    }
+    else integrator = NULL;
+
+    double *dt;
+    if(mx::parse::has_kwarg(kwargs, "dt")) {
+        s = mx::parse::kwargVal(kwargs, "dt");
+        dt = new double(mx::cast<std::string, double>(s));
+
+        Log(LOG_INFORMATION) << "got dt: " << std::to_string(*dt);
+    }
+    else dt = NULL;
+
+    MxBoundaryConditionsArgsContainer *bcArgs;
+    if(mx::parse::has_mapKwarg(kwargs, "bc")) {
+        // example: 
+        // bc={left={velocity={x=0;y=2};restore=1.0};bottom={type=no_slip}}
+        s = mx::parse::kwargVal(kwargs, "bc");
+        std::vector<std::string> mapEntries = mx::parse::mapStrToStrVec(mx::parse::mapStrip(s));
+
+        std::unordered_map<std::string, unsigned int> *bcVals = new std::unordered_map<std::string, unsigned int>();
+        std::unordered_map<std::string, MxVector3f> *bcVels = new std::unordered_map<std::string, MxVector3f>();
+        std::unordered_map<std::string, float> *bcRestores = new std::unordered_map<std::string, float>();
+
+        std::string name;
+        std::vector<std::string> val;
+        for(auto &ss : mapEntries) {
+            std::tie(name, val) = mx::parse::kwarg_getNameMapVals(ss);
+
+            if(mx::parse::has_kwarg(val, "type")) {
+                std::string ss = mx::parse::kwargVal(val, "type");
+                (*bcVals)[name] = MxBoundaryConditions::boundaryKindFromString(ss);
+
+                Log(LOG_INFORMATION) << "got bc type: " << name << "->" << ss;
+            }
+            else if(mx::parse::has_kwarg(val, "velocity")) {
+                std::string ss = mx::parse::mapStrip(mx::parse::kwarg_strMapVal(val, "velocity"));
+                std::vector<std::string> sv = mx::parse::mapStrToStrVec(ss);
+                float x, y, z;
+                if(mx::parse::has_kwarg(sv, "x")) x = mx::cast<std::string, float>(mx::parse::kwargVal(sv, "x"));
+                else x = 0.0;
+                if(mx::parse::has_kwarg(sv, "y")) y = mx::cast<std::string, float>(mx::parse::kwargVal(sv, "y"));
+                else y = 0.0;
+                if(mx::parse::has_kwarg(sv, "z")) z = mx::cast<std::string, float>(mx::parse::kwargVal(sv, "z"));
+                else z = 0.0;
+
+                auto vel = MxVector3f(x, y, z);
+                (*bcVels)[name] = vel;
+
+                Log(LOG_INFORMATION) << "got bc velocity: " << name << "->" << vel;
+
+                if(mx::parse::has_kwarg(val, "restore")) {
+                    std::string ss = mx::parse::kwargVal(val, "restore");
+                    (*bcRestores)[name] = mx::cast<std::string, float>(ss);
+
+                    Log(LOG_INFORMATION) << "got bc restore: " << name << "->" << ss;
+                }
+            }
+        }
+        
+        bcArgs = new MxBoundaryConditionsArgsContainer(NULL, bcVals, bcVels, bcRestores);
+    }
+    else if(mx::parse::has_kwarg(kwargs, "bc")) {
+        // example: 
+        // bc=1.0
+        s = mx::parse::kwargVal(kwargs, "bc");
+        int *bcValue = new int(mx::cast<std::string, int>(s));
+        bcArgs = new MxBoundaryConditionsArgsContainer(bcValue, NULL, NULL, NULL);
+
+        Log(LOG_INFORMATION) << "got bc val: " << std::to_string(*bcValue);
+    }
+    else bcArgs = NULL;
+
+    double *max_distance;
+    if(mx::parse::has_kwarg(kwargs, "max_distance")) {
+        s = mx::parse::kwargVal(kwargs, "max_distance");
+        max_distance = new double(mx::cast<std::string, double>(s));
+
+        Log(LOG_INFORMATION) << "got max_distance: " << std::to_string(*max_distance);
+    }
+    else max_distance = NULL;
+
+    bool *windowless;
+    if(mx::parse::has_kwarg(kwargs, "windowless")) {
+        s = mx::parse::kwargVal(kwargs, "windowless");
+        windowless = new bool(mx::cast<std::string, bool>(s));
+
+        Log(LOG_INFORMATION) << "got windowless" << *windowless ? "True" : "False";
+    }
+    else windowless = NULL;
+
+    MxVector2i *window_size;
+    if(mx::parse::has_kwarg(kwargs, "window_size")) {
+        s = mx::parse::kwargVal(kwargs, "window_size");
+        window_size = new MxVector2i(mx::parse::strToVec<int>(s));
+
+        Log(LOG_INFORMATION) << "got window_size: " << std::to_string(window_size->x()) << "," << std::to_string(window_size->y());
+    }
+    else window_size = NULL;
+
+    uint32_t *perfcounters;
+    if(mx::parse::has_kwarg(kwargs, "perfcounters")) {
+        s = mx::parse::kwargVal(kwargs, "perfcounters");
+        perfcounters = new uint32_t(mx::cast<std::string, uint32_t>(s));
+
+        Log(LOG_INFORMATION) << "got perfcounters: " << std::to_string(*perfcounters);
+    }
+    else perfcounters = NULL;
+
+    int *perfcounter_period;
+    if(mx::parse::has_kwarg(kwargs, "perfcounter_period")) {
+        s = mx::parse::kwargVal(kwargs, "perfcounter_period");
+        perfcounter_period = new int(mx::cast<std::string, int>(s));
+
+        Log(LOG_INFORMATION) << "got perfcounter_period: " << std::to_string(*perfcounter_period);
+    }
+    else perfcounter_period = NULL;
+    
+    int *logger_level;
+    if(mx::parse::has_kwarg(kwargs, "logger_level")) {
+        s = mx::parse::kwargVal(kwargs, "logger_level");
+        logger_level = new int(mx::cast<std::string, int>(s));
+
+        Log(LOG_INFORMATION) << "got logger_level: " << std::to_string(*logger_level);
+    }
+    else logger_level = NULL;
+    
+    std::vector<std::tuple<MxVector3f, MxVector3f> > *clip_planes;
+    MxVector3f point, normal;
+    if(mx::parse::has_kwarg(kwargs, "clip_planes")) {
+        // ex: clip_planes=0,1,2,3,4,5;1,2,3,4,5,6
+        clip_planes = new std::vector<std::tuple<MxVector3f, MxVector3f> >();
+
+        s = mx::parse::kwargVal(kwargs, "clip_planes");
+        std::vector<std::string> sc = mx::parse::mapStrToStrVec(s);
+        for (auto &ss : sc) {
+            std::vector<float> svec = mx::parse::strToVec<float>(ss);
+            point = MxVector3f(svec[0], svec[1], svec[2]);
+            normal = MxVector3f(svec[3], svec[4], svec[5]);
+            clip_planes->push_back(std::make_tuple(point, normal));
+
+            Log(LOG_INFORMATION) << "got clip plane: " << point << ", " << normal;
+        }
+    }
+    else clip_planes = NULL;
+    parse_kwargs(conf, 
+                 dim, 
+                 cutoff, 
+                 cells, 
+                 threads, 
+                 integrator, 
+                 dt, 
+                 NULL, NULL, NULL, NULL, 
+                 bcArgs, 
+                 max_distance, 
+                 windowless, 
+                 window_size, 
+                 perfcounters, 
+                 perfcounter_period, 
+                 logger_level, 
+                 clip_planes);
 }
 
 // python support: intermediate kwarg parsing
@@ -567,6 +784,17 @@ HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
             Universe.name = name;
             conf.setTitle(name);
         }
+
+        Log(LOG_INFORMATION) << "got universe name: " << Universe.name;
+        
+        // set default state of config
+        conf.setWindowless(false);
+
+        if(argv.size() > 1) {
+            parse_kwargs(argv, conf);
+        }
+
+        Log(LOG_INFORMATION) << "successfully parsed args";
 
         // init the engine first
         /* Initialize scene particles */

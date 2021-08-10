@@ -330,7 +330,7 @@ static void parse_kwargs(const std::vector<std::string> &kwargs, MxSimulator_Con
     }
     else if(mx::parse::has_kwarg(kwargs, "bc")) {
         // example: 
-        // bc=1.0
+        // bc=no_slip
         s = mx::parse::kwargVal(kwargs, "bc");
         int *bcValue = new int(MxBoundaryConditions::boundaryKindFromString(s));
         bcArgs = new MxBoundaryConditionsArgsContainer(bcValue, NULL, NULL, NULL);
@@ -716,8 +716,8 @@ int universe_init(const MxUniverseConfig &conf ) {
     Log(LOG_INFORMATION) << "engine: cell size = [" << _Engine.s.h[0]  << ", " <<_Engine.s.h[1] << ", " << _Engine.s.h[2] << "]";
     Log(LOG_INFORMATION) << "engine: cutoff set to " << cutoff;
     Log(LOG_INFORMATION) << "engine: nr tasks: " << _Engine.s.nr_tasks;
-    Log(LOG_INFORMATION) << "engine: nr cell pairs: %i.\n" <<_Engine.s.nr_pairs;
-    Log(LOG_INFORMATION) << "engine: dt: %22.16e." << _Engine.dt;
+    Log(LOG_INFORMATION) << "engine: nr cell pairs: " <<_Engine.s.nr_pairs;
+    Log(LOG_INFORMATION) << "engine: dt: " << _Engine.dt;
     Log(LOG_INFORMATION) << "engine: max distance fraction: " << _Engine.particle_max_dist_fraction;
 
     // start the engine

@@ -348,6 +348,8 @@ MxParticleType::MxParticleType(const bool &noReg) {
     charge = 0.0;
     id = 0;
     dynamics = PARTICLE_NEWTONIAN;
+    type_flags = PARTICLE_TYPE_NONE;
+    particle_flags = PARTICLE_NONE;
     
     auto c = Magnum::Color3::fromSrgb(colors[0]);
     style = new NOMStyle(&c);
@@ -439,7 +441,7 @@ std::set<short int> MxParticleType::particleTypeIds() {
 }
 
 bool MxParticleType::isCluster() {
-    return this->type_flags & PARTICLE_CLUSTER;
+    return this->particle_flags & PARTICLE_CLUSTER;
 }
 
 MxParticleHandle *MxParticleType::operator()(MxVector3f *position,

@@ -763,7 +763,7 @@ HRESULT MxSimulator::run(double et)
     return Simulator->app->run(et);
 }
 
-HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
+HRESULT MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std::string> &appArgv) {
 
     std::thread::id id = std::this_thread::get_id();
     Log(LOG_INFORMATION) << "thread id: " << id;
@@ -771,30 +771,14 @@ HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
     try {
 
         if(Simulator) {
-            throw std::domain_error( "Error, Simulator is already initialized" );
+            throw std::domain_error("Error, Simulator is already initialized" );
         }
         
         MxSimulator *sim = new MxSimulator();
-
-        MxSimulator_Config conf;
-        MxSimulator::GLConfig glConf;
         
-        if(argv.size() > 0) {
-            std::string name = argv[0];
-            Universe.name = name;
-            conf.setTitle(name);
-        }
+        Universe.name = conf.title();
 
         Log(LOG_INFORMATION) << "got universe name: " << Universe.name;
-        
-        // set default state of config
-        conf.setWindowless(false);
-
-        if(argv.size() > 1) {
-            parse_kwargs(argv, conf);
-        }
-
-        Log(LOG_INFORMATION) << "successfully parsed args";
 
         // init the engine first
         /* Initialize scene particles */
@@ -803,7 +787,7 @@ HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
         if(conf.windowless()) {
             Log(LOG_INFORMATION) <<  "creating Windowless app" ;
             
-            ArgumentsWrapper<MxWindowlessApplication::Arguments> margs(argv);
+            ArgumentsWrapper<MxWindowlessApplication::Arguments> margs(appArgv);
 
             MxWindowlessApplication *windowlessApp = new MxWindowlessApplication(*margs.pArgs);
 
@@ -821,7 +805,7 @@ HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
         else {
             Log(LOG_INFORMATION) <<  "creating GLFW app" ;
             
-            ArgumentsWrapper<MxGlfwApplication::Arguments> margs(argv);
+            ArgumentsWrapper<MxGlfwApplication::Arguments> margs(appArgv);
 
             MxGlfwApplication *glfwApp = new MxGlfwApplication(*margs.pArgs);
             
@@ -840,6 +824,36 @@ HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
         Simulator = sim;
         
         return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
+
+    try {
+
+        MxSimulator_Config conf;
+        
+        if(argv.size() > 0) {
+            std::string name = argv[0];
+            conf.setTitle(name);
+        }
+
+        Log(LOG_INFORMATION) << "got universe name: " << Universe.name;
+        
+        // set default state of config
+        conf.setWindowless(false);
+
+        if(argv.size() > 1) {
+            parse_kwargs(argv, conf);
+        }
+
+        Log(LOG_INFORMATION) << "successfully parsed args";
+
+        return MxSimulator_initC(conf, argv);
     }
     catch(const std::exception &e) {
         mx_exp(e);
@@ -1090,7 +1104,6 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
         }
 
         MxSimulator_Config conf;
-        MxSimulator::GLConfig glConf;
         
         if(PyList_Size(argv) > 0) {
             std::string name = mx::cast<PyObject, std::string>(PyList_GetItem(argv, 0));

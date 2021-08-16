@@ -440,6 +440,11 @@ struct CAPI_EXPORT MxSimulator {
  */
 CAPI_FUNC(HRESULT) MxSimulator_init(const std::vector<std::string> &argv);
 
+/**
+ * main simulator init method
+ */
+CAPI_FUNC(HRESULT) MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std::string> &appArgv=std::vector<std::string>());
+
 
 /**
  @brief OpenGL context configuration

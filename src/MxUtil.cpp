@@ -446,6 +446,53 @@ std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n)
     return std::vector<MxVector3f>();
 }
 
+// todo: expand MxFilledCubeUniform to rectangular cuboids
+std::vector<MxVector3f> MxFilledCubeUniform(const MxVector3f &corner1, 
+                                            const MxVector3f &corner2, 
+                                            const int &nParticlesX, 
+                                            const int &nParticlesY, 
+                                            const int &nParticlesZ) 
+{
+    if(nParticlesX < 2 || nParticlesY < 2 || nParticlesZ < 2) 
+        mx_exp(std::range_error("Must have 2 or more particles in each direction"));
+
+    std::vector<MxVector3f> result;
+    MxVector3f cubeSpan = corner2 - corner1;
+
+    for(int i = 0; i < nParticlesX; i++) {
+        MxVector3f incMatX(float(i) / (float(nParticlesX) - 1.0), 0.0, 0.0);
+
+        for(int j = 0; j < nParticlesY; j++) {
+            MxVector3f incMatY(0.0, float(j) / (float(nParticlesY) - 1.0), 0.0);
+
+            for(int k = 0; k < nParticlesZ; k++) {
+                MxVector3f incMatZ(0.0, 0.0, float(k) / (float(nParticlesZ) - 1.0));
+
+                MxMatrix3f incMat(incMatX, incMatY, incMatZ);
+                result.push_back(corner1 + incMat * cubeSpan);
+            }
+        }
+    }
+
+    return result;
+}
+
+// todo: expand MxFilledCubeRandom to rectangular cuboids
+std::vector<MxVector3f> MxFilledCubeRandom(const MxVector3f &corner1, const MxVector3f &corner2, const int &nParticles) {
+    std::vector<MxVector3f> result;
+
+    std::uniform_real_distribution<float> disx(corner1[0], corner2[0]);
+    std::uniform_real_distribution<float> disy(corner1[1], corner2[1]);
+    std::uniform_real_distribution<float> disz(corner1[2], corner2[2]);
+
+    for(int i = 0; i < nParticles; ++i) {
+        result.push_back(MxVector3f{disx(MxRandom), disy(MxRandom), disz(MxRandom)});
+
+    }
+
+    return result;
+}
+
 Magnum::Color3 Color3_Parse(const std::string &s)
 {
     if(s.length() < 2) {

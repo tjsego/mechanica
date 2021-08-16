@@ -31,8 +31,6 @@
 
 #include <thread>
 
-static std::vector<MxVector3f> fillCubeRandom(const MxVector3f &corner1, const MxVector3f &corner2, int nParticles);
-
 /* What to do if ENGINE_FLAGS was not defined? */
 #ifndef ENGINE_FLAGS
 #define ENGINE_FLAGS engine_flag_none
@@ -735,23 +733,6 @@ int universe_init(const MxUniverseConfig &conf ) {
     fflush(stdout);
 
     return 0;
-}
-
-static std::vector<MxVector3f> fillCubeRandom(const MxVector3f &corner1, const MxVector3f &corner2, int nParticles) {
-    std::vector<MxVector3f> result;
-
-    std::random_device rd;  //Will be used to obtain a seed for the random number engine
-    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-    std::uniform_real_distribution<float> disx(corner1[0], corner2[0]);
-    std::uniform_real_distribution<float> disy(corner1[1], corner2[1]);
-    std::uniform_real_distribution<float> disz(corner1[2], corner2[2]);
-
-    for(int i = 0; i < nParticles; ++i) {
-        result.push_back(MxVector3f{disx(gen), disy(gen), disz(gen)});
-
-    }
-
-    return result;
 }
 
 HRESULT MxSimulator::run(double et)

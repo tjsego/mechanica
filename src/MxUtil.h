@@ -84,6 +84,32 @@ std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind,
 
 std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n=1);
 
+/**
+ * @brief Get the coordinates of a uniformly filled cube. 
+ * 
+ * @param corner1 first corner of cube
+ * @param corner2 second corner of cube
+ * @param nParticlesX number of particles along x-direction of filling axes (>=2)
+ * @param nParticlesY number of particles along y-direction of filling axes (>=2)
+ * @param nParticlesZ number of particles along z-direction of filling axes (>=2)
+ * @return std::vector<MxVector3f> 
+ */
+std::vector<MxVector3f> MxFilledCubeUniform(const MxVector3f &corner1, 
+                                            const MxVector3f &corner2, 
+                                            const int &nParticlesX=2, 
+                                            const int &nParticlesY=2, 
+                                            const int &nParticlesZ=2);
+
+/**
+ * @brief Get the coordinates of a randomly filled cube. 
+ * 
+ * @param corner1 first corner of cube
+ * @param corner2 second corner of cube
+ * @param nParticles number of points in the cube
+ * @return std::vector<MxVector3f> 
+ */
+std::vector<MxVector3f> MxFilledCubeRandom(const MxVector3f &corner1, const MxVector3f &corner2, const int &nParticles);
+
 extern const char* MxColor3Names[];
 
 HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,

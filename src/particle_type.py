@@ -20,8 +20,8 @@ class ParticleType:
     __mx_properties__ = [
         'mass',
         'charge',
-        'radius', 
-        'target_energy', 
+        'radius',
+        'target_energy',
         'minimum_radius',
         'eps',
         'rmin',
@@ -66,11 +66,11 @@ class ParticleType:
                 type_instance.style.setVisible(cls.style['visible'])
             if 'colormap' in cls.style.keys():
                 kwargs = {'partType': type_instance,
-                            'speciesName': cls.style['colormap']['species']}
+                          'speciesName': cls.style['colormap']['species']}
                 if 'map' in cls.style['colormap'].keys():
                     kwargs['name'] = cls.style['colormap']['map']
                 type_instance.style.newColorMapper(**kwargs)
-        
+
         type_instance.registerType()
         type_instance = type_instance.get()
 
@@ -121,7 +121,7 @@ class ClusterType(ParticleType):
                 type_instance.style.setVisible(cls.style['visible'])
             if 'colormap' in cls.style.keys():
                 kwargs = {'partType': type_instance,
-                            'speciesName': cls.style['colormap']['species']}
+                          'speciesName': cls.style['colormap']['species']}
                 if 'map' in cls.style['colormap'].keys():
                     kwargs['name'] = cls.style['colormap']['map']
                 type_instance.style.newColorMapper(**kwargs)

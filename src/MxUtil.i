@@ -16,4 +16,6 @@
 
     RandomPoints = MxRandomPoints
     Points = MxPoints
+    FilledCubeUniform = MxFilledCubeUniform
+    FilledCubeRandom = MxFilledCubeRandom
 %}

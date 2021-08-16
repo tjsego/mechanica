@@ -45,6 +45,7 @@
 #include "fptype.h"
 #include <iostream>
 #include <unordered_map>
+#include <typeinfo>
 
 MxParticle::MxParticle() {
     bzero(this, sizeof(MxParticle));
@@ -297,8 +298,43 @@ MxParticleHandle::operator MxClusterParticleHandle*() {
     return static_cast<MxClusterParticleHandle*>(this);
 }
 
+int typeIdByName(const char *_name) {
+    for(int i = 0; i < _Engine.nr_types; i++) {
+        if(strcmp(_Engine.types[i].name, _name) == 0)
+            return _Engine.types[i].id;
+    }
+
+    return -1;
+}
+
+// Check whether a type name has been registered
+bool checkTypeName(const char *_name) {
+    return typeIdByName(_name) >= 0;
+}
+
+// Check whether a type name has been registered among all registered derived types
+bool checkDerivedTypeName(const char *_name) {
+    return typeIdByName(_name) >= 2;
+}
+
+// If the returned type id is the same as the two base types, 
+// then generate a name according to type info. 
+// Otherwise, this type presumably has already been registered with a unique name. 
+std::string getUniqueName(MxParticleType *type) {
+    if(checkTypeName(type->name) && !checkDerivedTypeName(type->name)) return typeid(*type).name();
+    return type->name;
+}
+
+void assignUniqueTypeName(MxParticleType *type) {
+    if(checkDerivedTypeName(type->name)) return;
+
+    std::strncpy(type->name, getUniqueName(type).c_str(), MxParticleType::MAX_NAME);
+}
+
 HRESULT MxParticleType_checkRegistered(MxParticleType *type) {
-    return type->id && type->id > 1;
+    if(!type) return 0;
+    int typeId = typeIdByName(type->name);
+    return typeId > 1;
 }
 
 HRESULT _MxParticle_init()
@@ -465,6 +501,11 @@ HRESULT MxParticleType::registerType() {
         return E_OUTOFMEMORY;
     }
 
+    if(engine::nr_types >= 2 && !checkDerivedTypeName(this->name)) {
+        assignUniqueTypeName(this);
+        Log(LOG_INFORMATION) << "Type name not unique. Generating name: " << this->name;
+    }
+
     Log(LOG_DEBUG) << "Creating new particle type " << engine::nr_types;
 
     if(this->mass > 0.f) this->imass = 1.0f / this->mass;
@@ -480,6 +521,10 @@ HRESULT MxParticleType::registerType() {
 }
 
 bool MxParticleType::isRegistered() { return MxParticleType_checkRegistered(this); }
+
+MxParticleType *MxParticleType::get() {
+    return MxParticleType_FindFromName(this->name);
+}
 
 MxParticleHandle *MxParticle_FissionSimple(MxParticle *self,
         MxParticleType *a, MxParticleType *b, int nPartitionRatios,

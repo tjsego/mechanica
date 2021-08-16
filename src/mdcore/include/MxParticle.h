@@ -432,6 +432,9 @@ struct CAPI_EXPORT MxParticleType {
     // Whether this type is registered
     bool isRegistered();
 
+    // Get the type engine instance
+    virtual MxParticleType *get();
+
     MxParticleType(const bool &noReg=false);
     virtual ~MxParticleType() {}
 

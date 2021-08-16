@@ -72,7 +72,7 @@ class ParticleType:
                 type_instance.style.newColorMapper(**kwargs)
         
         type_instance.registerType()
-        type_instance = mx.MxParticleType_FindFromName(name)
+        type_instance = type_instance.get()
 
         if hasattr(cls, 'on_register'):
             cls.on_register(type_instance)
@@ -127,7 +127,7 @@ class ClusterType(ParticleType):
                 type_instance.style.newColorMapper(**kwargs)
 
         type_instance.registerType()
-        type_instance = mx.MxClusterParticleType_FindFromName(name)
+        type_instance = type_instance.get()
 
         if cls.types is not None:
             for t in cls.types:

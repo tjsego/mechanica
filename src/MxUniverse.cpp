@@ -69,7 +69,7 @@ CAPI_FUNC(struct engine*) engine_get()
         if(_Engine.flags == 0) { \
             std::string err = MX_FUNCTION; \
             err += "universe not initialized"; \
-            throw std::domain_error(err.c_str()); \
+            mx_exp(std::domain_error(err.c_str())); \
         }
 
 #define UNIVERSE_CHECK(hr) \

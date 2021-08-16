@@ -347,7 +347,7 @@ static std::vector<MxVector3f> points_solidcube(int n) {
     std::vector<MxVector3f> result(n);
     
     try {
-        if(n < 8) throw std::runtime_error("minimum 8 points in cube");
+        if(n < 8) mx_exp(std::runtime_error("minimum 8 points in cube"));
 
         std::uniform_real_distribution<float> uniform01(-0.5, 0.5);
         
@@ -415,7 +415,7 @@ std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind,
             return random_point_solidsphere_shell(n, dr, phi0, phi1);
         }
         default:
-            throw std::runtime_error("invalid kind");
+            mx_exp(std::runtime_error("invalid kind"));
             return std::vector<MxVector3f>();
         }
     }
@@ -435,7 +435,7 @@ std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n)
             case MxPointsType::Sphere:
                 return points_sphere(n);
             default:
-                throw std::runtime_error("invalid kind");
+                mx_exp(std::runtime_error("invalid kind"));
                 return std::vector<MxVector3f>();
         }
     }
@@ -1313,7 +1313,7 @@ const std::list<std::string> MxCompileFlags::getFlags() {
 const int MxCompileFlags::getFlag(const std::string &_flag) {
     auto x = flags.find(_flag);
     if (x != flags.end()) return x->second;
-    throw std::runtime_error("Flag not defined: " + _flag);
+    mx_exp(std::runtime_error("Flag not defined: " + _flag));
 }
 
 

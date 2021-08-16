@@ -45,7 +45,7 @@ ACCESS_PRIVATE_FIELD(Magnum::Platform::GlfwApplication, Containers::Pointer<Plat
 #define MXGLFW_ERROR() { \
         const char* glfwErrorDesc = NULL; \
         glfwGetError(&glfwErrorDesc); \
-        throw std::domain_error(std::string("GLFW Error in ") + MX_FUNCTION + ": " +  glfwErrorDesc); \
+        mx_exp(std::domain_error(std::string("GLFW Error in ") + MX_FUNCTION + ": " +  glfwErrorDesc)); \
 }
 
 #define MXGLFW_CHECK() { \
@@ -82,7 +82,7 @@ static const MxGlfwApplication::Arguments& glfwChecker(const MxGlfwApplication::
 
         err += "error code: " + std::to_string(code) + ", " + description;
 
-        throw std::runtime_error(err);
+        mx_exp(std::runtime_error(err));
     }
 
     return args;
@@ -574,7 +574,7 @@ bool MxGlfwApplication::contextHasCurrent()
         std::string msg = "GLFW and Magnum OpenGL contexts not synchronized, glfw context: ";
         msg += std::to_string(hasGlfw);
         msg += ", magnum context: " + std::to_string(hasMagnum);
-        throw std::runtime_error(msg);
+        mx_exp(std::runtime_error(msg));
     }
 
     return hasGlfw && hasMagnum;

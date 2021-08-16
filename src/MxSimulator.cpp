@@ -47,7 +47,7 @@ static std::vector<MxVector3f> fillCubeRandom(const MxVector3f &corner1, const M
         if(_Engine.flags == 0) { \
             std::string err = MX_FUNCTION; \
             err += "universe not initialized"; \
-            throw std::domain_error(err.c_str()); \
+            mx_exp(std::domain_error(err.c_str())); \
         }
 
 #define SIM_CHECK(hr) \
@@ -96,11 +96,11 @@ MxSimulator::GLConfig::~GLConfig() = default;
 
 #define SIMULATOR_CHECK()  if (!Simulator) { return mx_error(E_INVALIDARG, "Simulator is not initialized"); }
 
-#define PY_CHECK(hr) {if(!SUCCEEDED(hr)) { throw py::error_already_set();}}
+#define PY_CHECK(hr) {if(!SUCCEEDED(hr)) { mx_exp(py::error_already_set());}}
 
 #define PYSIMULATOR_CHECK() { \
     if(!Simulator) { \
-        throw std::domain_error(std::string("Simulator Error in ") + MX_FUNCTION + ": Simulator not initialized"); \
+        mx_exp(std::domain_error(std::string("Simulator Error in ") + MX_FUNCTION + ": Simulator not initialized")); \
     } \
 }
 
@@ -194,7 +194,7 @@ static void parse_kwargs(MxSimulator_Config &conf,
             default: {
                 std::string msg = "invalid integrator kind: ";
                 msg += std::to_string(kind);
-                throw std::logic_error(msg);
+                mx_exp(std::logic_error(msg));
             }
         }
     }
@@ -724,12 +724,12 @@ int universe_init(const MxUniverseConfig &conf ) {
 
     if ( engine_start( &_Engine , nr_runners , nr_runners ) != 0 ) {
         Log(LOG_ERROR) << errs_getstring(0);
-        throw std::runtime_error(errs_getstring(0));
+        mx_exp(std::runtime_error(errs_getstring(0)));
     }
 
     if ( modules_init() != S_OK ) {
         Log(LOG_ERROR) << errs_getstring(0);
-        throw std::runtime_error(errs_getstring(0));
+        mx_exp(std::runtime_error(errs_getstring(0)));
     }
 
     fflush(stdout);
@@ -771,7 +771,7 @@ HRESULT MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std:
     try {
 
         if(Simulator) {
-            throw std::domain_error("Error, Simulator is already initialized" );
+            mx_exp(std::domain_error("Error, Simulator is already initialized" ));
         }
         
         MxSimulator *sim = new MxSimulator();
@@ -794,7 +794,7 @@ HRESULT MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std:
             if(FAILED(windowlessApp->createContext(conf))) {
                 delete windowlessApp;
 
-                throw std::domain_error("could not create windowless gl context");
+                mx_exp(std::domain_error("could not create windowless gl context"));
             }
             else {
                 sim->app = windowlessApp;
@@ -812,7 +812,7 @@ HRESULT MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std:
             if(FAILED(glfwApp->createContext(conf))) {
                 Log(LOG_DEBUG) << "deleting failed glfwApp";
                 delete glfwApp;
-                throw std::domain_error("could not create  gl context");
+                mx_exp(std::domain_error("could not create  gl context"));
             }
             else {
                 sim->app = glfwApp;
@@ -923,7 +923,7 @@ static void simulator_interactive_run() {
         Py_XDECREF(args);
         
         if(reg_result == NULL) {
-            throw std::logic_error("error calling IPython.terminal.pt_inputhooks.register()");
+            mx_exp(std::logic_error("error calling IPython.terminal.pt_inputhooks.register()"));
         }
         
         Py_XDECREF(reg_result);
@@ -941,13 +941,13 @@ static void simulator_interactive_run() {
         Py_XDECREF(args);
         
         if(ip == NULL) {
-            throw std::logic_error("error calling IPython.get_ipython()");
+            mx_exp(std::logic_error("error calling IPython.get_ipython()"));
         }
         
         PyObject *enable_gui = PyObject_GetAttrString(ip, "enable_gui");
         
         if(enable_gui == NULL) {
-            throw std::logic_error("error calling ipython has no enable_gui attribute");
+            mx_exp(std::logic_error("error calling ipython has no enable_gui attribute"));
         }
         
         args = PyTuple_Pack(1, mx_str);
@@ -956,7 +956,7 @@ static void simulator_interactive_run() {
         Py_XDECREF(mx_str);
         
         if(enable_gui_result == NULL) {
-            throw std::logic_error("error calling ipython.enable_gui(\"mechanica\")");
+            mx_exp(std::logic_error("error calling ipython.enable_gui(\"mechanica\")"));
         }
         
         Py_XDECREF(enable_gui_result);
@@ -1016,7 +1016,7 @@ HRESULT MxSimulator::initConfig(const MxSimulator_Config &conf, const MxSimulato
         if(!windowlessApp->tryCreateContext(conf)) {
             delete windowlessApp;
 
-            throw std::domain_error("could not create windowless gl context");
+            mx_exp(std::domain_error("could not create windowless gl context"));
         }
         else {
             sim->app = windowlessApp;
@@ -1064,7 +1064,7 @@ MxSimulator *MxSimulator::get() {
     if(Simulator) {
         return Simulator;
     }
-    throw std::logic_error("Simulator is not initiazed");
+    mx_exp(std::logic_error("Simulator is not initiazed"));
 }
 
 MxSimulatorPy *MxSimulatorPy::get() {
@@ -1079,7 +1079,7 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
     try {
 
         if(Simulator) {
-            throw std::domain_error( "Error, Simulator is already initialized" );
+            mx_exp(std::domain_error( "Error, Simulator is already initialized" ));
         }
         
         MxSimulator *sim = new MxSimulator();
@@ -1099,7 +1099,7 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
             Py_DECREF(sys);
             
             if(!argv) {
-                throw std::logic_error("could not get argv from sys module");
+                mx_exp(std::logic_error("could not get argv from sys module"));
             }
         }
 
@@ -1150,7 +1150,7 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
             if(FAILED(windowlessApp->createContext(conf))) {
                 delete windowlessApp;
 
-                throw std::domain_error("could not create windowless gl context");
+                mx_exp(std::domain_error("could not create windowless gl context"));
             }
             else {
                 sim->app = windowlessApp;
@@ -1168,7 +1168,7 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
             if(FAILED(glfwApp->createContext(conf))) {
                 Log(LOG_DEBUG) << "deleting failed glfwApp";
                 delete glfwApp;
-                throw std::domain_error("could not create  gl context");
+                mx_exp(std::domain_error("could not create  gl context"));
             }
             else {
                 sim->app = glfwApp;
@@ -1262,17 +1262,17 @@ PyObject *MxSimulatorPy::_input_hook(PyObject *const *args, Py_ssize_t nargs) {
     SIM_TRY();
     
     if(nargs < 1) {
-        throw std::logic_error("argument count to mechanica ipython input hook is 0");
+        mx_exp(std::logic_error("argument count to mechanica ipython input hook is 0"));
     }
     
     PyObject *context = args[0];
     if(context == NULL) {
-        throw std::logic_error("mechanica ipython input hook context argument is NULL");
+        mx_exp(std::logic_error("mechanica ipython input hook context argument is NULL"));
     }
     
     PyObject *input_is_ready = PyObject_GetAttrString(context, "input_is_ready");
     if(input_is_ready == NULL) {
-        throw std::logic_error("mechanica ipython input hook context has no \"input_is_ready\" attribute");
+        mx_exp(std::logic_error("mechanica ipython input hook context has no \"input_is_ready\" attribute"));
     }
     
     PyObject *input_args = PyTuple_New(0);
@@ -1283,7 +1283,7 @@ PyObject *MxSimulatorPy::_input_hook(PyObject *const *args, Py_ssize_t nargs) {
             PyObject* err = PyErr_Occurred();
             std::string str = "error calling input_is_ready";
             str += mx::cast<PyObject, std::string>(err);
-            throw std::logic_error(str);
+            mx_exp(std::logic_error(str));
         }
         
         bool bready = mx::cast<PyObject, bool>(ready);

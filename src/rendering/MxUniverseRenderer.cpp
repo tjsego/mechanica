@@ -57,6 +57,7 @@
 
 #include <MxUtil.h>
 #include <MxLogger.h>
+#include <mx_error.h>
 
 #include <assert.h>
 #include <iostream>
@@ -101,7 +102,7 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
         GL::Renderer::enable(GL::Renderer::Feature::ClipDistance7);
     }
     if(conf.clipPlanes.size() > 8) {
-        throw std::invalid_argument("only up to 8 clip planes supported");
+        mx_exp(std::invalid_argument("only up to 8 clip planes supported"));
     }
     
     GL::Renderer::setDepthFunction(GL::Renderer::StencilFunction::Less);
@@ -632,7 +633,7 @@ int MxUniverseRenderer::clipPlaneCount() const {
 
 void MxUniverseRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe) {
     if(id > sphereShader.clipPlaneCount()) {
-        throw std::invalid_argument("invalid id for clip plane");
+        mx_exp(std::invalid_argument("invalid id for clip plane"));
     }
     
     sphereShader.setclipPlaneEquation(id, pe);

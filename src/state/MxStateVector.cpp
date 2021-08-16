@@ -9,6 +9,7 @@
 #include <state/MxStateVector.h>
 #include "MxSpeciesList.h"
 #include <MxLogger.h>
+#include <mx_error.h>
 
 #include <sbml/Species.h>
 
@@ -59,7 +60,7 @@ float *MxStateVector::item(const int &i) {
     
     if(i >= 0 && i < size) return &fvec[i];
     else {
-        throw std::runtime_error("state vector index out of range");
+        mx_exp(std::runtime_error("state vector index out of range"));
         return NULL;
     }
 }
@@ -67,7 +68,7 @@ float *MxStateVector::item(const int &i) {
 void MxStateVector::setItem(const int &i, const float &val) {
     if(i >= 0 && i < size) fvec[i] = val;
     else {
-        throw std::runtime_error("state vector index out of range");
+        mx_exp(std::runtime_error("state vector index out of range"));
     }
 }
 

@@ -8,6 +8,7 @@
 
 #include "MxSpecies.h"
 #include <MxLogger.h>
+#include <mx_error.h>
 
 #include <sbml/Species.h>
 #include <sbml/SBMLNamespaces.h>
@@ -391,12 +392,12 @@ static int MxSpecies_init(MxSpecies *self, const std::string &s) {
         if(std::regex_match (s,sm,e) && sm.size() == 6) {
             // check if name is valid sbml id
             if(!sm[ID].matched || !libsbml::SyntaxChecker_isValidSBMLSId(sm[ID].str().c_str())) {
-                throw std::runtime_error("invalid Species id: \"" + sm[ID].str() + "\"");
+                mx_exp(std::runtime_error("invalid Species id: \"" + sm[ID].str() + "\""));
                 return -1;
             }
             
             if(sm[INIT].matched && !sm[EQUAL].matched) {
-                throw std::runtime_error("Species has initial assignment value without equal symbol: \"" + s + "\"");
+                mx_exp(std::runtime_error("Species has initial assignment value without equal symbol: \"" + s + "\""));
                 return -1;
             }
             
@@ -412,12 +413,12 @@ static int MxSpecies_init(MxSpecies *self, const std::string &s) {
             return 0;
         }
         else {
-            throw std::runtime_error("invalid Species string: \"" + s + "\"");
+            mx_exp(std::runtime_error("invalid Species string: \"" + s + "\""));
             return -1;
         }
     }
     catch(const std::exception &e) {
-        throw std::runtime_error("error creating Species(" + s + "\") : " + e.what());
+        mx_exp(std::runtime_error("error creating Species(" + s + "\") : " + e.what()));
         return -1;
     }
     return -1;

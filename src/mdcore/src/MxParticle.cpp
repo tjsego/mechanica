@@ -387,7 +387,7 @@ MxParticleType::MxParticleType(const bool &noReg) {
     type_flags = PARTICLE_TYPE_NONE;
     particle_flags = PARTICLE_NONE;
     
-    auto c = Magnum::Color3::fromSrgb(colors[0]);
+    auto c = Magnum::Color3::fromSrgb(colors[(_Engine.nr_types - 1) % (sizeof(colors)/sizeof(unsigned))]);
     style = new NOMStyle(&c);
 
     ::strncpy(name, "Particle", MxParticleType::MAX_NAME);

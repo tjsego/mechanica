@@ -16,6 +16,15 @@ set(LIBSBML_ROOT_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/libsbml" CACHE PATH "Pa
 
 set(LIBSBML_SKIP_SHARED_LIBRARY "ON")
 
+# If necessary, confine doc files to share, rather than in install root
+if(NOT UNIX AND NOT CYGWIN)
+  function(libsbml_doc_change variable access value current stack)
+    set(MISC_PREFIX "./share/sbml" PARENT_SCOPE)
+  endfunction()
+
+  variable_watch(MISC_PREFIX libsbml_doc_change)
+endif()
+
 add_subdirectory(libsbml)
 
 # create an interface target for libsbml as a modern cmake target

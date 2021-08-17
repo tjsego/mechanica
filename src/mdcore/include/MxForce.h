@@ -80,7 +80,7 @@ struct MxConstantForce : MxForce {
      *
      * throws std::exception if userfunc is not a valid kind.
      */
-    void onTime(double time);
+    virtual void onTime(double time);
 
     virtual MxVector3f getValue();
     
@@ -111,28 +111,15 @@ struct MxConstantForce : MxForce {
 };
 
 struct MxConstantForcePy : MxConstantForce {
-    MxConstantForcePy() : MxConstantForce() {}
-    MxConstantForcePy(const MxVector3f &f, const float &period=std::numeric_limits<float>::max()) : 
-        MxConstantForce(f, period)
-    {}
-    MxConstantForcePy(PyObject *f, const float &period=std::numeric_limits<float>::max()) : 
-        callable(f)
-    {
-        setPeriod(period);
-        if(callable) Py_IncRef(callable);
-    }
-    virtual ~MxConstantForcePy(){
-        if(callable) Py_DecRef(callable);
-    }
 
+    MxConstantForcePy();
+    MxConstantForcePy(const MxVector3f &f, const float &period=std::numeric_limits<float>::max());
+    MxConstantForcePy(PyObject *f, const float &period=std::numeric_limits<float>::max());
+    virtual ~MxConstantForcePy();
+
+    void onTime(double time);
     MxVector3f getValue();
 
-    /**
-     * sets the value of the force from a user function. 
-     * if a user function is passed, then it is stored as the user function of the force
-     *
-     * throws std::exception if invalid value.
-     */
     void setValue(PyObject *_userFunc=NULL);
 
 private:

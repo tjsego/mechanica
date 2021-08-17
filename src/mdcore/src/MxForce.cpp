@@ -66,6 +66,36 @@ MxVector3f pyConstantForceFunction(PyObject *callable) {
     return out;
 }
 
+MxConstantForcePy::MxConstantForcePy() : 
+    MxConstantForce() 
+{}
+
+MxConstantForcePy::MxConstantForcePy(const MxVector3f &f, const float &period) : 
+    MxConstantForce(f, period)
+{}
+
+MxConstantForcePy::MxConstantForcePy(PyObject *f, const float &period) : 
+    MxConstantForce(), 
+    callable(f)
+{
+    setPeriod(period);
+    if(callable) {
+        Py_IncRef(callable);
+    }
+}
+
+MxConstantForcePy::~MxConstantForcePy(){
+    if(callable) Py_DecRef(callable);
+}
+
+void MxConstantForcePy::onTime(double time)
+{
+    if(callable && time >= lastUpdate + updateInterval) {
+        lastUpdate = time;
+        setValue(callable);
+    }
+}
+
 MxVector3f MxConstantForcePy::getValue() {
     if(callable && callable != Py_None) return pyConstantForceFunction(callable);
     return force;

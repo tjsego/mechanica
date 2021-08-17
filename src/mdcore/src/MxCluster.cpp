@@ -175,7 +175,7 @@ static MxParticleHandle* cluster_fission_random(MxParticle *cluster)
 MxClusterParticleType::MxClusterParticleType(const bool &noReg) : 
     MxParticleType(noReg) 
 {
-    this->type_flags |= PARTICLE_CLUSTER;
+    this->particle_flags |= PARTICLE_CLUSTER;
 }
 
 bool MxClusterParticleType::hasType(const MxParticleType *type) {
@@ -198,6 +198,10 @@ HRESULT MxClusterParticleType::registerType() {
     }
 
     return MxParticleType::registerType();
+}
+
+MxClusterParticleType *MxClusterParticleType::get() {
+    return (MxClusterParticleType*)MxParticleType::get();
 }
 
 MxClusterParticleHandle::MxClusterParticleHandle() : 

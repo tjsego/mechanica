@@ -27,6 +27,8 @@ struct MxClusterParticleType : MxParticleType {
     // Also registers all unregistered constituent types
     HRESULT registerType();
 
+    virtual MxClusterParticleType *get();
+
 };
 
 struct MxClusterParticleHandle : MxParticleHandle {

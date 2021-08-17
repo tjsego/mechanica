@@ -24,12 +24,14 @@ class AType(mx.ParticleType):
     mass = 39.4
     target_temperature = 10000
     radius = 0.25
+    style = {'color': 'peachpuff'}
 
 
 class BType(mx.ParticleType):
     mass = 39.4
     target_temperature = 0
     radius = 0.25
+    style = {'color': 'seagreen'}
 
 
 A = AType.get()
@@ -58,7 +60,7 @@ for pos, vel in zip(positions, velocities):
     # calling the particle constructor implicitly adds
     # the particle to the universe
     A(pos[:3], vel[:3])
-    A(pos[3:], vel[3:])
+    B(pos[3:], vel[3:])
 
 # run the simulator interactive
 mx.run()

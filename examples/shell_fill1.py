@@ -4,7 +4,7 @@ import mechanica as mx
 cutoff = 10
 
 # number of particles
-count = 50000
+count = 5000
 
 # number of time points we avg things
 avg_pts = 3
@@ -67,4 +67,4 @@ for p in mx.random_points(mx.PointsType.Sphere, count):
 
 
 # run the simulator interactive
-mx.Simulator.run()
+mx.show()

@@ -43,11 +43,3 @@ for p in positions:
 
 # run the simulator interactive
 mx.run()
-
-
-
-
-
-
-
-

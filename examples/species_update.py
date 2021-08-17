@@ -1,10 +1,10 @@
-import mechanica as m
+import mechanica as mx
 import numpy as n
 
-m.init()
+mx.init()
 
 
-class AType(m.ParticleType):
+class AType(mx.ParticleType):
 
     radius = 5
 
@@ -14,14 +14,14 @@ class AType(m.ParticleType):
 
     @staticmethod
     def on_register(ptype):
-        def update(event: m.ParticleTimeEvent):
+        def update(event: mx.ParticleTimeEvent):
             for p in ptype.items():
-                p.species.S1 = (1 + n.sin(2. * m.Universe.time))/2
+                p.species.S1 = (1 + n.sin(2. * mx.Universe.time)) / 2
 
-        m.on_particletime(ptype=ptype, invoke_method=update, period=0.01)
+        mx.on_particletime(ptype=ptype, invoke_method=update, period=0.01)
 
 
 A = AType.get()
-a = A(m.Universe.center)
+a = A(mx.Universe.center)
 
-m.run()
+mx.run()

@@ -1,21 +1,21 @@
-import mechanica as m
+import mechanica as mx
 
-m.init(dim=[20., 20., 20.], cutoff=8, bc=m.BOUNDARY_NONE)
+mx.init(dim=[20., 20., 20.], cutoff=8, bc=mx.BOUNDARY_NONE)
 
 
-class BeadType(m.ParticleType):
+class BeadType(mx.ParticleType):
     mass = 1
     radius = 0.1
-    dynamics = m.Overdamped
+    dynamics = mx.Overdamped
 
 
 Bead = BeadType.get()
 
 # simple harmonic potential to pull particles
-pot = m.Potential.harmonic(k=1, r0=0.1, max = 3)
+pot = mx.Potential.harmonic(k=1, r0=0.1, max=3)
 
 # make a ring of of 50 particles
-pts = [p * 5 + m.Universe.center for p in m.points(m.PointsType.Ring, 50)]
+pts = [p * 5 + mx.Universe.center for p in mx.points(mx.PointsType.Ring, 50)]
 
 # constuct a particle for each position, make
 # a list of particles
@@ -25,7 +25,7 @@ beads = [Bead(p) for p in pts]
 # list of particles. The bind_pairwise method
 # searches for all possible pairs within a cutoff
 # distance and connects them with a bond.
-m.bind.bonds(pot, beads, 1)
+mx.bind.bonds(pot, beads, 1)
 
 # run the model
-m.run()
+mx.run()

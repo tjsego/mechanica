@@ -19,7 +19,7 @@ class BlueType(mx.ParticleType):
 Bead = BeadType.get()
 Blue = BlueType.get()
 
-pot = mx.Potential.harmonic(k=1, r0=0.1, max = 3)
+pot = mx.Potential.harmonic(k=1, r0=0.1, max=3)
 
 pts = [p * 18 + mx.Universe.center for p in mx.random_points(mx.PointsType.SolidCube, 10000)]
 

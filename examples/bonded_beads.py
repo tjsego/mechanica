@@ -31,7 +31,7 @@ pot_bond = mx.Potential.harmonic(k=0.4, r0=0.2, max=2)
 pot_ang = mx.Potential.harmonic_angle(k=0.2, theta0=0.85 * np.pi, tol=0.1)
 
 # bind the potential with the *TYPES* of the particles
-mx.bind(pot_bb, Bead, Bead)
+mx.bind.types(pot_bb, Bead, Bead)
 
 # create a random force. In overdamped dynamcis, we neeed a random force to
 # enable the objects to move around, otherwise they tend to get trapped
@@ -39,7 +39,7 @@ mx.bind(pot_bb, Bead, Bead)
 rforce = mx.Force.random(0, 0.1)
 
 # bind it just like any other force
-mx.bind(rforce, Bead)
+mx.bind.force(rforce, Bead)
 
 # make a array of positions
 xx = np.arange(4., 16, 0.15)
@@ -57,11 +57,3 @@ for i in range(1, xx.size):
 
 # run the simulator interactive
 mx.Simulator.run()
-
-
-
-
-
-
-
-

@@ -7,7 +7,6 @@ dim = [30., 30., 30.]
 mx.init(dim=dim,
         cutoff=10,
         integrator=mx.FORWARD_EULER,
-        cells=[1, 1, 1],
         dt=0.005)
 
 

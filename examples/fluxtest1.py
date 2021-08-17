@@ -19,4 +19,4 @@ a2 = A(mx.Universe.center + [0, 0.5, 0])
 a1.species.S1 = 0
 a2.species.S1 = 1
 
-mx.show()
+mx.run()

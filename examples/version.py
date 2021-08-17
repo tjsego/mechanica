@@ -1,13 +1,13 @@
-import mechanica as m
+import mechanica as mx
 print("Mechanica Version:")
-print("version: ",  m.version.version)
-print("build data: ", m.version.build_date)
-print("compiler: ", m.version.compiler)
-print("compiler_version: ", m.version.compiler_version)
-print("system_version: ", m.version.system_version)
+print("version: ", mx.version.version)
+print("build data: ", mx.version.build_date)
+print("compiler: ", mx.version.compiler)
+print("compiler_version: ", mx.version.compiler_version)
+print("system_version: ", mx.version.system_version)
 
-for k, v in m.version.cpuinfo().items():
+for k, v in mx.version.cpuinfo().items():
     print("cpuinfo[", k, "]: ",  v)
 
-for k, v in m.version.compile_flags().items():
+for k, v in mx.version.compile_flags().items():
     print("compile_flags[", k, "]: ",  v)

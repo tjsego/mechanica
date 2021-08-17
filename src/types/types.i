@@ -151,17 +151,166 @@ typedef mx::type::MxQuaternion<float> MxQuaternionf;
 
 %template(vector2f) std::vector<std::vector<float>>;
 
-%template(MxVector2d) mx::type::MxVector2<double>;
-%template(MxVector2f) mx::type::MxVector2<float>;
-%template(MxVector2i) mx::type::MxVector2<int>;
+// Generic prep instantiations for floating-point vectors. 
+// This partners with vector_template_init to implement
+//  functionality exclusive to vectors with floating-point data 
+//  that swig doesn't automatically pick up. 
+%define vector_template_prep_float(name, dataType, wrappedName)
+%template(_ ## wrappedName ## _length) name::length<dataType>;
+%template(_ ## wrappedName ## _normalized) name::normalized<dataType>;
+%template(_ ## wrappedName ## _resized) name::resized<dataType>;
+%template(_ ## wrappedName ## _projected) name::projected<dataType>;
+%template(_ ## wrappedName ## _projectedOntoNormalized) name::projectedOntoNormalized<dataType>;
 
-%template(MxVector3d) mx::type::MxVector3<double>;
-%template(MxVector3f) mx::type::MxVector3<float>;
-%template(MxVector3i) mx::type::MxVector3<int>;
+%extend name<dataType> {
+    dataType _length() { return $self->length(); }
+    name<dataType> _normalized() { return $self->normalized(); }
+    name<dataType> _resized(dataType length) { return $self->resized(length); }
+    name<dataType> _projected(const name<dataType> &other) { return $self->projected(other); }
+    name<dataType> _projectedOntoNormalized(const name<dataType> &other) { return $self->projectedOntoNormalized(other); }
 
-%template(MxVector4d) mx::type::MxVector4<double>;
-%template(MxVector4f) mx::type::MxVector4<float>;
-%template(MxVector4i) mx::type::MxVector4<int>;
+    %pythoncode %{
+        def length(self):
+            return self._length()
+
+        def normalized(self):
+            return self._normalized()
+
+        def resized(self, length):
+            return self._resize(length)
+
+        def projected(self, other):
+            return self._projected(other)
+
+        def projectedOntoNormalized(self, other):
+            return self._projectedOntoNormalized(other)
+    %}
+}
+%enddef
+
+// Like vector_template_prep_float, but for MxVector2
+%define vector2_template_prep_float(dataType, wrappedName)
+vector_template_prep_float(mx::type::MxVector2, dataType, wrappedName)
+
+%rename(_ ## wrappedName ## _distance) mx::type::MxVector2::distance<dataType>;
+
+%extend mx::type::MxVector2<dataType> {
+    dataType _distance(const mx::type::MxVector2<dataType> &lineStartPt, const mx::type::MxVector2<dataType> &lineEndPt) { 
+        return $self->distance(lineStartPt, lineEndPt); 
+    }
+
+    %pythoncode %{
+        def distance(self, line_start_pt, line_end_pt):
+            return self._distance(line_start_pt, line_end_pt)
+    %}
+}
+
+%enddef
+
+// Like vector_template_prep_float, but for MxVector3
+%define vector3_template_prep_float(dataType, wrappedName)
+vector_template_prep_float(mx::type::MxVector3, dataType, wrappedName)
+
+%rename(_ ## wrappedName ## _distance) mx::type::MxVector3::distance<dataType>;
+
+%extend mx::type::MxVector3<dataType> {
+    dataType _distance(const mx::type::MxVector3<dataType> &lineStartPt, const mx::type::MxVector3<dataType> &lineEndPt) { 
+        return $self->distance(lineStartPt, lineEndPt); 
+    }
+
+    %pythoncode %{
+        def distance(self, line_start_pt, line_end_pt):
+            return self._distance(line_start_pt, line_end_pt)
+    %}
+}
+%enddef
+
+// Like vector_template_prep_float, but for MxVector4
+%define vector4_template_prep_float(dataType, wrappedName)
+vector_template_prep_float(mx::type::MxVector4, dataType, wrappedName)
+
+%rename(_ ## wrappedName ## _distance) mx::type::MxVector4::distance<dataType>;
+%rename(_ ## wrappedName ## _distanceScaled) mx::type::MxVector4::distanceScaled<dataType>;
+%rename(_ ## wrappedName ## _planeEquation) mx::type::MxVector4::planeEquation<dataType>;
+
+%extend mx::type::MxVector4<dataType> {
+    dataType _distance(const mx::type::MxVector3<dataType> &point) { return $self->distance(point); }
+    dataType _distanceScaled(const mx::type::MxVector3<dataType> &point) { return $self->distanceScaled(point); }
+    static mx::type::MxVector4<dataType> _planeEquation(const mx::type::MxVector3<dataType> &normal, const mx::type::MxVector3<dataType> &point) {
+        return mx::type::MxVector4<dataType>::planeEquation(normal, point);
+    }
+    static mx::type::MxVector4<dataType> _planeEquation(const mx::type::MxVector3<dataType>& p0, 
+                                                        const mx::type::MxVector3<dataType>& p1, 
+                                                        const mx::type::MxVector3<dataType>& p2) 
+    {
+        return mx::type::MxVector4<dataType>::planeEquation(p0, p1, p2);
+    }
+
+    %pythoncode %{
+        def distance(self, point):
+            return self._distance(point)
+
+        def distanceScaled(self, point):
+            return self._distanceScaled(point)
+
+        @classmethod
+        def planeEquation(cls, *args):
+            return cls._planeEquation(*args)
+    %}
+}
+%enddef
+
+// Do the vector template implementation
+%define vector_template_init(name, dataType, wrappedName)
+%ignore name<dataType>::length;
+%ignore name<dataType>::normalized;
+%ignore name<dataType>::resized;
+%ignore name<dataType>::projected;
+%ignore name<dataType>::projectedOntoNormalized;
+
+%template(wrappedName) name<dataType>;
+%enddef
+
+// Like vector_template_init, but for MxVector2
+%define vector2_template_init(dataType, wrappedName)
+%ignore mx::type::MxVector2<dataType>::distance;
+
+vector_template_init(mx::type::MxVector2, dataType, wrappedName)
+%enddef
+
+// Like vector_template_init, but for MxVector3
+%define vector3_template_init(dataType, wrappedName)
+%ignore mx::type::MxVector3<dataType>::distance;
+
+vector_template_init(mx::type::MxVector3, dataType, wrappedName)
+%enddef
+
+// Like vector_template_init, but for MxVector4
+%define vector4_template_init(dataType, wrappedName)
+%ignore mx::type::MxVector4<dataType>::distance;
+%ignore mx::type::MxVector4<dataType>::distanceScaled;
+%ignore mx::type::MxVector4<dataType>::planeEquation;
+
+vector_template_init(mx::type::MxVector4, dataType, wrappedName)
+%enddef
+
+vector2_template_prep_float(double, MxVector2d)
+vector2_template_prep_float(float, MxVector2f)
+vector2_template_init(double, MxVector2d)
+vector2_template_init(float, MxVector2f)
+vector2_template_init(int, MxVector2i)
+
+vector3_template_prep_float(double, MxVector3d)
+vector3_template_prep_float(float, MxVector3f)
+vector3_template_init(double, MxVector3d)
+vector3_template_init(float, MxVector3f)
+vector3_template_init(int, MxVector3i)
+
+vector4_template_prep_float(double, MxVector4d)
+vector4_template_prep_float(float, MxVector4f)
+vector4_template_init(double, MxVector4d)
+vector4_template_init(float, MxVector4f)
+vector4_template_init(int, MxVector4i)
 
 %template(MxMatrix3d) mx::type::MxMatrix3<double>;
 %template(MxMatrix3f) mx::type::MxMatrix3<float>;

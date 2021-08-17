@@ -18,4 +18,6 @@
     Points = MxPoints
     FilledCubeUniform = MxFilledCubeUniform
     FilledCubeRandom = MxFilledCubeRandom
+
+    color3_names = MxColor3_Names
 %}

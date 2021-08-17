@@ -493,6 +493,10 @@ std::vector<MxVector3f> MxFilledCubeRandom(const MxVector3f &corner1, const MxVe
     return result;
 }
 
+std::vector<std::string> MxColor3_Names() {
+    return std::vector<std::string>(std::begin(MxColor3Names), std::end(MxColor3Names) - 1);
+}
+
 Magnum::Color3 Color3_Parse(const std::string &s)
 {
     if(s.length() < 2) {

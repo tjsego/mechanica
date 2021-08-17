@@ -38,6 +38,7 @@ enum class MxPointsType : unsigned int {
     Ring
 };
 
+std::vector<std::string> MxColor3_Names();
 Magnum::Color3 Color3_Parse(const std::string &str);
 
 template <typename Type, typename Klass>

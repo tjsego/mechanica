@@ -80,6 +80,15 @@
         minor = MX_VERSION_MINOR
         patch = MX_VERSION_PATCH
         dev = MX_VERSION_DEV
+
+        @staticmethod
+        def cpuinfo():
+            return {k: v for k, v in getFeaturesMap().items()}
+
+        @staticmethod
+        def compile_flags():
+            cf = MxCompileFlags()
+            return {k: cf.getFlag(k) for k in cf.getFlags()}
 %}
 
 //                                      Imports

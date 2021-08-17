@@ -141,11 +141,13 @@ typedef mx::type::MxMatrix4<float> MxMatrix4f;
 typedef mx::type::MxQuaternion<double> MxQuaterniond;
 typedef mx::type::MxQuaternion<float> MxQuaternionf;
 
+%template(lists) std::list<std::string>;
+%template(pairff) std::pair<float, float>;
+%template(umapsb) std::unordered_map<std::string, bool>;
 %template(vectord) std::vector<double>;
 %template(vectorf) std::vector<float>;
 %template(vectori) std::vector<int>;
 %template(vectors) std::vector<std::string>;
-%template(pairff) std::pair<float, float>;
 
 %template(vector2f) std::vector<std::vector<float>>;
 

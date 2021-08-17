@@ -35,6 +35,10 @@
         def center(self) -> MxVector3f:
             return self.getCenter()
 
+        @property
+        def num_types(self) -> int:
+            return self.getNumTypes()
+
         # Supporting old interface for now
         @staticmethod
         def bind(*args, **kwargs):

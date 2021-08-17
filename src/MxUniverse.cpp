@@ -226,6 +226,10 @@ double MxUniverse::getKineticEnergy() {
     return engine_kinetic_energy(&_Engine);
 }
 
+int MxUniverse::getNumTypes() {
+    return _Engine.nr_types;
+}
+
 MxVector3f MxUniverse::origin()
 {
     return MxVector3f{(float)_Engine.s.origin[0], (float)_Engine.s.origin[1], (float)_Engine.s.origin[2]};

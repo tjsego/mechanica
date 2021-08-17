@@ -42,6 +42,7 @@ struct CAPI_EXPORT MxUniverse  {
     MxEventList *getEventList();
     MxBoundaryConditions *getBoundaryConditions();
     double getKineticEnergy();
+    int getNumTypes();
 };
 
 /**

@@ -8,11 +8,11 @@ dependencies:
   - clang
   - lld
   - ninja
-  - swig
+  - swig>=4
   - numpy
   - jpeg
   - bzip2
   - libxml2
   - matplotlib
-  - vs2019_win-64
+  - vs2019_win-64<=19.28
   - pthreads-win32

@@ -40,9 +40,6 @@
 %{
 
     #define SWIG_FILE_WITH_INIT
-    
-    #define PY_ARRAY_UNIQUE_SYMBOL MECHANICA_ARRAY_API
-    #define MX_IMPORTING_NUMPY_ARRAY
 
     #include "mechanica_private.h"
 
@@ -51,13 +48,6 @@
         #define M_PI       3.14159265358979323846   // pi
     #endif
 
-    #include <numpy/arrayobject.h>
-
-%}
-
-// Load all numpy functionality.
-%init %{
-    import_array();
 %}
 
 // config stuff

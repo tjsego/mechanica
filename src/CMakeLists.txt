@@ -14,8 +14,6 @@ include_directories(PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${GLM_INCLUDE_DIRS})
 
-message(STATUS "numpy: ${NUMPY_INCLUDE_DIR}")
-
 
 # file(GLOB AST_SRC
 #   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -306,7 +304,6 @@ target_include_directories(mechanica_obj PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
-  #${NUMPY_INCLUDE_DIR}
   $<INSTALL_INTERFACE:include/mechanica>
 )
 
@@ -370,7 +367,6 @@ target_include_directories(mechanica_shared PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
-  #${NUMPY_INCLUDE_DIR}
   $<INSTALL_INTERFACE:include/mechanica>
 )
 
@@ -418,7 +414,6 @@ target_include_directories(mechanica_py PRIVATE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
-  #${NUMPY_INCLUDE_DIR}
   $<INSTALL_INTERFACE:include/mechanica>
 )
 
@@ -539,7 +534,6 @@ file(COPY particle_type.py DESTINATION ${MX_PYPKG_DIR})
 
 target_link_libraries(mechanica_shared
   PUBLIC
-  Python::NumPy
   mdcore_single
   glfw
   LibSBML::LibSBML

@@ -195,7 +195,7 @@ else()
   find_package(Threads REQUIRED)
 endif()
 
-find_package(Python 3.7.0...3.9.99 REQUIRED COMPONENTS Interpreter Development NumPy)
+find_package(Python 3.7.0...3.9.99 REQUIRED COMPONENTS Interpreter Development)
 
 message("Python_FOUND: ${Python_FOUND}")
 message("Python_Interpeter_FOUND: ${Python_Interpeter_FOUND}")

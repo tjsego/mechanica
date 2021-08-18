@@ -6,18 +6,11 @@
  *  Created on: Apr 2, 2017
  *      Author: andy
  */
-// todo: finish removing built-in numpy dep
-
-// only source module that calls import_array()
-#define MX_IMPORTING_NUMPY_ARRAY
 
 #include "mechanica_private.h"
 #include <MxSimulator.h>
 #include <mx_error.h>
 #include <MxLogger.h>
-
-#define PY_ARRAY_UNIQUE_SYMBOL MECHANICA_ARRAY_API
-#include "numpy/arrayobject.h"
 
 #include <Magnum/GL/Context.h>
 #include <string>

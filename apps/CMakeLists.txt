@@ -4,25 +4,6 @@
 ####  mx-pyrun  ################################################################
 ################################################################################
 
-
-# if python / numpy are in debug mode, or otherwise, numpy is installed from an egg,
-# it will have a path that looks like this:
-# [
-# '',
-# '/Users/andy/local/lib/python37.zip',
-# '/Users/andy/local/lib/python3.7',
-# '/Users/andy/local/lib/python3.7/lib-dynload',
-# '/Users/andy/local/lib/python3.7/site-packages',
-# '/Users/andy/local/lib/python3.7/site-packages/numpy-1.19.0.dev0+0b9b176-py3.7-macosx-10.13-x86_64.egg']
-# need to pull the path from that
-# can use the numpy include path string from Find_Pythonm, this looks like:
-# '/Users/andy/local/lib/python3.7/site-packages/numpy-1.19.0.dev0+0b9b176-py3.7-macosx-10.13-x86_64.egg/numpy/core/include'
-# if this causes issues, in future, might get numpy dir directly as:
-# python -c "import numpy; print (numpy.__file__)"
-# /Users/andy/local/lib/python3.7/site-packages/numpy-1.19.0.dev0+0b9b176-py3.7-macosx-10.13-x86_64.egg/numpy/__init__.py
-string(REPLACE "/numpy/core/include"  "" NUMPY_PYPATH ${Python_NumPy_INCLUDE_DIRS})
-message("NUMPY_PYPATH: ${NUMPY_PYPATH}")
-
 configure_file(mx-pyrun.h.in mx-pyrun.h)
 
 add_executable(

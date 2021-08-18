@@ -212,7 +212,6 @@ function(add_mdcore_single)
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${Python_INCLUDE_DIRS}
-    ${Python_NumPy_INCLUDE_DIRS}
     #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
   )
 

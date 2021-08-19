@@ -29,8 +29,8 @@ struct CAPI_EXPORT MxSystem {
    const MxGLInfo glInfo;
    const MxEGLInfo eglInfo;
 
-   static inline std::tuple<char*, size_t> testImage();
-   static inline std::tuple<char*, size_t> imageData();
+   static std::tuple<char*, size_t> testImage();
+   static std::tuple<char*, size_t> imageData();
    static bool contextHasCurrent();
    static HRESULT contextMakeCurrent();
    static HRESULT contextRelease();
@@ -74,11 +74,11 @@ struct CAPI_EXPORT MxSystem {
    static HRESULT viewReshape(const MxVector2i &windowSize);
    static std::string performanceCounters();
 
-   static inline std::unordered_map<std::string, bool> cpu_info();
-   static inline std::list<std::string> compile_flags();
-   static inline std::unordered_map<std::string, std::string> gl_info();
-   static inline std::string egl_info();
-   static inline std::unordered_map<std::string, std::string> test_headless();
+   static std::unordered_map<std::string, bool> cpu_info();
+   static std::list<std::string> compile_flags();
+   static std::unordered_map<std::string, std::string> gl_info();
+   static std::string egl_info();
+   static std::unordered_map<std::string, std::string> test_headless();
 
 public:
 
@@ -93,10 +93,10 @@ public:
    MxSystemPy() {};
    ~MxSystemPy() {};
 
-   static inline PyObject *test_image();
-   static inline PyObject *image_data();
-   static inline bool is_terminal_interactive();
-   static inline bool is_jupyter_notebook();
+   static PyObject *test_image();
+   static PyObject *image_data();
+   static bool is_terminal_interactive();
+   static bool is_jupyter_notebook();
    static PyObject *jwidget_init(PyObject *args, PyObject *kwargs);
    static PyObject *jwidget_run(PyObject *args, PyObject *kwargs);
 };

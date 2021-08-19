@@ -27,14 +27,14 @@ struct CAPI_EXPORT MxUniverse  {
     static MxMatrix3f *virial(MxVector3f *origin=NULL, float *radius=NULL, std::vector<MxParticleType*> *types=NULL);
     static MxVector3f getCenter();
 
-    static inline HRESULT step(const double &until=0, const double &dt=0);
-    static inline HRESULT stop();
-    static inline HRESULT start();
-    static inline HRESULT reset();
-    static inline MxParticleList *particles();
-    static inline void resetSpecies();
-    static inline std::vector<std::vector<std::vector<MxParticleList*> > > grid(MxVector3i shape);
-    static inline std::vector<MxBondHandle*> *bonds();
+    static HRESULT step(const double &until=0, const double &dt=0);
+    static HRESULT stop();
+    static HRESULT start();
+    static HRESULT reset();
+    static MxParticleList *particles();
+    static void resetSpecies();
+    static std::vector<std::vector<std::vector<MxParticleList*> > > grid(MxVector3i shape);
+    static std::vector<MxBondHandle*> *bonds();
 
     double getTemperature();
     double getTime();

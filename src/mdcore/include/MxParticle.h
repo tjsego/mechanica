@@ -204,7 +204,7 @@ struct MxParticle  {
      */
     HRESULT removepart(int32_t uid);
 
-    inline MxParticle *particle(int i);
+    MxParticle *particle(int i);
 
     // style pointer, set at object construction time.
     // may be re-set by users later.
@@ -214,12 +214,11 @@ struct MxParticle  {
     /**
      * pointer to state vector (optional)
      */
-    // todo: update implementation through replacing CStateVector with MxStateVector
     struct MxStateVector *state_vector;
 
-    inline MxVector3f global_position();
+    MxVector3f global_position();
 
-    inline void set_global_position(const MxVector3f& pos);
+    void set_global_position(const MxVector3f& pos);
     
     /**
      * performs a self-verify, in debug mode raises assertion if not valid
@@ -259,52 +258,52 @@ HRESULT MxParticle_Verify();
 struct CAPI_EXPORT MxParticleHandle {
     int id;
     int typeId;
-    inline MxParticle *part();
-    inline MxParticleType *type();
+    MxParticle *part();
+    MxParticleType *type();
 
     MxParticleHandle() : id(0), typeId(0) {}
     MxParticleHandle(const int &id, const int &typeId) : id(id), typeId(typeId) {}
 
-    virtual inline MxParticleHandle* fission();
-    virtual inline MxParticleHandle* split();
-    inline HRESULT destroy();
+    virtual MxParticleHandle* fission();
+    virtual MxParticleHandle* split();
+    HRESULT destroy();
     MxVector3f sphericalPosition(MxParticle *particle=NULL, MxVector3f *origin=NULL);
     virtual MxMatrix3f virial(float *radius=NULL);
-    inline HRESULT become(MxParticleType *type);
+    HRESULT become(MxParticleType *type);
     MxParticleList *neighbors(const float *distance=NULL, const std::vector<MxParticleType> *types=NULL);
     MxParticleList *getBondedNeighbors();
     float distance(MxParticleHandle *_other);
     std::vector<MxBondHandle*> *getBonds();
 
-    inline double getCharge();
-    inline void setCharge(const double &charge);
-    inline double getMass();
-    inline void setMass(const double &mass);
-    inline bool getFrozen();
-    inline void setFrozen(const bool frozen);
-    inline bool getFrozenX();
-    inline void setFrozenX(const bool frozen);
-    inline bool getFrozenY();
-    inline void setFrozenY(const bool frozen);
-    inline bool getFrozenZ();
-    inline void setFrozenZ(const bool frozen);
-    inline NOMStyle *getStyle();
-    inline void setStyle(NOMStyle *style);
-    inline double getAge();
-    inline double getRadius();
-    inline void setRadius(const double &radius);
-    inline std::string getName();
-    inline std::string getName2();
-    inline MxVector3f getPosition();
-    inline void setPosition(MxVector3f position);
-    inline MxVector3f getVelocity();
-    inline void setVelocity(MxVector3f velocity);
-    inline MxVector3f getForce();
-    inline void setForce(MxVector3f force);
-    inline int getId();
-    inline int16_t getTypeId();
-    inline uint16_t getFlags();
-    inline MxStateVector *getSpecies();
+    double getCharge();
+    void setCharge(const double &charge);
+    double getMass();
+    void setMass(const double &mass);
+    bool getFrozen();
+    void setFrozen(const bool frozen);
+    bool getFrozenX();
+    void setFrozenX(const bool frozen);
+    bool getFrozenY();
+    void setFrozenY(const bool frozen);
+    bool getFrozenZ();
+    void setFrozenZ(const bool frozen);
+    NOMStyle *getStyle();
+    void setStyle(NOMStyle *style);
+    double getAge();
+    double getRadius();
+    void setRadius(const double &radius);
+    std::string getName();
+    std::string getName2();
+    MxVector3f getPosition();
+    void setPosition(MxVector3f position);
+    MxVector3f getVelocity();
+    void setVelocity(MxVector3f velocity);
+    MxVector3f getForce();
+    void setForce(MxVector3f force);
+    int getId();
+    int16_t getTypeId();
+    uint16_t getFlags();
+    MxStateVector *getSpecies();
 
     /**
      * Limits casting to cluster by type
@@ -403,7 +402,7 @@ struct CAPI_EXPORT MxParticleType {
     /**
      * get the i'th particle that's a member of this type.
      */
-    inline MxParticle *particle(int i);
+    MxParticle *particle(int i);
 
     /**
      * @brief Get all current particle type ids, excluding clusters
@@ -438,19 +437,19 @@ struct CAPI_EXPORT MxParticleType {
     MxParticleType(const bool &noReg=false);
     virtual ~MxParticleType() {}
 
-    inline bool getFrozen();
-    inline void setFrozen(const bool &frozen);
-    inline bool getFrozenX();
-    inline void setFrozenX(const bool &frozen);
-    inline bool getFrozenY();
-    inline void setFrozenY(const bool &frozen);
-    inline bool getFrozenZ();
-    inline void setFrozenZ(const bool &frozen);
+    bool getFrozen();
+    void setFrozen(const bool &frozen);
+    bool getFrozenX();
+    void setFrozenX(const bool &frozen);
+    bool getFrozenY();
+    void setFrozenY(const bool &frozen);
+    bool getFrozenZ();
+    void setFrozenZ(const bool &frozen);
     // temperature is an ensemble property
-    inline double getTemperature();
-    inline double getTargetTemperature();
+    double getTemperature();
+    double getTargetTemperature();
 
-    inline MxParticleList *items();
+    MxParticleList *items();
 };
 
 CAPI_FUNC(MxParticleType*) MxParticle_GetType();

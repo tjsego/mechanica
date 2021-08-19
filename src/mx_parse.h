@@ -8,6 +8,9 @@
 #ifndef _SRC_MX_PARSE_H_
 #define _SRC_MX_PARSE_H_
 
+#include <types/mx_cast.h>
+
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -116,7 +119,7 @@ T kwarg_getVal(const std::string &arg, const std::string &kwarg) {
 template<typename T>
 T kwarg_getVal(const std::vector<std::string> &args, const std::string &kwarg) {
     for(auto &s : args)
-        if(has_kwarg(s, kwarg)) return kwarg_getVal(s, kwarg);
+        if(has_kwarg(s, kwarg)) return kwarg_getVal<T>(s, kwarg);
     
     logMessageNoKwargFound(kwarg);
     return 0;

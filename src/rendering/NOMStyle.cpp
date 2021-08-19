@@ -71,7 +71,7 @@ void NOMStyle::setColorMap(const std::string &colorMap) {
     }
 }
 
-inline void NOMStyle::setColorMapper(MxColorMapper *cmap) {
+void NOMStyle::setColorMapper(MxColorMapper *cmap) {
     if(cmap) {
         this->mapper = cmap;
         this->mapper_func = this->mapper->map;

@@ -25,8 +25,8 @@ public:
 
     ~MxEventBaseList();
 
-    inline void addEvent(MxEventBase *event);
-    inline HRESULT removeEvent(MxEventBase *event);
+    void addEvent(MxEventBase *event);
+    HRESULT removeEvent(MxEventBase *event);
     HRESULT eval(const double &time);
 
 };

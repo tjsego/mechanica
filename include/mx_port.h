@@ -18,7 +18,7 @@
 
 
 // select support for old C++ stuff
-#ifndef unary_function
+#ifndef __GNUC__
 namespace std {
   template<typename A, typename R>
   struct unary_function {
@@ -26,7 +26,7 @@ namespace std {
     typedef R result_type;
   };
 };
-#endif // unary_function
+#endif // __GNUC__
 
 
 // todo: remove python imports

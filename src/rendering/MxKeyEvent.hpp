@@ -22,10 +22,10 @@ struct CAPI_EXPORT MxKeyEvent
 
     MxKeyEvent(Magnum::Platform::GlfwApplication::KeyEvent *glfw_event=NULL) : glfw_event(glfw_event) {}
 
-    inline HRESULT invoke();
-    inline static HRESULT invoke(Magnum::Platform::GlfwApplication::KeyEvent &ke);
+    HRESULT invoke();
+    static HRESULT invoke(Magnum::Platform::GlfwApplication::KeyEvent &ke);
     // adds an event handle
-    inline static HRESULT addDelegate(MxKeyEventDelegateType *_delegate);
+    static HRESULT addDelegate(MxKeyEventDelegateType *_delegate);
 
     std::string keyName();
 };

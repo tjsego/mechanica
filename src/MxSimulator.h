@@ -347,7 +347,7 @@ struct CAPI_EXPORT MxSimulator {
      * on those platforms. You can use the window refresh callback to redraw the
      * contents of your window when necessary during such operations.
      */
-    static inline HRESULT pollEvents();
+    static HRESULT pollEvents();
 
     /**
      *   This function puts the calling thread to sleep until at least one
@@ -365,7 +365,7 @@ struct CAPI_EXPORT MxSimulator {
      *  those platforms. You can use the window refresh callback to redraw the
      *  contents of your window when necessary during such operations.
      */
-    static inline HRESULT waitEvents();
+    static HRESULT waitEvents();
 
     /**
      * This function puts the calling thread to sleep until at least
@@ -386,26 +386,26 @@ struct CAPI_EXPORT MxSimulator {
      * on those platforms. You can use the window refresh callback to redraw the
      * contents of your window when necessary during such operations.
      */
-    static inline HRESULT waitEventsTimeout(double  timeout);
+    static HRESULT waitEventsTimeout(double  timeout);
 
     /**
      * This function posts an empty event from the current thread
      * to the event queue, causing waitEvents or waitEventsTimeout to return.
      */
-    static inline HRESULT postEmptyEvent();
+    static HRESULT postEmptyEvent();
 
     /**
      * runs the event loop until window close
      */
-    static inline HRESULT run(double et);
+    static HRESULT run(double et);
 
-    static inline HRESULT show();
+    static HRESULT show();
 
-    static inline HRESULT close();
+    static HRESULT close();
 
-    static inline HRESULT destroy();
+    static HRESULT destroy();
 
-    static inline HRESULT redraw();
+    static HRESULT redraw();
 
     /**
      * This function sets the swap interval for the current OpenGL or OpenGL ES context, i.e. the number of screen updates to wait from the time glfwSwapBuffers was called before swapping the buffers and returning. This is sometimes called vertical synchronization, vertical retrace synchronization or just vsync.
@@ -424,11 +424,11 @@ struct CAPI_EXPORT MxSimulator {
      * This function is not called during context creation, leaving the swap interval set to whatever is the default on that platform. This is done because some swap interval extensions used by GLFW do not allow the swap interval to be reset to zero once it has been set to a non-zero value.
      * Some GPU drivers do not honor the requested swap interval, either because of a user setting that overrides the application's request or due to bugs in the driver.
      */
-    static inline HRESULT swapInterval(int si);
+    static HRESULT swapInterval(int si);
 
-    static inline const int getNumThreads();
+    static const int getNumThreads();
 
-    static inline const MxGlfwWindow *getWindow();
+    static const MxGlfwWindow *getWindow();
     
     // list of windows.
     std::vector<MxGlfwWindow*> windows;
@@ -667,7 +667,7 @@ public:
 
     static HRESULT _show();
 
-    static inline void *wait_events(const double &timeout=-1);
+    static void *wait_events(const double &timeout=-1);
 
     static PyObject *_input_hook(PyObject *const *args, Py_ssize_t nargs);
 

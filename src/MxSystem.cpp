@@ -342,7 +342,7 @@ std::string MxSystem::egl_info() {
     return Mx_EglInfo();
 }
 
-inline std::unordered_map<std::string, std::string> MxSystem::test_headless() {
+std::unordered_map<std::string, std::string> MxSystem::test_headless() {
 #if defined(MX_APPLE)
     return Mx_GlInfo();
 

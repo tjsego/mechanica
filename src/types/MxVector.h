@@ -98,19 +98,19 @@ class MxVector : public Vector<size, T> {
         T length() const { return Vector<size, T>::length(); }
 
         template<class U = T> typename std::enable_if<std::is_floating_point<U>::value, T>::type
-        lengthInverted() const { return Vector<size, T>::lengthInverted<U>(); }
+        lengthInverted() const { return Vector<size, T>::lengthInverted(); }
 
         template<class U = T> typename std::enable_if<std::is_floating_point<U>::value, Vector<size, T>>::type
-        normalized() const { return Vector<size, T>::normalized<U>(); }
+        normalized() const { return Vector<size, T>::normalized(); }
 
         template<class U = T> typename std::enable_if<std::is_floating_point<U>::value, Vector<size, T>>::type
-        resized(T length) const { return Vector<size, T>::resized<U>(length); }
+        resized(T length) const { return Vector<size, T>::resized(length); }
 
         template<class U = T> typename std::enable_if<std::is_floating_point<U>::value, Vector<size, T>>::type
-        projected(const Vector<size, T>& line) const { return Vector<size, T>::projected<U>(line); }
+        projected(const Vector<size, T>& line) const { return Vector<size, T>::projected(line); }
 
         template<class U = T> typename std::enable_if<std::is_floating_point<U>::value, Vector<size, T>>::type
-        projectedOntoNormalized(const Vector<size, T>& line) const { return Vector<size, T>::projectedOntoNormalized<U>(line); }
+        projectedOntoNormalized(const Vector<size, T>& line) const { return Vector<size, T>::projectedOntoNormalized(line); }
 
         constexpr MxVector<size, T> flipped() const { return Vector<size, T>::flipped(); }
 

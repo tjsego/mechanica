@@ -31,20 +31,20 @@ struct CAPI_EXPORT NOMStyle
 
     int init(const Magnum::Color3 *color=NULL, const bool &visible=true, uint32_t flags=STYLE_VISIBLE, MxColorMapper *cmap=NULL);
 
-    inline HRESULT setColor(const std::string &colorName);
+    HRESULT setColor(const std::string &colorName);
     HRESULT setFlag(StyleFlags flag, bool value);
     
-    inline Magnum::Color4 map_color(struct MxParticle *p);
+    Magnum::Color4 map_color(struct MxParticle *p);
 
-    inline const bool getVisible() const;
-    inline void setVisible(const bool &visible);
-    inline MxColorMapper *getColorMap() const;
-    inline void setColorMap(const std::string &colorMap);
-    inline void setColorMapper(MxColorMapper *cmap);
-    inline void newColorMapper(struct MxParticleType *partType,
-                               const std::string &speciesName, 
-                               const std::string &name="rainbow", 
-                               float min=0.0f, float max=1.0f);
+    const bool getVisible() const;
+    void setVisible(const bool &visible);
+    MxColorMapper *getColorMap() const;
+    void setColorMap(const std::string &colorMap);
+    void setColorMapper(MxColorMapper *cmap);
+    void newColorMapper(struct MxParticleType *partType,
+                        const std::string &speciesName, 
+                        const std::string &name="rainbow", 
+                        float min=0.0f, float max=1.0f);
 };
 
 #endif /* SRC_RENDERING_NOMSTYLE_HPP_ */

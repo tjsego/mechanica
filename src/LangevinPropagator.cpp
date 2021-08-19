@@ -16,7 +16,6 @@
 LangevinPropagator::LangevinPropagator() {
 }
 
-// todo: continue here! Keep developing this structure and eliminate CObject-based nonsense
 void LangevinPropagator::_ConstraintItems::update(const LangevinPropagator *prop) {
     if(!prop->mesh) return;
 

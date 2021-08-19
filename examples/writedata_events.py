@@ -1,4 +1,4 @@
-import mechanica as m
+import mechanica as mx
 import csv
 import os
 
@@ -18,10 +18,10 @@ cutoff = 1
 dim = [10., 10., 10.]
 
 # new simulator
-m.init(dim=dim)
+mx.init(dim=dim)
 
 
-class MyCellType(m.ParticleType):
+class MyCellType(mx.ParticleType):
 
     mass = 39.4
     target_temperature = 50
@@ -35,29 +35,29 @@ MyCell = MyCellType.get()
 # A The first parameter of the Lennard-Jones potential.
 # B The second parameter of the Lennard-Jones potential.
 # cutoff
-pot = m.Potential.lennard_jones_12_6(0.275, cutoff, 9.5075e-06, 6.1545e-03, 1.0e-3)
+pot = mx.Potential.lennard_jones_12_6(0.275, cutoff, 9.5075e-06, 6.1545e-03, 1.0e-3)
 
 
 # bind the potential with the *TYPES* of the particles
-m.bind.types(pot, MyCell, MyCell)
+mx.bind.types(pot, MyCell, MyCell)
 
 # create a thermostat, coupling time constant determines how rapidly the
 # thermostat operates, smaller numbers mean thermostat acts more rapidly
-tstat = m.Force.berenderson_tstat(10)
+tstat = mx.Force.berenderson_tstat(10)
 
 # bind it just like any other force
-m.bind.force(tstat, MyCell)
+mx.bind.force(tstat, MyCell)
 
 
 # create a new particle every 0.05 time units. The 'on_time' event
 # here binds the constructor of the MyCell object with the event, and
 # calls at periodic intervals based on the exponential distribution,
 # so the mean time between particle creation is 0.05
-def write_data(event: m.TimeEvent):
-    time = m.Universe.time
+def write_data(event: mx.TimeEvent):
+    time = mx.Universe.time
     print("time is now: ", time)
 
-    positions = [list(p.position) for p in m.Universe.particles()]
+    positions = [list(p.position) for p in mx.Universe.particles()]
 
     print(positions)
 
@@ -68,8 +68,8 @@ def write_data(event: m.TimeEvent):
     print("wrote positions...")
 
 
-m.on_time(invoke_method=write_data, period=0.05)
+mx.on_time(invoke_method=write_data, period=0.05)
 
 
 # run the simulator interactive
-m.run()
+mx.run()

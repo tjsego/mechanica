@@ -1,33 +1,33 @@
-import mechanica as m
+import mechanica as mx
 
-m.init(dim=[6.5, 6.5, 6.5], bc=m.FREESLIP_FULL)
+mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL)
 
 
-class AType(m.ParticleType):
+class AType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
     style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
 
 
-class ProducerType(m.ParticleType):
+class ProducerType(mx.ParticleType):
     radius = 0.1
     species = ['S1=200', 'S2', 'S3']
     style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
 
 
-class ConsumerType(m.ParticleType):
+class ConsumerType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
     style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
 
 
-class SourceType(m.ParticleType):
+class SourceType(mx.ParticleType):
     radius = 0.1
     species = ['$S1=5', 'S2', 'S3']  # make S1 a boundary species here.
     style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
 
 
-class SinkType(m.ParticleType):
+class SinkType(mx.ParticleType):
     radius = 0.1
     species = ['$S1', 'S2', 'S3']  # make S1 a boundary species here.
     style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
@@ -40,15 +40,15 @@ Source = SourceType.get()
 Sink = SinkType.get()
 
 # define fluxes between objects types
-m.Fluxes.flux(A, A, "S1", 5, 0.001)
-m.Fluxes.secrete(Producer, A, "S1", 5, 0)
-m.Fluxes.uptake(A, Consumer, "S1", 10, 500)
-m.Fluxes.secrete(Source, A, "S1", 5, 0)
-m.Fluxes.flux(Sink, A, "S1", 200, 0)
+mx.Fluxes.flux(A, A, "S1", 5, 0.001)
+mx.Fluxes.secrete(Producer, A, "S1", 5, 0)
+mx.Fluxes.uptake(A, Consumer, "S1", 10, 500)
+mx.Fluxes.secrete(Source, A, "S1", 5, 0)
+mx.Fluxes.flux(Sink, A, "S1", 200, 0)
 
 # make a lattice of objects
-uc = m.lattice.sc(0.25, A)
-parts = m.lattice.create_lattice(uc, [25, 25, 1])
+uc = mx.lattice.sc(0.25, A)
+parts = mx.lattice.create_lattice(uc, [25, 25, 1])
 
 # grap the left part, make it a producer
 parts[0, 12, 0][0].become(Producer)
@@ -66,15 +66,15 @@ parts[24,  0, 0][0].become(Sink)
 parts[24, 24, 0][0].become(Sink)
 
 # set the species values to thier init conditions based on type definitions.
-m.reset_species()
+mx.reset_species()
 
 
 # make an event handler to listen for key press
-def key(e: m.KeyEvent):
+def key(e: mx.KeyEvent):
     if e.key_name == "x":
-        m.reset_species()
+        mx.reset_species()
 
 
-m.on_keypress(key)
+mx.on_keypress(key)
 
-m.run()
+mx.run()

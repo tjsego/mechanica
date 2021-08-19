@@ -5,3 +5,5 @@
 %include "MxTimeEvent.i"
 
 %include "MxParticleEvent.i"
+
+%include "MxParticleTimeEvent.i"

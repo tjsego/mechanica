@@ -83,6 +83,7 @@ set(SRC
   event/MxEventList.cpp
   event/MxEventPyExecutor.cpp
   event/MxParticleEvent.cpp
+  event/MxParticleTimeEvent.cpp
   event/MxTimeEvent.cpp
 
   rendering/ArcBallInteractor.cpp
@@ -187,6 +188,7 @@ set(HEADERS
   event/MxEventList.h
   event/MxEventPyExecutor
   event/MxParticleEvent.h
+  event/MxParticleTimeEvent.h
   event/MxTimeEvent.h
 
   rendering/ArcBallInteractor.h

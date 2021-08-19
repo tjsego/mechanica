@@ -8,6 +8,38 @@
 
 %extend MxPotential {
     %pythoncode %{
+        from enum import Enum as EnumPy
+
+        class Constants(EnumPy):
+            degree = potential_degree
+            chunk = potential_chunk
+            ivalsa = potential_ivalsa
+            ivalsb = potential_ivalsb
+            N = potential_N
+            align = potential_align
+            ivalsmax = potential_ivalsmax
+
+        class Flags(EnumPy):
+            none = POTENTIAL_NONE
+            lj126 = POTENTIAL_LJ126
+            ewald = POTENTIAL_EWALD
+            coulomb = POTENTIAL_COULOMB
+            single = POTENTIAL_SINGLE
+            r2 = POTENTIAL_R2
+            r = POTENTIAL_R
+            angle = POTENTIAL_ANGLE
+            harmonic = POTENTIAL_HARMONIC
+            dihedral = POTENTIAL_DIHEDRAL
+            switch = POTENTIAL_SWITCH
+            reactive = POTENTIAL_REACTIVE
+            scaled = POTENTIAL_SCALED
+            shifted = POTENTIAL_SHIFTED
+            bound = POTENTIAL_BOUND
+
+        class Kind(EnumPy):
+            potential = POTENTIAL_KIND_POTENTIAL
+            dpd = POTENTIAL_KIND_DPD
+
         def __call__(self, r: float, r0: float = -1.0):
             return self._call(r, r0)
 
@@ -146,4 +178,3 @@
 %pythoncode %{
     Potential = MxPotential
 %}
-// todo: ensure PotentialFlags is being wrapped and all enums are available

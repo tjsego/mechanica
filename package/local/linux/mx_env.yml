@@ -10,7 +10,7 @@ dependencies:
   - clangxx
   - lld
   - ninja
-  - swig
+  - swig>=4
   - numpy
   - jpeg
   - bzip2

@@ -119,19 +119,19 @@ HRESULT MxParticleEventSingle::eval(const double &time) {
     return MxParticleEvent::eval(time);
 }
 
-double MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEventNew &event, const double &time) {
+double MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEvent &event, const double &time) {
     return MxTimeEventSetNextTimeExponential(event, time);
 }
 
-double MxParticleTimeEventSetNextTimeDeterministic(MxParticleTimeEventNew &event, const double &time) {
+double MxParticleTimeEventSetNextTimeDeterministic(MxParticleTimeEvent &event, const double &time) {
     return MxTimeEventSetNextTimeDeterministic(event, time);
 }
 
-MxParticleHandle* MxParticleTimeEventParticleSelectorUniform(const MxParticleTimeEventNew &event) {
+MxParticleHandle* MxParticleTimeEventParticleSelectorUniform(const MxParticleTimeEvent &event) {
     return particleSelectorUniform(event.targetType->id, event.targetType->parts.nr_parts);
 }
 
-MxParticleHandle* MxParticleTimeEventParticleSelectorLargest(const MxParticleTimeEventNew &event) {
+MxParticleHandle* MxParticleTimeEventParticleSelectorLargest(const MxParticleTimeEvent &event) {
     return particleSelectorLargest(event.targetType->id);
 }
 
@@ -159,14 +159,14 @@ MxParticleTimeEventNextTimeSetter *getMxParticleTimeEventNextTimeSetterN(std::st
     return getMxParticleTimeEventNextTimeSetter(x->second);
 }
 
-MxParticleTimeEventNew::MxParticleTimeEventNew(MxParticleType *targetType, 
-                                               const double &period, 
-                                               MxParticleTimeEventMethod *invokeMethod, 
-                                               MxParticleTimeEventMethod *predicateMethod, 
-                                               MxParticleTimeEventNextTimeSetter *nextTimeSetter, 
-                                               const double &start_time, 
-                                               const double &end_time,
-                                               MxParticleTimeEventParticleSelector *particleSelector) : 
+MxParticleTimeEvent::MxParticleTimeEvent(MxParticleType *targetType, 
+                                         const double &period, 
+                                         MxParticleTimeEventMethod *invokeMethod, 
+                                         MxParticleTimeEventMethod *predicateMethod, 
+                                         MxParticleTimeEventNextTimeSetter *nextTimeSetter, 
+                                         const double &start_time, 
+                                         const double &end_time,
+                                         MxParticleTimeEventParticleSelector *particleSelector) : 
     MxEventBase(), 
     targetType(targetType), 
     invokeMethod(invokeMethod), 
@@ -182,18 +182,18 @@ MxParticleTimeEventNew::MxParticleTimeEventNew(MxParticleType *targetType,
     if (particleSelector == NULL) setMxParticleTimeEventParticleSelector(MxParticleTimeEventParticleSelectorEnum::DEFAULT);
 }
 
-HRESULT MxParticleTimeEventNew::predicate() { 
+HRESULT MxParticleTimeEvent::predicate() { 
     if(predicateMethod) return (*predicateMethod)(*this);
 
     return defaultMxTimeEventPredicateEval(this->next_time, this->start_time, this->end_time);
 }
 
-HRESULT MxParticleTimeEventNew::invoke() {
+HRESULT MxParticleTimeEvent::invoke() {
     if(invokeMethod) (*invokeMethod)(*this);
     return 0;
 }
 
-HRESULT MxParticleTimeEventNew::eval(const double &time) {
+HRESULT MxParticleTimeEvent::eval(const double &time) {
     targetParticle = getNextParticle();
     auto result = MxEventBase::eval(time);
     if(result) this->next_time = getNextTime(time);
@@ -201,48 +201,48 @@ HRESULT MxParticleTimeEventNew::eval(const double &time) {
     return result;
 }
 
-MxParticleTimeEventNew::operator MxTimeEvent&() const {
+MxParticleTimeEvent::operator MxTimeEvent&() const {
     MxTimeEvent e(period, NULL, NULL, NULL, start_time, end_time);
     return e;
 }
 
-double MxParticleTimeEventNew::getNextTime(const double &current_time) {
+double MxParticleTimeEvent::getNextTime(const double &current_time) {
     return (*nextTimeSetter)(*this, current_time);
 }
 
-MxParticleHandle *MxParticleTimeEventNew::getNextParticle() {
+MxParticleHandle *MxParticleTimeEvent::getNextParticle() {
     return (*particleSelector)(*this);
 }
 
-HRESULT MxParticleTimeEventNew::setMxParticleTimeEventNextTimeSetter(MxParticleTimeEventNextTimeSetter *nextTimeSetter) {
+HRESULT MxParticleTimeEvent::setMxParticleTimeEventNextTimeSetter(MxParticleTimeEventNextTimeSetter *nextTimeSetter) {
     this->nextTimeSetter = nextTimeSetter;
     return S_OK;
 }
 
-HRESULT MxParticleTimeEventNew::setMxParticleTimeEventNextTimeSetter(MxParticleTimeEventTimeSetterEnum setterEnum) {
+HRESULT MxParticleTimeEvent::setMxParticleTimeEventNextTimeSetter(MxParticleTimeEventTimeSetterEnum setterEnum) {
     auto x = MxParticleTimeEventNextTimeSetterMap.find(setterEnum);
     if (x == MxParticleTimeEventNextTimeSetterMap.end()) return 1;
     return setMxParticleTimeEventNextTimeSetter(&x->second);
 }
 
-HRESULT MxParticleTimeEventNew::setMxParticleTimeEventNextTimeSetter(std::string setterName) {
+HRESULT MxParticleTimeEvent::setMxParticleTimeEventNextTimeSetter(std::string setterName) {
     auto *selector = getMxParticleTimeEventParticleSelectorN(setterName);
     if(!selector) return E_FAIL;
     return setMxParticleTimeEventParticleSelector(selector);
 }
 
-HRESULT MxParticleTimeEventNew::setMxParticleTimeEventParticleSelector(MxParticleTimeEventParticleSelector *particleSelector) {
+HRESULT MxParticleTimeEvent::setMxParticleTimeEventParticleSelector(MxParticleTimeEventParticleSelector *particleSelector) {
     this->particleSelector = particleSelector;
     return S_OK;
 }
 
-HRESULT MxParticleTimeEventNew::setMxParticleTimeEventParticleSelector(MxParticleTimeEventParticleSelectorEnum selectorEnum) {
+HRESULT MxParticleTimeEvent::setMxParticleTimeEventParticleSelector(MxParticleTimeEventParticleSelectorEnum selectorEnum) {
     auto x = MxParticleTimeEventParticleSelectorMap.find(selectorEnum);
     if (x == MxParticleTimeEventParticleSelectorMap.end()) return 1;
     return setMxParticleTimeEventParticleSelector(&x->second);
 }
 
-HRESULT MxParticleTimeEventNew::setMxParticleTimeEventParticleSelector(std::string selectorName) {
+HRESULT MxParticleTimeEvent::setMxParticleTimeEventParticleSelector(std::string selectorName) {
     auto *selector = getMxParticleTimeEventParticleSelectorN(selectorName);
     if(!selector) return E_FAIL;
     return setMxParticleTimeEventParticleSelector(selector);
@@ -270,14 +270,14 @@ MxParticleEventSingle *MxOnParticleEventSingle(MxParticleType *targetType,
     return event;
 }
 
-MxParticleTimeEventNew *MxOnParticleTimeEvent(MxParticleType *targetType, 
-                                              const double &period, 
-                                              MxParticleTimeEventMethod *invokeMethod, 
-                                              MxParticleTimeEventMethod *predicateMethod, 
-                                              unsigned int nextTimeSetterEnum, 
-                                              const double &start_time, 
-                                              const double &end_time, 
-                                              unsigned int particleSelectorEnum)
+MxParticleTimeEvent *MxOnParticleTimeEvent(MxParticleType *targetType, 
+                                           const double &period, 
+                                           MxParticleTimeEventMethod *invokeMethod, 
+                                           MxParticleTimeEventMethod *predicateMethod, 
+                                           unsigned int nextTimeSetterEnum, 
+                                           const double &start_time, 
+                                           const double &end_time, 
+                                           unsigned int particleSelectorEnum)
 {
     auto *nextTimeSetter = getMxParticleTimeEventNextTimeSetter((MxParticleTimeEventTimeSetterEnum)nextTimeSetterEnum);
     if(!nextTimeSetter) return NULL;
@@ -285,21 +285,21 @@ MxParticleTimeEventNew *MxOnParticleTimeEvent(MxParticleType *targetType,
     auto *particleSelector = getMxParticleTimeEventParticleSelector((MxParticleTimeEventParticleSelectorEnum)particleSelectorEnum);
     if(!particleSelector) return NULL;
     
-    MxParticleTimeEventNew *event = new MxParticleTimeEventNew(targetType, period, invokeMethod, predicateMethod, nextTimeSetter, start_time, end_time, particleSelector);
+    MxParticleTimeEvent *event = new MxParticleTimeEvent(targetType, period, invokeMethod, predicateMethod, nextTimeSetter, start_time, end_time, particleSelector);
 
     _Engine.events->addEvent(event);
 
     return event;
 }
 
-MxParticleTimeEventNew *MxOnParticleTimeEventN(MxParticleType *targetType, 
-                                               const double &period, 
-                                               MxParticleTimeEventMethod *invokeMethod, 
-                                               MxParticleTimeEventMethod *predicateMethod, 
-                                               const std::string &distribution, 
-                                               const double &start_time, 
-                                               const double &end_time, 
-                                               const std::string &selector) 
+MxParticleTimeEvent *MxOnParticleTimeEventN(MxParticleType *targetType, 
+                                            const double &period, 
+                                            MxParticleTimeEventMethod *invokeMethod, 
+                                            MxParticleTimeEventMethod *predicateMethod, 
+                                            const std::string &distribution, 
+                                            const double &start_time, 
+                                            const double &end_time, 
+                                            const std::string &selector) 
 {
     auto x = MxParticleTimeEventNextTimeSetterNameMap.find(distribution);
     if (x == MxParticleTimeEventNextTimeSetterNameMap.end()) return NULL;
@@ -374,7 +374,7 @@ MxParticleTimeEventPy::MxParticleTimeEventPy(MxParticleType *targetType,
                                              const double &start_time, 
                                              const double &end_time,
                                              MxParticleTimeEventParticleSelector *particleSelector) : 
-    MxParticleTimeEventNew(), 
+    MxParticleTimeEvent(), 
     invokeExecutor(invokeExecutor), 
     predicateExecutor(predicateExecutor)
 {

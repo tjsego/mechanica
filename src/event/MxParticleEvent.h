@@ -131,11 +131,11 @@ using MxParticleEventList = MxEventListT<MxParticleEvent>;
 // MxParticleTimeEvent
 // todo: migrate MxParticleTimeEvent to separate scripts
 
-struct MxParticleTimeEventNew;
+struct MxParticleTimeEvent;
 
-using MxParticleTimeEventMethod = MxEventMethodT<MxParticleTimeEventNew>;
+using MxParticleTimeEventMethod = MxEventMethodT<MxParticleTimeEvent>;
 
-using MxParticleTimeEventNextTimeSetter = double (*)(MxParticleTimeEventNew&, const double&);
+using MxParticleTimeEventNextTimeSetter = double (*)(MxParticleTimeEvent&, const double&);
 
 /**
  * @brief Sets the next time on an event according to an exponential distribution of the event period
@@ -143,7 +143,7 @@ using MxParticleTimeEventNextTimeSetter = double (*)(MxParticleTimeEventNew&, co
  * @param event 
  * @param time 
  */
-double MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEventNew &event, const double &time);
+double MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEvent &event, const double &time);
 
 /**
  * @brief Sets the next time on an event according to the period of the event
@@ -151,9 +151,9 @@ double MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEventNew &event, 
  * @param event 
  * @param time 
  */
-double MxParticleTimeEventSetNextTimeDeterministic(MxParticleTimeEventNew &event, const double &time);
+double MxParticleTimeEventSetNextTimeDeterministic(MxParticleTimeEvent &event, const double &time);
 
-using MxParticleTimeEventParticleSelector = MxParticleEventParticleSelectorT<MxParticleTimeEventNew>;
+using MxParticleTimeEventParticleSelector = MxParticleEventParticleSelectorT<MxParticleTimeEvent>;
 
 /**
  * @brief Selects a particle according to a uniform random distribution by event target type
@@ -161,7 +161,7 @@ using MxParticleTimeEventParticleSelector = MxParticleEventParticleSelectorT<MxP
  * @param event 
  * @return MxParticleHandle* 
  */
-MxParticleHandle* MxParticleTimeEventParticleSelectorUniform(const MxParticleTimeEventNew &event);
+MxParticleHandle* MxParticleTimeEventParticleSelectorUniform(const MxParticleTimeEvent &event);
 
 /**
  * @brief Selects largest particle by event target type
@@ -169,7 +169,7 @@ MxParticleHandle* MxParticleTimeEventParticleSelectorUniform(const MxParticleTim
  * @param event 
  * @return MxParticleHandle* 
  */
-MxParticleHandle* MxParticleTimeEventParticleSelectorLargest(const MxParticleTimeEventNew &event);
+MxParticleHandle* MxParticleTimeEventParticleSelectorLargest(const MxParticleTimeEvent &event);
 
 // keys for selecting a particle selector
 enum class MxParticleTimeEventParticleSelectorEnum : unsigned int {
@@ -249,7 +249,7 @@ CAPI_FUNC(MxParticleTimeEventNextTimeSetter*) getMxParticleTimeEventNextTimeSett
 CAPI_FUNC(MxParticleTimeEventNextTimeSetter*) getMxParticleTimeEventNextTimeSetterN(std::string setterName);
 
 // Time-dependent particle event
-struct CAPI_EXPORT MxParticleTimeEventNew : MxEventBase {
+struct CAPI_EXPORT MxParticleTimeEvent : MxEventBase {
 
     // Target particle type of this event
     MxParticleType *targetType;
@@ -269,16 +269,16 @@ struct CAPI_EXPORT MxParticleTimeEventNew : MxEventBase {
     // Time at which evaluations stop
     double end_time;
     
-    MxParticleTimeEventNew() {}
-    MxParticleTimeEventNew(MxParticleType *targetType, 
-                           const double &period, 
-                           MxParticleTimeEventMethod *invokeMethod, 
-                           MxParticleTimeEventMethod *predicateMethod, 
-                           MxParticleTimeEventNextTimeSetter *nextTimeSetter=NULL, 
-                           const double &start_time=0, 
-                           const double &end_time=-1,
-                           MxParticleTimeEventParticleSelector *particleSelector=NULL);
-    virtual ~MxParticleTimeEventNew() {}
+    MxParticleTimeEvent() {}
+    MxParticleTimeEvent(MxParticleType *targetType, 
+                        const double &period, 
+                        MxParticleTimeEventMethod *invokeMethod, 
+                        MxParticleTimeEventMethod *predicateMethod, 
+                        MxParticleTimeEventNextTimeSetter *nextTimeSetter=NULL, 
+                        const double &start_time=0, 
+                        const double &end_time=-1,
+                        MxParticleTimeEventParticleSelector *particleSelector=NULL);
+    virtual ~MxParticleTimeEvent() {}
 
     virtual HRESULT predicate();
     virtual HRESULT invoke();
@@ -309,7 +309,7 @@ private:
 };
 
 // Event list for time-dependent particle events
-using MxParticleTimeEventList = MxEventListT<MxParticleTimeEventNew>;
+using MxParticleTimeEventList = MxEventListT<MxParticleTimeEvent>;
 
 // Module entry points
 
@@ -348,16 +348,16 @@ CAPI_FUNC(MxParticleEventSingle*) MxOnParticleEventSingle(MxParticleType *target
  * @param start_time time at which evaluations begin
  * @param end_time time at which evaluations end
  * @param particleSelectorEnum enum of function that selects the next particle
- * @return MxParticleTimeEventNew* 
+ * @return MxParticleTimeEvent* 
  */
-CAPI_FUNC(MxParticleTimeEventNew*) MxOnParticleTimeEvent(MxParticleType *targetType, 
-                                                         const double &period, 
-                                                         MxParticleTimeEventMethod *invokeMethod, 
-                                                         MxParticleTimeEventMethod *predicateMethod=NULL, 
-                                                         unsigned int nextTimeSetterEnum=0, 
-                                                         const double &start_time=0, 
-                                                         const double &end_time=-1, 
-                                                         unsigned int particleSelectorEnum=0);
+CAPI_FUNC(MxParticleTimeEvent*) MxOnParticleTimeEvent(MxParticleType *targetType, 
+                                                      const double &period, 
+                                                      MxParticleTimeEventMethod *invokeMethod, 
+                                                      MxParticleTimeEventMethod *predicateMethod=NULL, 
+                                                      unsigned int nextTimeSetterEnum=0, 
+                                                      const double &start_time=0, 
+                                                      const double &end_time=-1, 
+                                                      unsigned int particleSelectorEnum=0);
 
 /**
  * @brief Creates a time-dependent particle event using prescribed invoke and predicate functions
@@ -370,16 +370,16 @@ CAPI_FUNC(MxParticleTimeEventNew*) MxOnParticleTimeEvent(MxParticleType *targetT
  * @param start_time time at which evaluations begin
  * @param end_time time at which evaluations end
  * @param selector name of function that selects the next particle
- * @return MxParticleTimeEventNew* 
+ * @return MxParticleTimeEvent* 
  */
-CAPI_FUNC(MxParticleTimeEventNew*) MxOnParticleTimeEventN(MxParticleType *targetType, 
-                                                          const double &period, 
-                                                          MxParticleTimeEventMethod *invokeMethod, 
-                                                          MxParticleTimeEventMethod *predicateMethod=NULL, 
-                                                          const std::string &distribution="default", 
-                                                          const double &start_time=0, 
-                                                          const double &end_time=-1, 
-                                                          const std::string &selector="default");
+CAPI_FUNC(MxParticleTimeEvent*) MxOnParticleTimeEventN(MxParticleType *targetType, 
+                                                       const double &period, 
+                                                       MxParticleTimeEventMethod *invokeMethod, 
+                                                       MxParticleTimeEventMethod *predicateMethod=NULL, 
+                                                       const std::string &distribution="default", 
+                                                       const double &start_time=0, 
+                                                       const double &end_time=-1, 
+                                                       const std::string &selector="default");
 
 // python support
 
@@ -434,7 +434,7 @@ struct MxParticleTimeEventPyInvokePyExecutor : MxEventPyExecutor<MxParticleTimeE
 };
 
 // Time-dependent particle event
-struct CAPI_EXPORT MxParticleTimeEventPy : MxParticleTimeEventNew {
+struct CAPI_EXPORT MxParticleTimeEventPy : MxParticleTimeEvent {
     
     MxParticleTimeEventPy() {}
     MxParticleTimeEventPy(MxParticleType *targetType, 
@@ -495,7 +495,7 @@ CAPI_FUNC(MxParticleSingleEventPy*) MxOnParticleEventSinglePy(MxParticleType *ta
  * @param start_time time at which evaluations begin
  * @param end_time time at which evaluations end
  * @param selector name of the function that selects the next particle
- * @return MxParticleTimeEventNew* 
+ * @return MxParticleTimeEvent* 
  */
 CAPI_FUNC(MxParticleTimeEventPy*) MxOnParticleTimeEventPy(MxParticleType *targetType, 
                                                           const double &period, 

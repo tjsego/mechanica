@@ -379,6 +379,15 @@ include(UseSWIG)
 
 set_source_files_properties(mechanica.i PROPERTIES CPLUSPLUS ON SWIG_FLAGS "-keyword;-py3")
 
+include(CheckTypeSize)
+check_type_size("long" SIZE_LONG)
+message(STATUS "Got size of long: ${SIZE_LONG} (${HAVE_SIZE_LONG})")
+if(${HAVE_SIZE_LONG})
+  if(${SIZE_LONG} STREQUAL 8)
+    set_source_files_properties(mechanica.i PROPERTIES COMPILE_DEFINITIONS SWIGWORDSIZE64)
+  endif()
+endif()
+
 swig_add_library(mechanica_py TYPE SHARED LANGUAGE python SOURCES mechanica.i $<TARGET_OBJECTS:mechanica_obj>)
 
 target_compile_definitions(mechanica_py PRIVATE C_BUILDING_DLL)

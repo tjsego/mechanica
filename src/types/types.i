@@ -81,13 +81,6 @@
     else $result = PyBool_FromLong(*$1);
 }
 
-typedef short int16_t;
-typedef int int32_t;
-typedef long long int64_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
-
 %inline %{
     using namespace std;
 %}
@@ -146,8 +139,13 @@ typedef mx::type::MxQuaternion<float> MxQuaternionf;
 %template(umapsb) std::unordered_map<std::string, bool>;
 %template(vectord) std::vector<double>;
 %template(vectorf) std::vector<float>;
-%template(vectori) std::vector<int>;
+%template(vectori) std::vector<int16_t>;
+%template(vectorl) std::vector<int32_t>;
+%template(vectorll) std::vector<int64_t>;
 %template(vectors) std::vector<std::string>;
+%template(vectoru) std::vector<uint16_t>;
+%template(vectorul) std::vector<uint32_t>;
+%template(vectorull) std::vector<uint64_t>;
 
 %template(vector2f) std::vector<std::vector<float>>;
 

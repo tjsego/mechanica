@@ -23,6 +23,7 @@
 
 %include "stl.i"
 
+%include "stdint.i"
 // STL exception handling
 %include "exception.i"
 

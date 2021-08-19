@@ -210,7 +210,13 @@ static float sphere_2body(EnergyMinimizer* p, MxVector3f *x1, MxVector3f *x2,
 static float sphere_1body(EnergyMinimizer* p, MxVector3f *p1,
                           MxVector3f *f1) ;
 
-static std::vector<MxVector3f> random_point_disk(int n) {
+static MxVector3f random_point_disk(std::uniform_real_distribution<float> &uniform01) {
+    float r = sqrt(uniform01(MxRandom));
+    float theta = 2 * M_PI * uniform01(MxRandom);
+    return MxVector3f(r * cos(theta), r * sin(theta), 0.);
+}
+
+static std::vector<MxVector3f> random_points_disk(int n) {
 
     std::vector<MxVector3f> result(n);
 
@@ -218,9 +224,7 @@ static std::vector<MxVector3f> random_point_disk(int n) {
         std::uniform_real_distribution<float> uniform01(0.0, 1.0);
 
         for(auto p = result.begin(); p != result.end(); ++p) {
-            float r = sqrt(uniform01(MxRandom));
-            float theta = 2 * M_PI * uniform01(MxRandom);
-            *p = MxVector3f(r * cos(theta), r * sin(theta), 0.);
+            *p = random_point_disk(uniform01);
         }
     }
     catch (const std::exception &e) {
@@ -231,7 +235,19 @@ static std::vector<MxVector3f> random_point_disk(int n) {
     return result;
 }
 
-static std::vector<MxVector3f> random_point_sphere(int n) {
+static MxVector3f random_point_sphere(std::uniform_real_distribution<float> &uniform01) {
+    float radius = 1.0;
+
+    float theta = 2 * M_PI * uniform01(MxRandom);
+    float phi = acos(1 - 2 * uniform01(MxRandom));
+    float x = radius * sin(phi) * cos(theta);
+    float y = radius * sin(phi) * sin(theta);
+    float z = radius * cos(phi);
+
+    return MxVector3f(x, y, z);
+}
+
+static std::vector<MxVector3f> random_points_sphere(int n) {
 
     std::vector<MxVector3f> result(n);
 
@@ -243,13 +259,7 @@ static std::vector<MxVector3f> random_point_sphere(int n) {
         std::uniform_real_distribution<float> uniform01(0.0, 1.0);
 
         for(auto p = result.begin(); p != result.end(); ++p) {
-            float theta = 2 * M_PI * uniform01(MxRandom);
-            float phi = acos(1 - 2 * uniform01(MxRandom));
-            float x = radius * sin(phi) * cos(theta);
-            float y = radius * sin(phi) * sin(theta);
-            float z = radius * cos(phi);
-
-            *p = MxVector3f(x, y, z);
+            *p = random_point_sphere(uniform01);
         }
         
         EnergyMinimizer em;
@@ -269,7 +279,18 @@ static std::vector<MxVector3f> random_point_sphere(int n) {
     return result;
 }
 
-static std::vector<MxVector3f> random_point_solidsphere(int n) {
+static MxVector3f random_point_solidsphere(std::uniform_real_distribution<float> &uniform01) {
+    float theta = 2 * M_PI * uniform01(MxRandom);
+    float phi = acos(1 - 2 * uniform01(MxRandom));
+    float r = std::cbrt(uniform01(MxRandom));
+    float x = r * sin(phi) * cos(theta);
+    float y = r * sin(phi) * sin(theta);
+    float z = r * cos(phi);
+
+    return MxVector3f(x, y, z);
+}
+
+static std::vector<MxVector3f> random_points_solidsphere(int n) {
 
     std::vector<MxVector3f> result(n);
 
@@ -277,14 +298,7 @@ static std::vector<MxVector3f> random_point_solidsphere(int n) {
         std::uniform_real_distribution<float> uniform01(0.0, 1.0);
 
         for(auto p = result.begin(); p != result.end(); ++p) {
-            float theta = 2 * M_PI * uniform01(MxRandom);
-            float phi = acos(1 - 2 * uniform01(MxRandom));
-            float r = std::cbrt(uniform01(MxRandom));
-            float x = r * sin(phi) * cos(theta);
-            float y = r * sin(phi) * sin(theta);
-            float z = r * cos(phi);
-
-            *p = MxVector3f(x, y, z);
+            *p = random_point_solidsphere(uniform01);
         }
 
     }
@@ -296,7 +310,22 @@ static std::vector<MxVector3f> random_point_solidsphere(int n) {
     return result;
 }
 
-static std::vector<MxVector3f> random_point_solidsphere_shell(int n, const float &dr=1.0, const float &phi0=0, const float &phi1=M_PI) {
+static MxVector3f random_point_solidsphere_shell(std::uniform_real_distribution<float> &uniform01, 
+                                                 const float &dr, 
+                                                 const float &cos0, 
+                                                 const float &cos1) 
+{
+    float theta = 2 * M_PI * uniform01(MxRandom);
+    float phi = acos(cos0 - (cos0-cos1) * uniform01(MxRandom));
+    float r = std::cbrt((1-dr) + dr * uniform01(MxRandom));
+    float x = r * sin(phi) * cos(theta);
+    float y = r * sin(phi) * sin(theta);
+    float z = r * cos(phi);
+
+    return MxVector3f(x, y, z);
+}
+
+static std::vector<MxVector3f> random_points_solidsphere_shell(int n, const float &dr=1.0, const float &phi0=0, const float &phi1=M_PI) {
     std::vector<MxVector3f> result(n);
 
     float cos0 = std::cos(phi0);
@@ -306,14 +335,7 @@ static std::vector<MxVector3f> random_point_solidsphere_shell(int n, const float
         std::uniform_real_distribution<float> uniform01(0.0, 1.0);
 
         for(auto p = result.begin(); p != result.end(); ++p) {
-            float theta = 2 * M_PI * uniform01(MxRandom);
-            float phi = acos(cos0 - (cos0-cos1) * uniform01(MxRandom));
-            float r = std::cbrt((1-dr) + dr * uniform01(MxRandom));
-            float x = r * sin(phi) * cos(theta);
-            float y = r * sin(phi) * sin(theta);
-            float z = r * cos(phi);
-
-            *p = MxVector3f(x, y, z);
+            *p = random_point_solidsphere_shell(uniform01, dr, cos0, cos1);
         }
     }
     catch (const std::exception& e) {
@@ -324,14 +346,18 @@ static std::vector<MxVector3f> random_point_solidsphere_shell(int n, const float
     return result;
 }
 
-static std::vector<MxVector3f> random_point_solidcube(int n) {
+static MxVector3f random_point_solidcube(std::uniform_real_distribution<float> &uniform01) {
+    return MxVector3f(uniform01(MxRandom), uniform01(MxRandom), uniform01(MxRandom));
+}
+
+static std::vector<MxVector3f> random_points_solidcube(int n) {
     std::vector<MxVector3f> result(n);
 
     try {
         std::uniform_real_distribution<float> uniform01(-0.5, 0.5);
 
         for(auto p = result.begin(); p != result.end(); ++p) {
-            *p = MxVector3f(uniform01(MxRandom), uniform01(MxRandom), uniform01(MxRandom));
+            *p = random_point_solidcube(uniform01);
         }
 
     }
@@ -397,6 +423,36 @@ static std::vector<MxVector3f> points_sphere(int n) {
     return result;
 }
 
+MxVector3f MxRandomPoint(const MxPointsType &kind, 
+                         const float &dr, 
+                         const float &phi0, 
+                         const float &phi1) 
+{
+    try {
+        std::uniform_real_distribution<float> uniform01(0.0, 1.0);
+
+        switch(kind) {
+        case MxPointsType::Sphere:
+            return random_point_sphere(uniform01);
+        case MxPointsType::Disk:
+            return random_point_disk(uniform01);
+        case MxPointsType::SolidCube:
+            return random_point_solidcube(uniform01);
+        case MxPointsType::SolidSphere: {
+            return random_point_solidsphere_shell(uniform01, dr, phi0, phi1);
+        }
+        default:
+            mx_exp(std::runtime_error("invalid kind"));
+            return MxVector3f();
+        }
+    }
+    catch (const std::exception& e) {
+        mx_exp(e); 
+    }
+
+    return MxVector3f();
+}
+
 std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind, 
                                        const int &n, 
                                        const float &dr, 
@@ -406,13 +462,13 @@ std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind,
     try {
         switch(kind) {
         case MxPointsType::Sphere:
-            return random_point_sphere(n);
+            return random_points_sphere(n);
         case MxPointsType::Disk:
-            return random_point_disk(n);
+            return random_points_disk(n);
         case MxPointsType::SolidCube:
-            return random_point_solidcube(n);
+            return random_points_solidcube(n);
         case MxPointsType::SolidSphere: {
-            return random_point_solidsphere_shell(n, dr, phi0, phi1);
+            return random_points_solidsphere_shell(n, dr, phi0, phi1);
         }
         default:
             mx_exp(std::runtime_error("invalid kind"));

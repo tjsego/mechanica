@@ -330,22 +330,6 @@ MxMatrix3f MxClusterParticleHandle::getMomentOfInertia() {
     return result;
 }
 
-// TODO: move to utils
-static MxVector3f random_point_solid_sphere(float radius) {
-
-    std::uniform_real_distribution<double> uniform01(0.0, 1);
-    
-
-        double theta = 2 * M_PI * uniform01(MxRandom);
-        double phi = acos(1 - 2 * uniform01(MxRandom));
-        double r = std::cbrt(uniform01(MxRandom)) * radius;
-        float x = r * sin(phi) * cos(theta);
-        float y = r * sin(phi) * sin(theta);
-        float z = r * cos(phi);
-    
-    return MxVector3f{x, y, z};
-}
-
 /**
  * adds an existing particle to the cluster.
  */

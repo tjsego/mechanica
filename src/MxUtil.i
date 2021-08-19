@@ -14,6 +14,7 @@
         Cube = MxPointsType_Cube
         Ring = MxPointsType_Ring
 
+    RandomPoint = MxRandomPoint
     RandomPoints = MxRandomPoints
     Points = MxPoints
     FilledCubeUniform = MxFilledCubeUniform

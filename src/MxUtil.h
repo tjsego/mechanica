@@ -77,6 +77,11 @@ inline void* MxAligned_Malloc(size_t size, size_t alignment)
 #define MxAligned_Free(mem) free(mem)
 #endif
 
+MxVector3f MxRandomPoint(const MxPointsType &kind, 
+                         const float &dr=0, 
+                         const float &phi0=0, 
+                         const float &phi1=M_PI);
+
 std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind, 
                                        const int &n=1, 
                                        const float &dr=0, 

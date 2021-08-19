@@ -19,6 +19,9 @@
 // ParticleList
 %include "MxParticleList.i"
 
+// ParticleTypeList
+%include "MxParticleTypeList.i"
+
 // bond
 %include "bond.i"
 

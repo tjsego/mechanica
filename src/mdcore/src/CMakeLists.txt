@@ -49,6 +49,7 @@ set(PUBLIC_HEADERS
   "${MDCORE_SOURCE_DIR}/include/MxReactivePotential.h"
   "${MDCORE_SOURCE_DIR}/include/metrics.h"
   "${MDCORE_SOURCE_DIR}/include/MxParticleList.hpp"
+  "${MDCORE_SOURCE_DIR}/include/MxParticleTypeList.h"
   "${MDCORE_SOURCE_DIR}/include/Vertex.hpp"
   "${MDCORE_SOURCE_DIR}/include/MxBody.hpp"
   "${MDCORE_SOURCE_DIR}/include/MxCuboid.hpp"
@@ -120,6 +121,7 @@ SET(SOURCES
   MxCluster.cpp
   metrics.cpp
   MxParticleList.cpp
+  MxParticleTypeList.cpp
   Vertex.cpp
   MxBody.cpp
   MxCuboid.cpp

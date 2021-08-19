@@ -1,11 +1,11 @@
 %{
-    #include "MxParticleList.hpp"
+    #include "MxParticleTypeList.h"
 
 %}
 
-%include "MxParticleList.hpp"
+%include "MxParticleTypeList.h"
 
-%extend MxParticleList {
+%extend MxParticleTypeList {
     %pythoncode %{
         def __len__(self) -> int:
             return self.nr_parts
@@ -50,5 +50,5 @@
 }
 
 %pythoncode %{
-    ParticleList = MxParticleList
+    ParticleTypeList = MxParticleTypeList
 %}

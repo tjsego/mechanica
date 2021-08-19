@@ -26,6 +26,7 @@
 #include "space_cell.h"
 #include "bond.h"
 #include "MxParticleList.hpp"
+#include "MxParticleTypeList.h"
 #include <set>
 
 

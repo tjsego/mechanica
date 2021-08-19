@@ -15,6 +15,8 @@
 #include <Magnum/Magnum.h>
 #include <Magnum/Math/Matrix.h>
 
+#include <ostream>
+
 namespace mx { namespace type {
 
 template<std::size_t size, class T> using Matrix = Magnum::Math::Matrix<size, T>;
@@ -233,9 +235,9 @@ class MxMatrix : public Matrix<size, T> {
 template<std::size_t size, class T>
 inline std::ostream& operator<<(std::ostream& os, const mx::type::MxMatrix<size, T>& m)
 {
-    os << "{";
-    for(int i = 0; i < size; ++i) os << m.row(i) << "," << std::endl;
-    os << "}";
+    os << std::string("{");
+    for(int i = 0; i < size; ++i) os << m.row(i) << std::string(",") << std::endl;
+    os << std::string("}");
     return os;
 }
 
@@ -243,9 +245,9 @@ inline std::ostream& operator<<(std::ostream& os, const mx::type::MxMatrix<size,
     template<class T>                                                                   \
     inline std::ostream& operator<<(std::ostream& os, const type<T>& m)                 \
     {                                                                                   \
-        os << "{";                                                                      \
-        for(int i = 0; i < m.Size; ++i) os << m.row(i) << "," << std::endl;             \
-        os << "}";                                                                      \
+        os << std::string("{");                                                         \
+        for(int i = 0; i < m.Size; ++i) os << m.row(i) << std::string(",") << std::endl;\
+        os << std::string("}");                                                         \
         return os;                                                                      \
     }                                                                                   \
 

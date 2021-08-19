@@ -13,6 +13,7 @@
 #include <Magnum/Magnum.h>
 #include <Magnum/Math/Vector.h>
 
+#include <string>
 #include <vector>
 
 namespace mx { namespace type {
@@ -316,9 +317,9 @@ class MxVector : public Vector<size, T> {
 template<std::size_t size, typename T>
 inline std::ostream& operator<<(std::ostream& os, const mx::type::MxVector<size, T>& vec)
 {
-    os << "{" << vec[0];
-    for(int i = 1; i < vec.Size; ++i) os << "," << vec[i];
-    os << "}";
+    os << std::string("{") << vec[0];
+    for(int i = 1; i < vec.Size; ++i) os << std::string(",") << vec[i];
+    os << std::string("}");
     return os;
 }
 
@@ -327,9 +328,9 @@ inline std::ostream& operator<<(std::ostream& os, const mx::type::MxVector<size,
     template<typename T>                                                                \
     inline std::ostream& operator<<(std::ostream& os, const type<T>& vec)               \
     {                                                                                   \
-        os << "{" << vec[0];                                                            \
-        for(int i = 1; i < vec.Size; ++i) os << "," << vec[i];                          \
-        os << "}";                                                                      \
+        os << std::string("{") << vec[0];                                               \
+        for(int i = 1; i < vec.Size; ++i) os << std::string(",") << vec[i];             \
+        os << std::string("}");                                                         \
         return os;                                                                      \
     }                                                                                   \
 

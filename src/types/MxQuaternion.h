@@ -97,9 +97,9 @@ template<typename T>
 inline std::ostream& operator<<(std::ostream& os, const mx::type::MxQuaternion<T>& q)
 {
     auto vec = q.vector();
-    os << "{" << vec[0];
-    for(int i = 1; i < vec.length(); ++i) os << "," << vec[i];
-    os << "," << q.scalar() << "}";
+    os << std::string("{") << vec[0];
+    for(int i = 1; i < vec.length(); ++i) os << std::string(",") << vec[i];
+    os << "," << q.scalar() << std::string("}");
     return os;
 }
 

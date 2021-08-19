@@ -83,6 +83,7 @@ set(SRC
   event/MxEventList.cpp
   event/MxEventPyExecutor.cpp
   event/MxParticleEvent.cpp
+  event/MxParticleEventSingle.cpp
   event/MxParticleTimeEvent.cpp
   event/MxTimeEvent.cpp
 
@@ -188,6 +189,7 @@ set(HEADERS
   event/MxEventList.h
   event/MxEventPyExecutor
   event/MxParticleEvent.h
+  event/MxParticleEventSingle.h
   event/MxParticleTimeEvent.h
   event/MxTimeEvent.h
 

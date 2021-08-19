@@ -107,34 +107,11 @@ MxParticleHandle *MxParticleEvent::getNextParticle() {
     return (*particleSelector)(*this);
 }
 
-MxParticleEventSingle::MxParticleEventSingle(MxParticleType *targetType, 
-                                             MxParticleEventMethod *invokeMethod, 
-                                             MxParticleEventMethod *predicateMethod, 
-                                             MxParticleEventParticleSelector *particleSelector) : 
-    MxParticleEvent(targetType, invokeMethod, predicateMethod, particleSelector) 
-{}
-
-HRESULT MxParticleEventSingle::eval(const double &time) {
-    remove();
-    return MxParticleEvent::eval(time);
-}
-
 MxParticleEvent *MxOnParticleEvent(MxParticleType *targetType, 
                                    MxParticleEventMethod *invokeMethod, 
                                    MxParticleEventMethod *predicateMethod)
 {
     MxParticleEvent *event = new MxParticleEvent(targetType, invokeMethod, predicateMethod);
-
-    _Engine.events->addEvent(event);
-
-    return event;
-}
-
-MxParticleEventSingle *MxOnParticleEventSingle(MxParticleType *targetType, 
-                                               MxParticleEventMethod *invokeMethod, 
-                                               MxParticleEventMethod *predicateMethod)
-{
-    MxParticleEventSingle *event = new MxParticleEventSingle(targetType, invokeMethod, predicateMethod);
 
     _Engine.events->addEvent(event);
 
@@ -183,18 +160,6 @@ HRESULT MxParticleEventPy::eval(const double &time) {
     return MxEventBase::eval(time);
 }
 
-MxParticleSingleEventPy::MxParticleSingleEventPy(MxParticleType *targetType, 
-                                                 MxParticleEventPyInvokePyExecutor *invokeExecutor, 
-                                                 MxParticleEventPyPredicatePyExecutor *predicateExecutor, 
-                                                 MxParticleEventParticleSelector *particleSelector) : 
-    MxParticleEventPy(targetType, invokeExecutor, predicateExecutor, particleSelector)
-{}
-
-HRESULT MxParticleSingleEventPy::eval(const double &time) {
-    remove();
-    return MxParticleEventPy::eval(time);
-}
-
 MxParticleEventPy *MxOnParticleEventPy(MxParticleType *targetType, 
                                        MxParticleEventPyInvokePyExecutor *invokeExecutor, 
                                        MxParticleEventPyPredicatePyExecutor *predicateExecutor, 
@@ -206,19 +171,6 @@ MxParticleEventPy *MxOnParticleEventPy(MxParticleType *targetType,
     if (!particleSelector) return NULL;
 
     MxParticleEventPy *event = new MxParticleEventPy(targetType, invokeExecutor, predicateExecutor, particleSelector);
-
-    _Engine.events->addEvent(event);
-
-    return event;
-}
-
-MxParticleSingleEventPy *MxOnParticleEventSinglePy(MxParticleType *targetType, 
-                                                   MxParticleEventPyInvokePyExecutor *invokeExecutor, 
-                                                   MxParticleEventPyPredicatePyExecutor *predicateExecutor)
-{
-    Log(LOG_TRACE) << targetType->id;
-
-    MxParticleSingleEventPy *event = new MxParticleSingleEventPy(targetType, invokeExecutor, predicateExecutor);
 
     _Engine.events->addEvent(event);
 

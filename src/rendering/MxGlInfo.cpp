@@ -46,8 +46,6 @@
 
 #include <rendering/MxWindowless.h>
 
-#include <MxConvert.hpp>
-
 #include <sstream>
 
 using namespace Magnum;

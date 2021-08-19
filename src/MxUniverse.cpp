@@ -12,7 +12,6 @@
 #include <MxForce.h>
 #include <MxPy.h>
 #include <MxSimulator.h>
-#include <MxConvert.hpp>
 #include <MxUtil.h>
 #include <metrics.h>
 #include <cmath>

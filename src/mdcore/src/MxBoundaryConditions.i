@@ -42,4 +42,3 @@
     FREESLIP_Z = SPACE_FREESLIP_Z
     FREESLIP_FULL = SPACE_FREESLIP_FULL
 %}
-// todo: verify enums are properly named

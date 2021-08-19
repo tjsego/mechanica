@@ -184,9 +184,9 @@ HRESULT MxBind::sphere(MxPotential *potential,
         phi0 = std::get<0>(*phi);
         phi1 = std::get<1>(*phi);
 
-        if(phi0 < 0 || phi0 > Pi) throw std::logic_error("phi_0 must be between 0 and pi");
-        if(phi1 < 0 || phi1 > Pi) throw std::logic_error("phi_1 must be between 0 and pi");
-        if(phi1 < phi0) throw std::logic_error("phi_1 must be greater than phi_0");
+        if(phi0 < 0 || phi0 > Pi) mx_exp(std::logic_error("phi_0 must be between 0 and pi"));
+        if(phi1 < 0 || phi1 > Pi) mx_exp(std::logic_error("phi_1 must be between 0 and pi"));
+        if(phi1 < phi0) mx_exp(std::logic_error("phi_1 must be greater than phi_0"));
     }
 
     MxVector3f _center =  center ? *center : engine_center();
@@ -243,14 +243,13 @@ HRESULT MxBind::sphere(MxPotential *potential,
         nbonds += insert_bond(*bonds, c, a, potential, parts);
     }
 
-    // TODO: probably excessive error message...
     if(nbonds != bonds->size()) {
         std::string msg = "unknown error in finding edges for sphere mesh, \n";
         msg += "vertices: " + std::to_string(vertices.size()) + "\n";
         msg += "indices: " + std::to_string(indices.size()) + "\n";
         msg += "expected edges: " + std::to_string(edges) + "\n";
         msg += "found edges: " + std::to_string(nbonds);
-        throw std::overflow_error(msg);
+        mx_exp(std::overflow_error(msg));
     }
 
     if(out) *out = new std::pair<MxParticleList*, std::vector<MxBondHandle*>*>(parts, bonds);

@@ -45,8 +45,6 @@
     %}
 }
 
-// todo: define bond list from std::vector<MxBond*>
-
 %pythoncode %{
     Bond = MxBond
 %}

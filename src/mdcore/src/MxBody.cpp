@@ -18,13 +18,13 @@
 #define BODY_SELF(handle) \
     MxBody *self = &_Engine.s.cuboids[handle->id]; \
     if(self == NULL) { \
-        throw std::runtime_error("Body has been destroyed or is invalid"); \
+        mx_exp(std::runtime_error("Body has been destroyed or is invalid")); \
     }
 
 #define BODY_PROP_SELF(handle) \
     MxBody *self = &_Engine.s.cuboids[handle->id]; \
     if(self == NULL) { \
-        throw std::runtime_error("Cuboid has been destroyed or is invalid"); \
+        mx_exp(std::runtime_error("Cuboid has been destroyed or is invalid")); \
         return -1; \
     }
 

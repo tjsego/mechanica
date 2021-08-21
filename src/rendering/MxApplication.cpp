@@ -104,19 +104,15 @@ PyObject* MxTestImage(PyObject* dummyo) {
     return PyBytes_FromStringAndSize(data, size);
 }
 
-
-std::tuple<char*, size_t> MxFramebufferImageData() {
+Corrade::Containers::Array<char> _MxJpegImageData() {
     PerformanceTimer t1(engine_timer_image_data);
     PerformanceTimer t2(engine_timer_render_total);
-    
-    char *data = NULL;
-    size_t size = 0;
     
     Log(LOG_TRACE);
     
     if(!Magnum::GL::Context::hasCurrent()) {
-        Error() << "No current OpenGL context";
-        return std::make_tuple((char*)NULL, (size_t)0);
+        mx_error(E_FAIL, "No current OpenGL context");
+        return Corrade::Containers::Array<char>();
     }
     
     MxSimulator *sim = MxSimulator::get();
@@ -127,21 +123,27 @@ std::tuple<char*, size_t> MxFramebufferImageData() {
 
     Image2D image = framebuffer.read(framebuffer.viewport(), PixelFormat::RGBA8Unorm);
     
-    auto jpegData = convertImageDataToJpeg(image);
+    return convertImageDataToJpeg(image);
+}
+
+std::tuple<char*, size_t> MxFramebufferImageData() {
+    PerformanceTimer t1(engine_timer_image_data);
+    PerformanceTimer t2(engine_timer_render_total);
+    
+    Log(LOG_TRACE);
+    
+    auto jpegData = _MxJpegImageData();
 
     return std::make_tuple(jpegData.data(), jpegData.size());
 }
 
 PyObject* MxFramebufferImageData(PyObject *dummyo) {
-    
-    char *data;
-    size_t size;
-    std::tie(data, size) = MxFramebufferImageData();
 
-    if (data == NULL) {
-        PyErr_SetString(PyExc_RuntimeError, "No current OpenGL context");
-        return NULL;
-    }
+    Log(LOG_TRACE);
+    
+    auto jpegData = _MxJpegImageData();
+    char *data = jpegData.data();
+    size_t size = jpegData.size();
     
     return PyBytes_FromStringAndSize(data, size);
 }

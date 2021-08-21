@@ -842,6 +842,18 @@ HRESULT MxSimulator_init(const std::vector<std::string> &argv) {
     }
 }
 
+static PyObject *ih = NULL;
+
+HRESULT _setIPythonInputHook(PyObject *_ih) {
+    ih = _ih;
+    return S_OK;
+}
+
+HRESULT _onIPythonNotReady() {
+    Simulator->app->mainLoopIteration(0.001);
+    return S_OK;
+}
+
 static void simulator_interactive_run() {
     Log(LOG_INFORMATION) <<  "entering ";
 
@@ -852,7 +864,7 @@ static void simulator_interactive_run() {
     // interactive run only works in terminal ipytythn.
     PyObject *ipy = MxIPython_Get();
     const char* ipyname = ipy ? ipy->ob_type->tp_name : "NULL";
-    Log(LOG_INFORMATION) <<  "ipy type: " << ipyname ;;
+    Log(LOG_INFORMATION) <<  "ipy type: " << ipyname;
 
     if(ipy && strcmp("TerminalInteractiveShell", ipy->ob_type->tp_name) == 0) {
 
@@ -883,21 +895,15 @@ static void simulator_interactive_run() {
 
         PyObject *pt_inputhooks = PyImport_ImportString("IPython.terminal.pt_inputhooks");
         
-        Log(LOG_INFORMATION) <<  "pt_inputhooks: " << mx::cast<PyObject, std::string>(pt_inputhooks) ;;
+        Log(LOG_INFORMATION) <<  "pt_inputhooks: " << mx::str(pt_inputhooks);
         
         PyObject *reg = PyObject_GetAttrString(pt_inputhooks, "register");
         
-        Log(LOG_INFORMATION) <<  "reg: " << mx::cast<PyObject, std::string>(reg) ;;
+        Log(LOG_INFORMATION) <<  "reg: " << mx::str(reg);
         
-        PyObject *ih = (PyObject*)&MxSimulatorPy::_input_hook;
+        Log(LOG_INFORMATION) <<  "ih: " << mx::str(ih);
         
-        Log(LOG_INFORMATION) <<  "ih: " << mx::cast<PyObject, std::string>(ih) ;;
-
-        //py::cpp_function ih(MxSimulatorPy::_input_hook);
-        
-        //reg("mechanica", ih);
-        
-        Log(LOG_INFORMATION) <<  "calling reg...." ;;
+        Log(LOG_INFORMATION) <<  "calling reg....";
         
         PyObject *args = PyTuple_Pack(2, mx_str, ih);
         PyObject *reg_result = PyObject_Call(reg, args, NULL);
@@ -912,10 +918,10 @@ static void simulator_interactive_run() {
         // import IPython
         // ip = IPython.get_ipython()
         PyObject *ipython = PyImport_ImportString("IPython");
-        Log(LOG_INFORMATION) <<  "ipython: " << mx::cast<PyObject, std::string>(ipython) ;;
+        Log(LOG_INFORMATION) <<  "ipython: " << mx::str(ipython);
         
         PyObject *get_ipython = PyObject_GetAttrString(ipython, "get_ipython");
-        Log(LOG_INFORMATION) <<  "get_ipython: " << mx::cast<PyObject, std::string>(get_ipython) ;;
+        Log(LOG_INFORMATION) <<  "get_ipython: " << mx::str(get_ipython);
         
         args = PyTuple_New(0);
         PyObject *ip = PyObject_Call(get_ipython, args, NULL);
@@ -1237,50 +1243,6 @@ HRESULT MxSimulatorPy::_show()
         Log(LOG_TRACE) << "not ipython, returning Simulator->app->show()";
         return Simulator->show();
     }
-}
-
-PyObject *MxSimulatorPy::_input_hook(PyObject *const *args, Py_ssize_t nargs) {
-    SIM_TRY();
-    
-    if(nargs < 1) {
-        mx_exp(std::logic_error("argument count to mechanica ipython input hook is 0"));
-    }
-    
-    PyObject *context = args[0];
-    if(context == NULL) {
-        mx_exp(std::logic_error("mechanica ipython input hook context argument is NULL"));
-    }
-    
-    PyObject *input_is_ready = PyObject_GetAttrString(context, "input_is_ready");
-    if(input_is_ready == NULL) {
-        mx_exp(std::logic_error("mechanica ipython input hook context has no \"input_is_ready\" attribute"));
-    }
-    
-    PyObject *input_args = PyTuple_New(0);
-    
-    auto get_ready = [input_is_ready, input_args]() -> bool {
-        PyObject *ready = PyObject_Call(input_is_ready, input_args, NULL);
-        if(!ready) {
-            PyObject* err = PyErr_Occurred();
-            std::string str = "error calling input_is_ready";
-            str += mx::cast<PyObject, std::string>(err);
-            mx_exp(std::logic_error(str));
-        }
-        
-        bool bready = mx::cast<PyObject, bool>(ready);
-        Py_DECREF(ready);
-        return bready;
-    };
-    
-    Py_XDECREF(input_args);
-    
-    while(!get_ready()) {
-        Simulator->app->mainLoopIteration(0.001);
-    }
-    
-    Py_RETURN_NONE;
-    
-    SIM_FINALLY(NULL);
 }
 
 void *MxSimulatorPy::wait_events(const double &timeout) {

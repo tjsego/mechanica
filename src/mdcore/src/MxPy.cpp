@@ -133,7 +133,7 @@ PyObject* MxIPython_Get() {
     Py_DECREF(module);
     Py_DECREF(get_ipython);
     
-    Log(LOG_TRACE) << "succeeded, returning " << mx::cast<PyObject, std::string>(result);
+    Log(LOG_TRACE) << "succeeded, returning " << mx::str(result);
     return result;
 }
 

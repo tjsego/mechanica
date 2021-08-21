@@ -669,9 +669,11 @@ public:
 
     static void *wait_events(const double &timeout=-1);
 
-    static PyObject *_input_hook(PyObject *const *args, Py_ssize_t nargs);
-
 };
+
+CAPI_FUNC(HRESULT) _setIPythonInputHook(PyObject *_ih);
+
+CAPI_FUNC(HRESULT) _onIPythonNotReady();
 
 CAPI_FUNC(PyObject *) MxSimulatorPy_init(PyObject *args, PyObject *kwargs);
 

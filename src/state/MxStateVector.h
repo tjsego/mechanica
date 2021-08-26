@@ -18,9 +18,16 @@ enum StateVectorFlags {
     STATEVECTOR_OWNMEMORY       = 1 << 0,
 };
 
+/**
+ * @brief A state vector of an object. 
+ */
 struct MxStateVector {
     uint32_t flags;
     uint32_t size;
+
+    /**
+     * @brief Species of the state vector
+     */
     struct MxSpeciesList *species;
     
     /**

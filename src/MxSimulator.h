@@ -251,7 +251,16 @@ private:
     bool _windowless;
 };
 
-
+/**
+ * @brief The Simulator is the entry point to simulation, this is the very first object
+ * that needs to be initialized  before any other method can be called. All the
+ * methods of the Simulator are static, but the constructor needs to be called
+ * first to initialize everything.
+ *
+ * The Simulator manages all of the operating system interface, it manages
+ * window creation, end user input events, GPU access, threading, inter-process
+ * messaging and so forth. All 'physical' modeling concepts go in the Universe.
+ */
 struct CAPI_EXPORT MxSimulator {
 
     class CAPI_EXPORT GLConfig;
@@ -263,7 +272,7 @@ struct CAPI_EXPORT MxSimulator {
      */
     enum WindowFlags : UnsignedShort
     {
-        /**< Fullscreen window */
+        /** Fullscreen window */
         Fullscreen = 1 << 0,
 
         /**
@@ -395,12 +404,28 @@ struct CAPI_EXPORT MxSimulator {
     static HRESULT postEmptyEvent();
 
     /**
-     * runs the event loop until window close
+     * @brief Runs the event loop until all windows close or simulation time expires. 
+     * Automatically performs universe time propogation. 
+     * 
+     * @param et final time; a negative number runs infinitely
+     * @return HRESULT 
      */
     static HRESULT run(double et);
 
+    /**
+     * @brief Shows any windows that were specified in the config. 
+     * Works just like MatPlotLib's ``show`` method. 
+     * The ``show`` method does not start the universe time propagation unlike ``run`` and ``irun``.
+     * 
+     * @return HRESULT 
+     */
     static HRESULT show();
 
+    /**
+     * @brief Closes the main window, while the application / simulation continues to run.
+     * 
+     * @return HRESULT 
+     */
     static HRESULT close();
 
     static HRESULT destroy();
@@ -659,9 +684,10 @@ public:
     static PyObject *_run(PyObject *args, PyObject *kwargs);
     
     /**
-     * ipython version of the run loop. This checks the ipython context and lets
-     * ipython process keyboard input, while we also run the simulator andx
-     * process window messages.
+     * @brief Interactive python version of the run loop. This checks the ipython context and lets 
+     * ipython process keyboard input, while we also running the simulator and processing window messages.
+     * 
+     * @return HRESULT 
      */
     static HRESULT irun();
 
@@ -675,6 +701,32 @@ CAPI_FUNC(HRESULT) _setIPythonInputHook(PyObject *_ih);
 
 CAPI_FUNC(HRESULT) _onIPythonNotReady();
 
+/**
+ * @brief Initialize a simulation in Python
+ * 
+ * @param args positional arguments; first argument is name of simulation (if any)
+ * @param kwargs keyword arguments; currently supported are
+ * 
+ *      dim: (3-component list of floats) the dimensions of the spatial domain; default is [10., 10., 10.]
+ * 
+ *      cutoff: (float) simulation cutoff distance; default is 1.
+ * 
+ *      cells: (3-component list of ints) the discretization of the spatial domain; default is [4, 4, 4]
+ * 
+ *      threads: (int) number of threads; default is hardware maximum
+ * 
+ *      integrator: (int) simulation integrator; default is FORWARD_EULER
+ * 
+ *      dt: (float) time discretization; default is 0.01
+ * 
+ *      bc: (int or dict) boundary conditions; default is everywhere periodic
+ * 
+ *      window_size: (2-component list of ints) size of application window; default is [800, 600]
+ * 
+ *      logger_level: (int) logger level; default is no logging
+ * 
+ *      clip_planes: (list of tuple of (MxVector3f, MxVector3f)) list of point-normal pairs of clip planes; default is no planes
+ */
 CAPI_FUNC(PyObject *) MxSimulatorPy_init(PyObject *args, PyObject *kwargs);
 
 // const MxVector3 &origin, const MxVector3 &dim,

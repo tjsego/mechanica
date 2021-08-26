@@ -52,7 +52,12 @@ typedef std::vector<Pair> PairList;
 struct MxBondHandle;
 struct MxParticleHandle;
 
-/** The bond structure */
+/**
+ * @brief Bonds apply a potential to a particular set of particles. 
+ * 
+ * If you're building a model, you should probably instead be working with a 
+ * MxBondHandle. 
+ */
 typedef struct MxBond {
 
     uint32_t flags;
@@ -98,9 +103,19 @@ typedef struct MxBond {
 struct MxParticleType;
 struct MxParticleList;
 
+/**
+ * @brief Handle to a bond
+ * 
+ * This is a safe way to work with a bond. 
+ */
 struct MxBondHandle {
     int32_t id;
     
+    /**
+     * @brief Gets the underlying bond
+     * 
+     * @return MxBond* 
+     */
     MxBond *get();
 
     /**
@@ -154,6 +169,18 @@ struct MxBondHandle {
     std::string str();
     bool check();
     
+    /**
+     * @brief Apply bonds to a list of particles
+     * 
+     * @param pot the potential of the created bonds
+     * @param parts list of particles
+     * @param cutoff cutoff distance of particles that are bonded
+     * @param ppairs type pairs of bonds
+     * @param half_life bond half life
+     * @param bond_energy bond energy
+     * @param flags bond flags
+     * @return std::vector<MxBondHandle*>* 
+     */
     static std::vector<MxBondHandle*>* pairwise(MxPotential* pot,
                                                 MxParticleList *parts,
                                                 const double &cutoff,
@@ -161,8 +188,20 @@ struct MxBondHandle {
                                                 const double &half_life,
                                                 const double &bond_energy,
                                                 uint32_t flags);
+    
+    /**
+     * @brief Destroy the bond
+     * 
+     * @return HRESULT 
+     */
     HRESULT destroy();
     static std::vector<MxBondHandle*> bonds();
+
+    /**
+     * @brief Gets all bonds in the universe
+     * 
+     * @return std::vector<MxBondHandle*> 
+     */
     static std::vector<MxBondHandle*> items();
 
     MxParticleHandle *operator[](unsigned int index);

@@ -15,22 +15,11 @@
 
 import sys
 import os
-import re
+import mechanica
 
 
 def getver():
-
-    path = os.path.dirname(__file__)
-    path = os.path.join(path, "../../VERSION.txt")
-    path = os.path.abspath(path)
-    s = open(path).read()
-    major = re.search("VERSION_MAJOR\s+([0-9]*)", s).groups()[0]
-    minor = re.search("VERSION_MINOR\s+([0-9]*)", s).groups()[0]
-    patch = re.search("VERSION_PATCH\s+([0-9]*)", s).groups()[0]
-    ver = major + "." + minor + "." + patch
-
-    print("making version: ", ver)
-    return ver
+    return mechanica.version.version
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -55,9 +44,9 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinxcontrib.bibtex',
     'sphinx.ext.ifconfig',
-    'sphinxemoji.sphinxemoji',
+    'sphinx.ext.autodoc',
     'sphinx.ext.autosectionlabel',
-    'video'
+    'sphinx.ext.autosummary'
 ]
 
 
@@ -81,8 +70,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Mechanica'
-copyright = '2018, Andy Somogyi'
-author = 'Andy Somogyi'
+copyright = '2021 T.J. Sego, James A. Glazier, Herbert Sauro'
+author = 'T.J. Sego'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -116,7 +105,7 @@ exclude_patterns = []
 #default_role = None
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
-#add_function_parentheses = True
+add_function_parentheses = False
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
@@ -138,6 +127,12 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
+# Make sure the target is unique
+autosectionlabel_prefix_document = True
+
+# Auto-generation specification
+autosummary_generate = True
+autoclass_content = "both"
 
 # -- Options for HTML output ----------------------------------------------
 
@@ -268,7 +263,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'Mechanica.tex', 'Mechanica Documentation',
-     'Andy Somogyi', 'manual'),
+     'T.J. Sego, Andy Somogyi, James A. Glazier, Herbert Sauro', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -312,7 +307,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'Mechanica', 'Mechanica Documentation',
-     author, 'Mechanica', 'One line description of project.',
+     author, 'Mechanica',
+     'Interactive, particle-based physics, chemistry and biology modeling and simulation environment.',
      'Miscellaneous'),
 ]
 

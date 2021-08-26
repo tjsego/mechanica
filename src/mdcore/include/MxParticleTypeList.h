@@ -13,6 +13,10 @@
 struct MxParticleType;
 struct MxClusterParticleType;
 
+/**
+ * @brief A special list with convenience methods 
+ * for working with sets of particle types.
+ */
 struct CAPI_EXPORT MxParticleTypeList {
     int32_t *parts;
     int32_t nr_parts;
@@ -24,24 +28,53 @@ struct CAPI_EXPORT MxParticleTypeList {
     
     // inserts the given id into the list, returns the index of the item. 
     uint16_t insert(int32_t item);
+
+    /**
+     * @brief Inserts the given particle type into the list, returns the index of the item. 
+     * 
+     * @param ptype 
+     * @return uint16_t 
+     */
     uint16_t insert(const MxParticleType *ptype);
     
-    // looks for the item with the given id and deletes it form the list
+    /**
+     * @brief looks for the item with the given id and deletes it form the list
+     * 
+     * @param id id to remove
+     * @return uint16_t 
+     */
     uint16_t remove(int32_t id);
     
-    // inserts the contents of another list
+    /**
+     * @brief inserts the contents of another list
+     * 
+     * @param other another list
+     */
     void extend(const MxParticleTypeList &other);
 
-    // looks for the item at the given index and returns it if found, otherwise returns NULL
+    /**
+     * @brief looks for the item at the given index and returns it if found, otherwise returns NULL
+     * 
+     * @param i index of lookup
+     * @return MxParticleType* 
+     */
     MxParticleType *item(const int32_t &i);
 
     // packs a variable number of particle type ids into a new list
     static MxParticleTypeList *pack(size_t n, ...);
 
-    // returns an instance populated with particles of all current particle types
+    /**
+     * @brief returns a list populated with particles of all current particle types
+     * 
+     * @return MxParticleList* 
+     */
     MxParticleList *particles();
 
-    // returns an instance populated with all current particle types
+    /**
+     * @brief returns an instance populated with all current particle types
+     * 
+     * @return MxParticleTypeList* 
+     */
     static MxParticleTypeList *all();
 
     MxMatrix3f getVirial();
@@ -53,6 +86,12 @@ struct CAPI_EXPORT MxParticleTypeList {
     std::vector<MxVector3f> getVelocities();
     std::vector<MxVector3f> getForces();
 
+    /**
+     * @brief Get the spherical coordinates of each particle
+     * 
+     * @param origin optional origin of coordinates; default is center of universe
+     * @return std::vector<MxVector3f> 
+     */
     std::vector<MxVector3f> sphericalPositions(MxVector3f *origin=NULL);
 
     MxParticleTypeList();

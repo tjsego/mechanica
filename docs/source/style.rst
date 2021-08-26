@@ -1,16 +1,30 @@
-.. _style-label:
+.. _style:
 
 Style
-=====
+------
 
-All renderable objects in Mechanica have a `style` attribute. This style is
-essentially like a CSS `.style` attribute in Javascript / HTML. The style object
-behaves like a container for a variety of style descriptors. Our intent is to
-eventually read and generate all of the style nodes from a CSS file, but for the
-time being, we have to manually set style information. 
+All renderable objects in Mechanica have a ``style`` attribute. The style object
+behaves like a container for a variety of style descriptors.
+Each instance of an object with a ``style`` automatically inherits the style of
+its type, which can then be individually manipulated. The ``style`` attribute
+currently supports setting the color (:meth:`setColor`) and visibility
+(:meth:`setVisible`) of its parent object.
 
-Like CSS, each instance of a object automatically inherits the style of it's
-type, but users may override values.
+Styling Particle Types in Python
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Currently, the only supported style descriptor is a `color` value. This is an
-instance of the 
+The :class:`ParticleType` has a special procedure for specifying the style of
+a type as a class definition in Python. The ``style`` attribute can be defined
+in Python as a dictionary with key-value pairs for particle type class
+definitions. The color of a type can be specified with the key ``"color"``
+and value of the name of a color as a string. The visibility of a type can be
+specified with key ``"visible"`` and value of a Boolean. ::
+
+    import mechanica as mx
+
+    class MyParticleType(mx.ParticleType):
+        style = {'color': 'CornflowerBlue', 'visible': False}
+
+    my_particle_type = MyParticleType.get()
+    my_particle = my_particle_type()
+    my_particle.style.setVisible(True)

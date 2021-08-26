@@ -11,6 +11,7 @@ MxEventPyExecutor_extender(MxKeyEventPyExecutor, MxKeyEvent)
     %pythoncode %{
         @property
         def key_name(self) -> str:
+            """Key pressed for this event"""
             return self.keyName()
     %}
 }
@@ -34,5 +35,14 @@ MxEventPyExecutor_extender(MxKeyEventPyExecutor, MxKeyEvent)
 
 %pythoncode %{
     KeyEvent = MxKeyEvent
-    on_keypress = MxKeyEventPyExecutor.on_keypress
+
+    def on_keypress(invoke_method):
+        """
+        Registers a callback for handling keyboard events
+
+        :type invoke_method: PyObject
+        :param invoke_method: an invoke method; evaluated when an event occurs. 
+            Takes an :class:`MxKeyEvent` instance as argument and returns None
+        """
+        return MxKeyEventPyExecutor.on_keypress(invoke_method)
 %}

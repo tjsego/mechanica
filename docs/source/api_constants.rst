@@ -1,33 +1,128 @@
 Constants
----------
+^^^^^^^^^^
 
+.. _geometry_constants_label:
 
-Geometry
-^^^^^^^^
+Geometry Constants
+*******************
 
-.. py:data:: Sphere
+.. attribute:: Sphere
+    :module: mechanica
 
-.. py:data:: SolidSphere
+    On a sphere
 
-.. py:data:: Disk
+.. attribute:: SolidSphere
+    :module: mechanica
 
-.. py:data:: SolidCube
+    In a sphere
 
-.. py:data:: Cube
+.. attribute:: Disk
+    :module: mechanica
 
-.. py:data:: Ring
+    On a disk
 
+.. attribute:: SolidCube
+    :module: mechanica
+
+    In a cube
+
+.. attribute:: Cube
+    :module: mechanica
+
+    On a cube
+
+.. attribute:: Ring
+    :module: mechanica
+
+    On a ring
+
+Boundary Condition Constants
+*****************************
+
+.. attribute:: BOUNDARY_NONE
+    :module: mechanica
+
+    no boundary conditions
+
+.. attribute:: PERIODIC_X
+    :module: mechanica
+
+    periodic in the x (first) direction
+
+.. attribute:: PERIODIC_Y
+    :module: mechanica
+
+    periodic in the y (second) direction
+
+.. attribute:: PERIODIC_Z
+    :module: mechanica
+
+    periodic in the z (third) direction
+
+.. attribute:: PERIODIC_FULL
+    :module: mechanica
+
+    periodic in the all directions
+
+.. attribute:: FREESLIP_X
+    :module: mechanica
+
+    free slip in the x (first) direction
+
+.. attribute:: FREESLIP_Y
+    :module: mechanica
+
+    free slip in the y (second) direction
+
+.. attribute:: FREESLIP_Z
+    :module: mechanica
+
+    free slip in the z (third) direction
+
+.. attribute:: FREESLIP_FULL
+    :module: mechanica
+
+    free slip in the all directions
 
 Integrator Constants
-^^^^^^^^^^^^^^^^^^^^
+*********************
 
-.. py:data:: FORWARD_EULER
+.. attribute:: FORWARD_EULER
+    :module: mechanica
 
-   reccomended option, most tested, standard single-step forward Euler
+    Integrator constant: Forward Euler.
 
-.. py:data:: RUNGE_KUTTA_4
+    Recomended, most tested, standard single-step.
 
-   experimental Runge-Kutta-4 integrator. 
+.. attribute:: RUNGE_KUTTA_4
+    :module: mechanica
 
+    Integrator constant: Runge-Kutta.
 
+    Experimental Runge-Kutta-4.
 
+Particle Dynamics Constants
+****************************
+
+.. attribute:: Newtonian
+    :module: mechanica
+
+    Newtonian dynamics.
+
+.. attribute:: Overdamped
+    :module: mechanica
+
+    Overdamped dynamics.
+
+Potential Constants
+********************
+
+.. attribute:: potential
+    :module: mechanica.MxPotential.Kind
+
+    Potential kind
+
+.. attribute:: dpd
+    :module: mechanica.MxPotential.Kind
+
+    Dissipative particle dynamics kind

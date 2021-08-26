@@ -9,6 +9,7 @@
     %pythoncode %{
         @property
         def visible(self) -> bool:
+            """Visibility flag"""
             return self.getVisible()
 
         @visible.setter
@@ -17,6 +18,7 @@
 
         @property
         def colormap(self):
+            """Style color map"""
             return self.getColorMap()
 
         @colormap.setter

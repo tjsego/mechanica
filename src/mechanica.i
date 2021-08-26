@@ -62,22 +62,73 @@
 
     class version:
         version = __version__
+        """Mechanica version
+
+        :meta hide-value:
+        """
+
         system_name = MX_SYSTEM_NAME
+        """System name
+
+        :meta hide-value:
+        """
+
         system_version = MX_SYSTEM_VERSION
+        """System version
+
+        :meta hide-value:
+        """
+
         compiler = MX_COMPILER_ID
+        """Package compiler ID
+
+        :meta hide-value:
+        """
+
         compiler_version = MX_COMPILER_VERSION
+        """Package compiler version
+
+        :meta hide-value:
+        """
+
         build_date = MX_BUILD_DATE + ', ' + MX_BUILD_TIME
+        """Package build date
+
+        :meta hide-value:
+        """
+
         major = MX_VERSION_MAJOR
+        """Mechanica major version
+
+        :meta hide-value:
+        """
+
         minor = MX_VERSION_MINOR
+        """Mechanica minor version
+
+        :meta hide-value:
+        """
+
         patch = MX_VERSION_PATCH
+        """Mechanica patch version
+
+        :meta hide-value:
+        """
+
         dev = MX_VERSION_DEV
+        """Mechanica development stage
+
+        :meta hide-value:
+        """
 
         @staticmethod
         def cpuinfo():
+            """Dictionary of CPU info"""
             return {k: v for k, v in getFeaturesMap().items()}
 
         @staticmethod
         def compile_flags():
+            """Dictionary of compiler flags"""
             cf = MxCompileFlags()
             return {k: cf.getFlag(k) for k in cf.getFlags()}
 %}
@@ -125,30 +176,86 @@
 # From MxSimulator
 
     def close():
+        """
+        Alias of :meth:`mechanica.mechanica.MxSimulatorPy.close`
+        """
         return MxSimulatorPy.get().close()
 
     def show():
+        """
+        Alias of :meth:`mechanica.mechanica.MxSimulatorPy.show`
+        """
         return MxSimulatorPy.get().show()
 
     def irun():
+        """
+        Alias of :meth:`mechanica.mechanica.MxSimulatorPy.irun`
+        """
         return MxSimulatorPy.get().irun()
 
     def init(*args, **kwargs):
+        """
+        Initialize a simulation in Python
+
+        :type args: PyObject
+        :param args: positional arguments; first argument is name of simulation (if any)
+        :type kwargs: PyObject
+        :param kwargs: keyword arguments; currently supported are
+
+                dim: (3-component list of floats) the dimensions of the spatial domain; default is [10., 10., 10.]
+
+                cutoff: (float) simulation cutoff distance; default is 1.
+
+                cells: (3-component list of ints) the discretization of the spatial domain; default is [4, 4, 4]
+
+                threads: (int) number of threads; default is hardware maximum
+
+                integrator: (int) simulation integrator; default is FORWARD_EULER
+
+                dt: (float) time discretization; default is 0.01
+
+                bc: (int or dict) boundary conditions; default is everywhere periodic
+
+                window_size: (2-component list of ints) size of application window; default is [800, 600]
+
+                logger_level: (int) logger level; default is no logging
+
+                clip_planes: (list of tuple of (MxVector3f, MxVector3f)) list of point-normal pairs of clip planes; default is no planes
+        """
         return MxSimulatorPy_init(args, kwargs)
 
     def run(*args, **kwargs):
+        """
+        Runs the event loop until all windows close or simulation time expires. 
+        Automatically performs universe time propogation. 
+
+        :type args: float
+        :param args: final time (default runs infinitly)
+        """
         return MxSimulatorPy.get()._run(args, kwargs)
     
     # From MxUniverse
+
     step = MxUniverse.step
+    """Alias of :meth:`mechanica.mechanica.MxUniverse.step`"""
+
     stop = MxUniverse.stop
+    """Alias of :meth:`mechanica.mechanica.MxUniverse.stop`"""
+
     start = MxUniverse.start
+    """Alias of :meth:`mechanica.mechanica.MxUniverse.start`"""
 
     # From MxUtils
+
     test = _MxTest
+
     random_points = MxRandomPoints
+    """Alias of :meth:`mechanica.mechanica.MxRandomPoints`"""
+
     points = MxPoints
+    """Alias of :meth:`mechanica.mechanica.MxPoints`"""
+
     primes = MxMath_FindPrimes
-    cpuinfo = MxSystem.cpu_info()
-    compile_flags = MxSystem.compile_flags()
+    cpuinfo = MxSystem.cpu_info()  #: :meta hide-value:
+    compile_flags = MxSystem.compile_flags()  #: :meta hide-value:
 %}

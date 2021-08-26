@@ -10,7 +10,7 @@ and host cpu.
 
    Returns a dictionary that contains a variety of information about the
    current procssor, such as processor vendor and supported instruction set
-   features. 
+   features.
 
 .. function:: gl_info()
 
@@ -29,7 +29,7 @@ and host cpu.
 
 .. function:: context_has_current()
 
-   Checks of the currently executing thread has a rendering context. 
+   Checks of the currently executing thread has a rendering context.
 
 .. function:: context_make_current()
 
@@ -58,12 +58,12 @@ and host cpu.
                             want as the center of the view.
 
    :param up: ([x, y, z]) Unit up vector, defines the up direction of the
-                        camera. 
+                        camera.
 
 
 .. function:: camera_reset()
 
-   Resets the camera to the initial position. 
+   Resets the camera to the initial position.
 
 
 .. function:: camera_rotate_mouse(mouse_pos)
@@ -72,7 +72,7 @@ and host cpu.
    :func:`camera_init_mouse()` to initialize a mouse movement.
 
    :param mouse_pos: ([x, y]) current mouse position on the view window or
-                            image. 
+                            image.
 
 
 .. function:: camera_translate_mouse(mouse_pos)
@@ -81,7 +81,7 @@ and host cpu.
    call :func:`camera_init_mouse()` to initialize a mouse movment, i.e. set the
    starting mouse position.
 
-   :param  mouse_pos: ([x, y]) current mouse position on the view window or image. 
+   :param  mouse_pos: ([x, y]) current mouse position on the view window or image.
 
 
 .. function:: camera_init_mouse(mouse_pos)
@@ -90,7 +90,7 @@ and host cpu.
    click was performed at the given coordinates, and subsequent mouse motion
    will refer to this starting position.
 
-   :param  mouse_pos: ([x, y]) current mouse position on the view window or image. 
+   :param  mouse_pos: ([x, y]) current mouse position on the view window or image.
 
 
 .. function:: camera_translate_by(delta)
@@ -99,21 +99,21 @@ and host cpu.
    moves the camera a given delta x, delta y distance in that plane.
 
    :param  delta: ([delta_x, delta_y]) a vector that indicates how much to
-                                    translate the camera. 
+                                    translate the camera.
 
 
 .. function:: camera_zoom_by(delta)
 
    Zooms the camera in and out by a specified amount.
 
-   :param delta: number that indicates how much to increment zoom distance. 
+   :param delta: number that indicates how much to increment zoom distance.
 
 
 .. function:: camera_zoom_to(distance)
 
    Zooms the camera to the given distance.
 
-   :param distance: distance to the universe center for the camera. 
+   :param distance: distance to the universe center for the camera.
 
 
 .. function:: camera_rotate_to_axis(axis, distance)
@@ -121,7 +121,7 @@ and host cpu.
    Rotates the camera to one of the principal axis, at a given zoom distance.
 
    :param  axis: ([x, y, z]) unit vector that defines the axis to move to.
-   :param distance: how far away the camera will be. 
+   :param distance: how far away the camera will be.
 
 
 .. function:: camera_rotate_to_euler_angle(angles)
@@ -129,7 +129,7 @@ and host cpu.
    Rotate the camera to the given orientiation defined by three Euler angles.
 
    :param  angles: ([alpha, beta, gamma]) Euler angles of rotation about the X, Y,
-                                       and Z axis. 
+                                       and Z axis.
 
 
 .. function:: camera_rotate_by_euler_angle(angles)
@@ -137,7 +137,7 @@ and host cpu.
    Incremetns the camera rotation by given orientiation defined by three Euler angles.
 
    :param  angles: ([alpha, beta, gamma]) Euler angles of rotation about the X, Y,
-                                       and Z axis. 
+                                       and Z axis.
 
 
 
@@ -145,7 +145,7 @@ and host cpu.
 
    Notify the simulator that the window or image size was changed.
 
-   :param  window_size: ([x, y]) new window size. 
+   :param  window_size: ([x, y]) new window size.
 
 
 

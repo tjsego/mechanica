@@ -1,30 +1,23 @@
 import mechanica as mx
 import numpy as np
 
-# potential cutoff distance
-cutoff = 3
-
 # dimensions of universe
 dim = [10., 10., 10.]
 
 # new simulator
-mx.init(dim=dim, window_size=[900, 900], perfcounter_period=100)
+mx.init(dim=dim)
 
 # create a potential representing a 12-6 Lennard-Jones potential
-# A The first parameter of the Lennard-Jones potential.
-# B The second parameter of the Lennard-Jones potential.
-# cutoff
-pot = mx.Potential.lennard_jones_12_6(0.275, cutoff, 9.5075e-06, 6.1545e-03, 1.0e-3)
+pot = mx.Potential.lennard_jones_12_6(0.275, 3.0, 9.5075e-06, 6.1545e-03, 1.0e-3)
 
 
 # create a particle type
-# all new Particle derived types are automatically
-# registered with the universe
 class ArgonType(mx.ParticleType):
     radius = 0.1
     mass = 39.4
 
 
+# Register and get the particle type; registration always only occurs once
 Argon = ArgonType.get()
 
 # bind the potential with the *TYPES* of the particles

@@ -13,7 +13,7 @@
         def __len__(self) -> int:
             return self.species.size()
 
-        def __getattr__(self, item: str) -> float:
+        def __getattr__(self, item: str):
             if item == 'this':
                 return object.__getattr__(self, item)
 

@@ -26,10 +26,18 @@ struct MxSpeciesList
     
     MxSpecies *item(int32_t index);
     
+    /**
+     * @brief Get a species by name
+     * 
+     * @param s name of species
+     * @return MxSpecies* 
+     */
     MxSpecies *item(const std::string &s);
     
     /**
-     * inserts a MxSpecies* object
+     * @brief Inserts a species
+     * 
+     * @return HRESULT 
      */
     HRESULT insert(MxSpecies*);
     HRESULT insert(const std::string &s);

@@ -26,18 +26,22 @@
 
         @property
         def radius_of_gyration(self):
+            """Radius of gyration"""
             return self.getRadiusOfGyration()
 
         @property
         def center_of_mass(self):
+            """Center of mass"""
             return self.getCenterOfMass()
 
         @property
         def centroid(self):
+            """Centroid"""
             return self.getCentroid()
 
         @property
         def moment_of_inertia(self):
+            """Moment of inertia"""
             return self.getMomentOfInertia()
     %}
 }

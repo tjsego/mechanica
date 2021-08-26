@@ -1,206 +1,166 @@
 Particles and Clusters
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
+.. autoclass:: Particle
+.. autoclass:: ParticleHandle
 
-.. class:: Particle(object)
 
-   The particle is the most basic physical object we provide. All other physical
-   objects either extend the base Particle, or are collections of particles such
-   as the :any:`Cluster`
+.. autoclass:: MxParticle
 
-   .. staticmethod:: items()
+    .. automethod:: py_particle
 
-      Returns a list of all of the instances of this type. 
 
+.. autoclass:: MxParticleHandle
 
-   .. attribute:: position
+    .. autoproperty:: charge
 
-      ``vector3`` -- gets / sets the global position of the particle
+    .. autoproperty:: mass
 
-   .. attribute:: velocity
+    .. autoproperty:: frozen
 
-      ``vector3`` -- returns the velocity of the particle, read-only
+    .. autoproperty:: frozen_x
 
-   .. attribute:: force
+    .. autoproperty:: frozen_y
 
-      ``vector3`` -- returns the net force that acts on this particle
+    .. autoproperty:: frozen_z
 
-   .. attribute:: charge
+    .. autoproperty:: style
 
-      ``number`` -- gets the total charge of the particle. 
+    .. autoproperty:: age
 
-   .. attribute:: mass
+    .. autoproperty:: radius
 
+    .. autoproperty:: name
 
-   .. attribute:: radius
+    .. autoproperty:: position
 
+    .. autoproperty:: velocity
 
-   .. attribute:: name
+    .. autoproperty:: force
 
+    .. autoproperty:: id
 
-   .. attribute:: name2
+    .. autoproperty:: type_id
 
+    .. autoproperty:: species
 
-   .. attribute:: dynamics
+    .. autoproperty:: bonds
 
-      ``number`` -- one of the :ref:`Integrator Constants` that specifies the
-      time evolution of this particle. Particles can be either intertial
-      particles that obey Newtonian dynamics, :math:`F=ma` or overdamped
-      dynamics, :math:`F \propto mv`. 
+    .. automethod:: part
 
+    .. automethod:: type
 
-   .. attribute:: age
+    .. automethod:: split
 
+    .. automethod:: destroy
 
-   .. attribute:: style
+    .. automethod:: sphericalPosition
 
-      ``Style`` -- gets / sets the style of an object. When we create a new
-      particle instance, it's style points to the style attribute of the
-      particle's type, so that if we change something in the particle type, this
-      changes every instance of that type. For more details, see the
-      :ref:`style-label` section. 
+    .. automethod:: virial
 
+    .. automethod:: become
 
-   .. attribute:: frozen
+    .. automethod:: neighbors
 
-      Get / sets the `frozen` attribute. Frozen particles are fixed in place,
-      and will not move if any force acts on them. 
+    .. automethod:: getBondedNeighbors
 
-   .. attribute:: id
+    .. automethod:: distance
 
-   .. attribute:: type_id
+    .. automethod:: to_cluster
 
 
-   .. attribute:: flags
+.. autoclass:: MxParticleType
 
-   .. method:: become(type)
+    .. autoproperty:: frozen
 
-      Dynamically changes the *type* of an object. We can change the type of a
-      :any:`Particle` derived object to anyther pre-existing :any:`Particle`
-      derived type. What this means is that if we have an object of say type
-      *A*, we can change it to another type, say *B*, and and all of the forces
-      and processes that acted on objects of type A stip and the forces and
-      processes defined for type B now take over. See section :ref:`Changing
-      Type` for more details. 
+    .. autoproperty:: frozen_x
 
-      :param type: (Type) 
+    .. autoproperty:: frozen_y
 
-   
-   .. method:: split()
+    .. autoproperty:: frozen_z
 
-      Splits a single particle into two, for more details, see section
-      :ref:`Splitting and Cleavage`. The particle version of `split` is fairly
-      simple, however the :meth:`Cluster.split` offers many more options. 
+    .. autoproperty:: temperature
 
-   .. method:: fission()
+    .. autoproperty:: target_temperature
 
-      synonym for :meth:`split`
+    .. autoattribute:: id
 
-   .. method:: destroy()
+    .. autoattribute:: mass
 
-      Destroys the particle, and removes it form inventory. The present object
-      is handle that now references an empty particle. Calling any method after
-      `destroy` will result in an error. 
+    .. autoattribute:: charge
 
-   .. method:: spherical([origin])
+    .. autoattribute:: radius
 
-      Calculates the particle's coordinates in spherical coordinates
-      (:math:`[\rho, \theta, \phi]`), where :math:`\rho` is the distance from
-      the origin, :math:`\theta` is the azimuthal polar angle ranging from
-      :math:`[0,2 \pi]`, and :math:`phi` is the declination from vertical, ranging
-      from :math:`[0,\pi]`
+    .. autoattribute:: kinetic_energy
 
-      :param [x,y,z] origin: a vector of the origin to use for spherical
-                             coordinate calculations, optional, if not given,
-                             uses the center of the simulation domain as the
-                             origin. 
+    .. autoattribute:: potential_energy
 
-   .. method:: virial([distance])
+    .. autoattribute:: target_energy
 
-      Computes the virial tensor, see :ref:`Pressure and Virial Tensors`. 
+    .. autoattribute:: minimum_radius
 
-      :param distance: (number (,optional)) distance from the center of this
-                       particle to include the other particles to use for the
-                       virial calculation. 
+    .. autoattribute:: dynamics
 
-      :rtype: 3x3 matrix
+    .. autoattribute:: name
 
+    .. autoattribute:: style
 
-   .. method:: neighbors([distance], [types])
+    .. autoattribute:: species
 
-      Gets a list of all the other particles that are near the current one. By
-      default, we list all the nearest particles that interact with the current
-      one via forces.
+    .. automethod:: particle
 
-      :param distance: (number (,optional)) - An optional search
-                   distance, if specified will get all objects within the given
-                   distance. Defaults to the global simulation cutoff distance. 
+    .. automethod:: particleTypeIds
 
-      :param types: (tuple, (,optional)) -- If specified, can provide a tuple
-                    of types to include in the neighbor search. If types are
-                    provides, this method will return all non-cluster particles
-                    within a certain distance. Defaults to all types. 
+    .. automethod:: __call__
 
-      For example, to search for all objects of type `A` and `B` a distance of 1
-      unit away from a particle `p`, we would::
+        Alias of :meth:`_call`
 
-        >>> nbrs = p.neighbors(distance=1, types=(A, B))
-        >>> print(len(nbrs))
-  
+    .. automethod:: _call
 
+    .. automethod:: newType
 
-.. class:: Cluster(Particle)
+    .. automethod:: registerType
 
-   A Cluster is a collection of particles.
+    .. automethod:: on_register
 
-   .. method:: split([axis], [random], [normal], [point])
+    .. automethod:: isRegistered
 
-      Splits the cluster into two clusters, where the first one is the original
-      cluster and the new one is a new 'daughter' cluster.
+    .. automethod:: get
 
-      split is discussed in detail in :ref:`Splitting and Cleavage`
+    .. automethod:: items
 
 
-      :param axis: (length 3 vector (,optional)) - orientation axis for a
-                   split. If the 'axis' argument is given, the 'split' method
-                   chooses a random plane co-linear with this vector and uses
-                   this as the cleavage plane. 
+.. autoclass:: Cluster
+.. autoclass:: ClusterHandle
 
-      :param random: (Boolean (,optional)) - 'split' chooses a random cleavage
-                     plane coincident with the center of mass of the cluster. 
-                  
-      :param normal: (length 3 vector (,optional)) - a normal direction for the
-                     cleavage plane. 
 
-      :param point: (length 3 vector (,optional)) - if given, uses this point to
-                    determine the point-normal form for the clevage plane. 
+.. autoclass:: MxCluster
+    :show-inheritance:
 
-   .. method:: virial()
 
-      Computes the :ref:`Virial Tensor` for the particles in this cluster. 
+.. autoclass:: MxClusterParticleHandle
+    :show-inheritance:
 
-   .. method:: radius_of_gyration()
+    .. autoproperty:: radius_of_gyration
 
-      Computes the :ref:`Radius of Gyration` for the particles in this cluster. 
+    .. autoproperty:: center_of_mass
 
-   .. method:: center_of_mass()
+    .. autoproperty:: centroid
 
-      Computes the :ref:`Center of Mass` for the particles in this cluster. 
+    .. autoproperty:: moment_of_inertia
 
-   .. method:: center_of_geometry()
+    .. automethod:: __call__
 
-      Computes the :ref:`Center of Geometry` for the particles in this cluster. 
+        Alias of :meth:`_call`
 
-   .. method:: moment_of_inertia()
+    .. automethod:: _call
 
-      Computes the :ref:`Moment of Inertia` for the particles in this cluster.
+    .. automethod:: split
 
 
-   .. method:: centroid()
+.. autoclass:: MxClusterParticleType
+    :show-inheritance:
 
-      Convenience synonym for :any:`center_of_geometry`
+    .. automethod:: hasType
 
-   .. method:: inertia()
-
-      Convenience synonym for :any:`moment_of_inertia`
-
+    .. automethod:: get

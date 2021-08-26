@@ -1,59 +1,75 @@
-ParticleList
-------------
+ParticleList and ParticleTypeList
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: ParticleList
+
+.. autoclass:: MxParticleList
+
+    .. autoproperty:: virial
+
+    .. autoproperty:: radius_of_gyration
+
+    .. autoproperty:: center_of_mass
+
+    .. autoproperty:: centroid
+
+    .. autoproperty:: moment_of_inertia
+
+    .. autoproperty:: positions
+
+    .. autoproperty:: velocities
+
+    .. autoproperty:: forces
+
+    .. automethod:: __len__
+
+    .. automethod:: __getitem__
+
+    .. automethod:: insert
+
+    .. automethod:: remove
+
+    .. automethod:: extend
+
+    .. automethod:: item
+
+    .. automethod:: all
+
+    .. automethod:: sphericalPositions
 
 
-.. class:: ParticleList
+.. autoclass:: ParticleTypeList
 
-   Most Mechanica functions that return a list of particle return a
-   ParticleList. This is a special list type that adds a lot of convenience
-   methods for dealing with spatial information. 
+.. autoclass:: MxParticleTypeList
 
-   .. method:: virial()
+    .. autoproperty:: virial
 
-      Returns the virial, or pressure tensor for all objects in the list.
+    .. autoproperty:: radius_of_gyration
 
-   .. method:: radius_of_gyration()
+    .. autoproperty:: center_of_mass
 
-      Computes the radius of gyration
+    .. autoproperty:: centroid
 
-   .. method:: center_of_mass()
+    .. autoproperty:: moment_of_inertia
 
-      Computes the center of mass.
+    .. autoproperty:: positions
 
-   .. method:: center_of_geometry()
+    .. autoproperty:: velocities
 
-      Computes the center of geometry
+    .. autoproperty:: forces
 
-   .. method:: centroid()
+    .. automethod:: __len__
 
-      Computes the centroid
+    .. automethod:: __getitem__
 
-   .. method:: moment_of_inertia()
+    .. automethod:: insert
 
-      Computes the moment of inertia tensor
+    .. automethod:: remove
 
-   .. method:: inertia()
+    .. automethod:: extend
 
-      Computes the moment of inertia tensor, a synonum for
-      :meth:`moment_of_intertia`
+    .. automethod:: item
 
-   .. method:: copy()
+    .. automethod:: all
 
-      Creates a deep copy of this list.
-
-   .. method:: positions()
-
-      Returns a numpy 3xN array of all the particle positions. 
-
-   .. method:: spherical_positions([origin])
-
-      Computes the positions in spherical coordinates relative to an origin,
-      returns a 3xN array. 
-
-   .. method:: velocities()
-
-      Returns a 3xN array of particle velocities
-
-   .. method:: forces()
-
-      Returns a 3xN array of particle forces. 
+    .. automethod:: sphericalPositions

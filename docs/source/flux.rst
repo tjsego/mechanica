@@ -1,187 +1,146 @@
-Chemical Reactions, Flux and Transport 
-=======================================
+.. _flux:
 
-.. py:module:: mechanica
+Chemical Reactions, Flux and Transport
+---------------------------------------
 
+.. py:currentmodule:: mechanica
 
-Unlike a traditional micro-scale molecular dynamics approach, where each
-computational particle represents an individual physical atom, a DPD is
-mesoscopic approach, where each computational particle represents a 'parcel' of
+Mechanica supports modeling and simulation of fluids using
+Dissipative Particle Dynamics (DPD), where each particle represents a 'parcel' of
 a real fluid. A single DPD particle typically represents anywhere from a cubic
 micron to a cubic mm, or about :math:`3.3 \times 10^{10}` to :math:`3.3 \times
-10^{19}` water molecules.
+10^{19}` water molecules. DPD particle interactions are implemented in
+Mechanica using the :ref:`dpd potential <potentials>`.
 
-Transport dissipative particle dynamics (tDPD) adds diffusing chemical solutes
-to each classical DPD particle. Thus, each tDPD particle represents a parcel of
-bulk fluid (solvent) with a set of chemical solutes at each particle. In tDPD,
-the main particles represent the bulk medium, or the 'solvent', and these carry
-along, or advect attached solutes. We introduce the term 'cargo' to refer to the
-localized chemical solutes at each particle.
+Building on DPD capabilities, Mechanica also supports attaching diffusive chemical
+solutes to DPD-like particles using Transport Dissipative Particle Dynamics
+(tDPD), where each tDPD particle represents a parcel of bulk fluid with a set
+of chemical solutes at each particle. Chemical solutes in Mechanica are referred
+to as *species*. In tDPD, a particle represents a parcel of the bulk medium, or
+the 'solvent', and each tDPD particle carries along, or advects, attached solutes.
+Solutes can diffuse between nearby tDPD particles, and can be created and destroyed
+through various reaction processes.
 
-In general, the time evolution of the chemical species at each spatial object 
-is given as:
+In general, the time evolution of a chemical species attached to the
+:math:`i\mathrm{th}` particle :math:`S_i` is given as:
 
 .. math::
 
-   \frac{dS_i}{dt} = Q_i = \sum_{i \neq j} Q^T_{ij} +Q^R_i,
+   \frac{dS_i}{dt} = \sum_{i \neq j} Q^T_{ij} +Q^R_i,
 
-where the rate of change of the vector of chemical species at an object is equal
-to the flux vector, :math:`Q_i`. This is the sum of the transport and reactive
-fluxes. :math:`Q^T`, is the *transport flux*, and :math:`Q^R_i` is a local
-reactive flux, in the form of a local reaction network. We will cover local
-reaction fluxes in later paper, for now we restrict this discussion to the
-*passive* or 'Fickian' flux, *secretion* flux and *uptake* flux.
+where the rate of change of the chemical species attached to a particle is equal
+to the sum of the transport flux :math:`Q^T` and local reactions :math:`Q^R_i`.
 
+Species can be added to a particle type by simply adding a :attr:`species`
+attribute to a particle type class definition and assigning a list of names, each
+of which names a species. Mechancia automatically instantiates each corresponding
+particle of the particle type with a species of each specified name. ::
 
-Before we cover spatial transport, we first cover adding chemical reaction
-networks to objects. 
+    import mechanica as mx
 
-To attach chemical cargo to a particle, we simply add a ``species`` specifier to
-the particle type definition as::
+    class AType(mx.ParticleType):
+        species = ['S1', 'S2', 'S3']
 
-  class A(m.Particle):
-    species = ['S1', 'S2', S3']
+An instance of a particle type with attached chemical species has a vector of
+chemical species attached to it, which is accessible via the attribute
+:attr:`species`. Likewise each particle with attached chemical species has a state
+vector with a value assigned to each attached species, which is also accessible
+via the attribute :attr:`species`. ::
 
-This defines the three chemical species, `S1`, `S2`, and `S3` in the *type*
-definition. Thus, when we create an *instance* of the object, that instance will
-have a vector of chemical species attached to it, and is accessible via the
-:any:`Particle.species` attribute. Internally, we allocate a memory block for
-each object instance, and users can attach a set of reactions to define the time
-evolution of these attached chemical species.
+    A = AType.get()
+    print(A.species)  # prints SpeciesList(['S1', 'S2', 'S3'])
+    a = A()
+    print(a.species)  # prints StateVector([S1:0, S2:0, S3:0])
 
-If we access this species list from the *type*, we get::
+:class:`SpeciesList` (:class:`MxSpeciesList` in C++) is a special list of SBML
+species definitions. :class:`SpeciesList` can also be created with additional
+information about the species by instantiating with instances of the Mechanica
+class :class:`Species` (:class:`MxSpecies` in C++).
 
-  >>> print(A.species)
-  SpeciesList(['S1', 'S2', 'S3'])
+The state vector of type :class:`StateVector` (:class:`MxStateVector` in C++)
+attached to each particle is array-like but, in addition to the numerical
+values of the species, also contains metadata of the species
+definitions. The concentration of a particular species in a particle can be
+accessed by index or name. ::
 
-This is a special list of SBML species definitions. It's important to note that
-once we've defined the list of species in each time, that list is
-immutable. Creating a list of species with just their names is the simplest
-example, if we need more control, we can create a list from more complex species
-definition strings in :ref:`Species`.
-
-If a *type* is defined with a `species` definition, every *instance* of that
-type will get a *StateVector*, of these substances. Internally, a state vector
-is really just a contiguous block of numbers, and we can attach a reaction
-network or rate rules to define their time evolution. 
-
-Each *instance* of a type with a `species` identifier gets a `species`
-attribute, and we can access the values here. In the instance, the `species`
-attribute acts a bit like an array, in that we can get it's length, and use
-numeric indices to read values::
-
-  >>> a = A()
-  >>> print(a.species)
-  StateVector([S1:0, S2:0, S3:0])
-
-As we can see, the state vector is array like, but in addition to the numerical
-values of the species, it contains a lot of meta-data of the species
-definitions. We can access individual values using array indexing as::
-
-  >>> print(a.species[0])
-  0.0
-
-  >>> a.species[0] = 1
-  >>> print(a.species[0])
-  1.0
-
-The state vector also automatically gets accessors for each of the species
-names, and we can access them just like standard Python attributes::
-
-  >>> print(a.species.S1)
-  1.0
-
-  >>> a.species.S1 = 5
-  >>> print(a.species.S1)
-  5.0
-
-We can even get all of the original species attributes directly from the
-instance state vector like::
-
-  >>> print(a.species[1].id)
-  'S2'
-  >>> print(a.species.S2.id)
-  'S2'
-
-In most cases, when we access the species values, we are accessing the
-*concentration* value. See the SBML documentation, but the basic idea is that we
-internally work with amounts, but each of these species exists in a physical
-region of space (remember, a particle defines a region of space), so the value
-we return in the amount divided by the volume of the object that the species is
-in. Sometimes we want to work with amounts, or we explicitly want to work with
-concentrations. As such, we can access these with the `amount` or `conc`
-attributes on the state vector objects as such::
-
-  >>> print(a.species.amount)
-  1.0
-
-  >>> print(a.species.conc)
-  0.5
-
-
+    print(a.species[0])  # prints 0.0
+    a.species.S1 = 1
+    print(a.species[0])  # prints 1.0
+    a.species[0] = 5
+    print(a.species.S1)  # prints 5.0
 
 .. _species-label:
 
-Species
--------
-This simple version of the `species` definition defaults to create a set of
-*floating* species, or species who's value varies in time, and they participate
-in reaction and flux processes. We also allow other kinds species such as
-*boundary*, or have initial values. 
+Working with Species
+^^^^^^^^^^^^^^^^^^^^^
 
-The Mechanica :any:`Species` object is *essentially* a Python binding around the
-libSBML Species class, but provides some Pythonic conveniences. For example, in
-our binding, we use convential Python `snake_case` sytax, and all of the sbml
-properties are avialable via simple properties on the objects. Many SBML
-concepts such as `initial_amount`, `constant`, etc. are optional values that may
-or may not be set. In the standard libSBML binding, users need to use a variety
-of `isBoundaryConditionSet()`, `unsetBoundaryCondition()`, etc... methods that
-are a direct python binding to the native C++ API. As a convience to our
-users, our methods simply return a Python `None` if the field is not set,
-otherwise returns the value, i.e. to get an initial amount::
+By default, Mechanica creates :class:`Species` instances that are
+*floating* species, or species with a concentration that varies in time, and
+that participate in reaction and flux processes. However, Mechanica also
+supports other kinds of species such as *boundary* species, as well as additional
+information about the species like its initial values.
 
-  >>> print(a.initial_amount)
-  None
-  >>> a.initial_amount = 5.0
+The Mechanica :any:`Species` class is *essentially* a wrap around the
+libSBML Species class, but provides some conveniences in generated languages.
+For example, in Python Mechanica uses convential Python `snake_case` sytax,
+and all SBML Species properties are avialable via simple properties on a
+Mechanica :class:`Species` object. Many SBML concepts such as `initial_amount`,
+`constant`, etc. are optional features in Mechanica that may or may not be set.
+For example, to set an initial amount on a :class:`Species` instance ``s``, ::
 
-This internally updates the libSBML `Species` object that we use. As such, if
-the user wants to save this sbml, all of these values are set accordingly. 
+    s.initial_amount = 5.0
 
-The simplest species object simply takes the name of the species as the only
-argument::
+Such operations internally update the libSBML Species instance contained within
+the Mechanica :class:`Species` instance, and Mechanica will use the information
+accordingly.
 
-  >>> s = Species("S1")
+In the simplest case, a Mechanica :class:`Species` instance can be created by
+constructing with only the name of the species. ::
 
-We can make a `boundary` species, that is, one that acts like a boundary
-condition with a "$" in the argument as::
+    s = mx.Species("S1")
 
-  >>> bs = Species("$S1")
-  >>> print(bs.id)
-  'S1'
-  >>> print(bs.boundary)
-  True
+A species can be made a ``boundary`` species (*i.e.*, one that acts like a boundary
+condition) by adding ``"$"`` in the argument. ::
 
-The Species constructor also supports initial values, we specify these by adding
-a "= value" right hand side expression to the species string::
+    bs = mx.Species("$S2")
+    print(bs.id)        # prints 'S2'
+    print(bs.boundary)  # prints True
 
-  >>> ia = Species("S1 = 1.2345")
-  >>> print(ia.id)
-  'S1'
-  >>> print(ia.initial_amount)
-  1.2345
+The :class:`Species` constructor also supports specifying initial values,
+which can be made using an equality statement. ::
 
+    ia = mx.Species("S3 = 1.2345")
+    print(ia.id)              # prints 'S3'
+    print(ia.initial_amount)  # prints 1.2345
 
+When constructing a :class:`SpeciesList` with :class:`Species` instances, an empty
+:class:`SpeciesList` instance is first created, to which :class:`Species` instances
+are appended using the :class:`SpeciesList` method :meth:`insert`. ::
+
+    s_list = mx.SpeciesList()
+    s_list.insert(s)
+    s_list.insert(ia)
+    print(s_list)  # prints SpeciesList(['S1', 'S3'])
+
+Each species in a :class:`SpeciesList` instance can be accessed using the
+:class:`SpeciesList` method :meth:`item`. ::
+
+    print(s_list.item("S1").id)  # prints 'S1'
 
 .. _flux-label:
 
+Spatial Transport
+^^^^^^^^^^^^^^^^^^
 
-Spatial Transport and Flux
---------------------------
-
-Recall that the bulk or solvent particles don't represent a single molecule,
-but rather a parcel of fluid. As such, dissolved chemical solutes (cargo) in each
-parcel of fluid have natural tendency to *diffuse* to nearby locations.
-
+Recall that the DPD-like particles in Mechanica (and in general) represent a
+parcel of fluid. Mechanica tDPD modeling provides a natural way of modeling
+*advection* by the mere motion of particles carrying species. Furthermore,
+Mechanica also provides the ability to model the tendency of dissolved
+chemical solutes in each parcel of fluid to *diffuse* to nearby locations,
+which results in mixing or mass transport without directed
+bulk motion of the solvent. Modeling *convection* in Mechanica is then the
+combination of transporting species along with tDPD particles (*i.e.*,
+advection) and between tDPD particles (*i.e.*, diffusion).
 
 .. figure:: diffusion.png
     :width: 400px
@@ -191,111 +150,100 @@ parcel of fluid have natural tendency to *diffuse* to nearby locations.
 
     Dissolved solutes have a natural tendency to diffuse to nearby locations. 
 
-This micro-scale diffusion of solutes results in mixing or mass transport
-without directed bulk motion of the solvent. We refer to the bulk motion, or
-bulk flow of the solvent as *advection*, and use *convection* to describe the
-combination of both transport phenomena. Diffusion processes are typically
-either *normal* or *anomalous*. Normal (Fickian) diffusion obeys Fick's laws,
-and anomalous (non-Fickian) does not.
-
-We introduce the concept of *flux* to describe this transport of material
-(chemical solutes) between particles. Fluxes are similar
-similar to conventional pair-wise forces between particles, in that a flux is
-between all particles that match a specific type and are within a certain
-distance from each other. The only differences between a flux and a force, is
-that a flux is between the chemical cargo on particles, and modifies
-(transports) chemical cargo between particles, whereas a force modifies the net
-force acting on each particle.
-
-We attach a flux between chemical cargo as::
-
-  class A(m.Particle)
-     species = ['S1', 'S2', 'S3']
-
-  class B(m.Particle)
-     species = ['S1, 'Foo', 'Bar']
-
-  q = m.fluxes.fickian(k = 0.5)
-
-  m.Universe.bind(q, A.S1, B.S)
-  m.Universe.bind(q, A.S2, B.Bar)
-
-This creates a Fickian diffusive flux object ``q``, and binds it between species
-on two different particle types. Thus, whenever any pair of particles instances
-belonging to these types are near each other, the runtime will apply a Fickian
-diffusive flux between the species attached to these two particle instances.
-
-
-
-Passive Flux: Diffusion
------------------------
-
-We implement a diffusion process of chemical species located at object instances
-using the basic passive (Fickian) flux type, with the :py:func:`flux`. This flux
-implements a passive  transport between a species located on a pair of nearby objects of type a
-and b. A Fick flux of the species :math:`S` attached to object types
-:math:`A` and :math:`B` implements the reaction:
+A *flux* describes the transport of species between particles. Fluxes are
+similar to pair-wise forces between particles, in that a flux transports
+a particular species between nearby particles of particular particle types.
+A flux that implements a Fickian diffusion process of chemical species located
+at particles can be created with the static method :meth:`flux` on a top-level
+class :class:`Fluxes` (:class:`MxFluexes` in C++). Mechanica implements a
+diffusion process of chemical species located at particles using the basic
+passive (Fickian) flux type, with the :py:func:`flux`. Fickian flux implements
+a diffusive transport of species concentration :math:`S` located on a pair
+of nearby objects :math:`a` and :math:`b` with the analogous reaction:
 
 .. math::
 
-   \begin{eqnarray}
-   a.S & \leftrightarrow a.S \; &; \; k \left(1 - \frac{r}{r_{cutoff}} \right)\left(a.S - b.S\right)     \\
-   a.S & \rightarrow 0   \; &; \; \frac{d}{2} a.S \\
-   b.S & \rightarrow 0   \; &; \; \frac{d}{2} b.S,
-   \end{eqnarray}
+    \begin{align*}
+    a.S \leftrightarrow b.S &; k \left(1 - \frac{r}{r_{cutoff}} \right)\left(a.S - b.S\right)     \\
+    a.S \rightarrow 0   &; \frac{d}{2} a.S \\
+    b.S \rightarrow 0   &; \frac{d}{2} b.S,
+    \end{align*}
 
-:math:`B` respectivly. :math:`S` is a chemical species located at each
-object instances. :math:`k` is the flux constant, :math:`r` is the
+Here :math:`a.S` is a chemical species located at object :math:`a`, and likewise
+for :math:`b`, :math:`k` is the flux constant, :math:`r` is the
 distance between the two objects, :math:`r_{cutoff}` is the global cutoff
 distance, and :math:`d` is the optional decay term.
 
+Fickian diffusion can be implemented on the basis of species and pair of particle
+types. ::
 
-Active Fluxes: Production and Consumption
------------------------------------------
+    class AType(mx.ParticleType)
+        species = ['S1']
 
-For active pumping, to implement such processes like membrane ion pumps, or
-other forms of active transport, we provide the :func:`produce_flux` and
-:func:`consume_flux` objects. 
+    class BType(mx.ParticleType)
+        species = ['S1', 'S2']
 
+    A = AType.get(); B = BType.get()
 
-The produce flux implements the reaction:
+    mx.Fluxes.flux(A, A, 'S1', 5.0)
+
+Likewise, decay can also be assigned as an optional fourth argument. ::
+
+    mx.Fluxes.flux(B, B, 'S2', 7.5, 0.005)
+
+Production and Consumption
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Mechanica supports modeling active pumping for applications like membrane
+ion pumps, or other forms of active transport with the methods :func:`secrete`
+and :func:`uptake`, which are also defined on :class:`Fluxes`.
+
+The :func:`secrete` flux implements the reaction:
 
 .. math::
 
-   \begin{eqnarray}
-   a.S & \rightarrow b.S \; &; \;  k \left(r - \frac{r}{r_{cutoff}} \right)\left(a.S - a.S_{target} \right) \\
-   a.S & \rightarrow 0   \; &; \;  \frac{d}{2} a.S \\
-   b.S & \rightarrow 0   \; &; \;  \frac{d}{2} b.S
-   \end{eqnarray}
+   \begin{align*}
+   a.S \rightarrow b.S &;  k \left(1 - \frac{r}{r_{cutoff}} \right)\left(a.S - a.S_{target} \right) \\
+   a.S \rightarrow 0   &;  \frac{d}{2} a.S \\
+   b.S \rightarrow 0   &;  \frac{d}{2} b.S
+   \end{align*}
 
-
-
-The consumer flux implements the reaction:
+The :func:`uptake` flux implements the reaction:
 
 .. math::
 
-   \begin{eqnarray}
-   a.S & \rightarrow b.S \; &; \; k \left(1 - \frac{r}{r_{cutoff}}\right)\left(b.S - b.S_{target} \right)\left(a.S\right) \\
-   a.S & \rightarrow 0   \; &; \; \frac{d}{2} a.S \\
-   b.S & \rightarrow 0   \; &; \; \frac{d}{2} b.S
-   \end{eqnarray}
+   \begin{align*}
+   a.S \rightarrow b.S &; k \left(1 - \frac{r}{r_{cutoff}}\right)\left(b.S - b.S_{target} \right)\left(a.S\right) \\
+   a.S \rightarrow 0   &; \frac{d}{2} a.S \\
+   b.S \rightarrow 0   &; \frac{d}{2} b.S
+   \end{align*}
 
+Here :math:`S_{target}` is a target concentration, and all other symbols are
+as previously defined. Note that changes in sign due to the difference of the
+present and target concentrations are permissible. Both methods require the
+same arguments as :meth:`flux` and a fourth argument defining the target
+concentration. ::
 
+    mx.Fluxes.secrete(A, B, 'S1', 10.0, 1.0)
 
-Here, the :math:`\left(1 - \frac{b.S}{b.S_{target}} \right)` influences the
-forward rate, where :math:`[b.S]` is the concentration of the substance S, and
-:math:`b.S_{target}` is the target concentration. The flux will continue forward
-so long as there is both concentration of the reactant, :math:`a.S`, and
-the product :math:`b.S` remains below its target value. Notice that if the
-present concentation of :math:`b.S` is *above* its target, the reaction will
-proceed in the reverse direction. Thus, the :func:`pumping_flux` can be used to
-implement both secretion and uptake reactions. 
+An optional decay term can also be included for both methods as a fifth argument. ::
 
+    mx.Fluxes.uptake(B, A, 'S1', 10.0, 1.0, 0.001)
 
+Species can also be secreted directly from a particle to its surroundings.
+A species attached to a particle has a method :meth:`secrete` that takes the argument
+of an amount to be released over the current time step. ::
 
+    a = A()
+    a.species.S1.secrete(10.0)
 
+The neighborhood to which a species is secreted can be explicitly defined by distance
+from a particle using the keyword argument ``distance``. ::
 
+    b = B()
+    b.species.S1.secrete(5.0, distance=1.0)
 
+The neighborhood can also be defined in terms of particles by passing a
+:class:`ParticleList` instance to the keyword argument ``to``. ::
 
-
-
+    b.species.S1.secrete(5.0, to=b.neighbors())

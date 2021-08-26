@@ -1,133 +1,8 @@
-Mechanica
-=========
-Mechanica is an interactive, particle-based physics, chemistry and biology
-modeling and simulation environment. Mechanica provides the ability to create, 
-simulate and explore models, simulations and virtual experiments of soft condensed 
-matter physics at mulitple scales using a simple, intuitive interface. Mechanica 
-is designed with an emphasis on problems in complex subcellular, cellular and tissue 
-biophysics. Mechanica enables interactive work with simulations, where models and 
-simulations can be built and interacted with in real-time during execution of a 
-simulation. Mechanica is part of the 
-[Tellurium](<http://tellurium.analogmachine.org>) project. 
-
-Mechanica is a native compiled C++ shared library that's designed to be used for model 
-and simulation specification in compiled C++ code. Mechanica includes an extensive 
-Python API that's designed to be used for model and simulation specification in 
-executable Python scripts, an IPython console and a Jupyter Notebook. 
-
-# Installation #
-
-## From Source ##
-
-Supported installation from source uses Miniconda for installing most dependencies. 
-In addition to requiring [Miniconda](https://docs.conda.io/en/latest/miniconda.html), 
-installation from source on Windows requires 
-[Visual Studio 2019 Build Tools](https://visualstudio.microsoft.com/downloads/), 
-and on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`. 
-
-To execute the standard installation, clone this repository, open a terminal 
-in the directory containing the `mechanica` root directory and perform the following. 
-
-On Windows 
-```bash
-call mechanica/package/local/mx_install
-```
-On Linux
-```bash
-bash mechanica/package/local/mx_install.sh
-```
- 
-The standard installation will create the directories `mechanica_build` and 
-`mechanica_install` next to the `mechanica` root directory, the former containing 
-the build files, and the latter containing the installed binaries and conda environment. 
-The source and build directories can be safely deleted after installation. 
-The conda environment will be installed in the subdirectory `mx_env`. 
-To activate the conda environment with the Mechanica Python module, perform the following. 
-
-On Windows
-```bash
-call mechanica_install/etc/mx_vars
-conda activate %MXENV%
-```
-On Linux
-```bash
-source mechanica_install/etc/mx_vars.sh
-conda activate $MXENV
-```
-
-Launching the provided examples are then as simple as the following
-
-```bash
-python mechanica/examples/cell_sorting.py
-```
-
-Likewise Mechanica can be imported in Python scripts and interactive consoles
-
-```python
-import mechanica as mx
-```
-
-### Customizing the Build ###
-
-Certain aspects of the installation can be readily customized. 
-The source directory `mechanica/package/local` contains subdirectories `linux` and 
-`win` containing scripts `mx_install_vars.sh` and `mx_install_vars.bat` for Linux and 
-Windows, respectively, which declare default installation environment variables. 
-These environment variables can be customized to specify where to find, build and install 
-Mechanica, as well as the build configuration. 
-For example, to install Mechanica from a source directory `MYMXSRC`, build Mechanica 
-at path `MYMXBUILD` in debug mode and install into directory `MYMXINSTALL`, perform the following. 
-
-On Windows
-```bash
-call %MYMXSRC%/package/local/win/mx_install_vars
-set MXBUILD_CONFIG=Debug
-set MXSRCDIR=%MYMXSRC%
-set MXBUILDDIR=%MYMXBUILD%
-set MXINSTALLDIR=%MYMXINSTALL%
-call %MXSRCDIR%/package/local/win/mx_install_env
-conda activate %MXENV%
-call %MXSRCDIR%/package/local/win/mx_install_all
-```
-On Linux
-```bash
-source $MYMXSRC/package/local/linux/mx_install_vars.sh
-export MXBUILD_CONFIG=Debug
-export MXSRCDIR=$MYMXSRC
-export MXBUILDDIR=$MYMXBUILD
-export MXINSTALLDIR=$MYMXINSTALL
-bash ${MXSRCDIR}/package/local/linux/mx_install_env.sh
-conda activate $MXENV
-bash ${MXSRCDIR}/package/local/linux/mx_install_all.sh
-```
-
-The default Python version of the installation is 3.7, though Mechanica has also been tested 
-on Windows and Linux for Python versions 3.8 and 3.9. 
-To specify a different version of Python, simply add a call to 
-[update the conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-python.html#updating-or-upgrading-python) 
-in the previous commands before calling `mx_install_all`. 
-
-### Enabling Interactive Mechanica ###
-
-Mechanica supports interactive modeling and simulation specification in an 
-IPython console and Jupyter Notebook. To enable interactive Mechanica in an 
-IPython console, activate the installed environment as previously described and 
-install the `ipython` package from the conda-forge channel, 
-
-```bash
-conda install -c conda-forge ipython
-```
-
-To enable interactive Mechanica in a Jupyter Notebook, activate the installed 
-environment as previously described and install the `notebook`, `ipywidgets` and 
-`ipyevents` packages from the conda-forge channel, 
-
-```bash
-conda install -c conda-forge notebook ipywidgets ipyevents
-```
+.. _history:
 
 History
-=======
+========
+
 Version Alpha 1.0.30.3
 ----------------------
 * fixed bugs in performance timers
@@ -148,48 +23,48 @@ Version Alpha 1.0.29.0
 
 Version Alpha 1.0.28.0
 ----------------------
-* switch to Python 3.9 on Mac. 
+* switch to Python 3.9 on Mac.
 * disable jpeg on ARM
 
 Version Alpha 1.0.27.0
 ----------------------
 * Added massivly experimental support for ARM on M1 processor. Note, we have no
-  way of testing this. 
+  way of testing this.
 
 Version Alpha 1.0.26.0
 ----------------------
-* Clipping Planes! users can specify arbitrary clipping planes with nice Python API. 
-* Forked Magnum Phong shader, we now have complete control over the shader. 
+* Clipping Planes! users can specify arbitrary clipping planes with nice Python API.
+* Forked Magnum Phong shader, we now have complete control over the shader.
 
 Version Alpha 1.0.25.2
 ----------------------
 * functions to detect if we are running in interactive terminal or
   jupyter notebook
 * stubbed out new jupyter widget file.
-* call jupyter widget init / run if we are running in jupyter notebook server. 
+* call jupyter widget init / run if we are running in jupyter notebook server.
 
 Version Alpha 1.0.24.1
 ----------------------
 * new coupling parameter between single body forces and chemical species on
-  objects. 
+  objects.
 
 Version Alpha 1.0.23.1
 ----------------------
 * bug fix in DPD potential between fluid and large objects
 * new scaled DPD potential that enables fluid interaction between objects of
-  varying size. 
+  varying size.
 
 Version Alpha 1.0.22.1
 ----------------------
 * lots of new bonds method, can iterate network connected by bonds
 * fix in bind, to make bond to instances
 * fix in parsing boundary conditions
-* new 'reset' boundary condition for species attached to objects. 
+* new 'reset' boundary condition for species attached to objects.
 
 Version Alpha 1.0.21.1
 ----------------------
 * major bug fix in moving particles to different cells if cell has both periodic
-  and bounce-back boundary conditions. 
+  and bounce-back boundary conditions.
 * additional particle verify functions
 * bug fix in virial calculation with DPD potentials
 
@@ -201,7 +76,6 @@ Version Alpha 1.0.20.1
 * doc updates
 * force calculation bug fixes
 
-
 Version Alpha 1.0.19.1
 ----------------------
 * new Morse potential
@@ -210,12 +84,11 @@ Version Alpha 1.0.19.1
 * species syntax parsing fixes, read boundary and init condition correctly
 * lots of new view camera rotation functions in python api.
 
-
 Version Alpha 1.0.18.1
 ----------------------
 * generalized passive, consumer and producer fluxes
 * better OpenGL info reporting, `gl_info()`, `egl_info()`
-* enable boundary conditions on chemical species, bug fix parsing init
+* enable boundary conditions on chemical speices, bug fix parsing init
   conditions
 * use species boundary value to enable source / sinks
 * source / sinks in example
@@ -226,7 +99,7 @@ Version Alpha 1.0.17.1
 
 Version Alpha 1.0.16.2
 ----------------------
-* Logging, standardized all logging output, python api for setting log level. 
+* Logging, standardized all logging output, python api for setting log level.
 * fix kinetic energy reporting
 * synchronize gl contexts between GLFW and Magnum for multi-thread rendering
 
@@ -236,11 +109,11 @@ Version Alpha 1.0.16.2
 
 Version Alpha 1.0.16.1
 ----------------------
-* finally, completely expunged pybind11! pybind11 is finally GONE!
-* context management methods for multi-threaded headless rendering. 
+* finally, completly expunged pybind11! pybind11 is finally GONE!
+* context managment methods for multi-threaded headless rendering.
 * universe.reset() method, clears objects
 * set window title to script name
-* add 'positions()', 'velocities()' and 'forces()' methods to particle list. 
+* add 'positions()', 'velocities()' and 'forces()' methods to particle list.
 * universe.particles() is now a method, and returns a proper list
 
 Version Alpha 1.0.15.5
@@ -275,17 +148,17 @@ Version Alpha 1.0.15.4
 * lattice initializer
 * add bonds to lattice initliazer
 * performance logging
-* updates to dissipative particle dynamics forces
-* enable adding DPD force to boundaries. 
-* generalized single body force (external force)
+* updates to dissapative particle dynamics forces
+* enable adding DPD force to boundaries.
+* generlized single body force (external force)
 * fluid dynamics examples
 * visco-elastic materials, with bond breaking
 * single-body time-dependent force definitions in python
 
 Version Alpha 1.0.15.2
 ----------------------
-* initial dissipative particle dynamics
-* doc constant force, DPD
+* initial dissapative particle dynamics
+* doc constant force, dpd
 
 Version Alpha 1.0.15.1
 ----------------------
@@ -293,10 +166,10 @@ Version Alpha 1.0.15.1
 
 Version Alpha 0.0.14.1
 ----------------------
-* added convenience methods to get spherical and Cartesian coords from lists
+* added convenience methods to get spherical and cartesian coords from lists
 * updated example models
 * update docs
-* added plot function in examples to plot polar angle velocity. 
+* added plot function in examples to plot polar angle velocity.
 * code cleanup
 
 Version Alpha 0.0.14
@@ -343,27 +216,28 @@ Version Alpha 0.0.12
 Version Alpha 0.0.11
 --------------------
 * new linear potential
-* triangulated surface mesh generation for spheres, triangulate sphere
-  surfaces with particles and bonds, returns the set. 
+* triagulated surface mesh generation for spheres, triangulate sphere
+  surfaces with particles and bonds, returns the set.
 * banded spherical mesh generation
 * bug fixes in making particle list from python list
 * points works with spherical geometry
 * internal refactoring and updates
-* Dynamic Bonds! can dynamically create and destroy bonds
+* Dynamic Bonds! can dynamically create and destory bonds
 * lots of changes to deal with variable bond numbers
-* rendering updates for dynamic bonds
-* particle init re-factor
+* rendering updates for dyanmic bonds
+* particle init refactor
 * added metrics (pressure, center of mass, etc...) to particle lists
 * add properties and methods to Python bond API
 * bond energy calcs avail in python
 * bond_str and repr
 * automatically delete delete bond if particle is deleted
 
+
 Version Alpha 0.0.10-dev1
 -------------------------
 * bug fixes in bond pairwise search
 * improved particle `__repr__`, `__str__`
-* new `style` visible attribute to style to toggle visibility on any 
+* new `style` visible attribute to style to toggle visibility on any
   rendered object
 * make show() work in command line mode
 * internal changes for more consistent use of handles vs direct pointers
@@ -388,7 +262,7 @@ Version Alpha 0.0.10-dev1
 * add `start`, `stop`, `show`, etc. methods to top-level as convenience.
 * fix ipython interaction with `show`, default is universe not running when showing
 * enable single stepping and visualization with ipython
-* enable start and stop with keyboard space bar. 
+* enable start and stop with keyboard space bar.
 * pressure tensor calculations, add to different objects.
 * new `Universe.center` property
 * better error handling in `Universe.bind`
@@ -428,8 +302,8 @@ Version Alpha 0.0.9
 
 Version Alpha 0.0.8
 -------------------
-* explicit Bond and Angle objects 
-* new example apps 
+* explicit Bond and Angle objects
+* new example apps
 * new square well potential to model constrained particles
 * bug fixes in potential
 * thread count in Simulator init
@@ -437,11 +311,11 @@ Version Alpha 0.0.8
 
 Version Alpha 0.0.7
 -------------------
-* lots of changes related to running in Spyder. 
+* lots of changes related to running in Spyder.
 * force windows of background process to forground
 * detect if running in IPython connsole -- use different message loop
-* fix re-entrancy bugs in ipython message loop. 
-* Spyder on Windows tested. 
+* fix re-entrancy bugs in ipython message loop.
+* Spyder on Windows tested.
 
 Version Alpha 0.0.6
 -------------------
@@ -452,25 +326,25 @@ Version Alpha 0.0.5 Dev 1
 -------------------------
 
 * Add documentation to event handlers, and example programs
-* fix bugs in creating event events 
-* add version info to build system and make available as API. 
+* fix bugs in creating event events
+* add version info to build system and make available as API.
 
 
 Version Alpha 0.0.4 Dev 1
 -------------------------
 * All new particle rendering based on instanced meshes. Rendering quality is
   dramatically improved. Now in a position to do all sorts of discrete elements
-  like ellipsoids, bonds, rigid particles, etc... 
+  like ellipsoids, bonds, rigid particles, etc...
 * Implement NOMStyle objects. This is essentially the CSS model, but for 3D
   applications. Each object has a 'style' property that's a collection of all
   sorts of style attributes. The renderer looks at the current object, and chain
-  of parent objects to find style attributes. Basically the CSS approach. 
-* More demo applications. 
-* Memory bugs resolved. 
+  of parent objects to find style attributes. Basically the CSS approach.
+* More demo applications.
+* Memory bugs resolved.
 
 Version Alpha 0.0.3 Dev 1
 -------------------------
-* Windows Build! 
+* Windows Build!
 * lots of portability updates
 * some memleak fixes
 
@@ -480,10 +354,10 @@ Version Alpha 0.0.2 Dev 5
 * lots of new documentation
 * reorganize utility stuff to utily file
 * add performance timing info to particle engine
-* add examples (multi-size particles, random force, epiboly, 
+* add examples (multi-size particles, random force, epiboly,
   events with creation, destruction, mitosis, ...)
 * new dynamics options, include both Newtonian (Velocity-Verlet) and
-  over-damped. 
+  over-damped.
 * new defaults to set space cell size, better threading
 * New explicit bond object
 * add creation time / age to particle
@@ -504,7 +378,7 @@ Version Alpha 0.0.2 Dev 5
 * configurable dynamics (Newtonian, Over-damped), more to come
   particle delete functionality, and fix particle events
 * examples bind events to destroy, creation and mitosis methods
-* new event model 
+* new event model
 
 Version Alpha 0.0.1 Dev 3
 -------------------------
@@ -515,7 +389,7 @@ Version Alpha 0.0.1 Dev 3
 * Berendsen thermostat as first example single body generalized forces
 * Per-type thermostat
 * Arc-ball user interaction
-* Simplify and eliminate redundancy between C++ and Python apps. 
+* Simplify and eliminate redundancy between C++ and Python apps.
 
 
 Version Alpha 0.0.1 Dev 2

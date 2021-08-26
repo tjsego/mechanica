@@ -1,86 +1,39 @@
-.. _cleavage-label:
-
-
-
-Splitting and Cleavage
-======================
-
-
-With the Cluster concept previously introduced, we can do two very interesting
-things with them: *Splitting* and *Cleavage*. We define a split, we start with a
-cluster, and split it into two clusters, the original cluster, and a new
-*daughter* cluster, and we proportion the contents of the original cluster
-between itself, and the new dauger cluster. Cleavage on the other hand occurs
-in-place in a cluster, and divides the contents of the cluster, and creates new
-clusters contained within the orignal one.
-
-The split operation is typically used to apply a cell division process, where
-single cell splits into itself, and a new daughter. The cleavalge operation
-models the early embryo cleavage processes. 
+.. _cleavage:
 
 Splitting
----------
+----------
 
-The :meth:`Cluster.split` method splits a given cluster into itself, and a new
-daughter cluster. Split accepts optional `normal` and `point` arguments to define a
-cleavage plane. If only a normal vector is given, and no point, the  `split`
-uses the center of mass of the cluster as the point. For example, to split a
-cluster along the `x` axis, we can::
+Mechanica supports modeling processes associated with a
+:ref:`particle <creating_particles_and_types>` dividing into two particles,
+called *splitting*. In the simplest case, a particle can spawn a new
+particle in a mass- and volume-preserving split operation under the
+assumption that the spawned (child) and spawning (parent) particles are
+identical. During particle splitting, the parent and child particles are randomly
+placed exactly in contact at the initial position of the parent particle, and
+both have the same velocity as the parent before the split. The split operation on
+a particle occurs when calling the :class:`Particle` method :meth:`split`,
+which returns the child particle. ::
 
-  c = MyCell(...)
-  d = c.split(normal=[1., 0., 0.])
+    import mechanica as mx
+    class SplittingType(mx.ParticleType):
+        pass
 
-where `d` is the new daughter cell. This form uses the center of mass of the
-cluster as the cleavage plane point. We can also specify the full normal/point
-form as::
+    splitting_type = SplittingType.get()
+    parent_particle = splitting_type()
+    child_particle = parent_particle.split()
 
-  d = c.split(normal=[x, y, z], point=[px, py, pz])
+Splitting Clusters
+^^^^^^^^^^^^^^^^^^^
 
-If no named arguments are given, split interprets the first argument as a
-cleavage plane normal::
-
-  c.split([x, y, z])
-
-We frequently want to split a cell along an *axis*, i.e. generate a cleavage
-plane coincident with an axis. In this case, we use the optional `axis`
-argument. Here, the split will generate a cleavage plane that contains the given
-axis::
-
-  c.split(axis=[x, y, z])
-
-The default version of split uses a random cleavage plane that intersects the
-cell center::
-
-  d = c.split()
-
-Split can also randomly pick half the particles in a cluster, and assign them to
-a new cluster with the `random` agument as in::
-
-  c.split(random=True)
-
-
-Cleavage
---------
-
-
-The :meth:`Cluster.cleave` method is the single entry point for all cleavage
-operations, and it supports a lot of different options.
-
-Cleavage is built on the concept of embryo cleavage. Embryology introduced some
-rather interesting terminolgy that we adopt here. First off, embryologists have a
-concept called an *animal* and *vegatble* poles. We represent these concepts
-using the built-in base `Particle.orientation` vector, and here we use this
-vector to represent a direction from the vegatable pole to the animal pole. All
-of the forms of the `Cluster.cleave` method will use the cluster's `orientation`
-vector in this way. So, setting a cluster's `orientation` vector, if the object
-is used to represent an embryo sets the direction of the pole. All of the
-contined cells can then refer to this property to get their orientation, i.e.::
-
-  embryo = MyEmbryo(orientation=[1.0, 0.0, 0.0], ...)
-
-creates an new embryo with it's pole aligned along the positive `x` axis.
-
-The `Cluster.cleave` method is designed to perform the kinds of operations in: 
+:ref:`Clusters <clusters-label>` introduce details of morphology and
+constituent particles to the process of splitting. Mechanica provides support
+for specifying a number of details concerning how, where and when a cluster
+divides. The split operation on a cluster also occurs when calling :meth:`split`,
+though the corresponding cluster method supports a variable number of arguments
+that define the details of the split. In general, cluster splitting occurs
+according to a *cleavage plane* that intersects the cluster, where the
+constituent particles of the parent cluster before the split are allocated to
+the parent and child clusters on either side of the intersecting plane.
 
 .. figure:: radial_cleavage_1.jpg
     :width: 600px
@@ -88,54 +41,37 @@ The `Cluster.cleave` method is designed to perform the kinds of operations in:
     :alt: alternate text
     :figclass: align-center
 
+In the simplest case, a cluster can be divided by randomly selecting a cleavage
+plane at the center of mass of the cluster. Such a case is implemented by
+calling :meth:`split` without arguments, as with a particle, ::
 
-Radial Cleavage
-^^^^^^^^^^^^^^^
+    class MyClusterType(mx.ClusterType):
+        types = [splitting_type]
 
-We perform a radial cleavage using the `kind=RADIAL` argument, and a number that
-specifies what level of cleavage to perform. As in the above figure, level 1
-splits a single cluster into two, along the orientation axis, level 2 splits it
-into 4 new clusters, orientated along the orietation axis, level 3 splits it
-into 8 new clusters, usign a cleavage plane as in
+    my_cluster_type = MyClusterType.get()
+    my_cluster = my_cluster_type()
+    my_cluster_d1 = my_cluster.split()
 
-.. figure:: radial_cleavage_2.jpg
-    :width: 600px
-    :align: center
-    :alt: alternate text
-    :figclass: align-center
+:meth:`split` accepts optional keyword arguments ``normal`` and ``point`` to
+define a cleavage plane. If only a normal vector is given, :meth:`split` uses
+the center of mass of the cluster as the point. For example, to split a
+cluster along the `x` axis, ::
 
+    my_cluster_d2 = my_cluster.split(normal=[1., 0., 0.])
 
-For example, if we create an embryo, and call::
+or to specify the full normal/point form, ::
 
-  embryo = MyEmbryo(orientation=[1.0, 0.0, 0.0], ...)
-  embryo.cleave(kind=RADIAL, level=3, cell_type=MyEmbryo.Basic)
+    my_cluster_d3 = my_cluster.split(normal=[x, y, z], point=[px, py, pz])
 
-this creates eight new clsuters inside the parent embryo cluster, and assigns
-all of them the `MyEmbryo.Basic` type. Or optionallly, we may use any Cluster
-derived type. If the `cell_type` option is left blank, the new cluster default
-to the top level `Cluster` type.
+:meth:`split` also supports splitting a cluster along an *axis* at the center of
+mass of the cluster, where a random cleavage plane is generated that contains the
+axis. This case can be implemented by using the optional keyword argument
+``axis``. ::
 
-Subsequent Radial Cleavage
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-We don't have to perform the cleavage in a single step, rather we can call::
+    my_cluster_d4 = my_cluster.split(axis=[x, y, z])
 
-  embryo.cleave(kind=RADIAL, cell_type=MyEmbryo.Basic)
+:meth:`split` can also split the cluster by randomly selecting half of the
+particles in a cluster and assigning them to a child cluster by using the
+``random`` argument, ::
 
-without specifing a level, in this case, 'cleave` looks at the current number of
-contained clusters, and perfoerms the next pre-defined cleavage operations. For
-example, if the embryo only contained a single cell, then it pefrorms the first
-cleavage operation. If there are two cells, it splits them along the orientation
-axis, if there are 4, then it splits them perpendicular to the orientation axis,
-as in the previous figure. 
-
-
-
-
-
-
-
-    
-
-
-
-
+    my_cluster_d5 = my_cluster.split(random=True)

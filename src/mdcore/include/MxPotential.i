@@ -45,26 +45,32 @@
 
         @property
         def min(self) -> float:
+            """Minimum distance of evaluation"""
             return self.getMin()
 
         @property
         def max(self) -> float:
+            """Maximum distance of evaluation"""
             return self.getMax()
 
         @property
         def cutoff(self) -> float:
+            """Cutoff distance"""
             return self.getCutoff()
 
         @property
         def domain(self) -> (float, float):
+            """Evaluation domain"""
             return self.getDomain()
 
         @property
         def intervals(self) -> int:
+            """Evaluation intervals"""
             return self.getIntervals()
 
         @property
         def bound(self) -> bool:
+            """Bound flag"""
             return self.getBound()
 
         @bound.setter
@@ -73,6 +79,7 @@
 
         @property
         def r0(self) -> float:
+            """Potential r0 value"""
             return self.getR0()
 
         @r0.setter
@@ -81,6 +88,7 @@
 
         @property
         def shifted(self) -> bool:
+            """Shifted flag"""
             return self.getShifted()
 
         @shifted.setter
@@ -89,6 +97,7 @@
 
         @property
         def r_square(self) -> bool:
+            """Potential r2 value"""
             return self.getRSquare()
 
         @r_square.setter
@@ -96,6 +105,7 @@
             self.setRSquare(r_square)
 
         def plot(self, s=None, force=True, potential=False, show=True, ymin=None, ymax=None, *args, **kwargs):
+            """Potential plot function"""
             import matplotlib.pyplot as plt
             import numpy as n
             import warnings

@@ -1,33 +1,91 @@
 Reactions and Species
----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
-Events are the principle way users can attach connect thier own functions, and
-built in methods event triggers. 
+.. autoclass:: Species
+
+.. autoclass:: MxSpecies
+
+    .. automethod:: __str__
+
+    .. autoproperty:: id
+
+    .. autoproperty:: name
+
+    .. autoproperty:: species_type
+
+    .. autoproperty:: compartment
+
+    .. autoproperty:: initial_amount
+
+    .. autoproperty:: initial_concentration
+
+    .. autoproperty:: substance_units
+
+    .. autoproperty:: spatial_size_units
+
+    .. autoproperty:: units
+
+    .. autoproperty:: has_only_substance_units
+
+    .. autoproperty:: boundary_condition
+
+    .. autoproperty:: charge
+
+    .. autoproperty:: constant
+
+    .. autoproperty:: conversion_factor
 
 
-.. module::  mechanica
+.. autoclass:: SpeciesValue
+
+.. autoclass:: MxSpeciesValue
+
+    .. autoproperty:: boundary_condition
+
+    .. automethod:: initial_amount
+
+    .. automethod:: initial_concentration
+
+    .. automethod:: constant
+
+    .. automethod:: secrete
 
 
-.. function:: on_time(method, period, [start], [end], [distribution]) 
+.. autoclass:: SpeciesList
 
-   Binds a function or method to a elapsed time interval.
+.. autoclass:: MxSpeciesList
 
-   on_time must be called with all keyword arguments, since there are a large
-   number of options this method accepts.
+    .. automethod:: __str__
 
-   :param method: A Python function or method that will get called. Signature
-           of the method should be ``method(time)``, in that it gets a single
-           current time argument.
+    .. automethod:: __len__
 
-   :param float period: Time interval that the event should get fired.
+    .. automethod:: __getattr__
 
-   :param float start: [optional] Start time for the event.
+    .. automethod:: __setattr__
 
-   :param float end: [optional] end time for the event.
+    .. automethod:: __getitem__
 
-   :param str distribution: [optional] String that identifies the statistical distribution for
-                        event times. Only supported distibution currently is
-                        "exponential". If there is no `distibution` argument,
-                        the event is called deterministically. 
+    .. automethod:: __setitem__
 
-   
+    .. automethod:: item
+
+    .. automethod:: insert
+
+
+.. autoclass:: StateVector
+
+.. autoclass:: MxStateVector
+
+    .. automethod:: __str__
+
+    .. automethod:: __len__
+
+    .. automethod:: __getattr__
+
+    .. automethod:: __setattr__
+
+    .. automethod:: __getitem__
+
+    .. automethod:: __setitem__
+
+    .. autoattribute:: species

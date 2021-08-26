@@ -26,7 +26,10 @@ enum ParticleListFlags {
 
 struct MxParticleHandle;
 
-/** The #potential structure. */
+/**
+ * @brief A special list with convenience methods 
+ * for working with sets of particles.
+ */
 struct CAPI_EXPORT MxParticleList {
     int32_t *parts;
     int32_t nr_parts;
@@ -38,21 +41,46 @@ struct CAPI_EXPORT MxParticleList {
     
     // inserts the given id into the list, returns the index of the item. 
     uint16_t insert(int32_t item);
+
+    /**
+     * @brief Inserts the given particle into the list, returns the index of the item. 
+     * 
+     * @param particle particle to insert
+     * @return uint16_t 
+     */
     uint16_t insert(const MxParticleHandle *particle);
     
-    // looks for the item with the given id and deletes it form the list
+    /**
+     * @brief looks for the item with the given id and deletes it form the list
+     * 
+     * @param id id to remove
+     * @return uint16_t 
+     */
     uint16_t remove(int32_t id);
     
-    // inserts the contents of another list
+    /**
+     * @brief inserts the contents of another list
+     * 
+     * @param other another list
+     */
     void extend(const MxParticleList &other);
 
-    // looks for the item at the given index and returns it if found, otherwise returns NULL
+    /**
+     * @brief looks for the item at the given index and returns it if found, otherwise returns NULL
+     * 
+     * @param i index of lookup
+     * @return MxParticleHandle* 
+     */
     MxParticleHandle *item(const int32_t &i);
 
     // packs a variable number of particle ids into a new list
     static MxParticleList *pack(size_t n, ...);
 
-    // returns an instance populated with all current particles
+    /**
+     * @brief returns an instance populated with all current particles
+     * 
+     * @return MxParticleList* 
+     */
     static MxParticleList* all();
 
     MxMatrix3f getVirial();
@@ -64,6 +92,12 @@ struct CAPI_EXPORT MxParticleList {
     std::vector<MxVector3f> getVelocities();
     std::vector<MxVector3f> getForces();
 
+    /**
+     * @brief Get the spherical coordinates of each particle
+     * 
+     * @param origin optional origin of coordinates; default is center of universe
+     * @return std::vector<MxVector3f> 
+     */
     std::vector<MxVector3f> sphericalPositions(MxVector3f *origin=NULL);
 
     MxParticleList();

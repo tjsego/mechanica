@@ -14,22 +14,34 @@
 
 #include <vector>
 
-
+/**
+ * @brief The color mapping type
+ */
 struct MxColorMapper
 {
     ColorMapperFunc map;
     int species_index;
     
+    /**
+     * @brief minimum value of map
+     */
     float min_val;
+
+    /**
+     * @brief maximum value of map
+     */
     float max_val;
 
     MxColorMapper() {}
+    
     /**
-     * Makes a new color map.
-     * the first arg, args should be a MxParticleType object.
-     *
-     * since this is a style, presently this method will not set any error
-     * conditions, but will set a warnign, and return null on failure.
+     * @brief Construct a new color map for a particle type and species
+     * 
+     * @param partType particle type
+     * @param speciesName name of species
+     * @param name name of color mapper function
+     * @param min minimum value of map
+     * @param max maximum value of map
      */
     MxColorMapper(struct MxParticleType *partType,
                   const std::string &speciesName, 
@@ -37,8 +49,12 @@ struct MxColorMapper
     ~MxColorMapper() {};
     
     /**
-     * tries to set the colormap , if the map doesn't exist,
-     * does not do anything and return false.
+     * @brief Try to set the colormap. 
+     * 
+     * If the map doesn't exist, does not do anything and returns false.
+     * 
+     * @param s name of color map
+     * @return true on success
      */
     bool set_colormap(const std::string& s);
 

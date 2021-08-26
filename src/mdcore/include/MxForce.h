@@ -29,21 +29,88 @@ struct Gaussian;
 struct Friction;
 
 /**
- * MxForce is a metatype, in that we can have lots of
+ * @brief MxForce is a metatype, in that Mechanica has lots of 
  * different instances of force functions, that have different attributes, but
- * only have one base type.
+ * only have one base type. 
+ * 
+ * Forces are one of the fundamental processes in Mechanica that cause objects to move. 
  */
 struct MxForce {
     MxForce_OneBodyPtr func;
 
     /**
-     * Describes whether this object is a constant force type.
-     * @returns true if a symbol, false otherwise.
+     * @brief Tests whether this object is a constant force type.
+     * 
+     * @return true if constant
      */
     virtual bool isConstant() { return false; }
 
+    /**
+     * @brief Creates a Berendsen thermostat. 
+     * 
+     * The thermostat uses the target temperature @f$ T_0 @f$ from the object 
+     * to which it is bound. 
+     * The Berendsen thermostat effectively re-scales the velocities of an object in 
+     * order to make the temperature of that family of objects match a specified 
+     * temperature.
+     * 
+     * The Berendsen thermostat force has the function form: 
+     * 
+     * @f[
+     * 
+     *      \frac{\mathbf{p}}{\tau_T} \left(\frac{T_0}{T} - 1 \right),
+     * 
+     * @f]
+     * 
+     * where @f$ \mathbf{p} @f$ is the momentum, 
+     * @f$ T @f$ is the measured temperature of a family of 
+     * particles, @f$ T_0 @f$ is the control temperature, and 
+     * @f$ \tau_T @f$ is the coupling constant. The coupling constant is a measure 
+     * of the time scale on which the thermostat operates, and has units of 
+     * time. Smaller values of @f$ \tau_T @f$ result in a faster acting thermostat, 
+     * and larger values result in a slower acting thermostat.
+     * 
+     * @param tau time constant that determines how rapidly the thermostat effects the system.
+     * @return Berendsen* 
+     */
     static Berendsen* berenderson_tstat(const float &tau);
+
+    /**
+     * @brief Creates a random force. 
+     * 
+     * A random force has a randomly selected orientation and magnitude. 
+     * 
+     * Orientation is selected according to a uniform distribution on the unit sphere. 
+     * 
+     * Magnitude is selected according to a prescribed mean and standard deviation. 
+     * 
+     * @param std standard deviation of magnitude
+     * @param mean mean of magnitude
+     * @param duration duration of force. Defaults to 0.01. 
+     * @return Gaussian* 
+     */
     static Gaussian* random(const float &std, const float &mean, const float &duration=0.01);
+
+    /**
+     * @brief Creates a friction force. 
+     * 
+     * A friction force has the form: 
+     * 
+     * @f[
+     * 
+     *      - \frac{|| \mathbf{v} ||}{\tau} \mathbf{v} + \mathbf{f}_{r} ,
+     * 
+     * @f]
+     * 
+     * where @f$ \mathbf{v} @f$ is the velocity of a particle, @f$ \tau @f$ is a time constant and 
+     * @f$ \mathbf{f}_r @f$ is a random force. 
+     * 
+     * @param coef time constant
+     * @param std standard deviation of random force magnitude
+     * @param mean mean of random force magnitude
+     * @param duration duration of force. Defaults to 0.1. 
+     * @return Friction* 
+     */
     static Friction* friction(const float &coef, const float &std=0.0, const float &mean=0.0, const float &duration=0.1);
 };
 
@@ -60,11 +127,12 @@ struct MxConstantForce;
 using MxUserForceFuncType = MxVector3f(*)(MxConstantForce*);
 
 /**
- * a force function defined by a user function, we update the force
- * according to update frequency.
- *
- * this object acts like a constant force, but also acts like a time event,
- * in that it periodically calls a user function to update the force.
+ * @brief A custom force function. 
+ * 
+ * The force is updated according to an update frequency.
+ * 
+ * This object acts like a constant force, but also acts like a time event,
+ * in that it periodically calls a custom function to update the applied force. 
  */
 struct MxConstantForce : MxForce {
     MxUserForceFuncType *userFunc;
@@ -114,6 +182,13 @@ struct MxConstantForcePy : MxConstantForce {
 
     MxConstantForcePy();
     MxConstantForcePy(const MxVector3f &f, const float &period=std::numeric_limits<float>::max());
+
+    /**
+     * @brief Creates an instance from an underlying custom python function
+     * 
+     * @param f python function. Takes no arguments and returns a three-component vector. 
+     * @param period period at which the force is updated. 
+     */
     MxConstantForcePy(PyObject *f, const float &period=std::numeric_limits<float>::max());
     virtual ~MxConstantForcePy();
 
@@ -127,20 +202,64 @@ private:
     PyObject *callable;
 };
 
+/**
+ * @brief Berendsen force. 
+ * 
+ * Create one with :meth:`MxForce.berenderson_tstat`. 
+ */
 struct Berendsen : MxForce {
+    /**
+     * @brief time constant
+     */
     float itau;
 };
 
+/**
+ * @brief Random force. 
+ * 
+ * Create one with :meth:`MxForce.random`. 
+ */
 struct Gaussian : MxForce {
+    /**
+     * @brief standard deviation of magnitude
+     */
     float std;
+
+    /**
+     * @brief mean of magnitude
+     */
     float mean;
+
+    /**
+     * @brief duration of force.
+     */
     unsigned durration_steps;
 };
 
+/**
+ * @brief Friction force. 
+ * 
+ * Create one with :meth:`MxForce.friction`. 
+ */
 struct Friction : MxForce {
+    /**
+     * @brief time constant
+     */
     float coef;
+
+    /**
+     * @brief standard deviation of random force magnitude
+     */
     float std;
+
+    /**
+     * @brief mean of random force magnitude
+     */
     float mean;
+
+    /**
+     * @brief duration of force, in time steps
+     */
     unsigned durration_steps;
 };
 

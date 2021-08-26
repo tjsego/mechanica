@@ -86,6 +86,9 @@ struct MxClusterParticleHandle;
  *
  * All particles are stored in a series of contiguous blocks of memory that are owned
  * by the space cells. Each space cell has a array of particle structs.
+ * 
+ * If you're building a model, you should probably instead be working with a 
+ * MxParticleHandle. 
  */
 struct MxParticle  {
     
@@ -182,8 +185,9 @@ struct MxParticle  {
     struct MxParticleHandle *_pyparticle;
 
     /**
-     * public way of getting the pyparticle. Creates and caches one if
-     * it's not there.
+     * @brief Get a handle for this particle. 
+     * 
+     * @return struct MxParticleHandle* 
      */
     struct MxParticleHandle *py_particle();
 
@@ -226,8 +230,11 @@ struct MxParticle  {
      */
     bool verify();
 
+    
     /**
-     * Limits casting to cluster by type
+     * @brief Cast to a cluster type. Limits casting to cluster by type. 
+     * 
+     * @return MxCluster* 
      */
     operator MxCluster*();
     
@@ -247,32 +254,110 @@ HRESULT MxParticle_Verify();
 
 
 /**
- * Layout of the actual Python particle object.
+ * @brief A handle to a particle. 
  *
  * The engine allocates particle memory in blocks, and particle
  * values get moved around all the time, so their addresses change.
  *
- * The partlist is always ordered  by id, i.e. partlist[id]  always
+ * The partlist is always ordered by id, i.e. partlist[id]  always
  * points to the same particle, even though that particle may move
  * from cell to cell.
+ * 
+ * This is a safe way to work with a particle. 
  */
 struct CAPI_EXPORT MxParticleHandle {
     int id;
     int typeId;
+
+    /**
+     * @brief Gets the actual particle of this handle. 
+     * 
+     * @return MxParticle* 
+     */
     MxParticle *part();
+
+    /**
+     * @brief Gets the particle type of this handle. 
+     * 
+     * @return MxParticleType* 
+     */
     MxParticleType *type();
 
     MxParticleHandle() : id(0), typeId(0) {}
     MxParticleHandle(const int &id, const int &typeId) : id(id), typeId(typeId) {}
 
     virtual MxParticleHandle* fission();
+
+    /**
+     * @brief Splits a single particle into two. Returns the new particle. 
+     * 
+     * @return MxParticleHandle* 
+     */
     virtual MxParticleHandle* split();
+
+    /**
+     * @brief Destroys the particle, and removes it from inventory. 
+     * 
+     * Subsequent references to a destroyed particle result in an error. 
+     * 
+     * @return HRESULT 
+     */
     HRESULT destroy();
+
+    /**
+     * @brief Calculates the particle's coordinates in spherical coordinates. 
+     * 
+     * By default, calculations are made with respect to the center of the universe. 
+     * 
+     * @param particle a particle to use as the origin, optional
+     * @param origin a point to use as the origin, optional
+     * @return MxVector3f 
+     */
     MxVector3f sphericalPosition(MxParticle *particle=NULL, MxVector3f *origin=NULL);
+
+    /**
+     * @brief Computes the virial tensor. Optionally pass a distance to include a neighborhood. 
+     * 
+     * @param radius A distance to define a neighborhood, optional
+     * @return MxMatrix3f 
+     */
     virtual MxMatrix3f virial(float *radius=NULL);
+
+    /**
+     * @brief Dynamically changes the *type* of an object. We can change the type of a 
+     * MxParticleType-derived object to anyther pre-existing MxParticleType-derived 
+     * type. What this means is that if we have an object of say type 
+     * *A*, we can change it to another type, say *B*, and and all of the forces 
+     * and processes that acted on objects of type A stip and the forces and 
+     * processes defined for type B now take over. 
+     * 
+     * @param type new particle type
+     * @return HRESULT 
+     */
     HRESULT become(MxParticleType *type);
+
+    /**
+     * @brief Gets a list of nearby particles. 
+     * 
+     * @param distance optional search distance; default is simulation cutoff
+     * @param types optional list of particle types to search by; default is all types
+     * @return MxParticleList* 
+     */
     MxParticleList *neighbors(const float *distance=NULL, const std::vector<MxParticleType> *types=NULL);
+
+    /**
+     * @brief Gets a list of all bonded neighbors. 
+     * 
+     * @return MxParticleList* 
+     */
     MxParticleList *getBondedNeighbors();
+
+    /**
+     * @brief Calculates the distance to another particle
+     * 
+     * @param _other another particle. 
+     * @return float 
+     */
     float distance(MxParticleHandle *_other);
     std::vector<MxBondHandle*> *getBonds();
 
@@ -313,10 +398,11 @@ struct CAPI_EXPORT MxParticleHandle {
 };
 
 /**
- * Structure containing information on each particle species.
+ * @brief Structure containing information on each particle type.
  *
- * This is only a definition for the particle *type*, not the actual
- * instance vars like pos, vel, which are stored in part.
+ * This is only a definition for a *type* of particle, and not an 
+ * actual particle with position, velocity, etc. However, particles 
+ * of this *type* can be created with one of these. 
  */
 struct CAPI_EXPORT MxParticleType {
 
@@ -336,27 +422,43 @@ struct CAPI_EXPORT MxParticleType {
      */
     uint16_t particle_flags;
 
-    /** Constant physical characteristics */
-    double mass, imass, charge;
+    /**
+     * @brief Default mass of particles
+     */
+    double mass;
+    
+    double imass;
+    
+    /**
+     * @brief Default charge of particles
+     */
+    double charge;
 
-    /** default radius for particles that don't define their own radius */
+    /**
+     * @brief Default radius of particles
+     */
     double radius;
 
     /**
-     * energy and potential energy of this type, this is updated by the engine
-     * each time step.
+     * @brief Kinetic energy of all particles of this type. 
      */
     double kinetic_energy;
 
+    /**
+     * @brief Potential energy of all particles of this type. 
+     */
     double potential_energy;
 
+    /**
+     * @brief Target energy of all particles of this type. 
+     */
     double target_energy;
 
     /**
-     * minimum radius, if a fission event occurs, it will not spit a particle
-     * such that it's radius gets less than this value.
-     *
-     * defaults to radius
+     * @brief Default minimum radius of this type. 
+     * 
+     * If a split event occurs, resulting particles will have a radius 
+     * at least as great as this value. 
      */
     double minimum_radius;
 
@@ -364,28 +466,34 @@ struct CAPI_EXPORT MxParticleType {
     double eps, rmin;
 
     /**
-     * what kind of propator does this particle type use?
+     * @brief Default dynamics of particles of this type. 
      */
     unsigned char dynamics;
 
-    /** Name of this particle type. */
-    char name[MAX_NAME], name2[MAX_NAME];
+    /**
+     * @brief Name of this particle type.
+     */
+    char name[MAX_NAME];
+    
+    char name2[MAX_NAME];
 
     /**
-     * list of particles that belong to this type.
+     * @brief list of particles that belong to this type.
      */
     MxParticleList parts;
 
     /**
-     * list of particle types that belong to this type.
+     * @brief list of particle types that belong to this type.
      */
     MxParticleTypeList types;
 
-    // style pointer, optional.
+    /**
+     * @brief style pointer, optional.
+     */
     NOMStyle *style;
 
     /**
-     * optional pointer to species list. This is the metadata for the species, define it in the type.
+     * @brief optional pointer to species list. This is the metadata for the species
      */
     struct MxSpeciesList *species = 0;
 
@@ -401,7 +509,10 @@ struct CAPI_EXPORT MxParticleType {
     HRESULT del_part(int32_t id);
 
     /**
-     * get the i'th particle that's a member of this type.
+     * @brief get the i'th particle that's a member of this type.
+     * 
+     * @param i index of particle to get
+     * @return MxParticle* 
      */
     MxParticle *particle(int i);
 
@@ -414,25 +525,54 @@ struct CAPI_EXPORT MxParticleType {
 
     bool isCluster();
 
-    // Particle constructor
+    /**
+     * @brief Particle constructor
+     * 
+     * @param position position of new particle, optional
+     * @param velocity velocity of new particle, optional
+     * @param clusterId id of parent cluster, optional
+     * @return MxParticleHandle* 
+     */
     MxParticleHandle *operator()(MxVector3f *position=NULL,
                                  MxVector3f *velocity=NULL,
                                  int *clusterId=NULL);
 
-    // Particle type constructor; new type is constructed from the definition of the calling type
+    /**
+     * @brief Particle type constructor. 
+     * 
+     * New type is constructed from the definition of the calling type. 
+     * 
+     * @param _name name of the new type
+     * @return MxParticleType* 
+     */
     MxParticleType* newType(const char *_name);
 
-    // Registers a type with the engine. 
-    // Note that this occurs automatically, unless noReg==true in constructor
+    /**
+     * @brief Registers a type with the engine.
+     * 
+     * Note that this occurs automatically, unless noReg==true in constructor.  
+     * 
+     * @return HRESULT 
+     */
     virtual HRESULT registerType();
 
-    // A callback for when a type is registered
+    /**
+     * @brief A callback for when a type is registered
+     */
     virtual void on_register() {}
 
-    // Whether this type is registered
+    /**
+     * @brief Tests whether this type is registered
+     * 
+     * @return true if registered
+     */
     bool isRegistered();
 
-    // Get the type engine instance
+    /**
+     * @brief Get the type engine instance
+     * 
+     * @return MxParticleType* 
+     */
     virtual MxParticleType *get();
 
     MxParticleType(const bool &noReg=false);
@@ -450,6 +590,11 @@ struct CAPI_EXPORT MxParticleType {
     double getTemperature();
     double getTargetTemperature();
 
+    /**
+     * @brief Get all particles of this type. 
+     * 
+     * @return MxParticleList* 
+     */
     MxParticleList *items();
 };
 

@@ -47,7 +47,12 @@ typedef enum MxAngleFlags {
 
 struct MxAngleHandle;
 
-/** The angle structure */
+/**
+ * @brief A bond concerning an angle
+ * 
+ * If you're building a model, you should probably instead be working with a 
+ * MxAngleHandle. 
+ */
 typedef struct MxAngle {
 
     uint32_t flags;
@@ -59,10 +64,25 @@ typedef struct MxAngle {
 	struct MxPotential *potential;
 
     void init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3);
+
+    /**
+     * @brief Creates an angle bond
+     * 
+     * @param potential potential of the bond
+     * @param p1 first outer particle
+     * @param p2 center particle
+     * @param p3 second outer particle
+     * @return MxAngleHandle* 
+     */
     static MxAngleHandle *create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3);
 
 } MxAngle;
 
+/**
+ * @brief A handle to an angle bond
+ * 
+ * This is a safe way to work with an angle bond. 
+ */
 struct MxAngleHandle {
     int id;
 

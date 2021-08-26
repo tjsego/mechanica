@@ -27,18 +27,38 @@ enum BoundaryConditionKind : unsigned int {
 struct MxParticleType;
 struct MxPotential;
 
+/**
+ * @brief A condition on a boundary of the universe. 
+ * 
+ */
 struct MxBoundaryCondition {
     BoundaryConditionKind kind;
 
     // id of this boundary, id's go from 0 to 6 (top, bottom, etc..)
     int id;
+
+    /**
+     * @brief the velocity on the boundary
+     */
     MxVector3f velocity;
 
-    // restoring percent
+    /** 
+     * @brief restoring percent. 
+     * 
+     * When objects hit this boundary, they get reflected back at `restore` percent, 
+     * so if restore is 0.5, and object hitting the boundary at 3 length / time 
+     * recoils with a velocity of 1.5 lengths / time. 
+     */
     float restore;
 
+    /**
+     * @brief name of the boundary
+     */
     const char* name;
     
+    /**
+     * @brief vector normal to the boundary
+     */
     MxVector3f normal;
 
     /**
@@ -66,13 +86,41 @@ struct MxBoundaryCondition {
                   const std::unordered_map<std::string, float> restores);
 };
 
+/**
+ * @brief The BoundaryConditions class serves as a container for the six 
+ * instances of the :class:`MxBoundaryCondition` object
+ * 
+ */
 struct MxBoundaryConditions {
 
+    /**
+     * @brief The top boundary
+     */
     MxBoundaryCondition top;
+
+    /**
+     * @brief The bottom boundary
+     */
     MxBoundaryCondition bottom;
+
+    /**
+     * @brief The left boundary
+     */
     MxBoundaryCondition left;
+
+    /**
+     * @brief The right boundary
+     */
     MxBoundaryCondition right;
+
+    /**
+     * @brief The front boundary
+     */
     MxBoundaryCondition front;
+
+    /**
+     * @brief The back boundary
+     */
     MxBoundaryCondition back;
 
     // pointer to big array of potentials, 6 * max types.
@@ -90,7 +138,10 @@ struct MxBoundaryConditions {
                          const std::unordered_map<std::string, float> restores);
 
     /**
-     * sets a potential for ALL boundary conditions and the given potential.
+     * @brief sets a potential for ALL boundary conditions and the given potential.
+     * 
+     * @param ptype particle type
+     * @param pot potential
      */
     void set_potential(struct MxParticleType *ptype, struct MxPotential *pot);
 

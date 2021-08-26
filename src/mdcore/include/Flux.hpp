@@ -41,20 +41,20 @@ struct MxFlux {
 struct MxParticleType;
 
 /**
- * flux is defined btween a pair of types, and acts on the
+ * @brief A flux is defined between a pair of types, and acts on the
  * state vector between a pair of instances.
  *
  * The indices of the species in each state vector
- * are most likely different, so we keep track of the
+ * are most likely different, so Mechanica tracks the
  * indices in each type, and the transport constatants.
  *
  * A flux between a pair of types, and pair of respective
- * species need:
+ * species needs:
  *
  * (1) type A, (2) type B, (3) species id in A, (4) species id in B,
  * (5) transport constant.
  *
- * aloocate Flux as a single block, member pointers point to
+ * Allocates Flux as a single block, member pointers point to
  * offsets in these blocks.
  *
  * Allocated size is:
@@ -76,16 +76,110 @@ struct CAPI_EXPORT MxFluxes
                              float k, float decay, float target);
 
     /**
-     * The mechanica flux function.
-     *
-     * args a:ParticleType, b:ParticleType, s:String, k:Float
-     *
-     * looks for a fluxes between types a and b, adds a flux for the
-     * species named 'name' with coef k.
+     * @brief Creates and binds a Fickian diffusion flux. 
+     * 
+     * Fickian diffusion flux implements the analogous reaction: 
+     * 
+     * @f[
+     *      a.S \leftrightarrow b.S ; k \left(1 - \frac{r}{r_{cutoff}} \right)\left(a.S - b.S\right) , 
+     * @f]
+     * 
+     * @f[
+     *      a.S \rightarrow 0   ; \frac{d}{2} a.S , 
+     * @f]
+     * 
+     * @f[
+     *      b.S \rightarrow 0   ; \frac{d}{2} b.S , 
+     * @f]
+     * 
+     * where @f$ a.S @f$ is a chemical species located at object @f$ a @f$, and likewise 
+     * for @f$ b @f$, @f$ k @f$ is the flux constant, @f$ r @f$ is the 
+     * distance between the two objects, @f$ r_{cutoff} @f$ is the global cutoff 
+     * distance, and @f$ d @f$ is an optional decay term.
+     * 
+     * @param A first type
+     * @param B second type
+     * @param name name of species
+     * @param k transport coefficient
+     * @param decay optional decay. Defaults to 0.0. 
+     * @return MxFluxes* 
      */
     static MxFluxes *fluxFick(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &decay=0.0f);
+
+    /**
+     * @brief Alias of fluxFick. 
+     * 
+     * @param A first type
+     * @param B second type
+     * @param name name of species
+     * @param k transport coefficient
+     * @param decay optional decay. Defaults to 0.0. 
+     * @return MxFluxes* 
+     */
     static MxFluxes *flux(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &decay=0.0f);
+
+    /**
+     * @brief Creates a secretion flux by active pumping. 
+     * 
+     * Secretion flux implements the analogous reaction: 
+     * 
+     * @f[
+     *      a.S \rightarrow b.S ; k \left(1 - \frac{r}{r_{cutoff}} \right)\left(a.S - a.S_{target} \right) ,
+     * @f]
+     * 
+     * @f[
+     *      a.S \rightarrow 0   ; \frac{d}{2} a.S ,
+     * @f]
+     * 
+     * @f[
+     *      b.S \rightarrow 0   ; \frac{d}{2} b.S ,
+     * @f]
+     * 
+     * where @f$ a.S @f$ is a chemical species located at object @f$ a @f$, and likewise 
+     * for @f$ b @f$, @f$ k @f$ is the flux constant, @f$ r @f$ is the 
+     * distance between the two objects, @f$ r_{cutoff} @f$ is the global cutoff 
+     * distance, and @f$ d @f$ is an optional decay term.
+     * 
+     * @param A first type
+     * @param B second type
+     * @param name name of species
+     * @param k transport coefficient
+     * @param target target concentration
+     * @param decay optional decay. Defaults to 0.0 
+     * @return MxFluxes* 
+     */
     static MxFluxes *secrete(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay=0.0f);
+
+    /**
+     * @brief Creates an uptake flux by active pumping. 
+     * 
+     * Uptake flux implements the analogous reaction: 
+     * 
+     * @f[
+     *      a.S \rightarrow b.S ; k \left(1 - \frac{r}{r_{cutoff}}\right)\left(b.S - b.S_{target} \right)\left(a.S\right) ,
+     * @f]
+     * 
+     * @f[
+     *      a.S \rightarrow 0   ; \frac{d}{2} a.S ,
+     * @f]
+     * 
+     * @f[
+     *      b.S \rightarrow 0   ; \frac{d}{2} b.S ,
+     * @f]
+     * 
+     * where @f$ a.S @f$ is a chemical species located at object @f$ a @f$, and likewise 
+     * for @f$ b @f$, @f$ k @f$ is the flux constant, @f$ r @f$ is the 
+     * distance between the two objects, @f$ r_{cutoff} @f$ is the global cutoff 
+     * distance, and @f$ d @f$ is an optional decay term.
+     * 
+     * @param A first type
+     * @param B second type
+     * @param name name of species
+     * @param k transport coefficient
+     * @param target target concentration
+     * @param decay optional decay. Defaults to 0.0 
+     * @return MxFluxes* 
+     */
     static MxFluxes *uptake(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay=0.0f);
 
     /**

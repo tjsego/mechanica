@@ -1,5 +1,7 @@
+.. _references:
+
 References
-**********
+===========
 
 :cite:`Osborne:2017hk`
 

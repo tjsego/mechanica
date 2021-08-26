@@ -25,6 +25,11 @@ enum MxSpeciesFlags {
     SPECIES_KONSTANT  = SPECIES_BOUNDARY | SPECIES_CONSTANT
 };
 
+/**
+ * @brief The Mechanica species object. 
+ * 
+ * Mostly, this is a wrap of libSBML Species. 
+ */
 struct MxSpecies {
     libsbml::Species *species;
     int32_t flags() const;

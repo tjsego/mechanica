@@ -1,54 +1,174 @@
+.. _getting:
+
 Getting Mechanica
-=================
+==================
+
+Installing From Source
+-----------------------
+
+Supported installation from source uses Miniconda for installing most dependencies.
+In addition to requiring `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_,
+installation from source on Windows requires
+`Visual Studio 2019 Build Tools <https://visualstudio.microsoft.com/downloads/>`_,
+and on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`.
+
+To execute the standard installation, clone the
+`Mechanica repository <https://github.com/tjsego/mechanica>`_, open a terminal
+in the directory containing the `mechanica` root directory and perform the following.
+
+On Windows
+
+.. code-block:: bat
+
+    call mechanica/package/local/mx_install
+
+On Linux
+
+.. code-block:: bash
+
+    bash mechanica/package/local/mx_install.sh
+
+The standard installation will create the directories `mechanica_build` and
+`mechanica_install` next to the `mechanica` root directory, the former containing
+the build files, and the latter containing the installed binaries and conda environment.
+The source and build directories can be safely deleted after installation.
+The conda environment will be installed in the subdirectory `mx_env`.
+To activate the conda environment with the Mechanica Python module, perform the following.
+
+On Windows
+
+.. code-block:: bat
+
+    call mechanica_install/etc/mx_vars
+    conda activate %MXENV%
+
+On Linux
+
+.. code-block:: bash
+
+    source mechanica_install/etc/mx_vars.sh
+    conda activate $MXENV
+
+Launching the provided examples are then as simple as the following
+
+.. code-block:: bash
+
+    python mechanica/examples/cell_sorting.py
+
+Likewise Mechanica can be imported in Python scripts and interactive consoles
+
+.. code-block:: python
+
+    import mechanica as mx
 
 
+Customizing the Build
+^^^^^^^^^^^^^^^^^^^^^^
 
-The easiest way to install Mechanica for most users is via PIP. We presently
-have PIP binaries for Windows and MacOS. We do have a Ubuntu 18.04 pip wheels,
-available on GitHub, but these are not on PyPi because they are not
-"manylinux" compatible. 
+Certain aspects of the installation can be readily customized.
+The source directory `mechanica/package/local` contains subdirectories `linux` and
+`win` containing scripts `mx_install_vars.sh` and `mx_install_vars.bat` for Linux and
+Windows, respectively, which declare default installation environment variables.
+These environment variables can be customized to specify where to find, build and install
+Mechanica, as well as the build configuration.
+For example, to install Mechanica from a source directory ``MYMXSRC``, build Mechanica
+at path ``MYMXBUILD`` in debug mode and install into directory ``MYMXINSTALL``, perform the
+following.
 
-Mechanica requires at least Python version 3.7.0, on Mac you can install Python
-a variety of ways, but we typicaly use Brew, `<https://brew.sh>`_.
+On Windows
+
+.. code-block:: bat
+
+    call %MYMXSRC%/package/local/win/mx_install_vars
+    set MXBUILD_CONFIG=Debug
+    set MXSRCDIR=%MYMXSRC%
+    set MXBUILDDIR=%MYMXBUILD%
+    set MXINSTALLDIR=%MYMXINSTALL%
+    call %MXSRCDIR%/package/local/win/mx_install_env
+    conda activate %MXENV%
+    call %MXSRCDIR%/package/local/win/mx_install_all
+
+On Linux
+
+.. code-block:: bash
+
+    source $MYMXSRC/package/local/linux/mx_install_vars.sh
+    export MXBUILD_CONFIG=Debug
+    export MXSRCDIR=$MYMXSRC
+    export MXBUILDDIR=$MYMXBUILD
+    export MXINSTALLDIR=$MYMXINSTALL
+    bash ${MXSRCDIR}/package/local/linux/mx_install_env.sh
+    conda activate $MXENV
+    bash ${MXSRCDIR}/package/local/linux/mx_install_all.sh
+
+The default Python version of the installation is 3.7, though Mechanica has also been tested
+on Windows and Linux for Python versions 3.8 and 3.9.
+To specify a different version of Python, simply add a call to
+`update the conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-python.html#updating-or-upgrading-python>`_
+in the previous commands before calling `mx_install_all`.
+
+Enabling Interactive Mechanica
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Mechanica supports interactive modeling and simulation specification in an
+IPython console and Jupyter Notebook. To enable interactive Mechanica in an
+IPython console, activate the installed environment as previously described and
+install the ``ipython`` package from the conda-forge channel,
+
+.. code-block:: bash
+
+    conda install -c conda-forge ipython
+
+To enable interactive Mechanica in a Jupyter Notebook, activate the installed
+environment as previously described and install the ``notebook``, ``ipywidgets`` and
+``ipyevents`` packages from the conda-forge channel,
+
+.. code-block:: bash
+
+    conda install -c conda-forge notebook ipywidgets ipyevents
 
 
-.. note::
+Setting Up a Development Environment
+-------------------------------------
 
-   Spyder has a pretty complex architecture, and Spyder support is new. We've
-   tried to test as best as we can, but this is alpha code, you may encounter
-   issues. 
-   
-    
-.. _pip-install:
+The Mechanica codebase includes convenience scripts to quickly set up a
+development environment for building models and extensions in C++. The same
+environment deployed in `Installing From Source`_ can be used to build a customized
+version of Mechanica. Set up for setting up a development environment is as simple
+as getting the Mechanica source code, and installing the pre-configured conda
+environment. As such, all requirements described in `Installing From Source`_ are
+also applicable for building a custom version of Mechanica.
 
-Installing via pip for Mac and Windows
---------------------------------------
+To set up a development environment, clone the
+`Mechanica repository <https://github.com/tjsego/mechanica>`_, open a terminal
+in the directory containing the `mechanica` root directory and perform the following.
 
-*Note*, we presently only have Windows and Mac PyPi packages. 
+On Windows
 
-Python comes with an inbuilt package management system,
-`pip <https://pip.pypa.io/en/stable>`_. Pip can install, update, or delete
-any official package. The PyPi home page for mechancia is
+.. code-block:: bat
 
-`<https://pypi.org/project/mechanica/>`_.
+    call mechanica/package/local/win/mx_install_vars
+    call mechanica/package/local/win/mx_install_env
 
-You can install packages via the command line by entering::
+On Linux
 
- python -m pip install --user mechanica
+.. code-block:: bash
 
-We recommend using an *user* install, sending the ``--user`` flag to pip.
-``pip`` installs packages for the local user and does not write to the system
-directories.
+    bash mechanica/package/local/linux/mx_install_vars.sh
+    bash mechanica/package/local/linux/mx_install_env.sh
 
+The standard configuration will set the build and installation directories to
+`mechanica_build` and `mechanica_install` next to the `mechanica` root directory,
+respectively, the latter containing the conda environment with the build dependencies.
+These locations can be customized in the same way as described in `Customizing the Build`_,
+or in your favorite IDE. For configuring `CMake <https://cmake.org/>`_, refer to the
+script `mx_install_core` in the subdirectory of `package/local/*` that corresponds to
+your platform, which is the script behind the automated installation from source.
+This script includes all variables and the compiler(s) that correspond to building a
+fully customized version of Mechanica.
 
-Installing via pip for Linux
-----------------------------
-
-We presently only support Ubuntu 18.04, pip wheel binaries are here:
-
-`<https://github.com/AndySomogyi/mechanica/releases/download/0.0.4/mechanica-0.0.4.dev1-cp36-cp36m-linux_x86_64.whl>`_.
-
-Download and run pip directly on this file. 
-
-Preferably, do not use ``sudo pip``, as this combination can cause problems.
-
+Mechanica currently supports the `Release` and `RelWithDebInfo` build types. The
+computational core of Mechanica and C++ front-end can be found throughout the subdirectory
+`src`. Bindings for other supported languages are generated using
+`SWIG <http://swig.org/>`_. To develop the interface of any other supported language
+(or generate support for a new one), refer to the SWIG script `src/mechanica.i`.

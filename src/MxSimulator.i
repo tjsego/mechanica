@@ -15,14 +15,26 @@
 
         @property
         def window(self):
-            return MxSimulatorPy.getWindowPy()
+            return MxSimulatorPy.getWindow()
 
         @staticmethod
         def run(*args, **kwargs):
+            """
+            Runs the event loop until all windows close or simulation time expires. 
+            Automatically performs universe time propogation. 
+
+            :type args: double
+            :param args: final time (default runs infinitly)
+            """    
             return MxSimulatorPy._run(args, kwargs)
 
         @staticmethod
         def show():
+            """
+            Shows any windows that were specified in the config. This works just like
+            MatPlotLib's ``show`` method. The ``show`` method does not start the
+            universe time propagation unlike ``run`` and ``irun``.
+            """
             return MxSimulatorPy._show()
     %}
 }

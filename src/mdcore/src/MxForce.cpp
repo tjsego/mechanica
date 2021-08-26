@@ -164,7 +164,7 @@ static void constant_force(MxConstantForce* cf, MxParticle *p, int stateVectorIn
 /**
  * Implements a friction force:
  *
- * f_b = p / tau * ((T_0 / T) - 1)
+ * f_f = - || v || / tau * v
  */
 static void friction_force(Friction* t, MxParticle *p, int stateVectorIndex, FPTYPE*f) {
     MxParticleType *type = &engine::types[p->typeId];

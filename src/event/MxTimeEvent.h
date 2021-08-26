@@ -46,9 +46,24 @@ CAPI_FUNC(MxTimeEventNextTimeSetter*) getMxTimeEventNextTimeSetter(MxTimeEventTi
 CAPI_FUNC(MxTimeEventNextTimeSetter*) getMxTimeEventNextTimeSetterN(std::string setterName);
 
 struct CAPI_EXPORT MxTimeEvent : MxEventBase {
+    /**
+     * @brief Next time of evaluation
+     */
     double next_time;
+
+    /**
+     * @brief Period of evaluation
+     */
     double period;
+
+    /**
+     * @brief Start time of evaluations
+     */
     double start_time;
+
+    /**
+     * @brief End time of evaluations
+     */
     double end_time;
 
     MxTimeEvent(const double &period, 
@@ -100,9 +115,24 @@ struct MxTimeEventPyInvokePyExecutor : MxEventPyExecutor<MxTimeEventPy> {
 };
 
 struct CAPI_EXPORT MxTimeEventPy : MxEventBase {
+    /**
+     * @brief Next time of evaluation
+     */
     double next_time;
+
+    /**
+     * @brief Period of evaluation
+     */
     double period;
+
+    /**
+     * @brief Start time of evaluations
+     */
     double start_time;
+
+    /**
+     * @brief End time of evaluations
+     */
     double end_time;
 
     MxTimeEventPy(const double &period, 

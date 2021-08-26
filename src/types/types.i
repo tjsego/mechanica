@@ -169,18 +169,23 @@ typedef mx::type::MxQuaternion<float> MxQuaternionf;
 
     %pythoncode %{
         def length(self):
+            """length of vector"""
             return self._length()
 
         def normalized(self):
+            """vector normalized"""
             return self._normalized()
 
         def resized(self, length):
+            """resize be a length"""
             return self._resize(length)
 
         def projected(self, other):
+            """project onto another vector"""
             return self._projected(other)
 
         def projectedOntoNormalized(self, other):
+            """project onto a normalized vector"""
             return self._projectedOntoNormalized(other)
     %}
 }
@@ -199,6 +204,7 @@ vector_template_prep_float(mx::type::MxVector2, dataType, wrappedName)
 
     %pythoncode %{
         def distance(self, line_start_pt, line_end_pt):
+            """distance from a line defined by two points"""
             return self._distance(line_start_pt, line_end_pt)
     %}
 }
@@ -218,6 +224,7 @@ vector_template_prep_float(mx::type::MxVector3, dataType, wrappedName)
 
     %pythoncode %{
         def distance(self, line_start_pt, line_end_pt):
+            """distance from a line defined by two points"""
             return self._distance(line_start_pt, line_end_pt)
     %}
 }
@@ -246,13 +253,16 @@ vector_template_prep_float(mx::type::MxVector4, dataType, wrappedName)
 
     %pythoncode %{
         def distance(self, point):
+            """distance from a point"""
             return self._distance(point)
 
         def distanceScaled(self, point):
+            """scaled distance from a point"""
             return self._distanceScaled(point)
 
         @classmethod
         def planeEquation(cls, *args):
+            """get a plane equation"""
             return cls._planeEquation(*args)
     %}
 }
@@ -337,6 +347,7 @@ vector4_template_init(int, MxVector4i)
             self._setitem(index, val)
 
         def as_list(self) -> list:
+            """convert to a python list"""
             return list(self.asVector())
     %}
 }
@@ -373,6 +384,7 @@ vector_list_cast_add(mx::type::MxQuaternion, float, vectorMxQuaternionf)
             self._setitem(index, val)
 
         def as_lists(self) -> list:
+            """convert to a list of python lists"""
             return [list(v) for v in self.asVectors()]
     %}
 }

@@ -27,10 +27,14 @@ struct MxEventBase {
     // Flags set by invoke and predicate to provide feedback
     std::forward_list<MxEventFlag> flags;
 
-    // Record of last time fired
+    /**
+     * @brief Record of last time fired
+     */
     double last_fired;
 
-    // Record of how many times fired
+    /**
+     * @brief Record of how many times fired
+     */
     int times_fired;
 
     /**
@@ -70,7 +74,9 @@ struct MxEventBase {
         return 1;
     }
 
-    // Designates event for removal
+    /**
+     * @brief Designates event for removal
+     */
     void remove() { flags.push_front(MxEventFlag::REMOVE); }
 
 };
@@ -85,7 +91,7 @@ struct CAPI_EXPORT MxEvent : MxEventBase {
     MxEvent();
 
     /**
-     * @brief Construct a new Mx Event object using functions
+     * @brief Construct an instance using functions
      * 
      * @param invokeMethod an invoke function
      * @param predicateMethod a predicate function

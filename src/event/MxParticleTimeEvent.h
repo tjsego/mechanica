@@ -134,22 +134,34 @@ CAPI_FUNC(MxParticleTimeEventNextTimeSetter*) getMxParticleTimeEventNextTimeSett
 // Time-dependent particle event
 struct CAPI_EXPORT MxParticleTimeEvent : MxEventBase {
 
-    // Target particle type of this event
+    /**
+     * @brief Target particle type of this event
+     */
     MxParticleType *targetType;
 
-    // Target particle of an event evaluation
+    /**
+     * @brief Target particle of an event evaluation
+     */
     MxParticleHandle *targetParticle;
 
-    // Next time at which an evaluation occurs
+    /**
+     * @brief Next time at which an evaluation occurs
+     */
     double next_time;
 
-    // Period of event evaluations
+    /**
+     * @brief Period of event evaluations
+     */
     double period;
 
-    // Time at which evaluations begin
+    /**
+     * @brief Time at which evaluations begin
+     */
     double start_time;
 
-    // Time at which evaluations stop
+    /**
+     * @brief Time at which evaluations stop
+     */
     double end_time;
     
     MxParticleTimeEvent() {}

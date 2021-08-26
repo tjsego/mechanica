@@ -12,6 +12,9 @@
 
         @property
         def kind_str(self) -> str:
+            """
+            The name of the kind of boundary condition. 
+            """
             return self.kindStr()
     %}
 }
@@ -41,4 +44,5 @@
     FREESLIP_Y = SPACE_FREESLIP_Y
     FREESLIP_Z = SPACE_FREESLIP_Z
     FREESLIP_FULL = SPACE_FREESLIP_FULL
+    
 %}

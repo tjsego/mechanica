@@ -18,7 +18,7 @@
         def __len__(self) -> int:
             return self.size()
 
-        def __getattr__(self, item: str) -> float:
+        def __getattr__(self, item: str):
             if item == 'this':
                 return object.__getattr__(self, item)
 
@@ -38,7 +38,7 @@
                 return
             return object.__setattr__(self, item, value)
 
-        def __getitem__(self, item):
+        def __getitem__(self, item) -> MxSpecies:
             if isinstance(item, str):
                 item = self.index_of(item)
 

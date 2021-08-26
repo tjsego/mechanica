@@ -12,10 +12,32 @@
 #include "mdcore_single.h"
 #include <unordered_map>
 
+/**
+ * @brief The universe is a top level singleton object, and is automatically
+ * initialized when the simulator loads. The universe is a representation of the
+ * physical universe that we are simulating, and is the repository for all
+ * physical object representations.
+ * 
+ * All properties and methods on the universe are static, and you never actually
+ * instantiate a universe.
+ * 
+ * Universe has a variety of properties such as boundary conditions, and stores
+ * all the physical objects such as particles, bonds, potentials, etc.
+ */
 struct CAPI_EXPORT MxUniverse  {
 
+    /**
+     * @brief Gets the origin of the universe
+     * 
+     * @return MxVector3f 
+     */
     static MxVector3f origin();
 
+    /**
+     * @brief Gets the dimensions of the universe
+     * 
+     * @return MxVector3f 
+     */
     static  MxVector3f dim();
 
 
@@ -24,18 +46,85 @@ struct CAPI_EXPORT MxUniverse  {
     // name of the model / script, usually picked up from command line;
     std::string name;
     
+    /**
+     * @brief Computes the virial tensor for the either the entire simulation 
+     * domain, or a specific local virial tensor at a location and 
+     * radius. Optionally can accept a list of particle types to restrict the 
+     * virial calculation for specify types.
+     * 
+     * @param origin An optional length-3 array for the origin. Defaults to the center of the simulation domain if not given.
+     * @param radius An optional number specifying the size of the region to compute the virial tensor for. Defaults to the entire simulation domain.
+     * @param types An optional list of :class:`Particle` types to include in the calculation. Defaults to every particle type.
+     * @return MxMatrix3f* 
+     */
     static MxMatrix3f *virial(MxVector3f *origin=NULL, float *radius=NULL, std::vector<MxParticleType*> *types=NULL);
+
     static MxVector3f getCenter();
 
+    /**
+     * @brief Performs a single time step ``dt`` of the universe if no arguments are 
+     * given. Optionally runs until ``until``, and can use a different timestep 
+     * of ``dt``.
+     * 
+     * @param until runs the timestep for this length of time, optional.
+     * @param dt overrides the existing time step, and uses this value for time stepping, optional.
+     * @return HRESULT 
+     */
     static HRESULT step(const double &until=0, const double &dt=0);
+
+    /**
+     * @brief Stops the universe time evolution. This essentially freezes the universe, 
+     * everything remains the same, except time no longer moves forward.
+     * 
+     * @return HRESULT 
+     */
     static HRESULT stop();
+
+    /**
+     * @brief Starts the universe time evolution, and advanced the universe forward by 
+     * timesteps in ``dt``. All methods to build and manipulate universe objects 
+     * are valid whether the universe time evolution is running or stopped.
+     * 
+     * @return HRESULT 
+     */
     static HRESULT start();
+
     static HRESULT reset();
+
+    /**
+     * @brief Gets all particles in the universe
+     * 
+     * @return MxParticleList* 
+     */
     static MxParticleList *particles();
     static void resetSpecies();
+
+    /**
+     * @brief Gets a three-dimesional array of particle lists, of all the particles in the system. 
+     * 
+     * @param shape shape of grid
+     * @return std::vector<std::vector<std::vector<MxParticleList*> > > 
+     */
     static std::vector<std::vector<std::vector<MxParticleList*> > > grid(MxVector3i shape);
+
+    /**
+     * @brief Get all bonds in the universe
+     * 
+     * @return std::vector<MxBondHandle*>* 
+     */
     static std::vector<MxBondHandle*> *bonds();
 
+    /**
+     * @brief Get the universe temperature. 
+     * 
+     * The universe can be run with, or without a thermostat. With a thermostat, 
+     * getting / setting the temperature changes the temperature that the thermostat 
+     * will try to keep the universe at. When the universe is run without a 
+     * thermostat, reading the temperature returns the computed universe temp, but 
+     * attempting to set the temperature yields an error. 
+     * 
+     * @return double 
+     */
     double getTemperature();
     double getTime();
     double getDt();

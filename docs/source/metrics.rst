@@ -1,16 +1,16 @@
 Metrics and Derived Quantities
-==============================
+-------------------------------
 
 Mechanica provides numerous methods to compute a range of derived
-quantities. Some of these are top-level metrics, and depend on the entire
-simulation volume, and others are localized to individual objects. :any:`Simulator`
-
+quantities. Some quantities are top-level metrics that depend on the entire
+simulation volume, and others are localized to individual or groups of objects.
 
 Pressure and Virial Tensors
----------------------------
-For a system of N particles in a volume V, we can compute the  surface tension
-from the diagonal components of the pressure tensor
-:math:`P_{\alpha,\alpha}(\alpha=x,y,z)`. The :math:`P_{xx}` components are:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For a system of :math:`N` particles in a volume :math:`V`, the surface tension
+can be computed from the diagonal components of the pressure tensor
+:math:`P_{\alpha,\alpha}(\alpha=x,y,z)`. The :math:`P_{xx}` components are
 
 .. math::
 
@@ -23,21 +23,18 @@ from the diagonal components of the pressure tensor
        (\mathbf{f}_{ij})_{\beta} \
        \right),
 
-where :math:`N` is the number of particles, :math:`\rho` is the particle density
-density, :math:`k` Boltzmann constant, :math:`T` is the temperature,
-:math:`\mathbf{r}_{ij}` is the vector between the particles :math:`i` and :math:`j`,
-and :math:`\mathbf{f}_{ij}` is the force between them. Some important concepts
-here is that the force here is *only* between the particles used in the pressure
-tensor calculation, it specifically excludes any external force. The pressure
-tensor here is a measure of how much *internal* force exists in the specified
-set of particles.
+where :math:`\rho` is the particle density, :math:`k` is the Boltzmann constant,
+:math:`T` is the temperature, and :math:`\mathbf{r}_{ij}` and
+:math:`\mathbf{f}_{ij}` are the relative position of, and force between,
+the :math:`i\mathrm{th}` and :math:`j\mathrm{th}` particles, respectively.
+Here :math:`\mathbf{f}_{ij}` is *only* due to inter-particle interactions
+and excludes external forces. The pressure tensor is a measure of how
+much *internal* force exists in the specified set of particles.
 
 .. _virial:
 
-We comonly refer to the right hand side above as the `virial`, it represents
-half of the the product of the stress due to the net force between pairs of
-particles and the distance between them. We formally define the virial tensor
-components as
+A term in the definition of the pressure tensor is known as the `virial`
+tensor, which is defined as
 
 .. math::
    V_{\alpha,\beta} = \sum^{N-1}_{i=1} \
@@ -46,78 +43,85 @@ components as
        (\mathbf{f}_{ij})_{\beta}.
    :label: eqn-virial
 
+The virial tensor represents half of the the product of the stress due to the net
+force between pairs of particles and the distance between them. Since the volume
+of a group of particles is not well defined, Mechanica provides the flexiblity of
+using different volume metrics for computing the virial tensor and corresopnding
+pressure tensor.
 
-The volume of a group of particles is not well defined, as such we separate out
-computing the virial component, and the volume, and give users the flexiblity of
-using different volume metrics. 
+The pressure tensor for the entire simulation domain, or for a specific region,
+can be calculated using the method :meth:`virial` on the
+:ref:`universe <mechanica_universe>`. ::
 
-.. _my-reference-label:
+    import mechanica as mx
+    ...
+    virial_universe = mx.Universe.virial()
+    virial_region = mx.Universe.virial(origin=[5.0, 6.0, 7.0], radius=2.0)
 
-We provide a number of different options for calculating the virial
-tensor. You can compute the pressure tensor for the entire simulation domain, or
-a specific region using the :meth:`Universe.virial` method. Can compute the
-pressure tensor for a specific cluster using the :meth:`Cluster.virial` method,
-or can compute the tensor at a specific particle location using
-:meth:`Particle.virial` method. 
+The viritual tensor about a particle can also be computed with the particle method
+:meth:`virial` within a specific distance. ::
 
+    class MyParticleType(mx.ParticleType):
+        pass
+    my_particle_type = MyParticleType.get()
+    my_particle = my_particle_type()
+    virial = my_particle.virial(radius=3.0)
 
+Centroid
+^^^^^^^^^
 
+The centroid of a system of :math:`N` particles :math:`\mathbf{C}`,
+where each :math:`i\mathrm{th}` particle has position :math:`\mathbf{r}_i`,
+is defined as
+
+.. math::
+
+   \mathbf{C} = \frac{1}{N} \sum_{i=1}^N \mathbf{r}_i,
+
+The centroid of a cluster is avilable using the property :attr:`centroid`.
 
 Radius of Gyration
-------------------
+^^^^^^^^^^^^^^^^^^^
 
-
-In the radius of gyration is measure of the dimensions of a group
-(:any:`Cluster`) of particles such as a polymer chain, macro-molecule or some
-larger object.  The radius of gyration of group of particles at a given time is
-defined as:
+The radius of gyration is a measure of the dimensions of a group
+(:any:`Cluster`) of particles. The radius of gyration of a group of
+:math:`N` particles is defined as
 
 .. math:: 
    R_\mathrm{g}^2 \ \stackrel{\mathrm{def}}{=}\ 
-   \frac{1}{N} \sum_{k=1}^{N} \left( \mathbf{r}_k - \mathbf{r}_\mathrm{mean}
-   \right)^2
+   \frac{1}{N} \sum_{k=1}^{N} \left( \mathbf{r}_k - \mathbf{C}
+   \right)^2 ,
 
-We can compute the radius of gyration for a cluster of particles using the
-:meth:`Cluster.radius_of_gyration` method. 
-
-
+where :math:`\mathbf{C}` is the centroid of the particles.
+The radius of gyration for a cluster is available using the property
+:attr:`radius_of_gyration`.
 
 Center of Mass
---------------
+^^^^^^^^^^^^^^^
 
-The center of mass of a system of particles, :math:`P_i, i-1, \ldits, n`, each
-with mass :math:`m_i`, at locations :math:`\mathbf{r}_i, i=1, \ldots, n`, with
-the center of mass :math:`\mathbf{R}` satisfy the condition
-
-.. math::
-
-   \sum_{i=1}^n m_i(\mathbf{r}_i - \mathbf{R}) = \mathbf{0},
-
-with :math:`\mathbf{R}` defined as:
+The center of mass of a system of :math:`N` particles :math:`\mathbf{R}`,
+where each :math:`i\mathrm{th}` particle has mass :math:`m_i` and position
+:math:`\mathbf{r}_i`, satisfies the condition
 
 .. math::
 
-   \mathbf{R} = \frac{1}{M} \sum_{i=1}^n m_i \mathbf{r}_i,
+   \sum_{i=1}^N m_i(\mathbf{r}_i - \mathbf{R}) = \mathbf{0} .
+
+:math:`\mathbf{R}` is then defined as
+
+.. math::
+
+   \mathbf{R} = \frac{1}{M} \sum_{i=1}^N m_i \mathbf{r}_i,
 
 where :math:`M` is the sum of the masses of all of the particles.
-
-We can compute the center of mass of a cluster particles with the
-:meth:`Cluster.center_of_mass` method. 
-
-
-Center of Geometry
-------------------
-
-Computes the geometric center of a group of particles with the
-:meth:`Cluster.center_of_geometry` method, or equivalently, with the
-:meth:`Cluster.centroid` method. 
-
+The center of mass of a cluster is available using the property
+:attr:`center_of_mass`.
 
 Moment of Inertia
------------------
+^^^^^^^^^^^^^^^^^^
 
-For a system of :math:`N` particles, the moment of inertia tensor is a symmetric
-tensor, and is defined as:
+For a system of :math:`N` particles, the moment of inertia tensor \mathbf{I}
+is a symmetric tensor defined as
 
 .. math::
    \mathbf{I} =
@@ -131,27 +135,24 @@ Its diagonal elements are defined as
 
 .. math::
 
-   \begin{align}
-   I_{xx} \stackrel{\mathrm{def}}{=}  \sum_{k=1}^{N} m_{k} (y_{k}^{2}+z_{k}^{2}), \\
-   I_{yy} \stackrel{\mathrm{def}}{=}  \sum_{k=1}^{N} m_{k} (x_{k}^{2}+z_{k}^{2}), \\
-   I_{zz} \stackrel{\mathrm{def}}{=}  \sum_{k=1}^{N} m_{k} (x_{k}^{2}+y_{k}^{2})
-   \end{align}
+   \begin{align*}
+   I_{xx} &\stackrel{\mathrm{def}}{=}  \sum_{k=1}^{N} m_{k} (y_{k}^{2}+z_{k}^{2}), \\
+   I_{yy} &\stackrel{\mathrm{def}}{=}  \sum_{k=1}^{N} m_{k} (x_{k}^{2}+z_{k}^{2}), \\
+   I_{zz} &\stackrel{\mathrm{def}}{=}  \sum_{k=1}^{N} m_{k} (x_{k}^{2}+y_{k}^{2})
+   \end{align*} ,
 
-
-and the  the off-diagonal elements, also called the are:
+and its off-diagonal elements are defined as
 
 .. math::
-   \begin{align}
-   I_{xy} = I_{yx} \ \stackrel{\mathrm{def}}{=}\  -\sum_{k=1}^{N} m_{k} x_{k} y_{k}, \\ 
-   I_{xz} = I_{zx} \ \stackrel{\mathrm{def}}{=}\  -\sum_{k=1}^{N} m_{k} x_{k} z_{k}, \\
-   I_{yz} = I_{zy} \ \stackrel{\mathrm{def}}{=}\  -\sum_{k=1}^{N} m_{k} y_{k} z_{k}
-   \end{align}
+   \begin{align*}
+   I_{xy} &= I_{yx} \ \stackrel{\mathrm{def}}{=}\  -\sum_{k=1}^{N} m_{k} x_{k} y_{k}, \\
+   I_{xz} &= I_{zx} \ \stackrel{\mathrm{def}}{=}\  -\sum_{k=1}^{N} m_{k} x_{k} z_{k}, \\
+   I_{yz} &= I_{zy} \ \stackrel{\mathrm{def}}{=}\  -\sum_{k=1}^{N} m_{k} y_{k} z_{k}
+   \end{align*} .
 
-We can compute the inertia tensor for a group of particles using the
-:meth:`Cluster.moment_of_inertia` or :meth:`Cluster.inertia` methods. 
-
-
-
-
-
-
+Here :math:`m_{k}` is the mass of the :math:`k\mathrm{th}` particle, and
+:math:`x_{k}`, :math:`y_{k}` and :math:`z_{k}` are its relative coordinates
+with respect to the centroid of the cluster along the first, second and
+third dimensions, respectively.
+The moment of inertia tensor of a cluster is available using the property
+:attr:`moment_of_inertia`.

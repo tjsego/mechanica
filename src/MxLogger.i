@@ -7,15 +7,15 @@
 
 %extend MxLogger {
     %pythoncode %{
-        CURRENT = LOG_CURRENT
-        FATAL = LOG_FATAL
-        CRITICAL = LOG_CRITICAL
-        ERROR = LOG_ERROR
-        WARNING = LOG_WARNING
-        NOTICE = LOG_NOTICE
-        INFORMATION = LOG_INFORMATION
-        DEBUG = LOG_DEBUG
-        TRACE = LOG_TRACE
+        CURRENT = LOG_CURRENT  #: :meta hide-value:
+        FATAL = LOG_FATAL  #: :meta hide-value:
+        CRITICAL = LOG_CRITICAL  #: :meta hide-value:
+        ERROR = LOG_ERROR  #: :meta hide-value:
+        WARNING = LOG_WARNING  #: :meta hide-value:
+        NOTICE = LOG_NOTICE  #: :meta hide-value:
+        INFORMATION = LOG_INFORMATION  #: :meta hide-value:
+        DEBUG = LOG_DEBUG  #: :meta hide-value:
+        TRACE = LOG_TRACE  #: :meta hide-value:
     %}
 }
 

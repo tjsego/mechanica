@@ -9,14 +9,23 @@
     %pythoncode %{
         @property
         def temperature(self):
+            """
+            Universe temperature
+            """
             return self.getTemperature()
 
         @property
         def time(self):
+            """
+            Current time
+            """
             return self.getTime()
 
         @property
         def dt(self):
+            """
+            Time step
+            """
             return self.getDt()
 
         @property
@@ -25,18 +34,30 @@
 
         @property
         def boundary_conditions(self):
+            """
+            Boundary conditions
+            """
             return self.getBoundaryConditions()
 
         @property
         def kinetic_energy(self):
+            """
+            Universe kinetic energy
+            """
             return self.getKineticEnergy()
 
         @property
         def center(self) -> MxVector3f:
+            """
+            Universe center point
+            """
             return self.getCenter()
 
         @property
         def num_types(self) -> int:
+            """
+            Number of particle types
+            """
             return self.getNumTypes()
 
         # Supporting old interface for now
@@ -66,4 +87,5 @@
     Universe = getUniverse()
 
     reset_species = MxUniverse.resetSpecies
+    """Alias for :meth:`mechanica.MxUniverse.resetSpecies`"""
 %}

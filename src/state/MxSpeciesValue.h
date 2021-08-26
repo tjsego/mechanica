@@ -12,6 +12,9 @@
 #include <mx_port.h>
 #include "MxSpecies.h"
 
+/**
+ * @brief A working valued-object of an underlying MxSpecies attached to an object. 
+ */
 struct MxSpeciesValue
 {
     double value;
@@ -24,6 +27,17 @@ struct MxSpeciesValue
     double getInitialAmount();
     double getInitialConcentration();
     bool getConstant();
+
+    /**
+     * @brief Secrete this species into a neighborhood. 
+     * 
+     * Requires either a list of neighboring particles or neighborhood distance. 
+     * 
+     * @param amount Amount to secrete. 
+     * @param to Optional list of particles to secrete to. 
+     * @param distance Neighborhood distance. 
+     * @return double Amount actually secreted, accounting for availability and other subtleties. 
+     */
     double secrete(const double &amount, struct MxParticleList *to=NULL, double *distance=NULL);
 
     MxSpeciesValue(const double &value);

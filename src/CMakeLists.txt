@@ -381,7 +381,7 @@ include(UseSWIG)
 
 # shared and static libraries built from the same object files
 
-set_source_files_properties(mechanica.i PROPERTIES CPLUSPLUS ON SWIG_FLAGS "-keyword;-py3")
+set_source_files_properties(mechanica.i PROPERTIES CPLUSPLUS ON SWIG_FLAGS "-keyword;-py3;-doxygen")
 
 include(CheckTypeSize)
 check_type_size("long" SIZE_LONG)

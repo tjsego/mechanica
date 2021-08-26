@@ -100,10 +100,14 @@ CAPI_FUNC(MxParticleEventParticleSelector*) getMxParticleEventParticleSelectorN(
 // Particle event
 struct CAPI_EXPORT MxParticleEvent : MxEventBase {
 
-    // Target particle type of this event
+    /**
+     * @brief Target particle type of this event
+     */
     MxParticleType *targetType;
 
-    // Target particle of an event evaluation
+    /**
+     * @brief Target particle of an event evaluation
+     */
     MxParticleHandle *targetParticle;
 
     MxParticleEvent() {}

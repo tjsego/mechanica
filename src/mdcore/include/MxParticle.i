@@ -18,6 +18,7 @@
     %pythoncode %{
         @property
         def charge(self):
+            """Particle charge"""
             return self.getCharge()
 
         @charge.setter
@@ -26,6 +27,7 @@
 
         @property
         def mass(self):
+            """Particle mass"""
             return self.getMass()
 
         @mass.setter
@@ -34,6 +36,7 @@
 
         @property
         def frozen(self):
+            """Particle frozen flag"""
             return self.getFrozen()
 
         @frozen.setter
@@ -42,6 +45,7 @@
 
         @property
         def frozen_x(self):
+            """Particle frozen flag along x"""
             return self.getFrozenX()
 
         @frozen_x.setter
@@ -50,6 +54,7 @@
 
         @property
         def frozen_y(self):
+            """Particle frozen flag along y"""
             return self.getFrozenY()
 
         @frozen_y.setter
@@ -58,6 +63,7 @@
 
         @property
         def frozen_z(self):
+            """Particle frozen flag along z"""
             return self.getFrozenZ()
 
         @frozen_z.setter
@@ -66,6 +72,7 @@
 
         @property
         def style(self):
+            """Particle style"""
             return self.getStyle()
 
         @style.setter
@@ -74,10 +81,12 @@
 
         @property
         def age(self):
+            """Particle age"""
             return self.getAge()
 
         @property
         def radius(self):
+            """Particle radius"""
             return self.getRadius()
 
         @radius.setter
@@ -86,6 +95,7 @@
 
         @property
         def name(self):
+            """Particle name"""
             return self.getName()
 
         @property
@@ -94,6 +104,7 @@
 
         @property
         def position(self):
+            """Particle position"""
             return self.getPosition()
 
         @position.setter
@@ -102,6 +113,7 @@
 
         @property
         def velocity(self):
+            """Particle velocity"""
             return self.getVelocity()
 
         @velocity.setter
@@ -110,6 +122,7 @@
 
         @property
         def force(self):
+            """Net force acting on particle"""
             return self.getForce()
 
         @force.setter
@@ -118,10 +131,12 @@
 
         @property
         def id(self):
+            """Particle id"""
             return self.getId()
 
         @property
         def type_id(self):
+            """Particle type id"""
             return self.getTypeId()
 
         @property
@@ -130,10 +145,12 @@
 
         @property
         def species(self):
+            """Particle species"""
             return self.getSpecies()
 
         @property
         def bonds(self):
+            """Bonds attached to particle"""
             return self.getBonds()
     %}
 }
@@ -152,6 +169,7 @@
 
         @property
         def frozen(self):
+            """Particle type frozen flag"""
             return self.getFrozen()
 
         @frozen.setter
@@ -160,6 +178,7 @@
 
         @property
         def frozen_x(self):
+            """Particle type frozen flag along x"""
             return self.getFrozenX()
 
         @frozen_x.setter
@@ -168,6 +187,7 @@
 
         @property
         def frozen_y(self):
+            """Particle type frozen flag along y"""
             return self.getFrozenY()
 
         @frozen_y.setter
@@ -176,6 +196,7 @@
 
         @property
         def frozen_z(self):
+            """Particle type frozen flag along z"""
             return self.getFrozenZ()
 
         @frozen_z.setter
@@ -184,10 +205,12 @@
 
         @property
         def temperature(self):
+            """Particle type temperature"""
             return self.getTemperature()
 
         @property
         def target_temperature(self):
+            """Particle type target temperature"""
             return self.getTargetTemperature()
     %}
 }

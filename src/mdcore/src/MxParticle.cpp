@@ -836,7 +836,9 @@ MxParticleList *MxParticleHandle::neighbors(const float *distance, const std::ve
         
         MxParticle_Neighbors(self, radius, &typeIds, &nr_parts, &parts);
         
-        return new MxParticleList(nr_parts, parts);
+        MxParticleList *result = new MxParticleList(nr_parts, parts);
+        if(parts) std::free(parts);
+        return result;
     }
     catch(std::exception &e) {
         MX_RETURN_EXP(e);

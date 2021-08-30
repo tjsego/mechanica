@@ -177,6 +177,7 @@ MxParticleTypeList::MxParticleTypeList() :
 MxParticleTypeList::MxParticleTypeList(uint16_t init_size, uint16_t flags) : MxParticleTypeList() {
     this->flags = flags;
     this->size_parts = init_size;
+    ::free(this->parts);
     this->parts = (int32_t*)malloc(init_size * sizeof(int32_t));
 }
 
@@ -185,7 +186,6 @@ MxParticleTypeList::MxParticleTypeList(MxParticleType *ptype) :
 {
     if(!ptype) throw std::runtime_error("Cannot instance a list from NULL type");
     
-    this->parts = (int32_t*)malloc(this->size_parts * sizeof(int32_t));
     this->nr_parts = 1;
     this->parts[0] = ptype->id;
 }
@@ -193,7 +193,6 @@ MxParticleTypeList::MxParticleTypeList(MxParticleType *ptype) :
 MxParticleTypeList::MxParticleTypeList(std::vector<MxParticleType*> ptypes) : 
     MxParticleTypeList(ptypes.size(), PARTICLELIST_OWNDATA | PARTICLELIST_OWNSELF)
 {
-    this->parts = (int32_t*)malloc(this->nr_parts * sizeof(int32_t));
     this->nr_parts = ptypes.size();
     
     for(int i = 0; i < nr_parts; ++i) {

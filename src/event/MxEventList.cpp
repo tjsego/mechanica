@@ -8,6 +8,8 @@
 
 #include "MxEventList.h"
 
+#include "MxLogger.h"
+
 HRESULT event_func_invoke(MxEventBase &event, const double &time) {
     return event.eval(time);
 }
@@ -37,7 +39,10 @@ HRESULT MxEventBaseList::removeEvent(MxEventBase *event) {
 HRESULT MxEventBaseList::eval(const double &time) {
     for (auto &e : events) {
         auto result = e->eval(time);
-        if (result != 0) return result;
+        if (result < 0) {
+            Log(LOG_DEBUG) << "Event returned error code. Aborting.";
+            return result;
+        }
 
         for (auto flag : e->flags) {
 

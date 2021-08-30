@@ -96,10 +96,10 @@ struct MxEventPyExecutor {
 protected:
 
     // The current event object, if any
-    static inline event_t *activeEvent = NULL;
+    event_t *activeEvent = NULL;
 
     // The executor callback from the python layer
-    static inline PyObject *executorPyCallable = NULL;
+    PyObject *executorPyCallable = NULL;
 
 };
 

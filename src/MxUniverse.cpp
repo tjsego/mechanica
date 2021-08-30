@@ -189,7 +189,7 @@ std::vector<std::vector<std::vector<MxParticleList*> > > MxUniverse::grid(MxVect
 
 std::vector<MxBondHandle*> *MxUniverse::bonds() {
     UNIVERSE_TRY();
-    std::vector<MxBondHandle*> *bonds;
+    std::vector<MxBondHandle*> *bonds = new std::vector<MxBondHandle*>();
 
     for(int i = 0; i < _Engine.nr_bonds; ++i) {
         MxBond *b = &_Engine.bonds[i];

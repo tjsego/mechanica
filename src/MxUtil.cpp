@@ -439,7 +439,7 @@ MxVector3f MxRandomPoint(const MxPointsType &kind,
         case MxPointsType::SolidCube:
             return random_point_solidcube(uniform01);
         case MxPointsType::SolidSphere: {
-            return random_point_solidsphere_shell(uniform01, dr, phi0, phi1);
+            return random_point_solidsphere_shell(uniform01, dr, std::cos(phi0), std::cos(phi1));
         }
         default:
             mx_exp(std::runtime_error("invalid kind"));

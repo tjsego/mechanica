@@ -15,6 +15,20 @@
 #include <vector>
 
 /**
+ * @brief Computes the relative position with respect to an origin while 
+ * optionally account for boundary conditions. 
+ * 
+ * If boundaries along a dimension are periodic, then this chooses the 
+ * relative coordinate closest to the origin. 
+ * 
+ * @param pos absolute position
+ * @param origin origin
+ * @param comp_bc flag to compensate for boundary conditions; default true
+ * @return MxVector3f relative position with respect to the given origin
+ */
+MxVector3f MxRelativePosition(const MxVector3f &pos, const MxVector3f &origin, const bool &comp_bc=true);
+
+/**
  * @origin [in] origin of the sphere where we will comptute
  * the local virial tensor.
  * @radius [in] include all partices a given radius in calculation. 

@@ -66,6 +66,25 @@ class MxVector3 : public Magnum::Math::Vector3<T> {
             return Magnum::Math::Distance::lineSegmentPoint(lineStartPt, lineEndPt, *this);
         }
 
+        template<class U = T, typename std::enable_if<std::is_floating_point<U>::value, bool>::type = true>
+        MxVector3<T> relativeTo(const MxVector3<T> &origin, const MxVector3<T> &dim, const bool &periodic_x, const bool &periodic_y, const bool &periodic_z) {
+            MxVector3<T> result = *this - origin;
+            MxVector3<T> crit = dim / 2.0;
+            if(periodic_x) {
+                if(result[0] < -crit[0]) result[0] += dim[0];
+                else if(result[0] > crit[0]) result[0] -= dim[0];
+            }
+            if(periodic_y) {
+                if(result[1] < -crit[1]) result[1] += dim[1];
+                else if(result[1] > crit[1]) result[1] -= dim[1];
+            }
+            if(periodic_z) {
+                if(result[2] < -crit[2]) result[2] += dim[2];
+                else if(result[2] > crit[2]) result[2] -= dim[2];
+            }
+            return result;
+        }
+
         MAGNUM_BASE_VECTOR_CAST_METHODS(3, MxVector3, Magnum::Math::Vector3)
 
         REVISED_MAGNUM_VECTOR_SUBCLASS_IMPLEMENTATION(3, MxVector3, Magnum::Math::Vector3)

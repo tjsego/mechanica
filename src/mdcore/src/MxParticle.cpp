@@ -432,6 +432,10 @@ MxVector3f MxParticleHandle::sphericalPosition(MxParticle *particle, MxVector3f 
     return MxCartesianToSpherical(part()->global_position(), _origin);
 }
 
+MxVector3f MxParticleHandle::relativePosition(const MxVector3f &origin, const bool &comp_bc) {
+    return MxRelativePosition(this->getPosition(), origin, comp_bc);
+}
+
 MxMatrix3f MxParticleHandle::virial(float *radius)
 {
     auto *self = part();

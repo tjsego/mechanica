@@ -216,16 +216,24 @@ vector_template_prep_float(mx::type::MxVector2, dataType, wrappedName)
 vector_template_prep_float(mx::type::MxVector3, dataType, wrappedName)
 
 %rename(_ ## wrappedName ## _distance) mx::type::MxVector3::distance<dataType>;
+%rename(_ ## wrappedName ## _relativeTo) mx::type::MxVector3::relativeTo<dataType>;
 
 %extend mx::type::MxVector3<dataType> {
     dataType _distance(const mx::type::MxVector3<dataType> &lineStartPt, const mx::type::MxVector3<dataType> &lineEndPt) { 
         return $self->distance(lineStartPt, lineEndPt); 
+    }
+    mx::type::MxVector3<dataType> _relativeTo(const MxVector3<dataType> &origin, const MxVector3<dataType> &dim, const bool &periodic_x, const bool &periodic_y, const bool &periodic_z) {
+        return $self->relativeTo(origin, dim, periodic_x, periodic_y, periodic_z);
     }
 
     %pythoncode %{
         def distance(self, line_start_pt, line_end_pt):
             """distance from a line defined by two points"""
             return self._distance(line_start_pt, line_end_pt)
+
+        def relative_to(self, origin, dim, periodic_x, periodic_y, periodic_z):
+            """position relative to an origin in a space with some periodic boundary conditions"""
+            return self._relativeTo(origin, dim, periodic_x, periodic_y, periodic_z)
     %}
 }
 %enddef

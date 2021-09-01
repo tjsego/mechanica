@@ -33,6 +33,15 @@ static HRESULT enum_particles(const MxVector3f &origin,
                               std::vector<int32_t> &ids);
 
 
+MxVector3f MxRelativePosition(const MxVector3f &pos, const MxVector3f &origin, const bool &comp_bc) {
+    if(!comp_bc) return pos - origin;
+
+    const MxBoundaryConditions &bc = _Engine.boundary_conditions;
+    MxVector3f _pos = pos;
+    MxVector3f result = _pos.relativeTo(origin, engine_dimensions(), bc.periodic & space_periodic_x, bc.periodic & space_periodic_y, bc.periodic & space_periodic_z);
+    return result;
+}
+
 HRESULT MxCalculateVirial(FPTYPE *_origin,
                             FPTYPE radius,
                             const std::set<short int> &typeIds,

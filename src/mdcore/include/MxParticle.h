@@ -316,6 +316,16 @@ struct CAPI_EXPORT MxParticleHandle {
     MxVector3f sphericalPosition(MxParticle *particle=NULL, MxVector3f *origin=NULL);
 
     /**
+     * @brief Computes the relative position with respect to an origin while 
+     * optionally account for boundary conditions. 
+     * 
+     * @param origin origin
+     * @param comp_bc flag to compensate for boundary conditions; default true
+     * @return MxVector3f relative position with respect to the given origin
+     */
+    MxVector3f relativePosition(const MxVector3f &origin, const bool &comp_bc=true);
+
+    /**
      * @brief Computes the virial tensor. Optionally pass a distance to include a neighborhood. 
      * 
      * @param radius A distance to define a neighborhood, optional

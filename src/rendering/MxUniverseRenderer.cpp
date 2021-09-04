@@ -68,7 +68,8 @@
 using namespace Magnum::Math::Literals;
 
 MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow *win):
-    window{win}
+    window{win}, 
+    _zoomRate(0.05)
 {
     Log(LOG_DEBUG) << "Creating MxUniverseRenderer";
 
@@ -620,7 +621,9 @@ void MxUniverseRenderer::mouseScrollEvent(Platform::GlfwApplication::MouseScroll
     const Float delta = event.offset().y();
     if(Math::abs(delta) < 1.0e-2f) return;
 
-    _arcball->zoom(delta);
+    const float distance = _arcball->viewDistance() * _zoomRate * event.offset().y();
+
+    _arcball->zoom(distance);
 
     event.setAccepted();
     window->redraw(); /* camera has changed, redraw! */
@@ -642,6 +645,17 @@ void MxUniverseRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4
 
 const Magnum::Vector4& MxUniverseRenderer::getClipPlaneEquation(unsigned id) {
     return _clipPlanes[id];
+}
+
+const float MxUniverseRenderer::getZoomRate() {
+    return _zoomRate;
+}
+
+void MxUniverseRenderer::setZoomRate(const float &zoomRate) {
+    if(zoomRate <= 0.0 || zoomRate >= 1.0) {
+        mx_exp(std::invalid_argument("invalid zoom rate (0, 1.0)"));
+    }
+    _zoomRate = zoomRate;
 }
 
 

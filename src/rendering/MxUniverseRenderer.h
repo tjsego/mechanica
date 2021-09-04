@@ -184,6 +184,10 @@ struct MxUniverseRenderer : MxRenderer {
     
     const Magnum::Vector4& getClipPlaneEquation(unsigned id);
 
+    const float getZoomRate();
+
+    void setZoomRate(const float &zoomRate);
+
     void viewportEvent(Platform::GlfwApplication::ViewportEvent& event);
     void keyPressEvent(Platform::GlfwApplication::KeyEvent& event);
     void mousePressEvent(Platform::GlfwApplication::MouseEvent& event);
@@ -220,6 +224,7 @@ struct MxUniverseRenderer : MxRenderer {
     Float _lastDepth;
     
     float sideLength;
+    float _zoomRate;
 
     Magnum::Mechanica::ArcBallCamera *_arcball;
     

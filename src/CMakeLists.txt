@@ -98,6 +98,7 @@ set(SRC
   rendering/MxGlfwWindow.cpp
   rendering/MxRenderer.cpp
   rendering/MxUniverseRenderer.cpp
+  rendering/MxSubRenderer.cpp
 
   rendering/MxMeshRenderer.cpp
   rendering/MxMeshShaderProgram.cpp
@@ -205,6 +206,7 @@ set(HEADERS
   rendering/MxGlfwWindow.h
   rendering/MxRenderer.h
   rendering/MxUniverseRenderer.h
+  rendering/MxSubRenderer.h
   rendering/WireframeObjects.h
   rendering/FlatShadeObject.h
   rendering/MxMeshRenderer.h

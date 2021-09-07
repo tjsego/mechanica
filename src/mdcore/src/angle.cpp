@@ -592,6 +592,11 @@ HRESULT MxAngle_Destroy(MxAngle *a) {
     return S_OK;
 };
 
+HRESULT MxAngle_DestroyAll() {
+    for(auto ah: MxAngleHandle::items()) ah->destroy();
+    return S_OK;
+}
+
 void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3, uint32_t flags) {
     this->potential = potential;
     this->i = p1->id;

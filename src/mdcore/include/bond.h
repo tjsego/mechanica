@@ -238,6 +238,13 @@ CAPI_DATA(NOMStyle*) MxBond_StylePtr;
  */
 CAPI_FUNC(HRESULT) MxBond_Destroy(MxBond *b);
 
+/**
+ * @brief Deletes all bonds in the universe
+ * 
+ * @return HRESULT 
+ */
+CAPI_FUNC(HRESULT) MxBond_DestroyAll();
+
 HRESULT MxBond_Energy (MxBond *b, double *epot_out);
 
 /* associated functions */

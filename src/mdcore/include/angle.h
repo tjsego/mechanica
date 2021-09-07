@@ -168,6 +168,13 @@ CAPI_FUNC(MxAngle*) MxAngle_NewFromIdsAndPotential(int i , int j , int k , struc
  */
 CAPI_FUNC(HRESULT) MxAngle_Destroy(MxAngle *a);
 
+/**
+ * @brief Destroys all angles in the universe
+ * 
+ * @return HRESULT 
+ */
+CAPI_FUNC(HRESULT) MxAngle_DestroyAll();
+
 /* associated functions */
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out );
 int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , double *epot_out );

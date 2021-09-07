@@ -718,6 +718,11 @@ CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b) {
     return S_OK;
 }
 
+HRESULT MxBond_DestroyAll() {
+    for(auto bh : MxBondHandle::items()) bh->destroy();
+    return S_OK;
+}
+
 std::vector<MxBondHandle*>* MxBondHandle::pairwise(struct MxPotential* pot,
                                                    struct MxParticleList *parts,
                                                    const double &cutoff,

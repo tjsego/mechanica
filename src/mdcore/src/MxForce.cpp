@@ -139,6 +139,26 @@ Friction* MxForce::friction(const float &coef, const float &std, const float &me
     }
 }
 
+void eval_sum_force(struct MxForce *force, struct MxParticle *p, int stateVectorId, FPTYPE *f) {
+    MxForceSum *sf = (MxForceSum*)force;
+    (*sf->f1->func)(sf->f1, p, stateVectorId, f);
+    (*sf->f2->func)(sf->f2, p, stateVectorId, f);
+}
+
+MxForce *MxForce_add(MxForce *f1, MxForce *f2) {
+    MxForceSum *sf = new MxForceSum();
+    sf->func = (MxForce_OneBodyPtr)eval_sum_force;
+
+    sf->f1 = f1;
+    sf->f2 = f2;
+    
+    return (MxForce*)sf;
+}
+
+MxForce& MxForce::operator+(const MxForce& rhs) {
+    return *MxForce_add(this, const_cast<MxForce*>(&rhs));
+}
+
 /**
  * Implements a force:
  *

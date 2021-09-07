@@ -112,7 +112,15 @@ struct MxForce {
      * @return Friction* 
      */
     static Friction* friction(const float &coef, const float &std=0.0, const float &mean=0.0, const float &duration=0.1);
+
+    MxForce& operator+(const MxForce& rhs);
 };
+
+struct MxForceSum : MxForce {
+    MxForce *f1, *f2;
+};
+
+MxForce *MxForce_add(MxForce *f1, MxForce *f2);
 
 /**
  * a binding of a force to a particle type, where we use a coupling constant from the

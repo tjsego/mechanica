@@ -7,6 +7,8 @@
 
 %include "bond.h"
 
+%template(vectorBondHandle_p) std::vector<MxBondHandle*>;
+
 %extend MxBondHandle {
     %pythoncode %{
         def __getitem__(self, index: int):

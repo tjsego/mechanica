@@ -581,24 +581,113 @@ MxAngle* MxAngle_NewFromIdsAndPotential(int i, int j, int k,
 }
 #endif
 
-void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3) {
+HRESULT MxAngle_Destroy(MxAngle *a) {
+    if(!a) return E_FAIL;
+
+    if(a->flags & ANGLE_ACTIVE) {
+        bzero(a, sizeof(MxAngle));
+        _Engine.nr_angles -= 1;
+    }
+
+    return S_OK;
+};
+
+void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3, uint32_t flags) {
     this->potential = potential;
     this->i = p1->id;
     this->j = p2->id;
     this->k = p3->id;
+    this->flags = flags;
 }
 
-MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3) {
+MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3, uint32_t flags) {
     auto id = engine_angle_alloc(&_Engine);
     MxAngleHandle *handle = new MxAngleHandle(id);
-    auto angle = handle->angle();
+    auto *angle = handle->angle();
     if(!angle) return NULL;
-    handle->angle()->init(potential, p1, p2, p3);
+
+    angle->init(potential, p1, p2, p3, flags);
+    if(angle->i >=0 && angle->j >=0 && angle->k >=0)
+        angle->flags = angle->flags | ANGLE_ACTIVE;
+
     return handle;
 }
 
 MxAngle *MxAngleHandle::angle() {
-    if(id >= _Engine.nr_angles) throw std::range_error("Angle id invalid");
+    if(id >= _Engine.angles_size) throw std::range_error("Angle id invalid");
     if (id < 0) return NULL;
-    return &_Engine.angles[id];
+    return &_Engine.angles[this->id];
+}
+
+std::string MxAngleHandle::str() {
+    std::stringstream ss;
+    auto *a = this->angle();
+    
+    ss << "Bond(i=" << a->i << ", j=" << a->j << ", k=" << a->k << ")";
+    
+    return ss.str();
+}
+
+HRESULT MxAngleHandle::destroy() {
+    return MxAngle_Destroy(this->angle());
+}
+
+std::vector<MxAngleHandle*> MxAngleHandle::items() {
+    std::vector<MxAngleHandle*> list;
+
+    for(int i = 0; i < _Engine.nr_angles; ++i)
+        list.push_back(new MxAngleHandle(i));
+
+    return list;
+}
+
+MxParticleHandle *MxAngleHandle::operator[](unsigned int index) {
+    auto *a = angle();
+    if(!a) {
+        Log(LOG_ERROR) << "Invalid angle handle";
+        return NULL;
+    }
+
+    if(index == 0) return MxParticle_FromId(a->i)->py_particle();
+    else if(index == 1) return MxParticle_FromId(a->j)->py_particle();
+    else if(index == 2) return MxParticle_FromId(a->k)->py_particle();
+    
+    mx_exp(std::range_error("Index out of range (must be 0, 1 or 2)"));
+    return NULL;
+}
+
+double MxAngleHandle::getEnergy() {
+
+    MxAngle angles[] = {*this->angle()};
+    FPTYPE f[] = {0.0, 0.0, 0.0};
+    double epot_out = 0.0;
+    angle_evalf(angles, 1, &_Engine, f, &epot_out);
+    return epot_out;
+}
+
+std::vector<int32_t> MxAngleHandle::getParts() {
+    std::vector<int32_t> result;
+    MxAngle *a = this->angle();
+    if(a && a->flags & ANGLE_ACTIVE) {
+        result = std::vector<int32_t>{a->i, a->j, a->k};
+    }
+    return result;
+}
+
+MxPotential *MxAngleHandle::getPotential() {
+    MxAngle *a = this->angle();
+    if(a && a->flags & ANGLE_ACTIVE) {
+        return a->potential;
+    }
+    return NULL;
+}
+
+uint32_t MxAngleHandle::getId() {
+    return this->id;
+}
+
+bool MxAngleHandle::getActive() {
+    auto *a = this->angle();
+    if (a) return (bool)(a->flags & ANGLE_ACTIVE);
+    return false;
 }

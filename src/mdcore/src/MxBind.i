@@ -9,7 +9,6 @@
 
 %include "MxBind.hpp"
 
-%template(vectorBondHandle_p) std::vector<MxBondHandle*>;
 %template(pairParticleList_BondHandle) std::pair<MxParticleList*, std::vector<MxBondHandle*>*>;
 %template(pairParticleType_ParticleType) std::pair<MxParticleType*, MxParticleType*>;
 %template(vectorPairParticleType_ParticleType) std::vector<std::pair<MxParticleType*, MxParticleType*>*>;

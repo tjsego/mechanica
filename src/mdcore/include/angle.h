@@ -31,6 +31,8 @@
 #define angle_err_null                  -1
 #define angle_err_malloc                -2
 
+// todo: implement angle style
+// todo: implement angle dissociation energy
 
 /** ID of the last error */
 CAPI_DATA(int) angle_err;
@@ -63,7 +65,11 @@ typedef struct MxAngle {
 	/* id of the potential. */
 	struct MxPotential *potential;
 
-    void init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3);
+    void init(MxPotential *potential, 
+              MxParticleHandle *p1, 
+              MxParticleHandle *p2, 
+              MxParticleHandle *p3, 
+              uint32_t flags=0);
 
     /**
      * @brief Creates an angle bond
@@ -72,9 +78,14 @@ typedef struct MxAngle {
      * @param p1 first outer particle
      * @param p2 center particle
      * @param p3 second outer particle
+     * @param flags angle flags
      * @return MxAngleHandle* 
      */
-    static MxAngleHandle *create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3);
+    static MxAngleHandle *create(MxPotential *potential, 
+                                 MxParticleHandle *p1, 
+                                 MxParticleHandle *p2, 
+                                 MxParticleHandle *p3, 
+                                 uint32_t flags=0);
 
 } MxAngle;
 
@@ -92,6 +103,30 @@ struct MxAngleHandle {
      * @return MxAngle* 
      */
     MxAngle *angle();
+
+    std::string str();
+
+    /**
+     * @brief Destroy the angle
+     * 
+     * @return HRESULT 
+     */
+    HRESULT destroy();
+
+    /**
+     * @brief Gets all angles in the universe
+     * 
+     * @return std::vector<MxAngleHandle*> 
+     */
+    static std::vector<MxAngleHandle*> items();
+
+    MxParticleHandle *operator[](unsigned int index);
+
+    double getEnergy();
+    std::vector<int32_t> getParts();
+    MxPotential *getPotential();
+    uint32_t getId();
+    bool getActive();
 
     MxAngleHandle() : id(-1) {}
     MxAngleHandle(const int &_id) : id(_id) {}
@@ -124,6 +159,14 @@ CAPI_FUNC(MxAngle*) MxAngle_NewFromIds(int i , int j , int k , int pid );
  */
 CAPI_FUNC(MxAngle*) MxAngle_NewFromIdsAndPotential(int i , int j , int k , struct MxPotential *pot);
 #endif
+
+/**
+ * @brief Destroys an angle
+ * 
+ * @param a angle to destroy
+ * @return HRESULT 
+ */
+CAPI_FUNC(HRESULT) MxAngle_Destroy(MxAngle *a);
 
 /* associated functions */
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out );

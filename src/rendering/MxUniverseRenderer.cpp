@@ -225,6 +225,8 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
     sphereMesh.setInstanceCount(0);
     largeSphereMesh.setInstanceCount(0);
     cuboidMesh.setInstanceCount(0);
+
+    arrowRenderer.start(conf.clipPlanes);
 }
 
 static inline int render_particle(SphereInstanceData* pData, int i, MxParticle *p, space_cell *c) {
@@ -429,6 +431,8 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     sphereShader.draw(sphereMesh);
     sphereShader.draw(largeSphereMesh);
     sphereShader.draw(cuboidMesh);
+
+    arrowRenderer.draw(camera, viewportSize, modelViewMat);
     
     return *this;
 }
@@ -640,6 +644,7 @@ void MxUniverseRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4
     }
     
     sphereShader.setclipPlaneEquation(id, pe);
+    arrowRenderer.setClipPlaneEquation(id, pe);
     _clipPlanes[id] = pe;
 }
 

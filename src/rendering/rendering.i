@@ -12,4 +12,6 @@
 
 %include "MxClipPlane.i"
 
+%include "MxArrowRenderer.i"
+
 %include "MxUniverseRenderer.i"

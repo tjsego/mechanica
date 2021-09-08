@@ -55,6 +55,8 @@
 #include <rendering/MxWindow.h>
 #include <rendering/ArcBallCamera.h>
 
+#include <rendering/MxArrowRenderer.h>
+
 struct MxSimulator_Config;
 
 class WireframeGrid;
@@ -258,6 +260,8 @@ struct MxUniverseRenderer : MxRenderer {
     GL::Buffer cuboidInstanceBuffer{NoCreate};
     
     GL::Buffer bondsVertexBuffer{NoCreate};
+
+    MxArrowRenderer arrowRenderer;
 
     MxVector3f center;
 

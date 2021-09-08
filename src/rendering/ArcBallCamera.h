@@ -117,7 +117,7 @@ public:
 
     void viewLeft(const float &viewDistance) {
         viewTop(viewDistance);
-        rotateByEulerAngles({0.5f*M_PI, 0, 0.5f*M_PI});
+        rotateByEulerAngles({-0.5f*M_PI, 0, 0.5f*M_PI});
     }
 
     void viewRight(const float &viewDistance) {

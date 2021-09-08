@@ -190,10 +190,61 @@ struct MxUniverseRenderer : MxRenderer {
 
     void setZoomRate(const float &zoomRate);
 
+    const float getSpinRate();
+
+    void setSpinRate(const float &spinRate);
+
+    const float getMoveRate();
+
+    void setMoveRate(const float &moveRate);
+
     void viewportEvent(Platform::GlfwApplication::ViewportEvent& event);
+
+    /**
+     * @brief Key press event handling. 
+     * 
+     * @details When a key is pressed, actions are as follows by key and modifier: 
+     * 
+     * - L: toggle lagging
+     * - R: reset camera
+     * - Arrow down: translate camera down
+     * - Arrow left: translate camera left
+     * - Arrow right: translate camera right
+     * - Arrow up: translate camera up
+     * - Ctrl + arrow down: zoom camera out
+     * - Ctrl + arrow left: rotate camera left
+     * - Ctrl + arrow right: rotate camera right
+     * - Ctrl + arrow up: zoom camera in
+     * - Shift + B: bottom view
+     * - Shift + F: front view
+     * - Shift + K: back view
+     * - Shift + L: left view
+     * - Shift + R: right view
+     * - Shift + T: top view
+     * - Shift + arrow down: rotate camera down
+     * - Shift + arrow left: rotate camera left
+     * - Shift + arrow right: rotate camera right
+     * - Shift + arrow up: rotate camera up
+     * - Shift + Ctrl + arrow down: translate backward
+     * - Shift + Ctrl + arrow up: translate forward
+     * 
+     * @param event 
+     */
     void keyPressEvent(Platform::GlfwApplication::KeyEvent& event);
     void mousePressEvent(Platform::GlfwApplication::MouseEvent& event);
     void mouseReleaseEvent(Platform::GlfwApplication::MouseEvent& event);
+
+    /**
+     * @brief Mouse move event handling. 
+     * 
+     * @details When a mouse button is pressed, actions are as follows by modifier:
+     *  - Shift: translates the camera
+     *  - Ctrl: zooms the camera
+     *  - None: rotates the camera
+     *  .
+     * 
+     * @param event 
+     */
     void mouseMoveEvent(Platform::GlfwApplication::MouseMoveEvent& event);
     void mouseScrollEvent(Platform::GlfwApplication::MouseScrollEvent& event);
 
@@ -227,6 +278,8 @@ struct MxUniverseRenderer : MxRenderer {
     
     float sideLength;
     float _zoomRate;
+    float _spinRate;
+    float _moveRate;
 
     Magnum::Mechanica::ArcBallCamera *_arcball;
     

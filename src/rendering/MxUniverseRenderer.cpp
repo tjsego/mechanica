@@ -69,7 +69,9 @@ using namespace Magnum::Math::Literals;
 
 MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow *win):
     window{win}, 
-    _zoomRate(0.05)
+    _zoomRate(0.05), 
+    _spinRate{0.01*M_PI}, 
+    _moveRate{0.01}
 {
     Log(LOG_DEBUG) << "Creating MxUniverseRenderer";
 
@@ -568,28 +570,142 @@ void MxUniverseRenderer::viewportEvent(Platform::GlfwApplication::ViewportEvent&
     //_shader.setViewportSize(Vector2{framebufferSize()});
 }
 
+static inline const bool cameraZoom(Magnum::Mechanica::ArcBallCamera *camera, const float &delta);
+
 void MxUniverseRenderer::keyPressEvent(Platform::GlfwApplication::KeyEvent& event) {
     switch(event.key()) {
-        case Platform::GlfwApplication::KeyEvent::Key::L:
-            if(_arcball->lagging() > 0.0f) {
-                Debug{} << "Lagging disabled";
-                _arcball->setLagging(0.0f);
-            } else {
-                Debug{} << "Lagging enabled";
-                _arcball->setLagging(0.85f);
+        case Platform::GlfwApplication::KeyEvent::Key::B: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                _arcball->viewBottom(2 * sideLength);
+                _arcball->translateToOrigin();
+            }
+
             }
             break;
-        case Platform::GlfwApplication::KeyEvent::Key::R:{
+
+        case Platform::GlfwApplication::KeyEvent::Key::F: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                _arcball->viewFront(2 * sideLength);
+                _arcball->translateToOrigin();
+            }
+
+            }
+            break;
+
+        case Platform::GlfwApplication::KeyEvent::Key::K: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                _arcball->viewBack(2 * sideLength);
+                _arcball->translateToOrigin();
+            }
+
+            }
+            break;
+
+        case Platform::GlfwApplication::KeyEvent::Key::L: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                _arcball->viewLeft(2 * sideLength);
+                _arcball->translateToOrigin();
+            }
+            else {
+                if(_arcball->lagging() > 0.0f) {
+                    Debug{} << "Lagging disabled";
+                    _arcball->setLagging(0.0f);
+                } else {
+                    Debug{} << "Lagging enabled";
+                    _arcball->setLagging(0.85f);
+                }
+            }
+
+            }
+            break;
+
+        case Platform::GlfwApplication::KeyEvent::Key::R: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                _arcball->viewRight(2 * sideLength);
+                _arcball->translateToOrigin();
+            }
+            else {
                 _arcball->reset();
+            }
+
             }
             break;
             
         case Platform::GlfwApplication::KeyEvent::Key::T: {
-            _arcball->rotateToAxis(Vector3::xAxis(), 2 * sideLength);
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                _arcball->viewTop(2 * sideLength);
+                _arcball->translateToOrigin();
+            }
+
             }
             break;
             
+        case Platform::GlfwApplication::KeyEvent::Key::Down: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
+                if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                    _arcball->translateDelta({0, 0, -_moveRate * sideLength});
+                }
+                else {
+                    if(!cameraZoom(_arcball, - _zoomRate)) return;
+                }
+            }
+            else if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                _arcball->rotateDelta(&_spinRate, NULL, NULL);
+            }
+            else {
+                _arcball->translateDelta({0, _moveRate * sideLength, 0});
+            }
             
+            }
+            break;
+            
+        case Platform::GlfwApplication::KeyEvent::Key::Left: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
+                _arcball->rotateDelta(NULL, NULL, &_spinRate);
+            }
+            else if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                const float _ang(-_spinRate);
+                _arcball->rotateDelta(NULL, &_ang, NULL);
+            }
+            else {
+                _arcball->translateDelta({_moveRate * sideLength, 0, 0});
+            }
+            
+            }
+            break;
+            
+        case Platform::GlfwApplication::KeyEvent::Key::Right: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
+                const float _ang(-_spinRate);
+                _arcball->rotateDelta(NULL, NULL, &_ang);
+            }
+            else if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                _arcball->rotateDelta(NULL, &_spinRate, NULL);
+            }
+            else {
+                _arcball->translateDelta({-_moveRate * sideLength, 0, 0});
+            }
+            
+            }
+            break;
+            
+        case Platform::GlfwApplication::KeyEvent::Key::Up: {
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
+                if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                    _arcball->translateDelta({0, 0, _moveRate * sideLength});
+                }
+                else if(!cameraZoom(_arcball, _zoomRate)) return;
+            }
+            else if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
+                const float _ang(-_spinRate);
+                _arcball->rotateDelta(&_ang, NULL, NULL);
+            }
+            else {
+                _arcball->translateDelta({0, -_moveRate * sideLength, 0});
+            }
+            
+            }
+            break;
 
         default: return;
     }
@@ -620,6 +736,9 @@ void MxUniverseRenderer::mouseMoveEvent(Platform::GlfwApplication::MouseMoveEven
     if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
         _arcball->translate(event.position());
     }
+    else if(event.modifiers() & Platform::GlfwApplication::MouseEvent::Modifier::Ctrl) {
+        if(!cameraZoom(_arcball, - _zoomRate * event.relativePosition().y() * 0.1)) return;
+    }
     else {
         _arcball->rotate(event.position());
     }
@@ -629,12 +748,7 @@ void MxUniverseRenderer::mouseMoveEvent(Platform::GlfwApplication::MouseMoveEven
 }
 
 void MxUniverseRenderer::mouseScrollEvent(Platform::GlfwApplication::MouseScrollEvent& event) {
-    const Float delta = event.offset().y();
-    if(Math::abs(delta) < 1.0e-2f) return;
-
-    const float distance = _arcball->viewDistance() * _zoomRate * event.offset().y();
-
-    _arcball->zoom(distance);
+    if(!cameraZoom(_arcball, _zoomRate * event.offset().y())) return;
 
     event.setAccepted();
     window->redraw(); /* camera has changed, redraw! */
@@ -670,6 +784,30 @@ void MxUniverseRenderer::setZoomRate(const float &zoomRate) {
     _zoomRate = zoomRate;
 }
 
+const float MxUniverseRenderer::getSpinRate() {
+    return _spinRate;
+}
+
+void MxUniverseRenderer::setSpinRate(const float &spinRate) {
+    _spinRate = spinRate;
+}
+
+const float MxUniverseRenderer::getMoveRate() {
+    return _moveRate;
+}
+
+void MxUniverseRenderer::setMoveRate(const float &moveRate) {
+    _moveRate = moveRate;
+}
+
+const bool cameraZoom(Magnum::Mechanica::ArcBallCamera *camera, const float &delta) 
+{
+    if(Math::abs(delta) < 1.0e-2f) return false;
+
+    const float distance = camera->viewDistance() * delta;
+    camera->zoom(distance);
+    return true;
+}
 
 //void FluidSimApp::mouseScrollEvent(MouseScrollEvent& event) {
 //    const Float delta = event.offset().y();

@@ -10,7 +10,7 @@
 #include "space.h"
 #include "space_cell.h"
 #include "runner.h"
-#include "dpd_eval.hpp"
+#include "potential_eval.hpp"
 
 
 static HRESULT virial_pair (float cutoff,

@@ -30,6 +30,7 @@
 #include <float.h>
 #include <string.h>
 #include <limits.h>
+#include <unordered_set>
 
 /* Include some conditional headers. */
 #include "mdcore_config.h"
@@ -96,6 +97,8 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
     FPTYPE ctheta, wi, wk, fi[3], fk[3], fic, fkc;
     Magnum::Vector3 rji, rjk;
     FPTYPE ee, inji, injk, dprod;
+    std::unordered_set<struct MxAngle*> toDestroy;
+    toDestroy.reserve(N);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0;
@@ -233,14 +236,15 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
                 std::fill(std::begin(fi), std::end(fi), 0.0);
                 std::fill(std::begin(fk), std::end(fk), 0.0);
                 pot->eval_byparts3(pot, pi, pj, pk, ctheta, &ee, fi, fk);
-
-                epot += ee;
-                angle->potential_energy += ee;
                 for (int i = 0; i < 3; ++i) {
                     pi->f[i] += (fic = fi[i]);
                     pk->f[i] += (fkc = fk[i]);
                     pj->f[i] -= fic + fkc;
                 }
+                epot += ee;
+                angle->potential_energy += ee;
+                if(angle->potential_energy >= angle->dissociation_energy)
+                    toDestroy.insert(angle);
             }
             else {
             
@@ -279,13 +283,15 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
 
                         /* update the forces and the energy */
                         for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                            epot += eeq[l];
-                            angleq[l]->potential_energy += eeq[l];
                             for ( k = 0 ; k < 3 ; k++ ) {
                                 effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
                                 effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
                                 effj[l][k] += wi + wk;
                             }
+                            epot += eeq[l];
+                            angleq[l]->potential_energy += eeq[l];
+                            if(angleq[l]->potential_energy >= angleq[l]->dissociation_energy)
+                                toDestroy.insert(angleq[l]);
                         }
 
                         /* re-set the counter. */
@@ -310,6 +316,8 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
                     /* tabulate the energy */
                     epot += ee;
                     angle->potential_energy += ee;
+                    if(angle->potential_energy >= angle->dissociation_energy)
+                        toDestroy.insert(angle);
                 #endif
 
             }
@@ -345,17 +353,23 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += eeq[l];
-                angleq[l]->potential_energy += eeq[l];
                 for ( k = 0 ; k < 3 ; k++ ) {
                     effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
                     effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
                     effj[l][k] += wi + wk;
                 }
+                epot += eeq[l];
+                angleq[l]->potential_energy += eeq[l];
+                if(angleq[l]->potential_energy >= angleq[l]->dissociation_energy)
+                    toDestroy.insert(angleq[l]);
             }
 
         }
     #endif
+
+    // Destroy every bond scheduled for destruction
+    for(auto ai : toDestroy)
+        MxAngle_Destroy(ai);
     
     /* Store the potential energy. */
     *epot_out += epot;
@@ -392,7 +406,8 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
     FPTYPE ee, xi[3], xj[3], xk[3], dxi[3] , dxk[3], ctheta, wi, wk, fi[3], fk[3], fic, fkc;
     FPTYPE t1, t10, t11, t12, t13, t21, t22, t23, t24, t25, t26, t27, t3,
         t5, t6, t7, t8, t9, t4, t14, t2;
-
+    std::unordered_set<struct MxAngle*> toDestroy;
+    toDestroy.reserve(N);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -509,14 +524,15 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
                 std::fill(std::begin(fi), std::end(fi), 0.0);
                 std::fill(std::begin(fk), std::end(fk), 0.0);
                 pot->eval_byparts3(pot, pi, pj, pk, ctheta, &ee, fi, fk);
-
-                epot += ee;
-                angle->potential_energy += ee;
                 for (int i = 0; i < 3; ++i) {
                     pi->f[i] += (fic = fi[i]);
                     pk->f[i] += (fkc = fk[i]);
                     pj->f[i] -= fic + fkc;
                 }
+                epot += ee;
+                angle->potential_energy += ee;
+                if(angle->potential_energy >= angle->dissociation_energy)
+                    toDestroy.insert(angle);
             }
             else {
 
@@ -555,13 +571,15 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
 
                         /* update the forces and the energy */
                         for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                            epot += eeq[l];
-                            angleq[l] += eeq[l];
                             for ( k = 0 ; k < 3 ; k++ ) {
                                 effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
                                 effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
                                 effj[l][k] += wi + wk;
                             }
+                            epot += eeq[l];
+                            angleq[l] += eeq[l];
+                            if(angleq[l]->potential_energy >= angleq[l]->dissociation_energy)
+                                toDestroy.insert(angleq[l]);
                         }
 
                         /* re-set the counter. */
@@ -586,6 +604,8 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
                     /* tabulate the energy */
                     epot += ee;
                     angle->potential_energy += ee;
+                    if(angle->potential_energy >= angle->dissociation_energy)
+                        toDestroy.insert(angle);
                 #endif
 
             }
@@ -621,17 +641,23 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += eeq[l];
-                angleq[l] += eeq[l];
                 for ( k = 0 ; k < 3 ; k++ ) {
                     effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
                     effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
                     effj[l][k] += wi + wk;
                     }
                 }
+                epot += eeq[l];
+                angleq[l] += eeq[l];
+                if(angleq[l]->potential_energy >= angleq[l]->dissociation_energy)
+                    toDestroy.insert(angleq[l]);
 
             }
     #endif
+
+    // Destroy every bond scheduled for destruction
+    for(auto ai : toDestroy)
+        MxAngle_Destroy(ai);
     
     /* Store the potential energy. */
     *epot_out += epot;

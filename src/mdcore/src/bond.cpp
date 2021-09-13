@@ -254,21 +254,18 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
                     #else
                         potential_eval( pot , r2 , &ee , &eff );
                     #endif
-                    b->potential_energy += ee;
                 
-                    if(b->potential_energy >= b->dissociation_energy) {
+                    /* update the forces */
+                    for ( k = 0 ; k < 3 ; k++ ) {
+                        w = eff * dx[k];
+                        pi->f[k] -= w;
+                        pj->f[k] += w;
+                    }
+                    /* tabulate the energy */
+                    epot += ee;
+                    b->potential_energy += ee;
+                    if(b->potential_energy >= b->dissociation_energy) 
                         toDestroy.insert(b);
-                    }
-                    else {
-                        /* update the forces */
-                        for ( k = 0 ; k < 3 ; k++ ) {
-                            w = eff * dx[k];
-                            pi->f[k] -= w;
-                            pj->f[k] += w;
-                        }
-                        /* tabulate the energy */
-                        epot += ee;
-                    }
 
 
                 #endif

@@ -62,6 +62,9 @@ typedef struct MxAngle {
 	/* ids of particles involved */
 	int i, j, k;
 
+	/* potential energy required to break this bond */
+	double dissociation_energy;
+
 	/* potential energy of this bond */
 	double potential_energy;
 

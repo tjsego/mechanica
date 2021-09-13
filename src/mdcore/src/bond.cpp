@@ -879,7 +879,7 @@ std::vector<MxBondHandle*>* MxBondHandle::pairwise(struct MxPotential* pot,
 }
 
 bool MxBond_decays(MxBond *b, std::uniform_real_distribution<double> *uniform01) {
-    if(!b || b->half_life == 0.0) return false;
+    if(!b || b->half_life <= 0.0) return false;
 
     bool created = uniform01 == NULL;
     if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);

@@ -714,6 +714,11 @@ void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandl
     this->j = p2->id;
     this->k = p3->id;
     this->flags = flags;
+
+    this->dissociation_energy = std::numeric_limits<double>::max();
+    this->half_life = 0.0;
+
+    if(!this->style) this->style = MxAngle_StylePtr;
 }
 
 MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3, uint32_t flags) {
@@ -758,7 +763,7 @@ std::vector<MxAngleHandle*> MxAngleHandle::items() {
 }
 
 bool MxAngle_decays(MxAngle *a, std::uniform_real_distribution<double> *uniform01) {
-    if(!a || a->half_life == 0.0) return false;
+    if(!a || a->half_life <= 0.0) return false;
 
     bool created = uniform01 == NULL;
     if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);

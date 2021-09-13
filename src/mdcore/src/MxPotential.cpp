@@ -65,7 +65,9 @@ MxPotential::MxPotential() :
     mu(0.0), 
     n(1), 
     create_func(NULL), 
-    eval(NULL), 
+    eval_byparts(NULL), 
+	pca(NULL), 
+	pcb(NULL), 
     name(NULL)
 {}
 
@@ -2290,6 +2292,45 @@ float MxPotential::force(double r, double ri, double rj) {
         mx_exp(e);
         return -1.0;
     }
+}
+
+std::vector<MxPotential*> MxPotential::constituents() {
+	std::vector<MxPotential*> result;
+
+	if(pca) {
+		if(pca->kind == POTENTIAL_KIND_COMBINATION) {
+			auto pcs = pca->constituents();
+			result.reserve(result.size() + std::distance(pcs.begin(), pcs.end()));
+			result.insert(result.end(), pcs.begin(), pcs.end());
+		}
+		else result.push_back(pca);
+	}
+	if(pcb) {
+		if(pcb->kind == POTENTIAL_KIND_COMBINATION) {
+			auto pcs = pcb->constituents();
+			result.reserve(result.size() + std::distance(pcs.begin(), pcs.end()));
+			result.insert(result.end(), pcs.begin(), pcs.end());
+		}
+		else result.push_back(pcb);
+	}
+
+	return result;
+}
+
+MxPotential& MxPotential::operator+(const MxPotential& rhs) {
+	MxPotential *p = new MxPotential();
+
+	// Enforce compatibility
+	if(this->flags & POTENTIAL_ANGLE && !(rhs.flags & POTENTIAL_ANGLE)) {
+		mx_exp(std::invalid_argument("Incompatible potentials"));
+		return potential_null;
+	}
+
+	p->pca = this;
+	p->pcb = const_cast<MxPotential*>(&rhs);
+	p->kind = POTENTIAL_KIND_COMBINATION;
+	p->flags = p->flags | POTENTIAL_SUM;
+	return *p;
 }
 
 MxPotential *MxPotential::lennard_jones_12_6(double min, double max, double A, double B, double *tol) {

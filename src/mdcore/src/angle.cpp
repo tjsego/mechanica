@@ -84,26 +84,29 @@ const char *angle_err_msg[2] = {
  */
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out ) {
 
+    MxAngle *angle;
     int aid, pid, pjd, pkd, k, *loci, *locj, *lock, shift;
     double h[3], epot = 0.0;
     struct space *s;
     struct MxParticle *pi, *pj, *pk, **partlist;
     struct space_cell **celllist;
-    struct MxPotential *pot;
+    struct MxPotential *pot, *pota;
+    std::vector<struct MxPotential *> pots;
     Magnum::Vector3 xi, xj, xk, dxi, dxk;
-    FPTYPE ctheta, wi, wk;
+    FPTYPE ctheta, wi, wk, fi[3], fk[3], fic, fkc;
     Magnum::Vector3 rji, rjk;
-    FPTYPE inji, injk, dprod;
+    FPTYPE ee, inji, injk, dprod;
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0;
     FPTYPE *effi[VEC_SIZE], *effj[VEC_SIZE], *effk[VEC_SIZE];
     FPTYPE cthetaq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
-    FPTYPE ee[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
+    FPTYPE eeq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE eff[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE diq[VEC_SIZE*3], dkq[VEC_SIZE*3];
+    struct MxAngle *angleq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
 #else
-    FPTYPE ee, eff;
+    FPTYPE eff;
 #endif
     
     /* Check inputs. */
@@ -119,9 +122,11 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
         
     /* Loop over the angles. */
     for ( aid = 0 ; aid < N ; aid++ ) {
+        angle = &a[aid];
+        angle->potential_energy = 0.0;
     
         /* Get the particles involved. */
-        pid = a[aid].i; pjd = a[aid].j; pkd = a[aid].k;
+        pid = angle->i; pjd = angle->j; pkd = angle->k;
         if ( ( pi = partlist[ pid] ) == NULL )
             continue;
         if ( ( pj = partlist[ pjd ] ) == NULL )
@@ -134,9 +139,15 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
             continue;
             
         /* Get the potential. */
-        if ( ( pot = a[aid].potential) == NULL )
+        if ( ( pota = angle->potential) == NULL )
             continue;
     
+        if(pota->kind == POTENTIAL_KIND_COMBINATION && pota->flags & POTENTIAL_SUM) {
+            pots = pota->constituents();
+            if(pots.size() == 0) pots = {pota};
+        }
+        else pots = {pota};
+        
         /* get the particle positions relative to pj's cell. */
         loci = celllist[ pid ]->loc;
         locj = celllist[ pjd ]->loc;
@@ -193,95 +204,119 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
                 dxk[k] = ( rji[k]*inji - ctheta * rjk[k]*injk ) * injk;
             }
         }
+
+        for(int i = 0; i < pots.size(); i++) {
+            pot = pots[i];
         
-        /* printf( "angle_eval: cos of angle %i (%s-%s-%s) is %e.\n" , aid ,
-            e->types[pi->type].name , e->types[pj->type].name , e->types[pk->type].name , ctheta ); */
-        /* printf( "angle_eval: ids are ( %i , %i , %i ).\n" , pi->id , pj->id , pk->id );
-        if ( e->s.celllist[pid] != e->s.celllist[pjd] )
-            printf( "angle_eval: pi and pj are in different cells!\n" );
-        if ( e->s.celllist[pkd] != e->s.celllist[pjd] )
-            printf( "angle_eval: pk and pj are in different cells!\n" );
-        printf( "angle_eval: xi-xj is [ %e , %e , %e ], ||xi-xj||=%e.\n" ,
-            xi[0]-xj[0] , xi[1]-xj[1] , xi[2]-xj[2] , sqrt( (xi[0]-xj[0])*(xi[0]-xj[0]) + (xi[1]-xj[1])*(xi[1]-xj[1]) + (xi[2]-xj[2])*(xi[2]-xj[2]) ) );
-        printf( "angle_eval: xk-xj is [ %e , %e , %e ], ||xk-xj||=%e.\n" ,
-            xk[0]-xj[0] , xk[1]-xj[1] , xk[2]-xj[2] , sqrt( (xk[0]-xj[0])*(xk[0]-xj[0]) + (xk[1]-xj[1])*(xk[1]-xj[1]) + (xk[2]-xj[2])*(xk[2]-xj[2]) ) ); */
-        /* printf( "angle_eval: dxi is [ %e , %e , %e ], ||dxi||=%e.\n" ,
-            dxi[0] , dxi[1] , dxi[2] , sqrt( dxi[0]*dxi[0] + dxi[1]*dxi[1] + dxi[2]*dxi[2] ) );
-        printf( "angle_eval: dxk is [ %e , %e , %e ], ||dxk||=%e.\n" ,
-            dxk[0] , dxk[1] , dxk[2] , sqrt( dxk[0]*dxk[0] + dxk[1]*dxk[1] + dxk[2]*dxk[2] ) ); */
-        if ( ctheta < pot->a || ctheta > pot->b ) {
-            printf( "angle_eval[%i]: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
-                e->nodeID , aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
-            ctheta = FPTYPE_FMAX( pot->a , FPTYPE_FMIN( pot->b , ctheta ) );
-        }
-
-        #ifdef VECTORIZE
-            /* add this angle to the interaction queue. */
-            cthetaq[icount] = ctheta;
-            diq[icount*3] = dxi[0];
-            diq[icount*3+1] = dxi[1];
-            diq[icount*3+2] = dxi[2];
-            dkq[icount*3] = dxk[0];
-            dkq[icount*3+1] = dxk[1];
-            dkq[icount*3+2] = dxk[2];
-            effi[icount] = pi->f;
-            effj[icount] = pj->f;
-            effk[icount] = pk->f;
-            potq[icount] = pot;
-            icount += 1;
-
-            /* evaluate the interactions if the queue is full. */
-            if ( icount == VEC_SIZE ) {
-
-                #if defined(FPTYPE_SINGLE)
-                    #if VEC_SIZE==8
-                    potential_eval_vec_8single_r( potq , cthetaq , ee , eff );
-                    #else
-                    potential_eval_vec_4single_r( potq , cthetaq , ee , eff );
-                    #endif
-                #elif defined(FPTYPE_DOUBLE)
-                    #if VEC_SIZE==4
-                    potential_eval_vec_4double_r( potq , cthetaq , ee , eff );
-                    #else
-                    potential_eval_vec_2double_r( potq , cthetaq , ee , eff );
-                    #endif
-                #endif
-
-                /* update the forces and the energy */
-                for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                    epot += ee[l];
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
-                        effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
-                        effj[l][k] += wi + wk;
-                        }
-                    }
-
-                /* re-set the counter. */
-                icount = 0;
-
-                }
-        #else
-            /* evaluate the angle */
-            #ifdef EXPLICIT_POTENTIALS
-                potential_eval_expl( pot , ctheta , &ee , &eff );
-            #else
-                potential_eval_r( pot , ctheta , &ee , &eff );
-            #endif
-            
-            /* update the forces */
-            for ( k = 0 ; k < 3 ; k++ ) {
-                pi->f[k] -= ( wi = eff * dxi[k] );
-                pk->f[k] -= ( wk = eff * dxk[k] );
-                pj->f[k] += wi + wk;
+            /* printf( "angle_eval: cos of angle %i (%s-%s-%s) is %e.\n" , aid ,
+                e->types[pi->type].name , e->types[pj->type].name , e->types[pk->type].name , ctheta ); */
+            /* printf( "angle_eval: ids are ( %i , %i , %i ).\n" , pi->id , pj->id , pk->id );
+            if ( e->s.celllist[pid] != e->s.celllist[pjd] )
+                printf( "angle_eval: pi and pj are in different cells!\n" );
+            if ( e->s.celllist[pkd] != e->s.celllist[pjd] )
+                printf( "angle_eval: pk and pj are in different cells!\n" );
+            printf( "angle_eval: xi-xj is [ %e , %e , %e ], ||xi-xj||=%e.\n" ,
+                xi[0]-xj[0] , xi[1]-xj[1] , xi[2]-xj[2] , sqrt( (xi[0]-xj[0])*(xi[0]-xj[0]) + (xi[1]-xj[1])*(xi[1]-xj[1]) + (xi[2]-xj[2])*(xi[2]-xj[2]) ) );
+            printf( "angle_eval: xk-xj is [ %e , %e , %e ], ||xk-xj||=%e.\n" ,
+                xk[0]-xj[0] , xk[1]-xj[1] , xk[2]-xj[2] , sqrt( (xk[0]-xj[0])*(xk[0]-xj[0]) + (xk[1]-xj[1])*(xk[1]-xj[1]) + (xk[2]-xj[2])*(xk[2]-xj[2]) ) ); */
+            /* printf( "angle_eval: dxi is [ %e , %e , %e ], ||dxi||=%e.\n" ,
+                dxi[0] , dxi[1] , dxi[2] , sqrt( dxi[0]*dxi[0] + dxi[1]*dxi[1] + dxi[2]*dxi[2] ) );
+            printf( "angle_eval: dxk is [ %e , %e , %e ], ||dxk||=%e.\n" ,
+                dxk[0] , dxk[1] , dxk[2] , sqrt( dxk[0]*dxk[0] + dxk[1]*dxk[1] + dxk[2]*dxk[2] ) ); */
+            if ( ctheta < pot->a || ctheta > pot->b ) {
+                printf( "angle_eval[%i]: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
+                    e->nodeID , aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
+                ctheta = FPTYPE_FMAX( pot->a , FPTYPE_FMIN( pot->b , ctheta ) );
             }
 
-            /* tabulate the energy */
-            epot += ee;
-        #endif
+            if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+                std::fill(std::begin(fi), std::end(fi), 0.0);
+                std::fill(std::begin(fk), std::end(fk), 0.0);
+                pot->eval_byparts3(pot, pi, pj, pk, ctheta, &ee, fi, fk);
+
+                epot += ee;
+                angle->potential_energy += ee;
+                for (int i = 0; i < 3; ++i) {
+                    pi->f[i] += (fic = fi[i]);
+                    pk->f[i] += (fkc = fk[i]);
+                    pj->f[i] -= fic + fkc;
+                }
+            }
+            else {
+            
+                #ifdef VECTORIZE
+                    /* add this angle to the interaction queue. */
+                    cthetaq[icount] = ctheta;
+                    diq[icount*3] = dxi[0];
+                    diq[icount*3+1] = dxi[1];
+                    diq[icount*3+2] = dxi[2];
+                    dkq[icount*3] = dxk[0];
+                    dkq[icount*3+1] = dxk[1];
+                    dkq[icount*3+2] = dxk[2];
+                    effi[icount] = pi->f;
+                    effj[icount] = pj->f;
+                    effk[icount] = pk->f;
+                    potq[icount] = pot;
+                    angleq[icount] = angle;
+                    icount += 1;
+
+                    /* evaluate the interactions if the queue is full. */
+                    if ( icount == VEC_SIZE ) {
+
+                        #if defined(FPTYPE_SINGLE)
+                            #if VEC_SIZE==8
+                            potential_eval_vec_8single_r( potq , cthetaq , eeq , eff );
+                            #else
+                            potential_eval_vec_4single_r( potq , cthetaq , eeq , eff );
+                            #endif
+                        #elif defined(FPTYPE_DOUBLE)
+                            #if VEC_SIZE==4
+                            potential_eval_vec_4double_r( potq , cthetaq , eeq , eff );
+                            #else
+                            potential_eval_vec_2double_r( potq , cthetaq , eeq , eff );
+                            #endif
+                        #endif
+
+                        /* update the forces and the energy */
+                        for ( l = 0 ; l < VEC_SIZE ; l++ ) {
+                            epot += eeq[l];
+                            angleq[l]->potential_energy += eeq[l];
+                            for ( k = 0 ; k < 3 ; k++ ) {
+                                effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
+                                effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
+                                effj[l][k] += wi + wk;
+                            }
+                        }
+
+                        /* re-set the counter. */
+                        icount = 0;
+
+                        }
+                #else
+                    /* evaluate the angle */
+                    #ifdef EXPLICIT_POTENTIALS
+                        potential_eval_expl( pot , ctheta , &ee , &eff );
+                    #else
+                        potential_eval_r( pot , ctheta , &ee , &eff );
+                    #endif
+                    
+                    /* update the forces */
+                    for ( k = 0 ; k < 3 ; k++ ) {
+                        pi->f[k] -= ( wi = eff * dxi[k] );
+                        pk->f[k] -= ( wk = eff * dxk[k] );
+                        pj->f[k] += wi + wk;
+                    }
+
+                    /* tabulate the energy */
+                    epot += ee;
+                    angle->potential_energy += ee;
+                #endif
+
+            }
+
+        }
         
-        } /* loop over angles. */
-        
+    } /* loop over angles. */
         
     #if defined(VECTORIZE)
         /* are there any leftovers? */
@@ -291,34 +326,35 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
             for ( k = icount ; k < VEC_SIZE ; k++ ) {
                 potq[k] = potq[0];
                 cthetaq[k] = cthetaq[0];
-                }
+            }
 
             /* evaluate the potentials */
             #if defined(FPTYPE_SINGLE)
                 #if VEC_SIZE==8
-                potential_eval_vec_8single_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_8single_r( potq , cthetaq , eeq , eff );
                 #else
-                potential_eval_vec_4single_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_4single_r( potq , cthetaq , eeq , eff );
                 #endif
             #elif defined(FPTYPE_DOUBLE)
                 #if VEC_SIZE==4
-                potential_eval_vec_4double_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_4double_r( potq , cthetaq , eeq , eff );
                 #else
-                potential_eval_vec_2double_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_2double_r( potq , cthetaq , eeq , eff );
                 #endif
             #endif
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += ee[l];
+                epot += eeq[l];
+                angleq[l]->potential_energy += eeq[l];
                 for ( k = 0 ; k < 3 ; k++ ) {
                     effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
                     effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
                     effj[l][k] += wi + wk;
-                    }
                 }
-
             }
+
+        }
     #endif
     
     /* Store the potential energy. */
@@ -327,7 +363,7 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
     /* We're done here. */
     return angle_err_ok;
     
-    }
+}
 
 
 /**
@@ -345,13 +381,15 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
  */
 int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , double *epot_out ) {
 
+    MxAngle *angle;
     int aid, pid, pjd, pkd, k, *loci, *locj, *lock, shift;
     double h[3], epot = 0.0;
     struct space *s;
     struct MxParticle *pi, *pj, *pk, **partlist;
     struct space_cell **celllist;
-    struct MxPotential *pot;
-    FPTYPE xi[3], xj[3], xk[3], dxi[3] , dxk[3], ctheta, wi, wk;
+    struct MxPotential *pot, *pota;
+    std::vector<struct MxPotential *> pots;
+    FPTYPE ee, xi[3], xj[3], xk[3], dxi[3] , dxk[3], ctheta, wi, wk, fi[3], fk[3], fic, fkc;
     FPTYPE t1, t10, t11, t12, t13, t21, t22, t23, t24, t25, t26, t27, t3,
         t5, t6, t7, t8, t9, t4, t14, t2;
 
@@ -360,11 +398,12 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
     int icount = 0, l;
     FPTYPE *effi[VEC_SIZE], *effj[VEC_SIZE], *effk[VEC_SIZE];
     FPTYPE cthetaq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
-    FPTYPE ee[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
+    FPTYPE eeq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE eff[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE diq[VEC_SIZE*3], dkq[VEC_SIZE*3];
+    struct MxAngle *angleq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
 #else
-    FPTYPE ee, eff;
+    FPTYPE eff;
 #endif
     
     /* Check inputs. */
@@ -380,9 +419,11 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
         
     /* Loop over the angles. */
     for ( aid = 0 ; aid < N ; aid++ ) {
+        angle = &a[aid];
+        angle->potential_energy = 0.0;
     
         /* Get the particles involved. */
-        pid = a[aid].i; pjd = a[aid].j; pkd = a[aid].k;
+        pid = angle->i; pjd = angle->j; pkd = angle->k;
         if ( ( pi = partlist[ pid] ) == NULL )
             continue;
         if ( ( pj = partlist[ pjd ] ) == NULL )
@@ -395,9 +436,15 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
             continue;
             
         /* Get the potential. */
-        if ( ( pot = a[aid].potential ) == NULL )
+        if ( ( pota = angle->potential ) == NULL )
             continue;
     
+        if(pota->kind == POTENTIAL_KIND_COMBINATION && pota->flags & POTENTIAL_SUM) {
+            pots = pota->constituents();
+            if(pots.size() == 0) pots = {pota};
+        }
+        else pots = {pota};
+        
         /* get the particle positions relative to pj's cell. */
         loci = celllist[ pid ]->loc;
         locj = celllist[ pjd ]->loc;
@@ -416,7 +463,7 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
             else if ( shift < -1 )
                 shift = 1;
             xk[k] = pk->x[k] + h[k]*shift;
-            }
+        }
             
         /* This is Maple-generated code, see "angles.maple" for details. */
         t2 = xj[2]*xj[2];
@@ -447,80 +494,105 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
         dxk[1] = (t12*t1-t9*t23)*t3;
         dxk[2] = (t11*t1-t8*t23)*t3;
         ctheta = FPTYPE_FMAX( -FPTYPE_ONE , FPTYPE_FMIN( FPTYPE_ONE , t1*t27 ) );
+
+        for(int i = 0; i < pots.size(); i++) {
+            pot = pots[i];
         
-        /* printf( "angle_eval: angle %i is %e rad.\n" , aid , ctheta ); */
-        if ( ctheta < pot->a || ctheta > pot->b ) {
-            printf( "angle_evalf: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
-                aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
-            ctheta = fmax( pot->a , fmin( pot->b , ctheta ) );
+            /* printf( "angle_eval: angle %i is %e rad.\n" , aid , ctheta ); */
+            if ( ctheta < pot->a || ctheta > pot->b ) {
+                printf( "angle_evalf: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
+                    aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
+                ctheta = fmax( pot->a , fmin( pot->b , ctheta ) );
             }
 
-        #ifdef VECTORIZE
-            /* add this angle to the interaction queue. */
-            cthetaq[icount] = ctheta;
-            diq[icount*3] = dxi[0];
-            diq[icount*3+1] = dxi[1];
-            diq[icount*3+2] = dxi[2];
-            dkq[icount*3] = dxk[0];
-            dkq[icount*3+1] = dxk[1];
-            dkq[icount*3+2] = dxk[2];
-            effi[icount] = &f[ 4*pid ];
-            effj[icount] = &f[ 4*pjd ];
-            effk[icount] = &f[ 4*pkd ];
-            potq[icount] = pot;
-            icount += 1;
+            if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+                std::fill(std::begin(fi), std::end(fi), 0.0);
+                std::fill(std::begin(fk), std::end(fk), 0.0);
+                pot->eval_byparts3(pot, pi, pj, pk, ctheta, &ee, fi, fk);
 
-            /* evaluate the interactions if the queue is full. */
-            if ( icount == VEC_SIZE ) {
+                epot += ee;
+                angle->potential_energy += ee;
+                for (int i = 0; i < 3; ++i) {
+                    pi->f[i] += (fic = fi[i]);
+                    pk->f[i] += (fkc = fk[i]);
+                    pj->f[i] -= fic + fkc;
+                }
+            }
+            else {
 
-                #if defined(FPTYPE_SINGLE)
-                    #if VEC_SIZE==8
-                    potential_eval_vec_8single_r( potq , cthetaq , ee , eff );
-                    #else
-                    potential_eval_vec_4single_r( potq , cthetaq , ee , eff );
-                    #endif
-                #elif defined(FPTYPE_DOUBLE)
-                    #if VEC_SIZE==4
-                    potential_eval_vec_4double_r( potq , cthetaq , ee , eff );
-                    #else
-                    potential_eval_vec_2double_r( potq , cthetaq , ee , eff );
-                    #endif
-                #endif
+                #ifdef VECTORIZE
+                    /* add this angle to the interaction queue. */
+                    cthetaq[icount] = ctheta;
+                    diq[icount*3] = dxi[0];
+                    diq[icount*3+1] = dxi[1];
+                    diq[icount*3+2] = dxi[2];
+                    dkq[icount*3] = dxk[0];
+                    dkq[icount*3+1] = dxk[1];
+                    dkq[icount*3+2] = dxk[2];
+                    effi[icount] = &f[ 4*pid ];
+                    effj[icount] = &f[ 4*pjd ];
+                    effk[icount] = &f[ 4*pkd ];
+                    potq[icount] = pot;
+                    angleq[icount] = angle;
+                    icount += 1;
 
-                /* update the forces and the energy */
-                for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                    epot += ee[l];
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
-                        effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
-                        effj[l][k] += wi + wk;
+                    /* evaluate the interactions if the queue is full. */
+                    if ( icount == VEC_SIZE ) {
+
+                        #if defined(FPTYPE_SINGLE)
+                            #if VEC_SIZE==8
+                            potential_eval_vec_8single_r( potq , cthetaq , eeq , eff );
+                            #else
+                            potential_eval_vec_4single_r( potq , cthetaq , eeq , eff );
+                            #endif
+                        #elif defined(FPTYPE_DOUBLE)
+                            #if VEC_SIZE==4
+                            potential_eval_vec_4double_r( potq , cthetaq , eeq , eff );
+                            #else
+                            potential_eval_vec_2double_r( potq , cthetaq , eeq , eff );
+                            #endif
+                        #endif
+
+                        /* update the forces and the energy */
+                        for ( l = 0 ; l < VEC_SIZE ; l++ ) {
+                            epot += eeq[l];
+                            angleq[l] += eeq[l];
+                            for ( k = 0 ; k < 3 ; k++ ) {
+                                effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
+                                effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
+                                effj[l][k] += wi + wk;
+                            }
                         }
+
+                        /* re-set the counter. */
+                        icount = 0;
+
+                    }
+                #else
+                    /* evaluate the angle */
+                    #ifdef EXPLICIT_POTENTIALS
+                        potential_eval_expl( pot , ctheta , &ee , &eff );
+                    #else
+                        potential_eval_r( pot , ctheta , &ee , &eff );
+                    #endif
+                    
+                    /* update the forces */
+                    for ( k = 0 ; k < 3 ; k++ ) {
+                        f[4*pid+k] -= ( wi = eff * dxi[k] );
+                        f[4*pkd+k] -= ( wk = eff * dxk[k] );
+                        f[4*pjd+k] += wi + wk;
                     }
 
-                /* re-set the counter. */
-                icount = 0;
+                    /* tabulate the energy */
+                    epot += ee;
+                    angle->potential_energy += ee;
+                #endif
 
-                }
-        #else
-            /* evaluate the angle */
-            #ifdef EXPLICIT_POTENTIALS
-                potential_eval_expl( pot , ctheta , &ee , &eff );
-            #else
-                potential_eval_r( pot , ctheta , &ee , &eff );
-            #endif
-            
-            /* update the forces */
-            for ( k = 0 ; k < 3 ; k++ ) {
-                f[4*pid+k] -= ( wi = eff * dxi[k] );
-                f[4*pkd+k] -= ( wk = eff * dxk[k] );
-                f[4*pjd+k] += wi + wk;
-                }
+            }
 
-            /* tabulate the energy */
-            epot += ee;
-        #endif
+        }
         
-        } /* loop over angles. */
+    } /* loop over angles. */
         
     #if defined(VECTORIZE)
         /* are there any leftovers? */
@@ -530,26 +602,27 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
             for ( k = icount ; k < VEC_SIZE ; k++ ) {
                 potq[k] = potq[0];
                 cthetaq[k] = cthetaq[0];
-                }
+            }
 
             /* evaluate the potentials */
             #if defined(FPTYPE_SINGLE)
                 #if VEC_SIZE==8
-                potential_eval_vec_8single_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_8single_r( potq , cthetaq , eeq , eff );
                 #else
-                potential_eval_vec_4single_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_4single_r( potq , cthetaq , eeq , eff );
                 #endif
             #elif defined(FPTYPE_DOUBLE)
                 #if VEC_SIZE==4
-                potential_eval_vec_4double_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_4double_r( potq , cthetaq , eeq , eff );
                 #else
-                potential_eval_vec_2double_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_2double_r( potq , cthetaq , eeq , eff );
                 #endif
             #endif
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += ee[l];
+                epot += eeq[l];
+                angleq[l] += eeq[l];
                 for ( k = 0 ; k < 3 ; k++ ) {
                     effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
                     effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );

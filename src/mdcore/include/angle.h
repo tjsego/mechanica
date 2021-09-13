@@ -62,6 +62,9 @@ typedef struct MxAngle {
 	/* ids of particles involved */
 	int i, j, k;
 
+	/* potential energy of this bond */
+	double potential_energy;
+
 	/* id of the potential. */
 	struct MxPotential *potential;
 

@@ -26,6 +26,7 @@
 
 #include <limits>
 #include <utility>
+#include <vector>
 
 /* potential error codes */
 #define potential_err_ok                    0
@@ -95,22 +96,57 @@ enum PotentialFlags {
      * potential is for free particles.
      */
     POTENTIAL_BOUND           = 1 << 13,
+
+    // sum of constituent potentials
+    POTENTIAL_SUM             = 1 << 14
 };
 
 enum PotentialKind {
     // standard interpolated potential kind
     POTENTIAL_KIND_POTENTIAL,
     
-    //
-    POTENTIAL_KIND_DPD
+    // dissipative particle dynamics kind
+    POTENTIAL_KIND_DPD, 
+
+    // explicit potential by particles
+    POTENTIAL_KIND_BYPARTICLES,
+
+    // combination of two constituent potentials
+    POTENTIAL_KIND_COMBINATION
 };
 
 
 /** ID of the last error. */
 CAPI_DATA(int) potential_err;
 
-typedef void (*MxPotentialEval) ( struct MxPotential *p , struct MxParticle *,
-    struct MxParticle *b, FPTYPE r2 , FPTYPE *e , FPTYPE *f );
+/**
+ * @brief Pair potential function. 
+ * 
+ * Includes pre-computed relative position and distance of jth particle w.r.t. ith particle. 
+ * 
+ * Computes the potential and force in global frame on the ith particle. 
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticles) (struct MxPotential *p, 
+                                             struct MxParticle *part_i, 
+                                             struct MxParticle *part_j, 
+                                             FPTYPE *dx, 
+                                             FPTYPE r2, 
+                                             FPTYPE *e, 
+                                             FPTYPE *f);
+
+/**
+ * @brief Like MxPotentialEval_ByParticles, but with three particles
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticles3)(struct MxPotential *p, 
+                                             struct MxParticle *part_i, 
+                                             struct MxParticle *part_j, 
+                                             struct MxParticle *part_k, 
+                                             FPTYPE theta, 
+                                             FPTYPE *e, 
+                                             FPTYPE *fi, 
+                                             FPTYPE *fk);
 
 typedef struct MxPotential* (*MxPotentialCreate) (
     struct MxPotential *partial_potential,
@@ -153,7 +189,10 @@ typedef struct MxPotential {
 
     MxPotentialCreate create_func;
 
-    MxPotentialEval eval;
+    MxPotentialEval_ByParticles eval_byparts;
+    MxPotentialEval_ByParticles3 eval_byparts3;
+
+    MxPotential *pca, *pcb;
 
     /**
      * pointer to what kind of potential this is.
@@ -164,6 +203,9 @@ typedef struct MxPotential {
 
     std::pair<float, float> operator()(const float &r, const float &r0=-1.0);
     float force(double r, double ri=-1.0, double rj=-1.0);
+    std::vector<MxPotential*> constituents();
+
+    MxPotential& operator+(const MxPotential& rhs);
 
     /**
      * @brief Creates a 12-6 Lennard-Jones potential. 

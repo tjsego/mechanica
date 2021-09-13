@@ -242,6 +242,31 @@ MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
             result = true;
         }
     }
+    else if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+        FPTYPE fv[3] = {0., 0., 0.};
+
+        pot->eval_byparts(pot, part_i, part_j, dx, r2, &e, fv);
+
+        for (int k = 0 ; k < 3 ; k++ ) {
+            part_i->f[k] += fv[k];
+            part_j->f[k] -= fv[k];
+        }
+        
+        // the number density is a union after the force 3-vector.
+        part_i->f[3] += number_density;
+        part_j->f[3] += number_density;
+        
+        /* tabulate the energy */
+        *epot += e;
+        result = true;
+    }
+    else if(pot->kind == POTENTIAL_KIND_COMBINATION) {
+        if(pot->flags | POTENTIAL_SUM) {
+            potential_eval_super_ex(cell, pot->pca, part_i, part_j, dx, r2, number_density, epot);
+            potential_eval_super_ex(cell, pot->pcb, part_i, part_j, dx, r2, number_density, epot);
+            result = true;
+        }
+    }
     else {
         float f;
     

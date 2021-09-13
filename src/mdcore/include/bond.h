@@ -77,6 +77,9 @@ typedef struct MxBond {
 	/* potential energy required to break this bond */
 	double dissociation_energy;
 
+	/* potential energy of this bond */
+	double potential_energy;
+
 	struct MxPotential *potential;
     
     struct NOMStyle *style;

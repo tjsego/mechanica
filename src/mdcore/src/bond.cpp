@@ -30,7 +30,7 @@
 #include <limits.h>
 #include <iostream>
 #include <sstream>
-
+#include <unordered_set>
 
 /* Include some conditional headers. */
 #include "mdcore_config.h"
@@ -98,9 +98,12 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
     struct space *s;
     struct MxParticle *pi, *pj, **partlist;
     struct space_cell **celllist;
-    struct MxPotential *pot;
+    struct MxPotential *pot, *potb;
+    std::vector<struct MxPotential *> pots;
     struct MxBond *b;
-    FPTYPE r2, w;
+    FPTYPE ee, r2, w, f[3];
+    std::unordered_set<struct MxBond*> toDestroy;
+    toDestroy.reserve(N);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -108,11 +111,12 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
     FPTYPE pix[4] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE *effi[VEC_SIZE], *effj[VEC_SIZE];
     FPTYPE r2q[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
-    FPTYPE ee[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
+    FPTYPE eeq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE eff[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE dxq[VEC_SIZE*3];
+    struct MxBond *bondq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
 #else
-    FPTYPE ee, eff, dx[4], pix[4];
+    FPTYPE eff, dx[4], pix[4];
 #endif
     
     /* Check inputs. */
@@ -132,12 +136,13 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
     for ( bid = 0 ; bid < N ; bid++ ) {
 
         b = &bonds[bid];
+        b->potential_energy = 0.0;
 
         if(!(b->flags & BOND_ACTIVE))
             continue;
     
         /* Get the particles involved. */
-        pid = bonds[bid].i; pjd = bonds[bid].j;
+        pid = b->i; pjd = b->j;
         if ( ( pi = partlist[ pid ] ) == NULL )
             continue;
         if ( ( pj = partlist[ pjd ] ) == NULL )
@@ -149,8 +154,8 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
             continue;
             
         /* Get the potential. */
-        pot = b->potential;
-        if (!pot) {
+        potb = b->potential;
+        if (!potb) {
             continue;
         }
     
@@ -165,80 +170,112 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
             pix[k] = pi->x[k] + h[k]*shift[k];
         }
         r2 = fptype_r2( pix , pj->x , dx );
-        
-        if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
-            //printf( "bond_eval: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
-            //    bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
-            r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
+
+        if(potb->kind == POTENTIAL_KIND_COMBINATION && potb->flags & POTENTIAL_SUM) {
+            pots = potb->constituents();
+            if(pots.size() == 0) pots = {potb};
         }
+        else pots = {potb};
 
-        #ifdef VECTORIZE
-            /* add this bond to the interaction queue. */
-            r2q[icount] = r2;
-            dxq[icount*3] = dx[0];
-            dxq[icount*3+1] = dx[1];
-            dxq[icount*3+2] = dx[2];
-            effi[icount] = pi->f;
-            effj[icount] = pj->f;
-            potq[icount] = pot;
-            icount += 1;
-
-            /* evaluate the interactions if the queue is full. */
-            if ( icount == VEC_SIZE ) {
-
-                #if defined(FPTYPE_SINGLE)
-                    #if VEC_SIZE==8
-                    potential_eval_vec_8single( potq , r2q , ee , eff );
-                    #else
-                    potential_eval_vec_4single( potq , r2q , ee , eff );
-                    #endif
-                #elif defined(FPTYPE_DOUBLE)
-                    #if VEC_SIZE==4
-                    potential_eval_vec_4double( potq , r2q , ee , eff );
-                    #else
-                    potential_eval_vec_2double( potq , r2q , ee , eff );
-                    #endif
-                #endif
-
-                /* update the forces and the energy */
-                for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                    epot += ee[l];
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        w = eff[l] * dxq[l*3+k];
-                        effi[l][k] -= w;
-                        effj[l][k] += w;
-                    }
-                }
-
-                /* re-set the counter. */
-                icount = 0;
-
-            }
-        #else // NOT VECTORIZE
-            /* evaluate the bond */
-            #ifdef EXPLICIT_POTENTIALS
-                potential_eval_expl( pot , r2 , &ee , &eff );
-            #else
-                potential_eval( pot , r2 , &ee , &eff );
-            #endif
+        for(int i = 0; i < pots.size(); i++) {
+            pot = pots[i];
         
-            if(eff >= b->dissociation_energy) {
-                MxBond_Destroy(b);
+            if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
+                //printf( "bond_eval: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
+                //    bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
+                r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
+            }
+
+            if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+                std::fill(std::begin(f), std::end(f), 0.0);
+                pot->eval_byparts(pot, pi, pj, dx, r2, &ee, f);
+                for(int i = 0; i < 3; ++i) {
+                    pi->f[i] += f[i];
+                    pj->f[i] -= f[i];
+                }
+                epot += ee;
+                b->potential_energy += ee;
+                if(b->potential_energy >= b->dissociation_energy)
+                    toDestroy.insert(b);
             }
             else {
 
-                /* update the forces */
-                for ( k = 0 ; k < 3 ; k++ ) {
-                    w = eff * dx[k];
-                    pi->f[k] -= w;
-                    pj->f[k] += w;
-                }
-                /* tabulate the energy */
-                epot += ee;
+                #ifdef VECTORIZE
+                    /* add this bond to the interaction queue. */
+                    r2q[icount] = r2;
+                    dxq[icount*3] = dx[0];
+                    dxq[icount*3+1] = dx[1];
+                    dxq[icount*3+2] = dx[2];
+                    effi[icount] = pi->f;
+                    effj[icount] = pj->f;
+                    potq[icount] = pot;
+                    bondq[icount] = b;
+                    icount += 1;
+
+                    /* evaluate the interactions if the queue is full. */
+                    if ( icount == VEC_SIZE ) {
+
+                        #if defined(FPTYPE_SINGLE)
+                            #if VEC_SIZE==8
+                            potential_eval_vec_8single( potq , r2q , eeq , eff );
+                            #else
+                            potential_eval_vec_4single( potq , r2q , eeq , eff );
+                            #endif
+                        #elif defined(FPTYPE_DOUBLE)
+                            #if VEC_SIZE==4
+                            potential_eval_vec_4double( potq , r2q , eeq , eff );
+                            #else
+                            potential_eval_vec_2double( potq , r2q , eeq , eff );
+                            #endif
+                        #endif
+
+                        /* update the forces and the energy */
+                        for ( l = 0 ; l < VEC_SIZE ; l++ ) {
+                            epot += eeq[l];
+                            bondq[l]->potential_energy += eeq[l];
+                            if(bondq[l]->potential_energy >= bondq[l]->dissociation_energy)
+                                toDestroy.insert(bondq[l]);
+
+                            for ( k = 0 ; k < 3 ; k++ ) {
+                                w = eff[l] * dxq[l*3+k];
+                                effi[l][k] -= w;
+                                effj[l][k] += w;
+                            }
+                        }
+
+                        /* re-set the counter. */
+                        icount = 0;
+
+                    }
+                #else // NOT VECTORIZE
+                    /* evaluate the bond */
+                    #ifdef EXPLICIT_POTENTIALS
+                        potential_eval_expl( pot , r2 , &ee , &eff );
+                    #else
+                        potential_eval( pot , r2 , &ee , &eff );
+                    #endif
+                    b->potential_energy += ee;
+                
+                    if(b->potential_energy >= b->dissociation_energy) {
+                        toDestroy.insert(b);
+                    }
+                    else {
+                        /* update the forces */
+                        for ( k = 0 ; k < 3 ; k++ ) {
+                            w = eff * dx[k];
+                            pi->f[k] -= w;
+                            pj->f[k] += w;
+                        }
+                        /* tabulate the energy */
+                        epot += ee;
+                    }
+
+
+                #endif
+
             }
 
-
-        #endif
+        }
 
         } /* loop over bonds. */
         
@@ -255,21 +292,25 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
             /* evaluate the potentials */
             #if defined(VEC_SINGLE)
                 #if VEC_SIZE==8
-                potential_eval_vec_8single( potq , r2q , ee , eff );
+                potential_eval_vec_8single( potq , r2q , eeq , eff );
                 #else
-                potential_eval_vec_4single( potq , r2q , ee , eff );
+                potential_eval_vec_4single( potq , r2q , eeq , eff );
                 #endif
             #elif defined(VEC_DOUBLE)
                 #if VEC_SIZE==4
-                potential_eval_vec_4double( potq , r2q , ee , eff );
+                potential_eval_vec_4double( potq , r2q , eeq , eff );
                 #else
-                potential_eval_vec_2double( potq , r2q , ee , eff );
+                potential_eval_vec_2double( potq , r2q , eeq , eff );
                 #endif
             #endif
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += ee[l];
+                epot += eeq[l];
+                bondq[l]->potential_energy += eeq[l];
+                if(bondq[l]->potential_energy >= bondq[l]->dissociation_energy)
+                    toDestroy.insert(bondq[l]);
+
                 for ( k = 0 ; k < 3 ; k++ ) {
                     w = eff[l] * dxq[l*3+k];
                     effi[l][k] -= w;
@@ -279,6 +320,10 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
 
             }
     #endif
+
+    // Destroy every bond scheduled for destruction
+    for(auto bi : toDestroy)
+        MxBond_Destroy(bi);
     
     /* Store the potential energy. */
     if ( epot_out != NULL )
@@ -294,10 +339,10 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
 /**
  * @brief Evaluate a list of bonded interactoins
  *
- * @param b Pointer to an array of #bond.
+ * @param bonds Pointer to an array of #bond.
  * @param N Nr of bonds in @c b.
  * @param e Pointer to the #engine in which these bonds are evaluated.
- * @param f An array of @c FPTYPE in which to aggregate the resulting forces.
+ * @param forces An array of @c FPTYPE in which to aggregate the resulting forces.
  * @param epot_out Pointer to a double in which to aggregate the potential energy.
  * 
  * This function differs from #bond_eval in that the forces are added to
@@ -306,15 +351,19 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
  * @return #bond_err_ok or <0 on error (see #bond_err)
  */
  
-int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , double *epot_out ) {
+int bond_evalf ( struct MxBond *bonds , int N , struct engine *e , FPTYPE *forces , double *epot_out ) {
 
     int bid, pid, pjd, k, *loci, *locj, shift[3], ld_pots;
     double h[3], epot = 0.0;
     struct space *s;
     struct MxParticle *pi, *pj, **partlist;
     struct space_cell **celllist;
-    struct MxPotential *pot;
-    FPTYPE r2, w;
+    struct MxPotential *pot, *potb;
+    std::vector<struct MxPotential *> pots;
+    struct MxBond *b;
+    FPTYPE ee, r2, w, f[3];
+    std::unordered_set<struct MxBond*> toDestroy;
+    toDestroy.reserve(N);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -322,15 +371,16 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
     FPTYPE pix[4] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE *effi[VEC_SIZE], *effj[VEC_SIZE];
     FPTYPE r2q[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
-    FPTYPE ee[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
+    FPTYPE eeq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE eff[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE dxq[VEC_SIZE*3];
+    struct MxBond *bondq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
 #else
-    FPTYPE ee, eff, dx[4], pix[4];
+    FPTYPE eff, dx[4], pix[4];
 #endif
     
     /* Check inputs. */
-    if ( b == NULL || e == NULL || f == NULL )
+    if ( bonds == NULL || e == NULL || forces == NULL )
         return error(bond_err_null);
         
     /* Get local copies of some variables. */
@@ -344,9 +394,11 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
         
     /* Loop over the bonds. */
     for ( bid = 0 ; bid < N ; bid++ ) {
+        b = &bonds[bid];
+        b->potential_energy = 0.0;
     
         /* Get the particles involved. */
-        pid = b[bid].i; pjd = b[bid].j;
+        pid = b->i; pjd = b->j;
         if ( ( pi = partlist[ pid ] ) == NULL )
             continue;
         if ( ( pj = partlist[ pjd ] ) == NULL )
@@ -357,7 +409,7 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
             continue;
             
         /* Get the potential. */
-        if ( ( pot = b[bid].potential ) == NULL )
+        if ( ( pot = b->potential ) == NULL )
             continue;
     
         /* get the distance between both particles */
@@ -372,74 +424,111 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
             }
         r2 = fptype_r2( pix , pj->x , dx );
 
-        if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
-            printf( "bond_evalf: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
-                bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
-            r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
+        if(potb->kind == POTENTIAL_KIND_COMBINATION && potb->flags & POTENTIAL_SUM) {
+            pots = potb->constituents();
+            if(pots.size() == 0) pots = {potb};
+        }
+        else pots = {potb};
+
+        for(int i = 0; i < pots.size(); i++) {
+            pot = pots[i];
+
+            if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
+                printf( "bond_evalf: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
+                    bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
+                r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
             }
 
-        #ifdef VECTORIZE
-            /* add this bond to the interaction queue. */
-            r2q[icount] = r2;
-            dxq[icount*3] = dx[0];
-            dxq[icount*3+1] = dx[1];
-            dxq[icount*3+2] = dx[2];
-            effi[icount] = &( f[ 4*pid ] );
-            effj[icount] = &( f[ 4*pjd ] );
-            potq[icount] = pot;
-            icount += 1;
+            if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+                std::fill(std::begin(f), std::end(f), 0.0);
+                pot->eval_byparts(pot, pi, pj, dx, r2, &ee, f);
+                for(int i = 0; i < 3; ++i) {
+                    pi->f[i] += f[i];
+                    pj->f[i] -= f[i];
+                }
+                epot += ee;
+                b->potential_energy += ee;
+                if(b->potential_energy >= b->dissociation_energy)
+                    toDestroy.insert(b);
+            }
+            else {
 
-            /* evaluate the interactions if the queue is full. */
-            if ( icount == VEC_SIZE ) {
+                #ifdef VECTORIZE
+                    /* add this bond to the interaction queue. */
+                    r2q[icount] = r2;
+                    dxq[icount*3] = dx[0];
+                    dxq[icount*3+1] = dx[1];
+                    dxq[icount*3+2] = dx[2];
+                    effi[icount] = &( forces[ 4*pid ] );
+                    effj[icount] = &( forces[ 4*pjd ] );
+                    potq[icount] = pot;
+                    bondq[icount] = b;
+                    icount += 1;
 
-                #if defined(FPTYPE_SINGLE)
-                    #if VEC_SIZE==8
-                    potential_eval_vec_8single( potq , r2q , ee , eff );
+                    /* evaluate the interactions if the queue is full. */
+                    if ( icount == VEC_SIZE ) {
+
+                        #if defined(FPTYPE_SINGLE)
+                            #if VEC_SIZE==8
+                            potential_eval_vec_8single( potq , r2q , eeq , eff );
+                            #else
+                            potential_eval_vec_4single( potq , r2q , eeq , eff );
+                            #endif
+                        #elif defined(FPTYPE_DOUBLE)
+                            #if VEC_SIZE==4
+                            potential_eval_vec_4double( potq , r2q , eeq , eff );
+                            #else
+                            potential_eval_vec_2double( potq , r2q , eeq , eff );
+                            #endif
+                        #endif
+
+                        /* update the forces and the energy */
+                        for ( l = 0 ; l < VEC_SIZE ; l++ ) {
+                            epot += eeq[l];
+                            bondq[l]->potential_energy += eeq[l];
+                            if(bondq[l]->potential_energy >= bondq[l]->dissociation_energy)
+                                toDestroy.insert(bondq[l]);
+
+                            for ( k = 0 ; k < 3 ; k++ ) {
+                                w = eff[l] * dxq[l*3+k];
+                                effi[l][k] -= w;
+                                effj[l][k] += w;
+                            }
+                        }
+
+                        /* re-set the counter. */
+                        icount = 0;
+
+                    }
+                #else
+                    /* evaluate the bond */
+                    #ifdef EXPLICIT_POTENTIALS
+                        potential_eval_expl( pot , r2 , &ee , &eff );
                     #else
-                    potential_eval_vec_4single( potq , r2q , ee , eff );
+                        potential_eval( pot , r2 , &ee , &eff );
                     #endif
-                #elif defined(FPTYPE_DOUBLE)
-                    #if VEC_SIZE==4
-                    potential_eval_vec_4double( potq , r2q , ee , eff );
-                    #else
-                    potential_eval_vec_2double( potq , r2q , ee , eff );
-                    #endif
+                    b->potential_energy += ee;
+                
+                    if(b->potential_energy >= b->dissociation_energy) {
+                        toDestroy.insert(b);
+                    }
+                    else {
+                        /* update the forces */
+                        for ( k = 0 ; k < 3 ; k++ ) {
+                            w = eff * dx[k];
+                            forces[ 4*pid + k ] -= w;
+                            forces[ 4*pjd + k ] += w;
+                        }
+                        /* tabulate the energy */
+                        epot += ee;
+                    }
                 #endif
 
-                /* update the forces and the energy */
-                for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                    epot += ee[l];
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        w = eff[l] * dxq[l*3+k];
-                        effi[l][k] -= w;
-                        effj[l][k] += w;
-                        }
-                    }
+            }
 
-                /* re-set the counter. */
-                icount = 0;
+        }
 
-                }
-        #else
-            /* evaluate the bond */
-            #ifdef EXPLICIT_POTENTIALS
-                potential_eval_expl( pot , r2 , &ee , &eff );
-            #else
-                potential_eval( pot , r2 , &ee , &eff );
-            #endif
-
-            /* update the forces */
-            for ( k = 0 ; k < 3 ; k++ ) {
-                w = eff * dx[k];
-                f[ 4*pid + k ] -= w;
-                f[ 4*pjd + k ] += w;
-                }
-
-            /* tabulate the energy */
-            epot += ee;
-        #endif
-
-        } /* loop over bonds. */
+    } /* loop over bonds. */
         
     #if defined(VECTORIZE)
         /* are there any leftovers? */
@@ -449,35 +538,43 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
             for ( k = icount ; k < VEC_SIZE ; k++ ) {
                 potq[k] = potq[0];
                 r2q[k] = r2q[0];
-                }
+            }
 
             /* evaluate the potentials */
             #if defined(VEC_SINGLE)
                 #if VEC_SIZE==8
-                potential_eval_vec_8single( potq , r2q , ee , eff );
+                potential_eval_vec_8single( potq , r2q , eeq , eff );
                 #else
-                potential_eval_vec_4single( potq , r2q , ee , eff );
+                potential_eval_vec_4single( potq , r2q , eeq , eff );
                 #endif
             #elif defined(VEC_DOUBLE)
                 #if VEC_SIZE==4
-                potential_eval_vec_4double( potq , r2q , ee , eff );
+                potential_eval_vec_4double( potq , r2q , eeq , eff );
                 #else
-                potential_eval_vec_2double( potq , r2q , ee , eff );
+                potential_eval_vec_2double( potq , r2q , eeq , eff );
                 #endif
             #endif
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += ee[l];
+                epot += eeq[l];
+                bondq[l]->potential_energy += eeq[l];
+                if(bondq[l]->potential_energy >= bondq[l]->dissociation_energy)
+                    toDestroy.insert(bondq[l]);
+
                 for ( k = 0 ; k < 3 ; k++ ) {
                     w = eff[l] * dxq[l*3+k];
                     effi[l][k] -= w;
                     effj[l][k] += w;
-                    }
                 }
-
             }
+
+        }
     #endif
+
+    // Destroy every bond scheduled for destruction
+    for(auto bi : toDestroy)
+        MxBond_Destroy(bi);
     
     /* Store the potential energy. */
     if ( epot_out != NULL )

@@ -99,6 +99,7 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
     FPTYPE ee, inji, injk, dprod;
     std::unordered_set<struct MxAngle*> toDestroy;
     toDestroy.reserve(N);
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0;
@@ -127,6 +128,11 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
     for ( aid = 0 ; aid < N ; aid++ ) {
         angle = &a[aid];
         angle->potential_energy = 0.0;
+
+        if(MxAngle_decays(angle)) {
+            toDestroy.insert(angle);
+            continue;
+        }
     
         /* Get the particles involved. */
         pid = angle->i; pjd = angle->j; pkd = angle->k;
@@ -408,6 +414,7 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
         t5, t6, t7, t8, t9, t4, t14, t2;
     std::unordered_set<struct MxAngle*> toDestroy;
     toDestroy.reserve(N);
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -436,6 +443,11 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
     for ( aid = 0 ; aid < N ; aid++ ) {
         angle = &a[aid];
         angle->potential_energy = 0.0;
+
+        if(MxAngle_decays(angle)) {
+            toDestroy.insert(angle);
+            continue;
+        }
     
         /* Get the particles involved. */
         pid = angle->i; pjd = angle->j; pkd = angle->k;
@@ -745,6 +757,24 @@ std::vector<MxAngleHandle*> MxAngleHandle::items() {
     return list;
 }
 
+bool MxAngle_decays(MxAngle *a, std::uniform_real_distribution<double> *uniform01) {
+    if(!a || a->half_life == 0.0) return false;
+
+    bool created = uniform01 == NULL;
+    if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);
+
+    double pr = 1.0 - std::pow(2.0, -_Engine.dt / a->half_life);
+    bool result = (*uniform01)(MxRandom) < pr;
+
+    if(created) delete uniform01;
+
+    return result;
+}
+
+bool MxAngleHandle::decays() {
+    return MxAngle_decays(&_Engine.angles[this->id]);
+}
+
 MxParticleHandle *MxAngleHandle::operator[](unsigned int index) {
     auto *a = angle();
     if(!a) {
@@ -788,6 +818,28 @@ MxPotential *MxAngleHandle::getPotential() {
 
 uint32_t MxAngleHandle::getId() {
     return this->id;
+}
+
+float MxAngleHandle::getDissociationEnergy() {
+    auto *a = this->angle();
+    if (a) return a->dissociation_energy;
+    return NULL;
+}
+
+void MxAngleHandle::setDissociationEnergy(const float &dissociation_energy) {
+    auto *a = this->angle();
+    if (a) a->dissociation_energy = dissociation_energy;
+}
+
+float MxAngleHandle::getHalfLife() {
+    auto *a = this->angle();
+    if (a) return a->half_life;
+    return NULL;
+}
+
+void MxAngleHandle::setHalfLife(const float &half_life) {
+    auto *a = this->angle();
+    if (a) a->half_life = half_life;
 }
 
 bool MxAngleHandle::getActive() {

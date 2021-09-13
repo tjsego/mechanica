@@ -42,6 +42,18 @@
             """bond dissociation energy"""
             return self.getDissociationEnergy()
 
+        @dissociation_energy.setter
+        def dissociation_energy(self, dissociation_energy):
+            self.setDissociationEnergy(dissociation_energy)
+
+        @property
+        def half_life(self):
+            return self.getHalfLife()
+
+        @half_life.setter
+        def half_life(self, half_life):
+            return self.setHalfLife(half_life)
+
         @property
         def active(self):
             """active flag"""

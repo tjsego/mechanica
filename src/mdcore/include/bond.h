@@ -21,6 +21,7 @@
 #ifndef INCLUDE_BOND_H_
 #define INCLUDE_BOND_H_
 #include "platform.h"
+#include <random>
 
 /* bond error codes */
 #define bond_err_ok                    0
@@ -207,6 +208,13 @@ struct MxBondHandle {
      */
     static std::vector<MxBondHandle*> items();
 
+    /**
+     * @brief Tests whether this bond decays
+     * 
+     * @return true when the bond should decay
+     */
+    bool decays();
+
     MxParticleHandle *operator[](unsigned int index);
     
     double getEnergy();
@@ -214,6 +222,9 @@ struct MxBondHandle {
     MxPotential *getPotential();
     uint32_t getId();
     float getDissociationEnergy();
+    void setDissociationEnergy(const float &dissociation_energy);
+    float getHalfLife();
+    void setHalfLife(const float &half_life);
     bool getActive();
     NOMStyle *getStyle();
 
@@ -247,6 +258,15 @@ CAPI_FUNC(HRESULT) MxBond_Destroy(MxBond *b);
  * @return HRESULT 
  */
 CAPI_FUNC(HRESULT) MxBond_DestroyAll();
+
+/**
+ * @brief Tests whether a bond decays
+ * 
+ * @param b bond to test
+ * @param uniform01 uniform random distribution; optional
+ * @return true if the bond decays
+ */
+CAPI_FUNC(bool) MxBond_decays(MxBond *b, std::uniform_real_distribution<double> *uniform01=NULL);
 
 HRESULT MxBond_Energy (MxBond *b, double *epot_out);
 

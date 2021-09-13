@@ -62,6 +62,11 @@ typedef struct MxAngle {
 	/* ids of particles involved */
 	int i, j, k;
 
+	/**
+	 * half life decay time for this bond.
+	 */
+	double half_life;
+
 	/* potential energy required to break this bond */
 	double dissociation_energy;
 
@@ -126,12 +131,23 @@ struct MxAngleHandle {
      */
     static std::vector<MxAngleHandle*> items();
 
+    /**
+     * @brief Tests whether this bond decays
+     * 
+     * @return true when the bond should decay
+     */
+    bool decays();
+
     MxParticleHandle *operator[](unsigned int index);
 
     double getEnergy();
     std::vector<int32_t> getParts();
     MxPotential *getPotential();
     uint32_t getId();
+    float getDissociationEnergy();
+    void setDissociationEnergy(const float &dissociation_energy);
+    float getHalfLife();
+    void setHalfLife(const float &half_life);
     bool getActive();
 
     MxAngleHandle() : id(-1) {}
@@ -180,6 +196,15 @@ CAPI_FUNC(HRESULT) MxAngle_Destroy(MxAngle *a);
  * @return HRESULT 
  */
 CAPI_FUNC(HRESULT) MxAngle_DestroyAll();
+
+/**
+ * @brief Tests whether an angle decays
+ * 
+ * @param a angle to test
+ * @param uniform01 uniform random distribution; optional
+ * @return true if the bond decays
+ */
+CAPI_FUNC(bool) MxAngle_decays(MxAngle *a, std::uniform_real_distribution<double> *uniform01=NULL);
 
 /* associated functions */
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out );

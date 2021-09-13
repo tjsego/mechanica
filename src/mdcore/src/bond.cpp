@@ -104,6 +104,7 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
     FPTYPE ee, r2, w, f[3];
     std::unordered_set<struct MxBond*> toDestroy;
     toDestroy.reserve(N);
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -137,6 +138,11 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
 
         b = &bonds[bid];
         b->potential_energy = 0.0;
+
+        if(MxBond_decays(b, &uniform01)) {
+            toDestroy.insert(b);
+            continue;
+        }
 
         if(!(b->flags & BOND_ACTIVE))
             continue;
@@ -361,6 +367,7 @@ int bond_evalf ( struct MxBond *bonds , int N , struct engine *e , FPTYPE *force
     FPTYPE ee, r2, w, f[3];
     std::unordered_set<struct MxBond*> toDestroy;
     toDestroy.reserve(N);
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -393,6 +400,11 @@ int bond_evalf ( struct MxBond *bonds , int N , struct engine *e , FPTYPE *force
     for ( bid = 0 ; bid < N ; bid++ ) {
         b = &bonds[bid];
         b->potential_energy = 0.0;
+
+        if(MxBond_decays(b, &uniform01)) {
+            toDestroy.insert(b);
+            continue;
+        }
     
         /* Get the particles involved. */
         pid = b->i; pjd = b->j;
@@ -736,6 +748,22 @@ float MxBondHandle::getDissociationEnergy() {
     return result;
 }
 
+void MxBondHandle::setDissociationEnergy(const float &dissociation_energy) {
+    MxBond *bond = get();
+    if (bond) bond->dissociation_energy = dissociation_energy;
+}
+
+float MxBondHandle::getHalfLife() {
+    MxBond *bond = get();
+    if (bond) return bond->half_life;
+    return NULL;
+}
+
+void MxBondHandle::setHalfLife(const float &half_life) {
+    MxBond *bond = get();
+    if (bond) bond->half_life = half_life;
+}
+
 bool MxBondHandle::getActive() {
     MxBond *bond = get();
     if (bond) return (bool)(bond->flags & BOND_ACTIVE);
@@ -850,6 +878,20 @@ std::vector<MxBondHandle*>* MxBondHandle::pairwise(struct MxPotential* pot,
     return NULL;
 }
 
+bool MxBond_decays(MxBond *b, std::uniform_real_distribution<double> *uniform01) {
+    if(!b || b->half_life == 0.0) return false;
+
+    bool created = uniform01 == NULL;
+    if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);
+
+    double pr = 1.0 - std::pow(2.0, -_Engine.dt / b->half_life);
+    bool result = (*uniform01)(MxRandom) < pr;
+
+    if(created) delete uniform01;
+
+    return result;
+}
+
 HRESULT MxBondHandle::destroy()
 {
     Log(LOG_DEBUG);
@@ -868,6 +910,10 @@ std::vector<MxBondHandle*> MxBondHandle::bonds() {
 
 std::vector<MxBondHandle*> MxBondHandle::items() {
     return bonds();
+}
+
+bool MxBondHandle::decays() {
+    return MxBond_decays(&_Engine.bonds[this->id]);
 }
 
 MxParticleHandle *MxBondHandle::operator[](unsigned int index) {

@@ -53,9 +53,11 @@
 #include <space_cell.h>
 #include "space.h"
 #include "engine.h"
+#include <../../rendering/NOMStyle.hpp>
 
 #include <iostream>
 
+NOMStyle *MxAngle_StylePtr = new NOMStyle("aqua");
 
 
 /* Global variables. */
@@ -851,4 +853,10 @@ bool MxAngleHandle::getActive() {
     auto *a = this->angle();
     if (a) return (bool)(a->flags & ANGLE_ACTIVE);
     return false;
+}
+
+NOMStyle *MxAngleHandle::getStyle() {
+    auto *a = this->angle();
+    if (a) return a->style;
+    return NULL;
 }

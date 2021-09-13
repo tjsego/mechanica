@@ -55,6 +55,7 @@
 #include <rendering/MxWindow.h>
 #include <rendering/ArcBallCamera.h>
 
+#include <rendering/MxAngleRenderer.h>
 #include <rendering/MxArrowRenderer.h>
 
 struct MxSimulator_Config;
@@ -314,6 +315,8 @@ struct MxUniverseRenderer : MxRenderer {
     
     GL::Buffer bondsVertexBuffer{NoCreate};
 
+    MxAngleRenderer angleRenderer;
+    
     MxArrowRenderer arrowRenderer;
 
     MxVector3f center;

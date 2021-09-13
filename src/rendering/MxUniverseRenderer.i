@@ -17,6 +17,7 @@
 %ignore MxUniverseRenderer::cuboidMesh;
 %ignore MxUniverseRenderer::cuboidInstanceBuffer;
 %ignore MxUniverseRenderer::bondsVertexBuffer;
+%ignore MxUniverseRenderer::angleRenderer;
 %ignore MxUniverseRenderer::arrowRenderer;
 
 %include "MxUniverseRenderer.h"

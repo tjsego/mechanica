@@ -58,6 +58,11 @@
         def active(self):
             """active flag"""
             return self.getActive()
+
+        @property
+        def style(self):
+            """angle style"""
+            return self.getStyle()
     %}
 }
 

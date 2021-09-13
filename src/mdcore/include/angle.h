@@ -31,9 +31,6 @@
 #define angle_err_null                  -1
 #define angle_err_malloc                -2
 
-// todo: implement angle style
-// todo: implement angle dissociation energy
-
 /** ID of the last error */
 CAPI_DATA(int) angle_err;
 
@@ -75,6 +72,8 @@ typedef struct MxAngle {
 
 	/* id of the potential. */
 	struct MxPotential *potential;
+
+    struct NOMStyle *style;
 
     void init(MxPotential *potential, 
               MxParticleHandle *p1, 
@@ -149,6 +148,7 @@ struct MxAngleHandle {
     float getHalfLife();
     void setHalfLife(const float &half_life);
     bool getActive();
+    NOMStyle *getStyle();
 
     MxAngleHandle() : id(-1) {}
     MxAngleHandle(const int &_id) : id(_id) {}
@@ -181,6 +181,12 @@ CAPI_FUNC(MxAngle*) MxAngle_NewFromIds(int i , int j , int k , int pid );
  */
 CAPI_FUNC(MxAngle*) MxAngle_NewFromIdsAndPotential(int i , int j , int k , struct MxPotential *pot);
 #endif
+
+/**
+ * @brief Shared global angle style
+ * 
+ */
+CAPI_DATA(NOMStyle*) MxAngle_StylePtr;
 
 /**
  * @brief Destroys an angle

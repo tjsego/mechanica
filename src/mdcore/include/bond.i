@@ -64,6 +64,10 @@
             """bond style"""
             return self.getStyle()
 
+        @style.setter
+        def style(self, style):
+            self.setStyle(style)
+
         @property
         def age(self):
             """bond age"""

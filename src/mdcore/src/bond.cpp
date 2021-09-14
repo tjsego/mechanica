@@ -777,6 +777,11 @@ NOMStyle *MxBondHandle::getStyle() {
     return NULL;
 }
 
+void MxBondHandle::setStyle(NOMStyle *style) {
+    MxBond *bond = get();
+    if (bond) bond->style = style;
+}
+
 double MxBondHandle::getAge() {
     MxBond *bond = get();
     if (bond) return (_Engine.time - bond->creation_time) * _Engine.dt;

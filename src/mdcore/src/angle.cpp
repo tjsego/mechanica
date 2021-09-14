@@ -862,6 +862,11 @@ NOMStyle *MxAngleHandle::getStyle() {
     return NULL;
 }
 
+void MxAngleHandle::setStyle(NOMStyle *style) {
+    auto *a = this->angle();
+    if (a) a->style = style;
+}
+
 double MxAngleHandle::getAge() {
     auto *a = this->angle();
     if (a) return (_Engine.time - a->creation_time) * _Engine.dt;

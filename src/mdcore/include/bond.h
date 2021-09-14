@@ -227,7 +227,7 @@ struct MxBondHandle {
     void setHalfLife(const float &half_life);
     bool getActive();
     NOMStyle *getStyle();
-
+    void setStyle(NOMStyle *style);
     double getAge();
 
 private:

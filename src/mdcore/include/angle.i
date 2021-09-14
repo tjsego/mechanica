@@ -64,6 +64,10 @@
             """angle style"""
             return self.getStyle()
 
+        @style.setter
+        def style(self, style):
+            self.setStyle(style)
+
         @property
         def age(self):
             """angle age"""

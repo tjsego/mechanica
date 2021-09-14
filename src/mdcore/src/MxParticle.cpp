@@ -224,7 +224,7 @@ void MxParticleHandle::setStyle(NOMStyle *style) {
 }
 
 double MxParticleHandle::getAge() {
-    return part()->creation_time * _Engine.dt;
+    return (_Engine.time - part()->creation_time) * _Engine.dt;
 }
 
 double MxParticleHandle::getRadius() {

@@ -717,6 +717,7 @@ void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandl
     this->k = p3->id;
     this->flags = flags;
 
+    this->creation_time = _Engine.time;
     this->dissociation_energy = std::numeric_limits<double>::max();
     this->half_life = 0.0;
 
@@ -859,4 +860,10 @@ NOMStyle *MxAngleHandle::getStyle() {
     auto *a = this->angle();
     if (a) return a->style;
     return NULL;
+}
+
+double MxAngleHandle::getAge() {
+    auto *a = this->angle();
+    if (a) return (_Engine.time - a->creation_time) * _Engine.dt;
+    return 0;
 }

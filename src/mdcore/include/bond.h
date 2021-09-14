@@ -228,6 +228,8 @@ struct MxBondHandle {
     bool getActive();
     NOMStyle *getStyle();
 
+    double getAge();
+
 private:
 
     int _init(uint32_t flags, 

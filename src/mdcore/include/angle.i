@@ -63,6 +63,11 @@
         def style(self):
             """angle style"""
             return self.getStyle()
+
+        @property
+        def age(self):
+            """angle age"""
+            return self.getAge()
     %}
 }
 

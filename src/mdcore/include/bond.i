@@ -63,6 +63,11 @@
         def style(self):
             """bond style"""
             return self.getStyle()
+
+        @property
+        def age(self):
+            """bond age"""
+            return self.getAge()
     %}
 }
 

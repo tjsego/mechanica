@@ -616,6 +616,7 @@ int MxBondHandle::_init(uint32_t flags,
     bond->flags = flags;
     bond->i = i;
     bond->j = j;
+    bond->creation_time = _Engine.time;
     bond->half_life = half_life;
     bond->dissociation_energy = bond_energy;
     if (!bond->style) bond->style = MxBond_StylePtr;
@@ -774,6 +775,12 @@ NOMStyle *MxBondHandle::getStyle() {
     MxBond *bond = get();
     if (bond) return bond->style;
     return NULL;
+}
+
+double MxBondHandle::getAge() {
+    MxBond *bond = get();
+    if (bond) return (_Engine.time - bond->creation_time) * _Engine.dt;
+    return 0;
 }
 
 static void make_pairlist(const MxParticleList *parts,

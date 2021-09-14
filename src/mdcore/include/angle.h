@@ -59,6 +59,8 @@ typedef struct MxAngle {
 	/* ids of particles involved */
 	int i, j, k;
 
+    uint64_t creation_time;
+
 	/**
 	 * half life decay time for this bond.
 	 */
@@ -149,6 +151,8 @@ struct MxAngleHandle {
     void setHalfLife(const float &half_life);
     bool getActive();
     NOMStyle *getStyle();
+
+    double getAge();
 
     MxAngleHandle() : id(-1) {}
     MxAngleHandle(const int &_id) : id(_id) {}

@@ -190,6 +190,7 @@ std::vector<std::vector<std::vector<MxParticleList*> > > MxUniverse::grid(MxVect
 std::vector<MxBondHandle*> *MxUniverse::bonds() {
     UNIVERSE_TRY();
     std::vector<MxBondHandle*> *bonds = new std::vector<MxBondHandle*>();
+    bonds->reserve(_Engine.nr_bonds);
 
     for(int i = 0; i < _Engine.nr_bonds; ++i) {
         MxBond *b = &_Engine.bonds[i];
@@ -197,6 +198,20 @@ std::vector<MxBondHandle*> *MxUniverse::bonds() {
             bonds->push_back(new MxBondHandle(i));
     }
     return bonds;
+    UNIVERSE_FINALLY(NULL);
+}
+
+std::vector<MxAngleHandle*> *MxUniverse::angles() {
+    UNIVERSE_TRY();
+    std::vector<MxAngleHandle*> *angles = new std::vector<MxAngleHandle*>();
+    angles->reserve(_Engine.nr_angles);
+
+    for(int i = 0; i < _Engine.nr_angles; ++i) {
+        MxAngle *a = &_Engine.angles[i];
+        if (a->flags & BOND_ACTIVE)
+            angles->push_back(new MxAngleHandle(i));
+    }
+    return angles;
     UNIVERSE_FINALLY(NULL);
 }
 

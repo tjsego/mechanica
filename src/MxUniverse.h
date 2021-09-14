@@ -115,6 +115,13 @@ struct CAPI_EXPORT MxUniverse  {
     static std::vector<MxBondHandle*> *bonds();
 
     /**
+     * @brief Get all angles in the universe
+     * 
+     * @return std::vector<MxAngleHandle*>* 
+     */
+    static std::vector<MxAngleHandle*> *angles();
+
+    /**
      * @brief Get the universe temperature. 
      * 
      * The universe can be run with, or without a thermostat. With a thermostat, 

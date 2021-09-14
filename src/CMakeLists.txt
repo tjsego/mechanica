@@ -100,6 +100,7 @@ set(SRC
   rendering/MxUniverseRenderer.cpp
   rendering/MxSubRenderer.cpp
 
+  rendering/MxAngleRenderer.cpp
   rendering/MxArrowRenderer.cpp
   rendering/MxMeshRenderer.cpp
   rendering/MxMeshShaderProgram.cpp
@@ -210,6 +211,7 @@ set(HEADERS
   rendering/MxSubRenderer.h
   rendering/WireframeObjects.h
   rendering/FlatShadeObject.h
+  rendering/MxAngleRenderer.h
   rendering/MxArrowRenderer.h
   rendering/MxMeshRenderer.h
   rendering/MxMeshShaderProgram.h

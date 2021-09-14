@@ -31,16 +31,32 @@ bool MxSpeciesValue::getBoundaryCondition() {
     return species()->getBoundaryCondition();
 }
 
+int MxSpeciesValue::setBoundaryCondition(const int &value) {
+    return species()->setBoundaryCondition(value);
+}
+
 double MxSpeciesValue::getInitialAmount() {
     return species()->getInitialAmount();
+}
+
+int MxSpeciesValue::setInitialAmount(const double &value) {
+    return species()->setInitialAmount(value);
 }
 
 double MxSpeciesValue::getInitialConcentration() {
     return species()->getInitialConcentration();
 }
 
+int MxSpeciesValue::setInitialConcentration(const double &value) {
+    return species()->setInitialConcentration(value);
+}
+
 bool MxSpeciesValue::getConstant() {
     return species()->getConstant();
+}
+
+int MxSpeciesValue::setConstant(const int &value) {
+    return species()->setConstant(value);
 }
 
 double MxSpeciesValue::secrete(const double &amount, struct MxParticleList *to, double *distance) {

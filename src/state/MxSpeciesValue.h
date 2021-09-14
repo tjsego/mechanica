@@ -24,9 +24,13 @@ struct MxSpeciesValue
     MxSpecies *species();
 
     bool getBoundaryCondition();
+    int setBoundaryCondition(const int &value);
     double getInitialAmount();
+    int setInitialAmount(const double &value);
     double getInitialConcentration();
+    int setInitialConcentration(const double &value);
     bool getConstant();
+    int setConstant(const int &value);
 
     /**
      * @brief Secrete this species into a neighborhood. 

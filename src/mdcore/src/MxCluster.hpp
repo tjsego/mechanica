@@ -103,6 +103,13 @@ struct MxClusterParticleHandle : MxParticleHandle {
                             float *time=NULL, 
                             MxVector3f *normal=NULL, 
                             MxVector3f *point=NULL);
+
+    /**
+     * @brief Get all particles of this cluster. 
+     * 
+     * @return MxParticleList* 
+     */
+    MxParticleList *items();
     
     float getRadiusOfGyration();
     MxVector3f getCenterOfMass();

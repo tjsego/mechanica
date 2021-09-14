@@ -302,6 +302,11 @@ MxParticleHandle* MxClusterParticleHandle::split(MxVector3f *axis,
                                                  MxVector3f *point) 
 { return fission(axis, random, time, normal, point); }
 
+MxParticleList *MxClusterParticleHandle::items() {
+    MxParticle *self = this->part();
+    return new MxParticleList(self->nr_parts, self->parts);
+}
+
 float MxClusterParticleHandle::getRadiusOfGyration() {
     MxParticle *self = this->part();
     float result;

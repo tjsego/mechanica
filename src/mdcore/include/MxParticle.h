@@ -24,6 +24,7 @@
 #include "../../state/MxStateVector.h"
 #include "../../types/mx_types.h"
 #include "space_cell.h"
+#include "angle.h"
 #include "bond.h"
 #include "MxParticleList.hpp"
 #include "MxParticleTypeList.h"
@@ -370,6 +371,7 @@ struct CAPI_EXPORT MxParticleHandle {
      */
     float distance(MxParticleHandle *_other);
     std::vector<MxBondHandle*> *getBonds();
+    std::vector<MxAngleHandle*> *getAngles();
 
     double getCharge();
     void setCharge(const double &charge);

@@ -892,6 +892,25 @@ std::vector<MxBondHandle*> *MxParticleHandle::getBonds() {
     }
 }
 
+std::vector<MxAngleHandle*> *MxParticleHandle::getAngles() {
+    try {
+        auto id = part()->id;
+        
+        std::vector<MxAngleHandle*> *angles = new std::vector<MxAngleHandle*>();
+        
+        for(int i = 0; i < _Engine.nr_angles; ++i) {
+            MxAngle *a = &_Engine.angles[i];
+            if((a->flags & ANGLE_ACTIVE) && (a->i == id || a->j == id || a->k == id)) {
+                angles->push_back(new MxAngleHandle(i));
+            }
+        }
+        return angles;
+    }
+    catch(std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
 static MxParticleList *particletype_items(MxParticleType *self) {
     return &self->parts;
 }

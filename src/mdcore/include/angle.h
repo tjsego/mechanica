@@ -23,8 +23,10 @@
 
 /* Include configuration header */
 #include "mdcore_config.h"
-#include <MxParticle.h>
 #include <MxPotential.h>
+
+#include <random>
+#include <string>
 
 /* angle error codes */
 #define angle_err_ok                     0
@@ -45,6 +47,7 @@ typedef enum MxAngleFlags {
 } MxAngleFlags;
 
 struct MxAngleHandle;
+struct MxParticleHandle;
 
 /**
  * @brief A bond concerning an angle

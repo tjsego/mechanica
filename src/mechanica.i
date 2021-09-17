@@ -168,6 +168,8 @@
 // Universe
 %include "MxUniverse.i"
 
+// models
+%include "models/models.i"
 
 //                                      Post-imports
 

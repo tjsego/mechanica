@@ -21,3 +21,4 @@ Concepts
     flux
     metrics
     style
+    controls

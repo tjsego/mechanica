@@ -48,6 +48,7 @@
 
         @property
         def half_life(self):
+            """bond half life"""
             return self.getHalfLife()
 
         @half_life.setter

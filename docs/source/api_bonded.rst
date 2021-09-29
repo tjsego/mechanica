@@ -21,9 +21,13 @@ Bonds
 
     .. autoproperty:: dissociation_energy
 
+    .. autoproperty:: half_life
+
     .. autoproperty:: active
 
     .. autoproperty:: style
+
+    .. autoproperty:: age
 
     .. automethod:: __str__
 
@@ -36,6 +40,8 @@ Bonds
     .. automethod:: destroy
 
     .. automethod:: items
+
+    .. automethod:: decays
  
 
 .. autoclass:: Angle
@@ -47,3 +53,33 @@ Bonds
 .. autoclass:: AngleHandle
 
 .. autoclass:: MxAngleHandle
+
+    .. autoproperty:: energy
+
+    .. autoproperty:: parts
+
+    .. autoproperty:: potential
+
+    .. autoproperty:: id
+
+    .. autoproperty:: dissociation_energy
+
+    .. autoproperty:: half_life
+
+    .. autoproperty:: active
+
+    .. autoproperty:: style
+
+    .. autoproperty:: age
+
+    .. automethod:: __str__
+
+    .. automethod:: __getitem__
+
+    .. automethod:: angle
+
+    .. automethod:: destroy
+
+    .. automethod:: items
+
+    .. automethod:: decays

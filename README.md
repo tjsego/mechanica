@@ -19,14 +19,20 @@ executable Python scripts, an IPython console and a Jupyter Notebook.
 
 ## From Source ##
 
-Supported installation from source uses Miniconda for installing most dependencies. 
-In addition to requiring [Miniconda](https://docs.conda.io/en/latest/miniconda.html), 
-installation from source on Windows requires 
+Supported installation from source uses Git and Miniconda for building and installing 
+most dependencies. In addition to requiring [Git](https://git-scm.com/downloads) and 
+[Miniconda](https://docs.conda.io/en/latest/miniconda.html), installation from source 
+on Windows requires 
 [Visual Studio 2019 Build Tools](https://visualstudio.microsoft.com/downloads/), 
 and on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`. 
 
-To execute the standard installation, clone this repository, open a terminal 
-in the directory containing the `mechanica` root directory and perform the following. 
+To execute the standard installation, open a terminal in a directory to install Mechanica
+and clone this respository,
+```bash
+git clone --recurse-submodules https://github.com/tjsego/mechanica
+```
+
+From the directory containing the `mechanica` root directory, perform the following.
 
 On Windows 
 ```bash

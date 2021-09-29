@@ -6,15 +6,21 @@ Getting Mechanica
 Installing From Source
 -----------------------
 
-Supported installation from source uses Miniconda for installing most dependencies.
-In addition to requiring `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_,
-installation from source on Windows requires
+Supported installation from source uses Git and Miniconda for building and installing
+most dependencies. In addition to requiring `Git <https://git-scm.com/downloads>`_ and
+`Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_, installation from source
+on Windows requires
 `Visual Studio 2019 Build Tools <https://visualstudio.microsoft.com/downloads/>`_,
 and on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`.
 
-To execute the standard installation, clone the
-`Mechanica repository <https://github.com/tjsego/mechanica>`_, open a terminal
-in the directory containing the `mechanica` root directory and perform the following.
+To execute the standard installation, open a terminal in a directory to install Mechanica
+and clone the `Mechanica repository <https://github.com/tjsego/mechanica>`_,
+
+.. code-block:: bash
+
+    git clone --recurse-submodules https://github.com/tjsego/mechanica
+
+From the directory containing the `mechanica` root directory, perform the following.
 
 On Windows
 

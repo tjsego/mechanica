@@ -258,7 +258,11 @@ set(HEADERS
   )
 
 
-
+include(models/modeltree.cmake)
+add_subdirectory(models)
+MX_MODEL_TREE_INIT()
+MX_MODEL_TREE_PROC(models)
+set(SRC ${SRC} ${MX_MODEL_SRCS_LOCAL})
 
 # For development, for the time being, we won't build the object library
 # because it takes longer to build if we're only building one library,

@@ -40,6 +40,8 @@ If you're looking for something specific, refer to the following,
 
 * For walkthroughs, examples and other discussions, refer to :ref:`Notes <notes>`.
 
+* For application-specific models and tools, refer to :ref:`Models <models>`.
+
 * To dive into the code, refer to :ref:`Mechanica API Reference <api_reference>`.
 
 .. note::
@@ -66,7 +68,9 @@ Mechanica is funded with generous support by NIBIB U24 EB028887.
    quick_start
    introduction
    notes
+   models/models
    api_reference
+   models/api_models
    status
    history
    references

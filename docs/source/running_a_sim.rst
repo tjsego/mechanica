@@ -3,7 +3,7 @@
 Running a Simulation
 ---------------------
 
-In most cases, running simulation is as simple as initializing the simulator
+In most cases, running a simulation is as simple as initializing the simulator
 with the module :func:`init` function (:func:`MxSimulator_init`
 or :func:`MxSimulator_initC` in C++), building the physical model, and running
 the simulation by calling the module :func:`run` method (or :func:`irun` for
@@ -65,3 +65,25 @@ In C++, the simulator and universe can both be easily accessed to use the same m
     sim->show()                 // display the window
     universe->step()            // time steps the simulation
     universe->stop()            // stops the simulation
+
+Running Windowless
+^^^^^^^^^^^^^^^^^^^
+
+Many applications like massively-parallel execution of lots of simulations
+require running Mechanica without real-time rendering and interactivity, where
+Mechanica can execute simulations hundreds to thousands of times faster.
+Mechanica supports such an execution mode, called `Windowless`, in which case
+all Mechanica functionality is the same, except that Mechanica does no rendering
+except when instructed to do so in the instructions of a scripted simulation.
+
+Mechanica can be informed that a simulation should be executed in Windowless mode
+during initialization with the keyword argument ``windowless``, ::
+
+    mx.init(windowless=True)
+
+Execution of a simulation occurs through the module method ``step`` (rather than
+``run``), where each call executes one simulation step, ::
+
+    num_steps = int(1E6)  # Number of steps to execute
+    for step_num in range(num_steps):
+        mx.step()

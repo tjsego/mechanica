@@ -260,21 +260,23 @@ MxVector3f MxCellPolarity_GetVectorAB(const int &pId, const bool &current) {
     return (*_partPolPack)[pId]->vectorAB(current);
 }
 
-void MxCellPolarity_SetVectorAB(const int &pId, const MxVector3f &pVec, const bool &current) {
+void MxCellPolarity_SetVectorAB(const int &pId, const MxVector3f &pVec, const bool &current, const bool &init) {
     auto pp = (*_partPolPack)[pId];
     pp->v[current ? polarityVecsIdxCurrent : polarityVecsIdxOld] = pVec;
     pp->updateArrows(current);
+    if (init) MxCellPolarity_SetVectorAB(pId, pVec, !current, false);
 }
 
 MxVector3f MxCellPolarity_GetVectorPCP(const int &pId, const bool &current) {
     return (*_partPolPack)[pId]->vectorPCP(current);
 }
 
-void MxCellPolarity_SetVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current) {
+void MxCellPolarity_SetVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current, const bool &init) {
     auto pp = (*_partPolPack)[pId];
     auto idx = current ? polarityVecsIdxCurrent : polarityVecsIdxOld;
     pp->v[idx + 2] = pVec;
     pp->updateArrows(current);
+    if (init) MxCellPolarity_SetVectorPCP(pId, pVec, !current, false);
 }
 
 void cacheVectorIncrements(const int &pId, const MxVector3f &vecAB, const MxVector3f &vecPCP) {
@@ -675,12 +677,12 @@ MxVector3f CellPolarity::getVectorPCP(const int &pId, const bool &current) {
     return MxCellPolarity_GetVectorPCP(pId, current);
 }
 
-void CellPolarity::setVectorAB(const int &pId, const MxVector3f &pVec, const bool &current) {
-    return MxCellPolarity_SetVectorAB(pId, pVec, current);
+void CellPolarity::setVectorAB(const int &pId, const MxVector3f &pVec, const bool &current, const bool &init) {
+    return MxCellPolarity_SetVectorAB(pId, pVec, current, init);
 }
 
-void CellPolarity::setVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current) {
-    return MxCellPolarity_SetVectorPCP(pId, pVec, current);
+void CellPolarity::setVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current, const bool &init) {
+    return MxCellPolarity_SetVectorPCP(pId, pVec, current, init);
 }
 
 void CellPolarity::update() {

@@ -44,8 +44,9 @@ MxVector3f MxCellPolarity_GetVectorPCP(const int &pId, const bool &current=true)
  * @param pId 
  * @param pVec 
  * @param current 
+ * @param init 
  */
-void MxCellPolarity_SetVectorAB(const int &pId, const MxVector3f &pVec, const bool &current=true);
+void MxCellPolarity_SetVectorAB(const int &pId, const MxVector3f &pVec, const bool &current=true, const bool &init=false);
 
 /**
  * @brief Sets the PCP polarity vector of a cell
@@ -53,8 +54,9 @@ void MxCellPolarity_SetVectorAB(const int &pId, const MxVector3f &pVec, const bo
  * @param pId 
  * @param pVec 
  * @param current 
+ * @param init 
  */
-void MxCellPolarity_SetVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current=true);
+void MxCellPolarity_SetVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current=true, const bool &init=false);
 
 /**
  * @brief Updates all running polarity models
@@ -292,8 +294,9 @@ struct CellPolarity {
      * @param pId 
      * @param pVec 
      * @param current 
+     * @param init 
      */
-    static void setVectorAB(const int &pId, const MxVector3f &pVec, const bool &current=true);
+    static void setVectorAB(const int &pId, const MxVector3f &pVec, const bool &current=true, const bool &init=false);
 
     /**
      * @brief Sets the PCP polarity vector of a cell
@@ -301,8 +304,9 @@ struct CellPolarity {
      * @param pId 
      * @param pVec 
      * @param current 
+     * @param init 
      */
-    static void setVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current=true);
+    static void setVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current=true, const bool &init=false);
 
     /**
      * @brief Updates all running polarity models

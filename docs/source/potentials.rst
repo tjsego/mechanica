@@ -35,6 +35,19 @@ results in
     :width: 300px
     :class: sphx-glr-single-img
 
+A :class:`Potential` instance can also be created by adding two existing
+instances. Such operations can be arbitrarily performed to construct complicated
+potentials consisting of multiple constituent potentials, ::
+
+    pot_charged = mx.Potential.coulomb(q=1)
+    pot_fluid = mx.Potential.dpd(alpha=0.3, gamma=1, sigma=1, cutoff=0.6)
+    pot_charged_fluid = pot_charged + pot_fluid
+
+.. note::
+
+    Changes to constituent potentials during simulation are reflected in potentials
+    that have been constructed from them using summation operations.
+
 Built-in Potentials
 ^^^^^^^^^^^^^^^^^^^^
 

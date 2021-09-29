@@ -34,6 +34,19 @@ time-varying force in Python, ::
     ...
     force = mx.ConstantForce(lambda: [0.3, 1 * np.sin(0.4 * mx.Universe.time), 0], 0.01)
 
+A :class:`Force` instance can also be created by adding two existing
+instances. Such operations can be arbitrarily performed to construct complicated
+forces consisting of multiple constituent forces, ::
+
+    force_noisy = mx.Force.random(0, 50)
+    force_tstat = mx.Force.berenderson_tstat(10)
+    force_noisy_tstat = force_noisy + force_tstat
+
+.. note::
+
+    Changes to constituent forces during simulation are reflected in forces
+    that have been constructed from them using summation operations.
+
 Built-in Forces
 ^^^^^^^^^^^^^^^^
 

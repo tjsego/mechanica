@@ -23,8 +23,8 @@
 /**
  * @brief Gets the AB polarity vector of a cell
  * 
- * @param pId 
- * @param current 
+ * @param pId particle id
+ * @param current current value flag; default true
  * @return MxVector3f 
  */
 MxVector3f MxCellPolarity_GetVectorAB(const int &pId, const bool &current=true);
@@ -32,8 +32,8 @@ MxVector3f MxCellPolarity_GetVectorAB(const int &pId, const bool &current=true);
 /**
  * @brief Gets the PCP polarity vector of a cell
  * 
- * @param pId 
- * @param current 
+ * @param pId particle id
+ * @param current current value flag; default true
  * @return MxVector3f 
  */
 MxVector3f MxCellPolarity_GetVectorPCP(const int &pId, const bool &current=true);
@@ -41,20 +41,20 @@ MxVector3f MxCellPolarity_GetVectorPCP(const int &pId, const bool &current=true)
 /**
  * @brief Sets the AB polarity vector of a cell
  * 
- * @param pId 
- * @param pVec 
- * @param current 
- * @param init 
+ * @param pId particle id
+ * @param pVec vector value
+ * @param current current value flag; default true
+ * @param init initialization flag; default false
  */
 void MxCellPolarity_SetVectorAB(const int &pId, const MxVector3f &pVec, const bool &current=true, const bool &init=false);
 
 /**
  * @brief Sets the PCP polarity vector of a cell
  * 
- * @param pId 
- * @param pVec 
- * @param current 
- * @param init 
+ * @param pId particle id
+ * @param pVec vector value
+ * @param current current value flag; default true
+ * @param init initialization flag; default false
  */
 void MxCellPolarity_SetVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current=true, const bool &init=false);
 
@@ -71,7 +71,7 @@ void MxCellPolarity_update();
  * Otherwise, the engine will not know that the particle 
  * is polar and will be ignored. 
  * 
- * @param ph 
+ * @param ph handle of particle
  */
 void MxCellPolarity_register(MxParticleHandle *ph);
 
@@ -80,7 +80,7 @@ void MxCellPolarity_register(MxParticleHandle *ph);
  * 
  * This must be called before destroying a registered particle. 
  * 
- * @param ph 
+ * @param ph handle of particle
  */
 void MxCellPolarity_unregister(MxParticleHandle *ph);
 
@@ -147,8 +147,15 @@ const MxVector3f MxCellPolarity_GetInitPolarPCP(MxParticleType *pType);
  */
 void MxCellPolarity_SetInitPolarPCP(MxParticleType *pType, const MxVector3f &value);
 
+/**
+ * @brief Defines a force due to polarity state
+ * 
+ */
 struct PolarityForcePersistent : MxForce {
+    /** Proportionality of force to AB vector */
     float sensAB = 0.0;
+    
+    /** Proportionality of force to PCP vector */
     float sensPCP = 0.0;
 };
 
@@ -209,7 +216,7 @@ void MxCellPolarity_SetArrowLength(const float &_length);
 /**
  * @brief Gets the rendering info for the AB polarity vector of a cell
  * 
- * @param pId 
+ * @param pId particle id
  * @return MxArrowData* 
  */
 MxPolarityArrowData *MxCellPolarity_GetVectorArrowAB(const int32_t &pId);
@@ -217,7 +224,7 @@ MxPolarityArrowData *MxCellPolarity_GetVectorArrowAB(const int32_t &pId);
 /**
  * @brief Gets the rendering info for the PCP polarity vector of a cell
  * 
- * @param pId 
+ * @param pId particle id
  * @return MxArrowData* 
  */
 MxPolarityArrowData *MxCellPolarity_GetVectorArrowPCP(const int32_t &pId);
@@ -229,14 +236,33 @@ MxPolarityArrowData *MxCellPolarity_GetVectorArrowPCP(const int32_t &pId);
  */
 void MxCellPolarity_load();
 
+/**
+ * @brief Defines polarity state dynamics and anisotropic adhesion
+ * 
+ */
 struct MxCellPolarityPotentialContact : MxPotential {
-    float couplingFlat;  // lambda1
-    float couplingOrtho;  // lambda2
-    float couplingLateral;  // lambda3
-    float distanceCoeff;  // beta
+    /** Flat interaction coefficient */
+    float couplingFlat;
+
+    /** Orthogonal interaction coefficient */
+    float couplingOrtho;
+    
+    /** Lateral interaction coefficient */
+    float couplingLateral;
+    
+    /** Distance coefficient */
+    float distanceCoeff;
+
+    /** Contact type (e.g., normal, isotropic or anisotropic) */
     PolarContactType cType;
+
+    /** Magnitude of force due to potential */
     float mag;
+
+    /** State vector dynamics rate due to potential */
     float rate;
+
+    /** Bending coefficient */
     float bendingCoeff;
 
     MxCellPolarityPotentialContact();
@@ -273,8 +299,8 @@ struct CellPolarity {
     /**
      * @brief Gets the AB polarity vector of a cell
      * 
-     * @param pId 
-     * @param current 
+     * @param pId particle id
+     * @param current current value flag; default true
      * @return MxVector3f 
      */
     static MxVector3f getVectorAB(const int &pId, const bool &current=true);
@@ -282,8 +308,8 @@ struct CellPolarity {
     /**
      * @brief Gets the PCP polarity vector of a cell
      * 
-     * @param pId 
-     * @param current 
+     * @param pId particle id
+     * @param current current value flag; default true
      * @return MxVector3f 
      */
     static MxVector3f getVectorPCP(const int &pId, const bool &current=true);
@@ -291,20 +317,20 @@ struct CellPolarity {
     /**
      * @brief Sets the AB polarity vector of a cell
      * 
-     * @param pId 
-     * @param pVec 
-     * @param current 
-     * @param init 
+     * @param pId particle id
+     * @param pVec vector value
+     * @param current current value flag; default true
+     * @param init initialization flag; default false
      */
     static void setVectorAB(const int &pId, const MxVector3f &pVec, const bool &current=true, const bool &init=false);
 
     /**
      * @brief Sets the PCP polarity vector of a cell
      * 
-     * @param pId 
-     * @param pVec 
-     * @param current 
-     * @param init 
+     * @param pId particle id
+     * @param pVec vector value
+     * @param current current value flag; default true
+     * @param init initialization flag; default false
      */
     static void setVectorPCP(const int &pId, const MxVector3f &pVec, const bool &current=true, const bool &init=false);
 
@@ -321,14 +347,14 @@ struct CellPolarity {
      * Otherwise, the engine will not know that the particle 
      * is polar and will be ignored. 
      * 
-     * @param ph 
+     * @param ph handle of particle
      */
     static void registerParticle(MxParticleHandle *ph);
 
     /**
      * @brief Unregisters a particle as polar. 
      * 
-     * @param ph 
+     * @param ph handle of particle
      */
     static void unregister(MxParticleHandle *ph);
 
@@ -442,7 +468,7 @@ struct CellPolarity {
     /**
      * @brief Gets the rendering info for the AB polarity vector of a cell
      * 
-     * @param pId 
+     * @param pId particle id
      * @return MxArrowData* 
      */
     static MxPolarityArrowData *getVectorArrowAB(const int32_t &pId);
@@ -450,7 +476,7 @@ struct CellPolarity {
     /**
      * @brief Gets the rendering info for the PCP polarity vector of a cell
      * 
-     * @param pId 
+     * @param pId particle id
      * @return MxArrowData* 
      */
     static MxPolarityArrowData *getVectorArrowPCP(const int32_t &pId);

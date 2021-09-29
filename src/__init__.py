@@ -1,6 +1,7 @@
 from . import mx_config
 from .mechanica import *
 from . import lattice
+from . import models
 from .particle_type import ClusterType, ParticleType
 
 __all__ = ['forces', 'math', 'lattice']

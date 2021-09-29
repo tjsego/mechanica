@@ -204,10 +204,10 @@ HRESULT MxArrowRenderer::draw(Magnum::Mechanica::ArcBallCamera *camera, const Mx
     int i = 0;
     MxVector3f origin(_Engine.s.origin[0], _Engine.s.origin[1], _Engine.s.origin[2]);
     
-    for (int aid = 0; aid < this->nr_arrows; aid++) {
+    for (int aid = 0; aid < this->arrows.size(); aid++) {
         MxArrowData *ad = this->arrows[aid];
         if(ad != NULL) {
-            render_arrow(pArrowData, pCylinderData, aid, this->arrows[aid], origin);
+            render_arrow(pArrowData, pCylinderData, i, ad, origin);
             i++;
         }
     }

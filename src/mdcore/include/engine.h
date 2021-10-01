@@ -309,7 +309,7 @@ typedef struct engine {
 	int nr_angles, angles_size;
 
 	/** List of dihedrals. */
-	struct dihedral *dihedrals;
+	struct MxDihedral *dihedrals;
 
 	/** Nr. of dihedrals. */
 	int nr_dihedrals, dihedrals_size, nr_dihedralpots, dihedralpots_size;
@@ -411,7 +411,7 @@ typedef struct engine_set {
 	/* Lists of ID of the relevant bonded types. */
 	struct MxBond *bonds;
 	struct MxAngle *angles;
-	struct dihedral *dihedrals;
+	struct MxDihedral *dihedrals;
 	struct exclusion *exclusions;
 
 	/* Nr of sets with which this set conflicts. */

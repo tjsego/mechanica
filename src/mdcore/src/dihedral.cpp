@@ -78,7 +78,7 @@ const char *dihedral_err_msg[2] = {
  * @return #dihedral_err_ok or <0 on error (see #dihedral_err)
  */
  
-int dihedral_eval ( struct dihedral *d , int N , struct engine *e , double *epot_out ) {
+int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *epot_out ) {
 
     int did, pid, pjd, pkd, pld, k;
     int *loci, *locj, *lock, *locl, shift[3];
@@ -392,7 +392,7 @@ int dihedral_eval ( struct dihedral *d , int N , struct engine *e , double *epot
  * @return #dihedral_err_ok or <0 on error (see #dihedral_err)
  */
  
-int dihedral_evalf ( struct dihedral *d , int N , struct engine *e , FPTYPE *f , double *epot_out ) {
+int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f , double *epot_out ) {
 
     int did, pid, pjd, pkd, pld, k;
     int *loci, *locj, *lock, *locl, shift[3];

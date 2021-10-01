@@ -27,15 +27,13 @@
 #define dihedral_err_null                  -1
 #define dihedral_err_malloc                -2
 
-MDCORE_BEGIN_DECLS
-
 
 /** ID of the last error */
 CAPI_DATA(int) dihedral_err;
 
 
 /** The dihedral structure */
-typedef struct dihedral {
+typedef struct MxDihedral {
 
 	/* ids of particles involved */
 	int i, j, k, l;
@@ -43,13 +41,11 @@ typedef struct dihedral {
 	/* id of the potential. */
 	int pid;
 
-} dihedral;
+} MxDihedral;
 
 
 /* associated functions */
-int dihedral_eval ( struct dihedral *d , int N , struct engine *e , double *epot_out );
-int dihedral_evalf ( struct dihedral *d , int N , struct engine *e , FPTYPE *f , double *epot_out );
-
-MDCORE_END_DECLS
+int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *epot_out );
+int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f , double *epot_out );
 
 #endif // INCLUDE_DIHEDRAL_H_

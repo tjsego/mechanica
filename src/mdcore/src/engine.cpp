@@ -1589,7 +1589,7 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
 
     /* Init the dihedrals array.		 */
     e->dihedrals_size = 100;
-    if ( ( e->dihedrals = (struct dihedral *)malloc( sizeof( struct dihedral ) * e->dihedrals_size ) ) == NULL )
+    if ( ( e->dihedrals = (struct MxDihedral *)malloc( sizeof( struct MxDihedral ) * e->dihedrals_size ) ) == NULL )
         return error(engine_err_malloc);
     e->nr_dihedrals = 0;
 

@@ -1032,54 +1032,34 @@ int engine_bonded_sets ( struct engine *e , int max_sets ) {
 
 }
 
-
-
 /**
- * @brief Add a dihedral interaction to the engine.
- *
- * @param e The #engine.
- * @param i The ID of the first #part.
- * @param j The ID of the second #part.
- * @param k The ID of the third #part.
- * @param l The ID of the fourth #part.
- * @param pid Index of the #potential for this bond.
- *
- * @return #engine_err_ok or < 0 on error (see #engine_err).
+ * allocates a new dihedral, returns its id.
  */
-
-int engine_dihedral_add ( struct engine *e , int i , int j , int k , int l , int pid ) {
-
-	struct MxDihedral *dummy;
-
-	/* Check inputs. */
-	if ( e == NULL )
+int engine_dihedral_alloc(struct engine *e) {
+    
+    struct MxDihedral *dummy;
+    
+    /* Check inputs. */
+    if (e == NULL) 
 		return error(engine_err_null);
-	/* if ( i > e->s.nr_parts || j > e->s.nr_parts )
-        return error(engine_err_range);
-    if ( pid > e->nr_dihedralpots )
-        return error(engine_err_range); */
-
-	/* Do we need to grow the dihedrals array? */
-	if ( e->nr_dihedrals == e->dihedrals_size ) {
-		e->dihedrals_size *= 1.414;
-		if ( ( dummy = (struct MxDihedral *)malloc( sizeof(struct MxDihedral) * e->dihedrals_size ) ) == NULL )
-			return error(engine_err_malloc);
-		memcpy( dummy , e->dihedrals , sizeof(struct MxDihedral) * e->nr_dihedrals );
-		free( e->dihedrals );
-		e->dihedrals = dummy;
-	}
-
-	/* Store this dihedral. */
-	e->dihedrals[ e->nr_dihedrals ].i = i;
-	e->dihedrals[ e->nr_dihedrals ].j = j;
-	e->dihedrals[ e->nr_dihedrals ].k = k;
-	e->dihedrals[ e->nr_dihedrals ].l = l;
-	e->dihedrals[ e->nr_dihedrals ].pid = pid;
-	e->nr_dihedrals += 1;
-
-	/* It's the end of the world as we know it. */
-	return engine_err_ok;
-
+    
+    /* Do we need to grow the dihedral array? */
+    if (e->nr_dihedrals == e->dihedrals_size) {
+        e->dihedrals_size *= 1.414;
+        if ((dummy = (struct MxDihedral *)malloc( sizeof(struct MxDihedral) * e->dihedrals_size)) == NULL)
+        	return error(engine_err_malloc);
+        memcpy(dummy , e->dihedrals , sizeof(struct MxDihedral) * e->nr_dihedrals);
+        free(e->dihedrals);
+        e->dihedrals = dummy;
+    }
+    
+    ::memset(&e->dihedrals[e->nr_dihedrals], 0, sizeof(MxDihedral));
+    
+    auto result = e->nr_dihedrals;
+    
+    e->nr_dihedrals += 1;
+    
+    return result;
 }
 
 /**
@@ -1940,49 +1920,3 @@ int engine_bond_eval ( struct engine *e ) {
 	return engine_err_ok;
 
 }
-
-
-
-
-
-/**
- * @brief Add a dihedral potential.
- *
- * @param e The #engine.
- * @param p The #potential to add to the #engine.
- *
- * @return The ID of the added dihedral potential or < 0 on error (see #engine_err).
- */
-
-int engine_dihedral_addpot ( struct engine *e , struct MxPotential *p ) {
-
-	struct MxPotential **dummy;
-
-	/* check for nonsense. */
-	if ( e == NULL )
-		return error(engine_err_null);
-
-	/* Is there enough room in p_dihedral? */
-	if ( e->nr_dihedralpots == e->dihedralpots_size ) {
-		e->dihedralpots_size += 100;
-		if ( ( dummy = (struct MxPotential **)malloc( sizeof(struct MxPotential *) * e->dihedralpots_size ) ) == NULL )
-			return engine_err_malloc;
-		memcpy( dummy , e->p_dihedral , sizeof(struct MxPotential *) * e->nr_dihedralpots );
-		free( e->p_dihedral );
-		e->p_dihedral = dummy;
-	}
-
-	/* store the potential. */
-	e->p_dihedral[ e->nr_dihedralpots ] = p;
-	e->nr_dihedralpots += 1;
-
-	/* end on a good note. */
-	return e->nr_dihedralpots - 1;
-
-}
-
-
-
-
-
-

@@ -38,8 +38,8 @@ typedef struct MxDihedral {
 	/* ids of particles involved */
 	int i, j, k, l;
 
-	/* id of the potential. */
-	int pid;
+	/* dihedral potential. */
+	struct MxPotential *potential;
 
 } MxDihedral;
 

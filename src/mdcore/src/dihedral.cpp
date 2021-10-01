@@ -89,7 +89,6 @@ int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *ep
     struct MxPotential *pot;
     FPTYPE xi[3], xj[3], xk[3], xl[3], dxi[3], dxj[3], dxl[3], cphi;
     FPTYPE wi, wj, wl;
-    struct MxPotential **pots;
     FPTYPE t1, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21,
         t22, t24, t26, t3, t30, t31, t32, t33, t34, t35, t36, t37, t38, t39, t40,
         t41, t42, t43, t44, t45, t46, t47, t5, t6, t7, t8, t9,
@@ -112,7 +111,6 @@ int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *ep
         
     /* Get local copies of some variables. */
     s = &e->s;
-    pots = e->p_dihedral;
     partlist = s->partlist;
     celllist = s->celllist;
     for ( k = 0 ; k < 3 ; k++ )
@@ -140,7 +138,7 @@ int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *ep
             continue;
             
         /* Get the potential. */
-        if ( ( pot = pots[ d[did].pid ] ) == NULL )
+        if ( ( pot = d->potential ) == NULL )
             continue;
     
         /* Get positions relative to pj's cell. */
@@ -403,7 +401,6 @@ int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f
     struct MxPotential *pot;
     FPTYPE xi[3], xj[3], xk[3], xl[3], dxi[3], dxj[3], dxl[3], cphi;
     FPTYPE wi, wj, wl;
-    struct MxPotential **pots;
     FPTYPE t1, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21,
         t22, t24, t26, t3, t30, t31, t32, t33, t34, t35, t36, t37, t38, t39, t40,
         t41, t42, t43, t44, t45, t46, t47, t5, t6, t7, t8, t9,
@@ -426,7 +423,6 @@ int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f
         
     /* Get local copies of some variables. */
     s = &e->s;
-    pots = e->p_dihedral;
     partlist = s->partlist;
     celllist = s->celllist;
     for ( k = 0 ; k < 3 ; k++ )
@@ -454,7 +450,7 @@ int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f
             continue;
             
         /* Get the potential. */
-        if ( ( pot = pots[ d[did].pid ] ) == NULL )
+        if ( ( pot = d->potential ) == NULL )
             continue;
     
         /* Get positions relative to pj. */

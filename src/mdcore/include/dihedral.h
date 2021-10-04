@@ -21,6 +21,7 @@
 #define INCLUDE_DIHEDRAL_H_
 
 #include "platform.h"
+#include "mdcore_config.h"
 
 #include <random>
 
@@ -34,6 +35,7 @@
 CAPI_DATA(int) dihedral_err;
 
 struct MxDihedralHandle;
+struct MxParticleHandle;
 
 /** The dihedral structure */
 typedef struct MxDihedral {

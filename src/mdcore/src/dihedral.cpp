@@ -55,7 +55,7 @@
 #include "dihedral.h"
 #include <../../rendering/NOMStyle.hpp>
 
-NOMStyle *MxDihedral_StylePtr = new NOMStyle("pumpkin");
+NOMStyle *MxDihedral_StylePtr = new NOMStyle("gold");
 
 /* Global variables. */
 /** The ID of the last error. */

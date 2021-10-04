@@ -403,50 +403,50 @@ struct MxPotential *potential_create_linear (double a , double b ,
 }
 
 
-double potential_create_harmonic_dihedral_K;
-int potential_create_harmonic_dihedral_n;
-double potential_create_harmonic_dihedral_delta;
+double potential_create_cosine_dihedral_K;
+int potential_create_cosine_dihedral_n;
+double potential_create_cosine_dihedral_delta;
 
 /* the potential functions */
-double potential_create_harmonic_dihedral_f ( double r ) {
-	double T[potential_create_harmonic_dihedral_n+1], U[potential_create_harmonic_dihedral_n+1];
-	double cosd = cos(potential_create_harmonic_dihedral_delta), sind = sin(potential_create_harmonic_dihedral_delta);
+double potential_create_cosine_dihedral_f ( double r ) {
+	double T[potential_create_cosine_dihedral_n+1], U[potential_create_cosine_dihedral_n+1];
+	double cosd = cos(potential_create_cosine_dihedral_delta), sind = sin(potential_create_cosine_dihedral_delta);
 	int k;
 	T[0] = 1.0; T[1] = r;
 	U[0] = 1.0; U[1] = 2*r;
-	for ( k = 2 ; k <= potential_create_harmonic_dihedral_n ; k++ ) {
+	for ( k = 2 ; k <= potential_create_cosine_dihedral_n ; k++ ) {
 		T[k] = 2 * r * T[k-1] - T[k-2];
 		U[k] = 2 * r * U[k-1] - U[k-2];
 	}
-	if ( potential_create_harmonic_dihedral_delta == 0.0 )
-		return potential_create_harmonic_dihedral_K * ( 1.0 + T[potential_create_harmonic_dihedral_n] );
-	else if ( potential_create_harmonic_dihedral_delta == M_PI )
-		return potential_create_harmonic_dihedral_K * ( 1.0 - T[potential_create_harmonic_dihedral_n] );
+	if ( potential_create_cosine_dihedral_delta == 0.0 )
+		return potential_create_cosine_dihedral_K * ( 1.0 + T[potential_create_cosine_dihedral_n] );
+	else if ( potential_create_cosine_dihedral_delta == M_PI )
+		return potential_create_cosine_dihedral_K * ( 1.0 - T[potential_create_cosine_dihedral_n] );
 	else if ( fabs(r) < 1.0 )
-		return potential_create_harmonic_dihedral_K * ( 1.0 + T[potential_create_harmonic_dihedral_n]*cosd + U[potential_create_harmonic_dihedral_n-1]*sqrt(1.0-r*r)*sind );
+		return potential_create_cosine_dihedral_K * ( 1.0 + T[potential_create_cosine_dihedral_n]*cosd + U[potential_create_cosine_dihedral_n-1]*sqrt(1.0-r*r)*sind );
 	else
-		return potential_create_harmonic_dihedral_K * ( 1.0 + T[potential_create_harmonic_dihedral_n]*cosd );
+		return potential_create_cosine_dihedral_K * ( 1.0 + T[potential_create_cosine_dihedral_n]*cosd );
 }
 
-double potential_create_harmonic_dihedral_dfdr ( double r ) {
-	double T[potential_create_harmonic_dihedral_n+1], U[potential_create_harmonic_dihedral_n+1];
-	double cosd = cos(potential_create_harmonic_dihedral_delta), sind = sin(potential_create_harmonic_dihedral_delta);
+double potential_create_cosine_dihedral_dfdr ( double r ) {
+	double T[potential_create_cosine_dihedral_n+1], U[potential_create_cosine_dihedral_n+1];
+	double cosd = cos(potential_create_cosine_dihedral_delta), sind = sin(potential_create_cosine_dihedral_delta);
 	int k;
 	T[0] = 1.0; T[1] = r;
 	U[0] = 1.0; U[1] = 2*r;
-	for ( k = 2 ; k <= potential_create_harmonic_dihedral_n ; k++ ) {
+	for ( k = 2 ; k <= potential_create_cosine_dihedral_n ; k++ ) {
 		T[k] = 2 * r * T[k-1] - T[k-2];
 		U[k] = 2 * r * U[k-1] - U[k-2];
 	}
-	if ( potential_create_harmonic_dihedral_delta == 0.0 )
-		return potential_create_harmonic_dihedral_n * potential_create_harmonic_dihedral_K * potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1];
-	else if ( potential_create_harmonic_dihedral_delta == M_PI )
-		return -potential_create_harmonic_dihedral_n * potential_create_harmonic_dihedral_K * potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1];
+	if ( potential_create_cosine_dihedral_delta == 0.0 )
+		return potential_create_cosine_dihedral_n * potential_create_cosine_dihedral_K * potential_create_cosine_dihedral_n*U[potential_create_cosine_dihedral_n-1];
+	else if ( potential_create_cosine_dihedral_delta == M_PI )
+		return -potential_create_cosine_dihedral_n * potential_create_cosine_dihedral_K * potential_create_cosine_dihedral_n*U[potential_create_cosine_dihedral_n-1];
 	else
-		return potential_create_harmonic_dihedral_n * potential_create_harmonic_dihedral_K * (U[potential_create_harmonic_dihedral_n-1] * cosd - T[potential_create_harmonic_dihedral_n] * sind / sqrt(1-r*r));
+		return potential_create_cosine_dihedral_n * potential_create_cosine_dihedral_K * (U[potential_create_cosine_dihedral_n-1] * cosd - T[potential_create_cosine_dihedral_n] * sind / sqrt(1-r*r));
 }
 
-double potential_create_harmonic_dihedral_d6fdr6 ( double r ) {
+double potential_create_cosine_dihedral_d6fdr6 ( double r ) {
 	return 0.0;
 }
 
@@ -463,25 +463,25 @@ double potential_create_harmonic_dihedral_d6fdr6 ( double r ) {
  *      @f$ K(1 + \cos(n\arccos(r)-delta) @f$ in @f$[-1,1]@f$
  *      or @c NULL on error (see #potential_err).
  */
-struct MxPotential *potential_create_harmonic_dihedral ( double K , int n , double delta , double tol ) {
+struct MxPotential *potential_create_cosine_dihedral ( double K , int n , double delta , double tol ) {
 
 	struct MxPotential *p = new MxPotential();
 	double a = -1.0, b = 1.0;
 
 	/* Adjust end-points if delta is not a multiple of pi. */
 	if ( fmod( delta , M_PI ) != 0 ) {
-		a = -1.0 / (1.0 + sqrt(FPTYPE_EPSILON));
-		b = 1.0 / (1.0 + sqrt(FPTYPE_EPSILON));
+		a = -1.0 / (1.0 - sqrt(FPTYPE_EPSILON));
+		b = 1.0 / (1.0 - sqrt(FPTYPE_EPSILON));
 	}
 
-    p->flags =   POTENTIAL_R | POTENTIAL_HARMONIC | POTENTIAL_DIHEDRAL;
-    p->name = "Harmonic Dihedral";
+    p->flags =   POTENTIAL_R | POTENTIAL_DIHEDRAL;
+    p->name = "Cosine Dihedral";
 
 	/* fill this potential */
-	potential_create_harmonic_dihedral_K = K;
-	potential_create_harmonic_dihedral_n = n;
-	potential_create_harmonic_dihedral_delta = delta;
-	if ( potential_init( p , &potential_create_harmonic_dihedral_f , NULL , &potential_create_harmonic_dihedral_d6fdr6 , a , b , tol ) < 0 ) {
+	potential_create_cosine_dihedral_K = K;
+	potential_create_cosine_dihedral_n = n;
+	potential_create_cosine_dihedral_delta = delta;
+	if ( potential_init( p , &potential_create_cosine_dihedral_f , NULL , &potential_create_cosine_dihedral_d6fdr6 , a , b , tol ) < 0 ) {
 		MxAligned_Free(p);
 		return NULL;
 	}
@@ -555,6 +555,73 @@ struct MxPotential *potential_create_harmonic_angle ( double a , double b , doub
 	potential_create_harmonic_angle_K = K;
 	potential_create_harmonic_angle_theta0 = theta0;
 	if ( potential_init( p , &potential_create_harmonic_angle_f , NULL , &potential_create_harmonic_angle_d6fdr6 , left , right , tol ) < 0 ) {
+		MxAligned_Free(p);
+		return NULL;
+	}
+
+	/* return it */
+	return p;
+
+}
+
+
+double potential_create_harmonic_dihedral_K;
+double potential_create_harmonic_dihedral_delta;
+
+/* the potential functions */
+double potential_create_harmonic_dihedral_f ( double r ) {
+	double theta;
+	r = fmin( 1.0 , fmax( -1.0 , r ) );
+	theta = acos( r );
+	return potential_create_harmonic_dihedral_K * ( theta - potential_create_harmonic_dihedral_delta ) * ( theta - potential_create_harmonic_dihedral_delta );
+}
+
+double potential_create_harmonic_dihedral_dfdr ( double r ) {
+	double r2 = r*r;
+	if ( r2 == 1.0 )
+		return -2.0 * potential_create_harmonic_dihedral_K;
+	else
+		return -2.0 * potential_create_harmonic_dihedral_K * ( acos(r) - potential_create_harmonic_dihedral_delta ) / sqrt( 1.0 - r2 );
+}
+
+double potential_create_harmonic_dihedral_d6fdr6 ( double r ) {
+	return 0.0;
+}
+
+/**
+ * @brief Creates a harmonic dihedral #potential
+ *
+ * @param a The smallest angle for which the potential will be constructed.
+ * @param b The largest angle for which the potential will be constructed.
+ * @param K The energy of the angle.
+ * @param delta The minimum energy angle.
+ * @param tol The tolerance to which the interpolation should match the exact
+ *      potential.
+ *
+ * @return A newly-allocated #potential representing the potential
+ *      @f$ K(\theta - \delta)^2 @f$ in @f$[a,b]@f$
+ *      or @c NULL on error (see #potential_err).
+ */
+struct MxPotential *potential_create_harmonic_dihedral ( double a , double b , double K , double delta , double tol ) {
+
+	struct MxPotential *p = new MxPotential();
+	double left, right;
+
+    p->flags = POTENTIAL_DIHEDRAL | POTENTIAL_HARMONIC ;
+    p->name = "Harmonic Dihedral";
+
+	/* Adjust a and b accordingly. */
+	if ( a < 0.0 )
+		a = 0.0;
+	if ( b > M_PI )
+		b = M_PI;
+	left = cos(b);
+	right = cos(a);
+
+	/* fill this potential */
+	potential_create_harmonic_dihedral_K = K;
+	potential_create_harmonic_dihedral_delta = delta;
+	if ( potential_init( p , &potential_create_harmonic_dihedral_f , NULL , &potential_create_harmonic_dihedral_d6fdr6 , left , right , tol ) < 0 ) {
 		MxAligned_Free(p);
 		return NULL;
 	}
@@ -2446,11 +2513,25 @@ MxPotential *MxPotential::harmonic_angle(double k, double theta0, double *min, d
     }
 }
 
-MxPotential *MxPotential::harmonic_dihedral(double k, int n, double delta, double *tol) {
+MxPotential *MxPotential::harmonic_dihedral(double k, double delta, double *min, double *max, double *tol) {
     Log(LOG_TRACE);
 
     try {
-		return potential_checkerr(potential_create_harmonic_dihedral(k, n, delta, potential_defarg(tol, 0.001)));
+		auto _min = potential_defarg(min, 0.0);
+		auto _max = potential_defarg(max, M_PI);
+        return potential_checkerr(potential_create_harmonic_dihedral(_min, _max, k, delta, potential_defarg(tol, 0.005 * (_max - _min))));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::cosine_dihedral(double k, int n, double delta, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+		return potential_checkerr(potential_create_cosine_dihedral(k, n, delta, potential_defarg(tol, 0.01)));
     }
     catch (const std::exception &e) {
         mx_exp(e);

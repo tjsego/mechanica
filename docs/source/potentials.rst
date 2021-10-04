@@ -64,6 +64,7 @@ constructor method. For details on the parameters of each function, refer to the
 * Harmonic: Potential.harmonic
 * Harmonic angle: Potential.harmonic_angle
 * Harmonic dihedral: Potential.harmonic_dihedral
+* Cosine dihedral: Potential.cosine_dihedral
 * Linear: Potential.linear
 * Morse: Potential.morse
 * Overlapping sphere: Potential.overlapping_sphere

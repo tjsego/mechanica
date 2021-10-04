@@ -148,6 +148,20 @@ typedef void (*MxPotentialEval_ByParticles3)(struct MxPotential *p,
                                              FPTYPE *fi, 
                                              FPTYPE *fk);
 
+/**
+ * @brief Like MxPotentialEval_ByParticles, but with four particles
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticles4)(struct MxPotential *p, 
+                                             struct MxParticle *part_i, 
+                                             struct MxParticle *part_j, 
+                                             struct MxParticle *part_k, 
+                                             struct MxParticle *part_l, 
+                                             FPTYPE cphi, 
+                                             FPTYPE *e, 
+                                             FPTYPE *fi, 
+                                             FPTYPE *fl);
+
 typedef struct MxPotential* (*MxPotentialCreate) (
     struct MxPotential *partial_potential,
     struct MxParticleType *a, struct MxParticleType *b );
@@ -191,6 +205,7 @@ typedef struct MxPotential {
 
     MxPotentialEval_ByParticles eval_byparts;
     MxPotentialEval_ByParticles3 eval_byparts3;
+    MxPotentialEval_ByParticles4 eval_byparts4;
 
     MxPotential *pca, *pcb;
 

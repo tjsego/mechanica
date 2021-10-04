@@ -66,6 +66,8 @@ MxPotential::MxPotential() :
     n(1), 
     create_func(NULL), 
     eval_byparts(NULL), 
+    eval_byparts3(NULL), 
+    eval_byparts4(NULL), 
 	pca(NULL), 
 	pcb(NULL), 
     name(NULL)
@@ -437,11 +439,11 @@ double potential_create_harmonic_dihedral_dfdr ( double r ) {
 		U[k] = 2 * r * U[k-1] - U[k-2];
 	}
 	if ( potential_create_harmonic_dihedral_delta == 0.0 )
-		return potential_create_harmonic_dihedral_K * potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1];
+		return potential_create_harmonic_dihedral_n * potential_create_harmonic_dihedral_K * potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1];
 	else if ( potential_create_harmonic_dihedral_delta == M_PI )
-		return -potential_create_harmonic_dihedral_K * potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1];
+		return -potential_create_harmonic_dihedral_n * potential_create_harmonic_dihedral_K * potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1];
 	else
-		return potential_create_harmonic_dihedral_K * ( potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1]*cosd + ( 2*r*U[potential_create_harmonic_dihedral_n-1] - potential_create_harmonic_dihedral_n*T[potential_create_harmonic_dihedral_n] ) * sind / sqrt(1.0 - r*r) );
+		return potential_create_harmonic_dihedral_n * potential_create_harmonic_dihedral_K * (U[potential_create_harmonic_dihedral_n-1] * cosd - T[potential_create_harmonic_dihedral_n] * sind / sqrt(1-r*r));
 }
 
 double potential_create_harmonic_dihedral_d6fdr6 ( double r ) {

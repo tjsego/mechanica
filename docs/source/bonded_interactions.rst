@@ -3,6 +3,15 @@
 Bonded Interactions
 --------------------
 
+.. figure:: nucleos_ta.png
+    :width: 300px
+    :alt: alternate text
+    :align: center
+    :figclass: align-center
+
+    Mechanica models of thymine (left) and adenine (right) molecules
+    using bonded interactions.
+
 A bonded interaction is an interaction due to a *bond* between
 a group of particles. A bond describes an interaction exclusively
 between the group of particles using a :ref:`potential <potentials>`.
@@ -52,6 +61,8 @@ method :meth:`Universe.bonds`,
 
     all_bonds = mx.Universe.bonds()  # Get updated list of all bonds
 
+A bond is rendered as a line joining the two particles of the bond.
+
 Angles
 ^^^^^^^
 
@@ -82,6 +93,9 @@ method :meth:`Universe.angles`,
     angle_handle = mx.Bond.create(pot_ang, p0, p1, p2)
     all_angles = mx.Universe.angles()  # Get updated list of all angles
 
+An angle is rendered as a line joining the center particle and each end
+particle, and a line joining the midpoint of those two lines.
+
 Dihedrals
 ^^^^^^^^^^
 
@@ -111,3 +125,7 @@ method :meth:`Universe.dihedrals`,
     #   using the potential "pot_dih"
     dihedral_handle = mx.Dihedral.create(pot_dih, p0, p1, p2, p3)
     all_dihedrals = mx.Universe.dihedrals()  # Get updated list of all dihedrals
+
+A dihedral is rendered as a line joining the first and second particles, a
+line joining the third and fourth particles, and a line joining the midpoint
+of those two lines.

@@ -122,6 +122,13 @@ struct CAPI_EXPORT MxUniverse  {
     static std::vector<MxAngleHandle*> *angles();
 
     /**
+     * @brief Get all dihedrals in the universe
+     * 
+     * @return std::vector<MxDihedral*>* 
+     */
+    static std::vector<MxDihedralHandle*> *dihedrals();
+
+    /**
      * @brief Get the universe temperature. 
      * 
      * The universe can be run with, or without a thermostat. With a thermostat, 

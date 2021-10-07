@@ -2330,6 +2330,7 @@ MxPotential& MxPotential::operator+(const MxPotential& rhs) {
 	p->pcb = const_cast<MxPotential*>(&rhs);
 	p->kind = POTENTIAL_KIND_COMBINATION;
 	p->flags = p->flags | POTENTIAL_SUM;
+	p->name = std::string(this->name + std::string(" + ") + std::string(p->pcb->name)).c_str();
 	return *p;
 }
 

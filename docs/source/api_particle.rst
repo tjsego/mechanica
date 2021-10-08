@@ -46,6 +46,10 @@ Particles and Clusters
 
     .. autoproperty:: bonds
 
+    .. autoproperty:: angles
+
+    .. autoproperty:: dihedrals
+
     .. automethod:: part
 
     .. automethod:: type

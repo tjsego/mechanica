@@ -157,6 +157,11 @@
         def angles(self):
             """Angles attached to particle"""
             return self.getAngles()
+
+        @property
+        def dihedrals(self):
+            """Dihedrals attached to particle"""
+            return self.getDihedrals()
     %}
 }
 

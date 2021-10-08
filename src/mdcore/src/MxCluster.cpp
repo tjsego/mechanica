@@ -360,7 +360,7 @@ MxParticle *MxCluster_CreateParticle(MxCluster *cluster,
     Log(LOG_TRACE) << type->id << ", " << particleType->id << ", " << clusterType->hasType(particleType);
     if (!clusterType->hasType(particleType)) return NULL;
 
-    auto handle = MxParticle_New(particleType, position, velocity, &cluster->clusterId);
+    auto handle = MxParticle_New(particleType, position, velocity, &cluster->id);
     if (!handle) return NULL;
 
     auto particle = handle->part();

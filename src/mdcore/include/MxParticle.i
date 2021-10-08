@@ -222,6 +222,10 @@
         def target_temperature(self):
             """Particle type target temperature"""
             return self.getTargetTemperature()
+
+        @target_temperature.setter
+        def target_temperature(self, temperature):
+            self.setTargetTemperature(temperature)
     %}
 }
 

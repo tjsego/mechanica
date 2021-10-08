@@ -251,6 +251,10 @@ double MxParticleType::getTargetTemperature() {
     return this->target_energy;
 }
 
+void MxParticleType::setTargetTemperature(const double &temperature) {
+    this->target_energy = temperature;
+}
+
 MxVector3f MxParticleHandle::getPosition() {
     MxVector3f vec(0.0);
     int result = space_getpos(&_Engine.s, this->id, vec.data());

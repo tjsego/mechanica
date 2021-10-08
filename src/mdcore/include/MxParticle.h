@@ -603,6 +603,7 @@ struct CAPI_EXPORT MxParticleType {
     // temperature is an ensemble property
     double getTemperature();
     double getTargetTemperature();
+    void setTargetTemperature(const double &temperature);
 
     /**
      * @brief Get all particles of this type. 

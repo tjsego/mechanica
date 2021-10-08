@@ -103,6 +103,7 @@ set(SRC
   rendering/MxAngleRenderer.cpp
   rendering/MxArrowRenderer.cpp
   rendering/MxMeshRenderer.cpp
+  rendering/MxDihedralRenderer.cpp
   rendering/MxMeshShaderProgram.cpp
   rendering/MxRenderTarget.cpp
   rendering/MxImageView.cpp
@@ -214,6 +215,7 @@ set(HEADERS
   rendering/MxAngleRenderer.h
   rendering/MxArrowRenderer.h
   rendering/MxMeshRenderer.h
+  rendering/MxDihedralRenderer.h
   rendering/MxMeshShaderProgram.h
   rendering/MxRenderTarget.h
   rendering/MxImageView.h

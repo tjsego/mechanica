@@ -21,35 +21,152 @@
 #define INCLUDE_DIHEDRAL_H_
 
 #include "platform.h"
+#include "mdcore_config.h"
+
+#include <random>
 
 /* dihedral error codes */
 #define dihedral_err_ok                    0
 #define dihedral_err_null                  -1
 #define dihedral_err_malloc                -2
 
-MDCORE_BEGIN_DECLS
-
 
 /** ID of the last error */
 CAPI_DATA(int) dihedral_err;
 
+struct MxDihedralHandle;
+struct MxParticleHandle;
 
 /** The dihedral structure */
-typedef struct dihedral {
+typedef struct MxDihedral {
 
 	/* ids of particles involved */
 	int i, j, k, l;
 
-	/* id of the potential. */
-	int pid;
+    uint64_t creation_time;
 
-} dihedral;
+	/**
+	 * half life decay time for this bond.
+	 */
+	double half_life;
 
+	/* potential energy required to break this bond */
+	double dissociation_energy;
+
+	/* potential energy of this bond */
+	double potential_energy;
+
+	/* dihedral potential. */
+	struct MxPotential *potential;
+
+    struct NOMStyle *style;
+
+	void init(MxPotential *potential, 
+              MxParticleHandle *p1, 
+              MxParticleHandle *p2, 
+              MxParticleHandle *p3, 
+              MxParticleHandle *p4);
+
+    /**
+     * @brief Creates a dihedral bond
+     * 
+     * @param potential potential of the bond
+     * @param p1 first outer particle
+     * @param p2 first center particle
+     * @param p3 second center particle
+	 * @param p4 second outer particle
+     * @return MxDihedralHandle* 
+     */
+    static MxDihedralHandle *create(MxPotential *potential, 
+                                 	MxParticleHandle *p1, 
+                                 	MxParticleHandle *p2, 
+                                 	MxParticleHandle *p3, 
+                                 	MxParticleHandle *p4);
+
+} MxDihedral;
+
+struct MxDihedralHandle {
+	int id;
+
+    /**
+     * @brief Gets the dihedral of this handle
+     * 
+     * @return MxDihedral* 
+     */
+    MxDihedral *dihedral();
+
+    std::string str();
+
+    /**
+     * @brief Destroy the dihedral
+     * 
+     * @return HRESULT 
+     */
+    HRESULT destroy();
+
+    /**
+     * @brief Gets all dihedrals in the universe
+     * 
+     * @return std::vector<MxDihedralHandle*> 
+     */
+    static std::vector<MxDihedralHandle*> items();
+
+    /**
+     * @brief Tests whether this bond decays
+     * 
+     * @return true when the bond should decay
+     */
+    bool decays();
+
+    MxParticleHandle *operator[](unsigned int index);
+
+    double getEnergy();
+    std::vector<int32_t> getParts();
+    MxPotential *getPotential();
+    float getDissociationEnergy();
+    void setDissociationEnergy(const float &dissociation_energy);
+    float getHalfLife();
+    void setHalfLife(const float &half_life);
+    NOMStyle *getStyle();
+    void setStyle(NOMStyle *style);
+    double getAge();
+
+    MxDihedralHandle() : id(-1) {}
+    MxDihedralHandle(const int &_id) : id(_id) {}
+};
+
+/**
+ * @brief Shared global dihedral style
+ * 
+ */
+CAPI_DATA(NOMStyle*) MxDihedral_StylePtr;
+
+/**
+ * @brief Destroys a dihedral
+ * 
+ * @param d dihedral to destroy
+ * @return HRESULT 
+ */
+CAPI_FUNC(HRESULT) MxDihedral_Destroy(MxDihedral *d);
+
+/**
+ * @brief Destroys all dihedrals in the universe
+ * 
+ * @return HRESULT 
+ */
+CAPI_FUNC(HRESULT) MxDihedral_DestroyAll();
+
+/**
+ * @brief Tests whether a dihedral decays
+ * 
+ * @param d dihedral to test
+ * @param uniform01 uniform random distribution; optional
+ * @return true if the bond decays
+ */
+bool MxDihedral_decays(MxDihedral *d, std::uniform_real_distribution<double> *uniform01=NULL);
 
 /* associated functions */
-int dihedral_eval ( struct dihedral *d , int N , struct engine *e , double *epot_out );
-int dihedral_evalf ( struct dihedral *d , int N , struct engine *e , FPTYPE *f , double *epot_out );
-
-MDCORE_END_DECLS
+int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *epot_out );
+int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f , double *epot_out );
 
 #endif // INCLUDE_DIHEDRAL_H_

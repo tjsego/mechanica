@@ -148,6 +148,20 @@ typedef void (*MxPotentialEval_ByParticles3)(struct MxPotential *p,
                                              FPTYPE *fi, 
                                              FPTYPE *fk);
 
+/**
+ * @brief Like MxPotentialEval_ByParticles, but with four particles
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticles4)(struct MxPotential *p, 
+                                             struct MxParticle *part_i, 
+                                             struct MxParticle *part_j, 
+                                             struct MxParticle *part_k, 
+                                             struct MxParticle *part_l, 
+                                             FPTYPE cphi, 
+                                             FPTYPE *e, 
+                                             FPTYPE *fi, 
+                                             FPTYPE *fl);
+
 typedef struct MxPotential* (*MxPotentialCreate) (
     struct MxPotential *partial_potential,
     struct MxParticleType *a, struct MxParticleType *b );
@@ -191,6 +205,7 @@ typedef struct MxPotential {
 
     MxPotentialEval_ByParticles eval_byparts;
     MxPotentialEval_ByParticles3 eval_byparts3;
+    MxPotentialEval_ByParticles4 eval_byparts4;
 
     MxPotential *pca, *pcb;
 
@@ -370,17 +385,37 @@ typedef struct MxPotential {
      * 
      * @f[
      * 
-     *      k \left( 1 + \cos( n \arccos(r)-\delta ) \right)
+     *      k \left( \theta - \delta \right) ^2
+     * 
+     * @f]
+     * 
+     * @param k energy of the dihedral.
+     * @param delta minimum energy dihedral. 
+     * @param min The smallest angle for which the potential will be constructed. Defaults to zero. 
+     * @param max The largest angle for which the potential will be constructed. Defaults to PI. 
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.005 * (max - min). 
+     * @return MxPotential* 
+     */
+    static MxPotential *harmonic_dihedral(double k, double delta, double *min=NULL, double *max=NULL, double *tol=NULL);
+
+    /**
+     * @brief Creates a cosine dihedral potential. 
+     * 
+     * The cosine dihedral potential has the form:
+     * 
+     * @f[
+     * 
+     *      k \left( 1 + \cos( n \theta-\delta ) \right)
      * 
      * @f]
      * 
      * @param k energy of the dihedral.
      * @param n multiplicity of the dihedral.
      * @param delta minimum energy dihedral. 
-     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001. 
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.01. 
      * @return MxPotential* 
      */
-    static MxPotential *harmonic_dihedral(double k, int n, double delta, double *tol=NULL);
+    static MxPotential *cosine_dihedral(double k, int n, double delta, double *tol=NULL);
 
     /**
      * @brief Creates a well potential. 
@@ -620,8 +655,11 @@ CAPI_FUNC(struct MxPotential *) potential_create_linear ( double a , double b ,
 CAPI_FUNC(struct MxPotential *) potential_create_harmonic_angle ( double a , double b ,
 																  double K , double theta0 ,
 																  double tol );
-CAPI_FUNC(struct MxPotential *) potential_create_harmonic_dihedral ( double K , int n ,
-																	 double delta , double tol );
+CAPI_FUNC(struct MxPotential *) potential_create_harmonic_dihedral ( double a , double b ,
+																     double K , double delta , 
+                                                                     double tol );
+CAPI_FUNC(struct MxPotential *) potential_create_cosine_dihedral ( double K , int n ,
+																   double delta , double tol );
 
 
 CAPI_FUNC(struct MxPotential *) potential_create_SS1(double k, double e, double r0, double a , double b ,double tol);

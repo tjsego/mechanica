@@ -215,6 +215,18 @@ std::vector<MxAngleHandle*> *MxUniverse::angles() {
     UNIVERSE_FINALLY(NULL);
 }
 
+std::vector<MxDihedralHandle*> *MxUniverse::dihedrals() {
+    UNIVERSE_TRY();
+    std::vector<MxDihedralHandle*> *dihedrals = new std::vector<MxDihedralHandle*>();
+    dihedrals->reserve(_Engine.nr_dihedrals);
+
+    for(int i = 0; i < _Engine.nr_dihedrals; ++i) {
+        MxDihedral *d = &_Engine.dihedrals[i];
+        dihedrals->push_back(new MxDihedralHandle(i));
+    }
+    return dihedrals;
+    UNIVERSE_FINALLY(NULL);
+}
 
 double MxUniverse::getTemperature() {
     return engine_temperature(&_Engine);

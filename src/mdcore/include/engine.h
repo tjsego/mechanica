@@ -215,7 +215,7 @@ typedef struct engine {
     static struct MxParticleType *types;
 
 	/** The interaction matrix */
-	struct MxPotential **p, **p_dihedral, **p_cluster;
+	struct MxPotential **p, **p_cluster;
 
 	/** The explicit electrostatic potential. */
 	struct MxPotential *ep;
@@ -309,10 +309,10 @@ typedef struct engine {
 	int nr_angles, angles_size;
 
 	/** List of dihedrals. */
-	struct dihedral *dihedrals;
+	struct MxDihedral *dihedrals;
 
 	/** Nr. of dihedrals. */
-	int nr_dihedrals, dihedrals_size, nr_dihedralpots, dihedralpots_size;
+	int nr_dihedrals, dihedrals_size;
 
 	/** The Comm object for mpi. */
 #ifdef WITH_MPI
@@ -411,7 +411,7 @@ typedef struct engine_set {
 	/* Lists of ID of the relevant bonded types. */
 	struct MxBond *bonds;
 	struct MxAngle *angles;
-	struct dihedral *dihedrals;
+	struct MxDihedral *dihedrals;
 	struct exclusion *exclusions;
 
 	/* Nr of sets with which this set conflicts. */
@@ -491,8 +491,7 @@ CAPI_FUNC(int) engine_bond_eval ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_eval ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_eval_sets ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_sets ( struct engine *e , int max_sets );
-CAPI_FUNC(int) engine_dihedral_add ( struct engine *e , int i , int j , int k , int l , int pid );
-CAPI_FUNC(int) engine_dihedral_addpot ( struct engine *e , struct MxPotential *p );
+CAPI_FUNC(int) engine_dihedral_alloc(struct engine *e);
 CAPI_FUNC(int) engine_dihedral_eval ( struct engine *e );
 CAPI_FUNC(int) engine_dump_PSF ( struct engine *e , FILE *psf , FILE *pdb , char *excl[] , int nr_excl );
 CAPI_FUNC(int) engine_exclusion_add ( struct engine *e , int i , int j );

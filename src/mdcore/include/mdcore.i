@@ -28,6 +28,9 @@
 // angle
 %include "angle.i"
 
+// dihedral
+%include "dihedral.i"
+
 // bind
 %include "MxBind.i"
 

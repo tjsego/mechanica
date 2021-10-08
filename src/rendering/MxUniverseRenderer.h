@@ -56,6 +56,7 @@
 #include <rendering/ArcBallCamera.h>
 
 #include <rendering/MxAngleRenderer.h>
+#include <rendering/MxDihedralRenderer.h>
 #include <rendering/MxArrowRenderer.h>
 
 struct MxSimulator_Config;
@@ -316,6 +317,8 @@ struct MxUniverseRenderer : MxRenderer {
     GL::Buffer bondsVertexBuffer{NoCreate};
 
     MxAngleRenderer angleRenderer;
+
+    MxDihedralRenderer dihedralRenderer;
     
     MxArrowRenderer arrowRenderer;
 

@@ -911,6 +911,25 @@ std::vector<MxAngleHandle*> *MxParticleHandle::getAngles() {
     }
 }
 
+std::vector<MxDihedralHandle*> *MxParticleHandle::getDihedrals() {
+    try {
+        auto id = part()->id;
+        
+        std::vector<MxDihedralHandle*> *dihedrals = new std::vector<MxDihedralHandle*>();
+        
+        for(int i = 0; i < _Engine.nr_dihedrals; ++i) {
+            MxDihedral *d = &_Engine.dihedrals[i];
+            if((d->i == id || d->j == id || d->k == id || d->l == id)) {
+                dihedrals->push_back(new MxDihedralHandle(i));
+            }
+        }
+        return dihedrals;
+    }
+    catch(std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
 static MxParticleList *particletype_items(MxParticleType *self) {
     return &self->parts;
 }

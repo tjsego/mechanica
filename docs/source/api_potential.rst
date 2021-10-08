@@ -49,6 +49,8 @@ Potentials
 
     .. automethod:: harmonic_dihedral
 
+    .. automethod:: cosine_dihedral
+
     .. automethod:: well
 
     .. automethod:: glj

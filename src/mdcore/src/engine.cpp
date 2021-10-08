@@ -1447,13 +1447,8 @@ int engine_finalize ( struct engine *e ) {
             }
         }
 
-        for ( k = 0 ; k < e->nr_dihedralpots ; k++ )
-            potential_clear( e->p_dihedral[k] );
         free( e->p );
     }
-
-    if ( e->p_dihedral != NULL )
-        free( e->p_dihedral );
 
     /* Free the communicators, if needed. */
     if ( e->flags & engine_flag_mpi ) {
@@ -1589,7 +1584,7 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
 
     /* Init the dihedrals array.		 */
     e->dihedrals_size = 100;
-    if ( ( e->dihedrals = (struct dihedral *)malloc( sizeof( struct dihedral ) * e->dihedrals_size ) ) == NULL )
+    if ( ( e->dihedrals = (struct MxDihedral *)malloc( sizeof( struct MxDihedral ) * e->dihedrals_size ) ) == NULL )
         return error(engine_err_malloc);
     e->nr_dihedrals = 0;
 
@@ -1619,12 +1614,6 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
     bzero( e->p_cluster , sizeof(struct MxPotential *) * e->max_type * e->max_type );
 
     bzero( e->cuboid_potentials , sizeof(struct MxPotential *) * e->max_type );
-
-    e->dihedralpots_size = 100;
-    if ( (e->p_dihedral = (struct MxPotential **)malloc( sizeof(struct MxPotential *) * e->dihedralpots_size )) == NULL)
-        return error(engine_err_malloc);
-    bzero( e->p_dihedral , sizeof(struct MxPotential *) * e->dihedralpots_size );
-    e->nr_dihedralpots = 0;
 
     // init singlebody forces
     if ( ( e->p_singlebody = (MxForceSingleBinding*)malloc( sizeof(MxForceSingleBinding) * e->max_type ) ) == NULL )

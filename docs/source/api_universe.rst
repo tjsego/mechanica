@@ -41,3 +41,7 @@ Universe
     .. automethod:: grid
 
     .. automethod:: bonds
+
+    .. automethod:: angles
+
+    .. automethod:: dihedrals

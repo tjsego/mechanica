@@ -229,6 +229,7 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
     cuboidMesh.setInstanceCount(0);
 
     angleRenderer.start(conf.clipPlanes);
+    dihedralRenderer.start(conf.clipPlanes);
     arrowRenderer.start(conf.clipPlanes);
 }
 
@@ -443,6 +444,7 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     sphereShader.draw(cuboidMesh);
 
     angleRenderer.draw(camera, viewportSize, modelViewMat);
+    dihedralRenderer.draw(camera, viewportSize, modelViewMat);
     arrowRenderer.draw(camera, viewportSize, modelViewMat);
     
     return *this;
@@ -768,6 +770,7 @@ void MxUniverseRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4
     
     sphereShader.setclipPlaneEquation(id, pe);
     angleRenderer.setClipPlaneEquation(id, pe);
+    dihedralRenderer.setClipPlaneEquation(id, pe);
     arrowRenderer.setClipPlaneEquation(id, pe);
     _clipPlanes[id] = pe;
 }

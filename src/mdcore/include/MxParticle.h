@@ -26,6 +26,7 @@
 #include "space_cell.h"
 #include "angle.h"
 #include "bond.h"
+#include "dihedral.h"
 #include "MxParticleList.hpp"
 #include "MxParticleTypeList.h"
 #include <set>
@@ -372,6 +373,7 @@ struct CAPI_EXPORT MxParticleHandle {
     float distance(MxParticleHandle *_other);
     std::vector<MxBondHandle*> *getBonds();
     std::vector<MxAngleHandle*> *getAngles();
+    std::vector<MxDihedralHandle*> *getDihedrals();
 
     double getCharge();
     void setCharge(const double &charge);

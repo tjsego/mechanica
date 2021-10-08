@@ -53,7 +53,7 @@
 
         @half_life.setter
         def half_life(self, half_life):
-            return self.setHalfLife(half_life)
+            self.setHalfLife(half_life)
 
         @property
         def active(self):

@@ -67,7 +67,7 @@ struct CAPI_EXPORT MxUniverse  {
      * of ``dt``.
      * 
      * @param until runs the timestep for this length of time, optional.
-     * @param dt overrides the existing time step, and uses this value for time stepping, optional.
+     * @param dt overrides the existing time step, and uses this value for time stepping; currently not supported.
      * @return HRESULT 
      */
     static HRESULT step(const double &until=0, const double &dt=0);

@@ -272,16 +272,32 @@ CAPI_FUNC(HRESULT) MxUniverse_Step(double until, double dt) {
         return E_FAIL;
     }
 
-    if ( engine_step( &_Engine ) != 0 ) {
-        printf("main: engine_step failed with engine_err=%i.\n",engine_err);
-        errs_dump(stdout);
-        // TODO: correct error reporting
-        return E_FAIL;
+    // TODO: add support for adaptive time stepping
+    // if (dt <= 0.0) dt = _Engine.dt;
+    dt = _Engine.dt;
+
+    float dtStore = _Engine.dt;
+    _Engine.dt = dt;
+
+    if (until <= 0.0) until = _Engine.dt;
+
+    float tf = _Engine.time + until / dtStore;
+
+    while (_Engine.time < tf) {
+        if ( engine_step( &_Engine ) != 0 ) {
+            printf("main: engine_step failed with engine_err=%i.\n",engine_err);
+            errs_dump(stdout);
+            // TODO: correct error reporting
+            return E_FAIL;
+        }
+
+        if(_Engine.timer_output_period > 0 && _Engine.time % _Engine.timer_output_period == 0 ) {
+            MxPrintPerformanceCounters();
+        }
+
     }
 
-    if(_Engine.timer_output_period > 0 && _Engine.time % _Engine.timer_output_period == 0 ) {
-        MxPrintPerformanceCounters();
-    }
+    _Engine.dt = dtStore;
 
     return S_OK;
 }

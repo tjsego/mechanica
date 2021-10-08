@@ -2305,6 +2305,19 @@ double potential_getalpha ( double (*f6p)( double ) , double a , double b ) {
 
 std::pair<float, float> MxPotential::operator()(const float &r, const float &r0) {
     try {
+		float e = 0;
+        float f = 0;
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				auto res = (*c)(r, r0);
+				e += std::get<0>(res);
+				f += std::get<1>(res);
+			}
+
+			return std::make_pair(e, f);
+		}
+
 		float _r0 = r0;
         // if no r args are given, we pull the r0 from the potential,
         // and use the ri, rj to cancel them out.
@@ -2315,9 +2328,6 @@ std::pair<float, float> MxPotential::operator()(const float &r, const float &r0)
             _r0 = 1.0f;
 
         }
-        
-        float e = 0;
-        float f = 0;
         
         if(flags & POTENTIAL_R) {
             potential_eval_r(this, r, &e, &f);
@@ -2338,15 +2348,23 @@ std::pair<float, float> MxPotential::operator()(const float &r, const float &r0)
 
 float MxPotential::force(double r, double ri, double rj) {
     try {
+        float e = 0;
+        float f = 0;
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				f += c->force(r, ri, rj);
+			}
+
+			return f;
+		}
+
         // if no r args are given, we pull the r0 from the potential,
         // and use the ri, rj to cancel them out.
         if((flags & POTENTIAL_SHIFTED) && ri < 0 && rj < 0) {
             ri = 1 / 2;
             rj = 1 / 2;
         }
-        
-        float e = 0;
-        float f = 0;
         
         if(flags & POTENTIAL_R) {
             potential_eval_r(this, r, &e, &f);

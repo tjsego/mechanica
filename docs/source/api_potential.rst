@@ -62,3 +62,5 @@ Potentials
     .. automethod:: power
 
     .. automethod:: dpd
+
+    .. automethod:: custom

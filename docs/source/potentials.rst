@@ -48,6 +48,40 @@ potentials consisting of multiple constituent potentials, ::
     Changes to constituent potentials during simulation are reflected in potentials
     that have been constructed from them using summation operations.
 
+Mechanica also supports creating custom potentials with the :class:`Potential` method
+:meth:`custom`. A custom potential requires the domain of the potential and, at minimum,
+a function that takes a float as argument and returns the value of the potential at the
+argument value. Mechanica constructs an interpolation of a potential function using
+functions that return the value of the potential, its first derivative, and its
+sixth derivative. When a function is not provided for either derivative, the derivative
+is approximated using finite difference, ::
+
+    pot_custom = mx.Potential.custom(min=0.0, max=2.0,
+                                     f=lambda r: (r-1.0) ** 6.0,            # Potential function
+                                     fp=lambda r: 6.0 * (r-1.0) ** 5.0,     # First derivative
+                                     f6p=lambda r: 720.0)                   # Sixth derivative
+
+Potentials for :ref:`angle <bonded_interactions:Angles>` and
+:ref:`dihedral <bonded_interactions:Dihedrals>` bonds by passing ``Potential.Flags.angle.value``
+and ``Potential.Flags.dihedral.value``, respectively, to the keyword argument ``flags``. In
+both cases, the cosine of the angle of an angle or dihedral bond is passed as argument to
+the potential function, ::
+
+    pot_angle = mx.Potential.custom(min=-0.999, max=0.999,
+                                    f=lambda r: cos(2.0 * acos(r)),
+                                    flags=mx.Potential.Flags.angle.value)
+
+.. note::
+
+    The cosine of angles is used when evaluating angle and dihedral bonds to improve
+    computational performance, but presents challenges to creating custom potentials in
+    that analytic expressions for derivatives of the potential function can be excessively
+    tedious to generate and implement. This is issue motivates providing built-in support
+    for approximating derivatives using finite difference. However, providing functions
+    for the first and sixth derivative of a potential function is recommended whenever possible,
+    as is examining the quality of the generated interpolation of a potential function before
+    using it in a simulation using ``plot``.
+
 Built-in Potentials
 ^^^^^^^^^^^^^^^^^^^^
 

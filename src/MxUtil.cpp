@@ -1574,3 +1574,53 @@ std::tuple<Magnum::Vector4, float> _MxTest(const MxVector3f &a, const MxVector3f
 
     return std::make_tuple(Magnum::Vector4(), 0.0f);
 }
+
+Differentiator::Differentiator(double (*f)(double), const double &xmin, const double &xmax, const double &inc_cf) :
+    func(f), 
+    xmin(xmin), 
+    xmax(xmax), 
+    inc_cf(inc_cf)
+{}
+
+double Differentiator::fnp(const double &x, const unsigned int &order) {
+    if (order == 0) return this->func(x);
+
+    double inc_0 = this->inc_cf * (this->xmax - this->xmin);
+    double inc, powPreFact, powTerm, incPreFact, incTerm;
+
+    if (x == this->xmin) {
+        inc = std::min(inc_0, (this->xmax - x) / order);
+        powTerm = double(order);
+        powPreFact = -1.0;
+        incTerm = 0.0;
+        incPreFact = 1.0;
+    }
+    else if (x == this->xmax) {
+        inc = std::min(inc_0, (x - this->xmin) / order);
+        powTerm = 0.0;
+        powPreFact = 1.0;
+        incTerm = 0.0;
+        incPreFact = -1.0;
+    }
+    else {
+        inc = std::min(inc_0, std::min(2.0 * (this->xmax - x) / order, 2.0 * (x - this->xmin) / order));
+        powTerm = 0.0;
+        powPreFact = 1.0;
+        incTerm = double(order) / 2.0;
+        incPreFact = -1.0;
+    }
+
+    double result = 0.0;
+    double xi;
+
+    for (int i = 0; i <= order; ++i) {
+        xi = x + (incTerm + incPreFact * i) * inc;
+        result += Magnum::Math::binomialCoefficient(order, i) * std::pow(-1.0, powTerm + powPreFact * i) * this->func(xi);
+    }
+
+    return result / std::pow(inc, order);
+}
+
+double Differentiator::operator() (const double &x) {
+    return this->fnp(x, 0);
+}

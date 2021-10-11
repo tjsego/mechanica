@@ -1795,7 +1795,7 @@ int potential_init (struct MxPotential *p ,
 		else if ( 2*r > potential_ivalsmax ) {
 			/* printf( "potential_init: warning: maximum nr of intervals (%i) reached, err=%e.\n" , r , err_r );
             break; */
-			Log(LOG_CRITICAL) << "Too many intervals";
+			Log(LOG_CRITICAL) << "Too many intervals (" << err_r << ")";
 			return error(potential_err_ivalsmax);
 		}
 
@@ -2668,6 +2668,118 @@ MxPotential *MxPotential::dpd(double *alpha, double *gamma, double *sigma, doubl
         mx_exp(e);
         return NULL;
     }
+}
+
+Differentiator *customDiff = NULL;
+
+double customDiffEval_fp(double r) {
+	return customDiff->fnp(r, 1);
+}
+
+double customDiffEval_f6p(double r) {
+	return customDiff->fnp(r, 6);
+}
+
+MxPotential *MxPotential::custom(double min, double max, double (*f)(double), double (*fp)(double), double (*f6p)(double), double *tol, uint32_t *flags) {
+	Log(LOG_TRACE);
+
+    try {
+		struct MxPotential *p = new MxPotential();
+
+		bool differencing = fp == NULL || f6p == NULL;
+
+		if (differencing) {
+			customDiff = new Differentiator(f, min, max);
+			if (fp == NULL) fp = &customDiffEval_fp;
+			if (f6p == NULL) f6p = &customDiffEval_f6p;
+		}
+
+		p->name = "Custom";
+		p->flags = potential_defarg(flags, POTENTIAL_R);
+
+		int err;
+
+		if ((err = potential_init(p, f, fp, f6p, min, max, potential_defarg(tol, 0.001)))) {
+			Log(LOG_ERROR) << "error creating potential: " << potential_err_msg[-err];
+			MxAligned_Free(p);
+
+			if (differencing) {
+				delete customDiff;
+				customDiff = 0;
+			}
+
+			return NULL;
+		}
+
+		p->a = min;
+		p->b = max;
+
+		if (differencing) {
+			delete customDiff;
+			customDiff = 0;
+		}
+
+		return potential_checkerr(p);
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+static double pyEval(PyObject *f, double r) {
+	PyObject *py_r = mx::cast<double, PyObject*>(r);
+	PyObject *args = PyTuple_Pack(1, py_r);
+	PyObject *py_result = PyObject_CallObject(f, args);
+	Py_XDECREF(args);
+
+	if (py_result == NULL) {
+		PyObject *err = PyErr_Occurred();
+		PyErr_Clear();
+		return 0.0;
+	}
+
+	double result = mx::cast<PyObject, double>(py_result);
+	Py_DECREF(py_result);
+	return result;
+}
+
+static PyObject *pyCustom_f, *pyCustom_fp, *pyCustom_f6p;
+
+static double pyEval_f(double r) {
+	return pyEval(pyCustom_f, r);
+}
+
+static double pyEval_fp(double r) {
+	return pyEval(pyCustom_fp, r);
+}
+
+static double pyEval_f6p(double r) {
+	return pyEval(pyCustom_f6p, r);
+}
+
+MxPotential *MxPotential::customPy(double min, double max, PyObject *f, PyObject *fp, PyObject *f6p, double *tol, uint32_t *flags) {
+	pyCustom_f = f;
+	double (*eval_fp)(double) = NULL;
+	double (*eval_f6p)(double) = NULL;
+
+	if (fp != Py_None) {
+		pyCustom_fp = fp;
+		eval_fp = &pyEval_fp;
+	}
+	
+	if (f6p != Py_None) {
+		pyCustom_f6p = f6p;
+		eval_f6p = &pyEval_f6p;
+	}
+
+	auto p = MxPotential::custom(min, max, &pyEval_f, eval_fp, eval_f6p, tol, flags);
+
+	pyCustom_f = NULL;
+	pyCustom_fp = NULL;
+	pyCustom_f6p = NULL;
+
+	return p;
 }
 
 float MxPotential::getMin() {

@@ -490,4 +490,15 @@ CAPI_FUNC(HRESULT) MxMath_FindPrimes(uint64_t start_prime, int n, uint64_t *resu
 std::tuple<Magnum::Vector4, float> _MxTest(const MxVector3f &a, const MxVector3f &b, const MxVector3f &c);
 
 
+struct Differentiator {
+    double (*func)(double);
+    double xmin, xmax, inc_cf = 1e-3;
+
+    Differentiator(double (*f)(double), const double &xmin, const double &xmax, const double &inc_cf=1e-3);
+
+    double fnp(const double &x, const unsigned int &order=0);
+    double operator() (const double &x);
+};
+
+
 #endif /* SRC_MXUTIL_H_ */

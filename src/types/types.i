@@ -18,6 +18,25 @@
     $result = PyInt_FromLong(*$1);
 }
 
+%typemap(in) unsigned int* (unsigned int temp) {
+    if($input == Py_None) $1 = NULL;
+    else {
+        temp = (unsigned int) PyInt_AsLong($input);
+        $1 = &temp;
+    }
+}
+%typemap(out) unsigned int* {
+    if($1 == NULL) $result = Py_None;
+    else $result = PyInt_FromLong(*$1);
+}
+
+%typemap(in) unsigned int& {
+    $1 = (unsigned int) PyInt_AsLong($input);
+}
+%typemap(out) unsigned int& {
+    $result = PyInt_FromLong(*$1);
+}
+
 %typemap(in) float* (float temp) {
     if($input == Py_None) $1 = NULL;
     else {

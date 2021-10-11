@@ -3,6 +3,8 @@
 
 %}
 %rename(_call) MxPotential::operator();
+%ignore MxPotential::custom;
+%rename(custom) MxPotential::customPy(double, double, PyObject*, PyObject*, PyObject*, double*, uint32_t*);
 
 %include "MxPotential.h"
 

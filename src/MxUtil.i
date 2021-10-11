@@ -3,6 +3,8 @@
 
 %}
 
+%ignore Differentiator;
+
 %include "MxUtil.h"
 
 %pythoncode %{

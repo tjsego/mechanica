@@ -37,10 +37,13 @@
             scaled = POTENTIAL_SCALED
             shifted = POTENTIAL_SHIFTED
             bound = POTENTIAL_BOUND
+            psum = POTENTIAL_SUM
 
         class Kind(EnumPy):
             potential = POTENTIAL_KIND_POTENTIAL
             dpd = POTENTIAL_KIND_DPD
+            byparticles = POTENTIAL_KIND_BYPARTICLES
+            combination = POTENTIAL_KIND_COMBINATION
 
         def __call__(self, r: float, r0: float = -1.0):
             return self._call(r, r0)

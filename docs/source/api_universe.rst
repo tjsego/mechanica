@@ -22,6 +22,8 @@ Universe
 
     .. autoproperty:: num_types
 
+    .. autoproperty:: cutoff
+
     .. automethod:: origin
 
     .. automethod:: dim

@@ -60,6 +60,13 @@
             """
             return self.getNumTypes()
 
+        @property
+        def cutoff(self) -> float:
+            """
+            Global interaction cutoff distance
+            """
+            return self.getCutoff()
+
         # Supporting old interface for now
         @staticmethod
         def bind(*args, **kwargs):

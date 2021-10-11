@@ -146,6 +146,7 @@ struct CAPI_EXPORT MxUniverse  {
     MxBoundaryConditions *getBoundaryConditions();
     double getKineticEnergy();
     int getNumTypes();
+    double getCutoff();
 };
 
 /**

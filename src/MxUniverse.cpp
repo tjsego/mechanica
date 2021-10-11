@@ -256,6 +256,10 @@ int MxUniverse::getNumTypes() {
     return _Engine.nr_types;
 }
 
+double MxUniverse::getCutoff() {
+    return _Engine.s.cutoff;
+}
+
 MxVector3f MxUniverse::origin()
 {
     return MxVector3f{(float)_Engine.s.origin[0], (float)_Engine.s.origin[1], (float)_Engine.s.origin[2]};

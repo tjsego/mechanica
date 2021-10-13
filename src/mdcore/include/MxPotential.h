@@ -143,7 +143,7 @@ typedef void (*MxPotentialEval_ByParticles3)(struct MxPotential *p,
                                              struct MxParticle *part_i, 
                                              struct MxParticle *part_j, 
                                              struct MxParticle *part_k, 
-                                             FPTYPE theta, 
+                                             FPTYPE ctheta, 
                                              FPTYPE *e, 
                                              FPTYPE *fi, 
                                              FPTYPE *fk);
@@ -216,8 +216,17 @@ typedef struct MxPotential {
 
     MxPotential();
 
-    std::pair<float, float> operator()(const float &r, const float &r0=-1.0);
+    float operator()(const float &r, const float &r0=-1.0);
+    float operator()(const std::vector<float>& r);
+    float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj);
+    float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk);
+    float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk, struct MxParticleHandle* pl);
     float force(double r, double ri=-1.0, double rj=-1.0);
+    std::vector<float> force(const std::vector<float>& r);
+    std::vector<float> force(struct MxParticleHandle* pi, struct MxParticleHandle* pj);
+    std::pair<std::vector<float>, std::vector<float> > force(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk);
+    std::pair<std::vector<float>, std::vector<float> > force(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk, struct MxParticleHandle* pl);
+
     std::vector<MxPotential*> constituents();
 
     MxPotential& operator+(const MxPotential& rhs);

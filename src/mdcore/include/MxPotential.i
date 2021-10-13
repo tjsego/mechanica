@@ -45,8 +45,8 @@
             byparticles = POTENTIAL_KIND_BYPARTICLES
             combination = POTENTIAL_KIND_COMBINATION
 
-        def __call__(self, r: float, r0: float = -1.0):
-            return self._call(r, r0)
+        def __call__(self, *args):
+            return self._call(*args)
 
         @property
         def min(self) -> float:
@@ -120,7 +120,14 @@
             step = kwargs["step"] if "step" in kwargs else 0.001
             range = kwargs["range"] if "range" in kwargs else (min, max, step)
 
-            xx = n.arange(*range)
+            if isinstance(min, float):
+                xx = n.arange(*range)
+            else:
+                t = 0
+                xx = list()
+                while t <= 1:
+                    xx.append((min + (max - min) * t).asVector())
+                    t += step
 
             yforce = None
             ypot = None
@@ -133,23 +140,26 @@
                     s = 1
 
                 if force:
-                    yforce = [self(x, s)[1] for x in xx]
+                    yforce = [self.force(x, s) for x in xx]
 
                 if potential:
-                    ypot = [self(x, s)[0] for x in xx]
+                    ypot = [self(x, s) for x in xx]
 
             else:
 
                 if force:
-                    yforce = [self(x)[1] for x in xx]
+                    yforce = [self.force(x) for x in xx]
 
                 if potential:
-                    ypot = [self(x)[0] for x in xx]
+                    ypot = [self(x) for x in xx]
+
+            if not isinstance(xx[0], float):
+                xx = [MxVector3f(xxx).length() for xxx in xx]
 
             if not ymin:
                 y = n.array([])
                 if yforce:
-                    y = n.concatenate((y, yforce))
+                    y = n.concatenate((y, n.asarray(yforce).flat))
                 if ypot:
                     y = n.concatenate((y, ypot))
                 ymin = n.amin(y)
@@ -157,7 +167,7 @@
             if not ymax:
                 y = n.array([])
                 if yforce:
-                    y = n.concatenate((y, yforce))
+                    y = n.concatenate((y, n.asarray(yforce).flat))
                 if ypot:
                     y = n.concatenate((y, ypot))
                 ymax = n.amax(y)

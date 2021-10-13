@@ -51,6 +51,7 @@ class MxQuaternion : public Quaternion<T> {
         constexpr const MxVector3<T> vector() const { return Quaternion<T>::vector(); }
         constexpr T scalar() const { return Quaternion<T>::scalar(); }
         T angle() const { return T(Quaternion<T>::angle()); }
+        T angle(const MxQuaternion& other) const { return T(Magnum::Math::angle(this->normalized(), other.normalized())); }
         MxVector3<T> axis() const { return Quaternion<T>::axis(); }
         MxMatrix3<T> toMatrix() const { return Quaternion<T>::toMatrix(); }
         MxVector3<T> toEuler() const {

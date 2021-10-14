@@ -310,9 +310,10 @@ typedef struct MxPotential {
      * @param q The charge scaling of the potential.
      * @param kappa The screening distance of the Ewald potential.
      * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001 * (max - min). 
+     * @param periodicOrder Order of lattice periodicity along all periodic dimensions. Defaults to 0. 
      * @return MxPotential* 
      */
-    static MxPotential *ewald(double min, double max, double q, double kappa, double *tol=NULL);
+    static MxPotential *ewald(double min, double max, double q, double kappa, double *tol=NULL, unsigned int *periodicOrder=NULL);
 
     /**
      * @brief Creates a Coulomb potential. 
@@ -329,9 +330,10 @@ typedef struct MxPotential {
      * @param min The smallest radius for which the potential will be constructed. Default is 0.01. 
      * @param max The largest radius for which the potential will be constructed. Default is 2.0. 
      * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001 * (max - min). 
+     * @param periodicOrder Order of lattice periodicity along all periodic dimensions. Defaults to 0. 
      * @return MxPotential* 
      */
-    static MxPotential *coulomb(double q, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *coulomb(double q, double *min=NULL, double *max=NULL, double *tol=NULL, unsigned int *periodicOrder=NULL);
 
     /**
      * @brief Creates a harmonic bond potential. 

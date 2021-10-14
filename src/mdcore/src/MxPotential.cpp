@@ -729,6 +729,21 @@ struct MxPotential *potential_create_Ewald ( double a , double b , double q , do
 
 }
 
+double potential_create_Ewald_periodic_q;
+double potential_create_Ewald_periodic_kappa;
+double potential_create_Ewald_periodic_tol;
+
+MxPotential *_do_potential_create_Ewald_periodic(double a, double b, unsigned int order) {
+	return potential_create_Ewald(a, b, potential_create_Ewald_periodic_q, potential_create_Ewald_periodic_kappa, potential_create_Ewald_periodic_tol);
+}
+
+MxPotential *potential_create_Ewald_periodic(const double &a, const double &b, const double &q, const double &kappa, const double &tol, const unsigned int &order) {
+	potential_create_Ewald_periodic_q = q;
+	potential_create_Ewald_periodic_kappa = kappa;
+	potential_create_Ewald_periodic_tol = tol;
+
+	return create_periodic_potential(&_do_potential_create_Ewald_periodic, order, a, b);
+}
 
 double potential_create_LJ126_Ewald_A;
 double potential_create_LJ126_Ewald_B;
@@ -908,6 +923,19 @@ struct MxPotential *potential_create_Coulomb ( double a , double b , double q , 
 	/* return it */
 			return p;
 
+}
+
+double potential_create_Coulomb_periodic_q;
+double potential_create_Coulomb_periodic_tol;
+
+MxPotential *_do_potential_create_Coulomb_periodic(double min, double max, unsigned int order) {
+	return potential_create_Coulomb(min, max, potential_create_Coulomb_periodic_q, potential_create_Coulomb_periodic_tol);
+}
+
+MxPotential *potential_create_Coulomb_periodic(double a, double b, double q, double tol, const unsigned int &order) {
+	potential_create_Coulomb_periodic_q = q;
+	potential_create_Coulomb_periodic_tol = tol;
+	return create_periodic_potential(&_do_potential_create_Coulomb_periodic, order, a, b);
 }
 
 
@@ -2352,7 +2380,6 @@ double potential_getalpha ( double (*f6p)( double ) , double a , double b ) {
 float MxPotential::operator()(const float &r, const float &r0) {
     try {
 		float e = 0;
-        float f = 0;
 
 		if(this->kind == POTENTIAL_KIND_COMBINATION) {
 			for (auto c : this->constituents()) {
@@ -2522,7 +2549,6 @@ float MxPotential::operator()(MxParticleHandle* pi, MxParticleHandle* pj, MxPart
 
 float MxPotential::force(double r, double ri, double rj) {
     try {
-        float e = 0;
         float f = 0;
 
 		if(this->kind == POTENTIAL_KIND_COMBINATION) {
@@ -2771,11 +2797,17 @@ MxPotential *MxPotential::soft_sphere(double kappa, double epsilon, double r0, i
     }
 }
 
-MxPotential *MxPotential::ewald(double min, double max, double q, double kappa, double *tol) {
+MxPotential *MxPotential::ewald(double min, double max, double q, double kappa, double *tol, unsigned int *periodicOrder) {
     Log(LOG_TRACE);
 
     try {
-        return potential_checkerr(potential_create_Ewald(min, max, q, kappa, potential_defarg(tol, 0.001 * (max - min))));
+		unsigned int _periodicOrder = potential_defarg(periodicOrder, 0);
+		MxPotential *p;
+
+		if (_periodicOrder == 0) p = potential_create_Ewald(min, max, q, kappa, potential_defarg(tol, 0.001 * (max - min)));
+		else p = potential_create_Ewald_periodic(min, max, q, kappa, potential_defarg(tol, 0.001 * (max - min)), _periodicOrder);
+
+        return potential_checkerr(p);
     }
     catch (const std::exception &e) {
         mx_exp(e);
@@ -2783,14 +2815,20 @@ MxPotential *MxPotential::ewald(double min, double max, double q, double kappa, 
     }
 }
 
-MxPotential *MxPotential::coulomb(double q, double *min, double *max, double *tol) {
+MxPotential *MxPotential::coulomb(double q, double *min, double *max, double *tol, unsigned int *periodicOrder) {
     Log(LOG_TRACE);
 
     try {
 		auto _min = potential_defarg(min, 0.01);
 		auto _max = potential_defarg(max, 2.0);
-        return potential_checkerr(potential_create_Coulomb(_min, _max, q, 
-														   potential_defarg(tol, 0.001 * (_max - _min))));
+		auto _tol = potential_defarg(tol, 0.001 * (_max - _min));
+		unsigned int _periodicOrder = potential_defarg(periodicOrder, 0);
+		MxPotential *p;
+
+		if (_periodicOrder == 0) p = potential_create_Coulomb(_min, _max, q, _tol);
+		else p = potential_create_Coulomb_periodic(_min, _max, q, _tol, _periodicOrder);
+
+        return potential_checkerr(p);
     }
     catch (const std::exception &e) {
         mx_exp(e);

@@ -21,6 +21,8 @@ Potentials
 
     .. autoproperty:: shifted
 
+    .. autoproperty:: periodic
+
     .. autoproperty:: r_square
 
     .. method:: __call__

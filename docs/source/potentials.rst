@@ -76,7 +76,7 @@ the potential function, ::
     The cosine of angles is used when evaluating angle and dihedral bonds to improve
     computational performance, but presents challenges to creating custom potentials in
     that analytic expressions for derivatives of the potential function can be excessively
-    tedious to generate and implement. This is issue motivates providing built-in support
+    tedious to derive and implement. This issue motivates providing built-in support
     for approximating derivatives using finite difference. However, providing functions
     for the first and sixth derivative of a potential function is recommended whenever possible,
     as is examining the quality of the generated interpolation of a potential function before
@@ -92,6 +92,7 @@ constructor method. For details on the parameters of each function, refer to the
 * 12-6 Lennard-Jones: Potential.lennard_jones_12_6
 * 12-6 Lennard-Jones with shifted Coulomb: Potential.lennard_jones_12_6_coulomb
 * Coulomb: Potential.coulomb
+* Coulomb reciprocal potential: Potential.coulombR
 * Dissipative particle dynamics: Potential.dpd
 * Ewald (real-space): Potential.ewald
 * Generalized Lennard-Jones: Potential.glj

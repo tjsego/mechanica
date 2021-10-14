@@ -2836,6 +2836,145 @@ MxPotential *MxPotential::coulomb(double q, double *min, double *max, double *to
     }
 }
 
+double _coulombR_cos_f(double r) {
+	return cos(r);
+}
+
+double _coulombR_cos_fp(double r) {
+	return - sin(r);
+}
+
+double _coulombR_cos_f6p(double r) {
+	return - cos(r);
+}
+
+double _coulombR_sin_f(double r) {
+	return sin(r);
+}
+
+double _coulombR_sin_fp(double r) {
+	return cos(r);
+}
+
+double _coulombR_sin_f6p(double r) {
+	return - sin(r);
+}
+
+static void coulombR_eval(struct MxPotential *p, 
+						  struct MxParticle *part_i, 
+						  struct MxParticle *part_j, 
+						  FPTYPE *dx, 
+						  FPTYPE r2, 
+						  FPTYPE *e, 
+						  FPTYPE *f);
+
+struct MxCoulombRPotential : public MxPotential {
+	MxPotential *pc, *ps;
+	std::vector<double> mode_cfs;
+	std::vector<MxVector3d> mode_rvecs;
+
+	MxCoulombRPotential(MxPotential* pc, 
+						MxPotential* ps, 
+						double min, 
+						double max, 
+						std::vector<double> mode_cfs, 
+						std::vector<MxVector3d> mode_rvecs) : 
+		MxPotential(), pc(pc), ps(ps), mode_cfs(mode_cfs), mode_rvecs(mode_rvecs)
+	{
+		this->a = min;
+		this->b = max;
+		this->kind = POTENTIAL_KIND_BYPARTICLES;
+		this->name = "CoulombR";
+		this->eval_byparts = &coulombR_eval;
+	}
+};
+
+void coulombR_eval(struct MxPotential *p, 
+				   struct MxParticle *part_i, 
+				   struct MxParticle *part_j, 
+				   FPTYPE *dx, 
+				   FPTYPE r2, 
+				   FPTYPE *e, 
+				   FPTYPE *f) 
+{
+	MxCoulombRPotential *pr = (MxCoulombRPotential*)p;
+
+	FPTYPE xe, xf, *ce, *cf, vale, valf;
+	int inde, indf, k;
+	MxVector3d fr(0.0);
+	float TWO_PI = 2.0 * M_PI;
+
+	for (unsigned int m = 0; m < pr->mode_cfs.size(); m++) {
+		auto mode_cf = pr->mode_cfs[m];
+		auto mode_rvec = pr->mode_rvecs[m];
+		double r = mode_rvec[0] * dx[0] + mode_rvec[1] * dx[1] + mode_rvec[2] * dx[2];
+		double r0 = r;
+		
+		if (r < 0.0) while (r < 0.0) r += TWO_PI;
+		else if (r > TWO_PI) while (r > TWO_PI) r -= TWO_PI;
+		
+		inde = FPTYPE_FMAX( FPTYPE_ZERO , pr->pc->alpha[0] + r * (pr->pc->alpha[1] + r * pr->pc->alpha[2]) );
+		indf = FPTYPE_FMAX( FPTYPE_ZERO , pr->ps->alpha[0] + r * (pr->ps->alpha[1] + r * pr->ps->alpha[2]) );
+		ce = &(pr->pc->c[inde * potential_chunk]);
+		cf = &(pr->ps->c[indf * potential_chunk]);
+		xe = (r - ce[0]) * ce[1];
+		xf = (r - cf[0]) * cf[1];
+		vale = ce[2] * xe + ce[3];
+		valf = cf[2] * xf + cf[3];
+		for (k = 4; k < potential_chunk; k++) {
+			vale = vale * xe + ce[k];
+			valf = valf * xf + cf[k];
+		}
+
+		*e += mode_cf * vale;
+		fr += mode_cf * valf * mode_rvec;
+	}
+
+	f[0] += fr[0];
+	f[1] += fr[1];
+	f[2] += fr[2];
+}
+
+MxPotential* MxPotential::coulombR(double q, double kappa, double min, double max, unsigned int* modes) {
+	unsigned int _modes = potential_defarg(modes, 1);
+
+	std::vector<double> mode_cfs;
+	std::vector<MxVector3d> mode_rvecs;
+
+	unsigned int modesX = _Engine.boundary_conditions.periodic & space_periodic_x ? _modes : 0;
+	unsigned int modesY = _Engine.boundary_conditions.periodic & space_periodic_y ? _modes : 0;
+	unsigned int modesZ = _Engine.boundary_conditions.periodic & space_periodic_z ? _modes : 0;
+
+	double A = 2.0 * M_PI / (_Engine.s.dim[0] * _Engine.s.dim[1] * _Engine.s.dim[2]);
+	for (unsigned int mx = 0; mx <= modesX; mx++) {
+		double kx = 2.0 * M_PI * mx / _Engine.s.dim[0];
+
+		for (unsigned int my = 0; my <= modesY; my++) {
+			double ky = 2.0 * M_PI * my / _Engine.s.dim[1];
+
+			for (unsigned int mz = 0; mz <= modesZ; mz++) {
+				double kz = 2.0 * M_PI * mz / _Engine.s.dim[2];
+				double kmag2 = kx * kx + ky * ky + kz * kz;
+
+				if (kmag2 == 0.0) continue;
+
+				mode_rvecs.push_back({kx, ky, kz});
+
+				double expPow = M_PI / kappa;
+				mode_cfs.push_back(A / kmag2 * q * exp(- expPow * expPow * kmag2));
+			}
+		}
+	}
+
+	MxPotential* pc = new MxPotential();
+	MxPotential* ps = new MxPotential();
+
+	potential_init(pc, &_coulombR_cos_f, &_coulombR_cos_fp, &_coulombR_cos_f6p, 0, 2*M_PI, 1e-4);
+	potential_init(ps, &_coulombR_sin_f, &_coulombR_sin_fp, &_coulombR_sin_f6p, 0, 2*M_PI, 1e-4);
+
+	return new MxCoulombRPotential(pc, ps, min, max, mode_cfs, mode_rvecs);
+}
+
 MxPotential *MxPotential::harmonic(double k, double r0, double *min, double *max, double *tol) {
     Log(LOG_TRACE);
 

@@ -43,6 +43,8 @@ Potentials
 
     .. automethod:: coulomb
 
+    .. automethod:: coulombR
+
     .. automethod:: harmonic
 
     .. automethod:: linear

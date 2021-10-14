@@ -336,6 +336,28 @@ typedef struct MxPotential {
     static MxPotential *coulomb(double q, double *min=NULL, double *max=NULL, double *tol=NULL, unsigned int *periodicOrder=NULL);
 
     /**
+     * @brief Creates a Coulomb reciprocal potential. 
+     * 
+     * The Coulomb reciprocal potential has the form: 
+     * 
+     * @f[
+     * 
+     *      \frac{\pi q}{V} \sum_{||\mathbf{m}|| \neq 0} \frac{1}{||\mathbf{m}||^2} \exp \left( \left( i \mathbf{r}_{jk} - \left( \frac{\pi}{\kappa} \right)^{2} \mathbf{m} \right) \cdot \mathbf{m} \right)
+     * 
+     * @f]
+     * 
+     * Here @f$ V @f$ is the volume of the domain and @f$ \mathbf{m} @f$ is a reciprocal vector of the domain. 
+     * 
+     * @param q Charge scaling of the potential. 
+     * @param kappa Screening distance.
+     * @param min Smallest radius for which the potential will be constructed. 
+     * @param max Largest radius for which the potential will be constructed. 
+     * @param modes Number of Fourier modes along each periodic dimension. Default is 1. 
+     * @return MxPotential* 
+     */
+    static MxPotential* coulombR(double q, double kappa, double min, double max, unsigned int* modes=NULL);
+
+    /**
      * @brief Creates a harmonic bond potential. 
      * 
      * The harmonic potential has the form: 

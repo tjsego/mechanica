@@ -98,7 +98,10 @@ enum PotentialFlags {
     POTENTIAL_BOUND           = 1 << 13,
 
     // sum of constituent potentials
-    POTENTIAL_SUM             = 1 << 14
+    POTENTIAL_SUM             = 1 << 14, 
+
+    /** unbound potential with long-range periodicity */
+    POTENTIAL_PERIODIC        = 1 << 15
 };
 
 enum PotentialKind {
@@ -197,6 +200,8 @@ typedef struct MxPotential {
     /** potential scaling constant */
     FPTYPE mu;
 
+    /** coordinate offset */
+    FPTYPE offset[3];
 
     /** Nr of intervals. */
     int n;
@@ -638,6 +643,7 @@ typedef struct MxPotential {
     void setR0(const FPTYPE &_r0);
     bool getShifted();
     void setShifted(const bool &_shifted);
+    bool getPeriodic();
     bool getRSquare();
     void setRSquare(const bool &_rSquare);
 

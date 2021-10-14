@@ -63,6 +63,7 @@ MxPotential::MxPotential() :
     a(0.0f), 
     b(std::numeric_limits<float>::max()), 
     mu(0.0), 
+	offset{FPTYPE_ZERO, FPTYPE_ZERO, FPTYPE_ZERO}, 
     n(1), 
     create_func(NULL), 
     eval_byparts(NULL), 
@@ -136,6 +137,51 @@ double potential_switch_p ( double r , double A , double B ) {
 	else
 		return 0.0;
 
+}
+
+static MxPotential *_do_create_periodic_potential(MxPotential* (*potCtor)(double, double, unsigned int), 
+												  const unsigned int &order, 
+												  const unsigned int dim, 
+												  const double &max, 
+												  const bool &pos) 
+{
+	Log(LOG_TRACE);
+
+	double imageLen = double(order) * _Engine.s.dim[dim];
+	double imageMin = imageLen - max;
+	double imageMax = imageLen + max;
+
+	double offset[3] = {0.0, 0.0, 0.0};
+	if (pos) offset[dim] = imageLen;
+	else offset[dim] = -imageLen;
+	
+	MxPotential *p = (*potCtor)(imageMin, imageMax, order);
+	for (int k = 0; k < 3; k++) p->offset[k] = offset[k];
+	p->flags |= POTENTIAL_PERIODIC;
+	return p;
+}
+
+static MxPotential* create_periodic_potential(MxPotential* (*potCtor)(double, double, unsigned int), const unsigned int &order, const double &min, const double &max) {
+	MxPotential *p = (*potCtor)(min, max, 0);
+	if (order == 0) return p;
+
+	MxPotential *pp;
+
+	std::vector<unsigned int> dims;
+	if (_Engine.boundary_conditions.periodic & space_periodic_x) dims.push_back(0);
+	if (_Engine.boundary_conditions.periodic & space_periodic_y) dims.push_back(1);
+	if (_Engine.boundary_conditions.periodic & space_periodic_z) dims.push_back(2);
+
+	for (unsigned int orderIdx = 1; orderIdx <= order; ++orderIdx) {
+		for (auto d : dims) {
+			pp = new MxPotential(*p);
+			*p = *pp + *_do_create_periodic_potential(potCtor, orderIdx, d, max, true);
+			pp = new MxPotential(*p);
+			*p = *pp + *_do_create_periodic_potential(potCtor, orderIdx, d, max, false);
+		}
+	}
+
+	return p;
 }
 
 
@@ -3090,6 +3136,10 @@ bool MxPotential::getShifted() {
 void MxPotential::setShifted(const bool &_shifted) {
     if(_shifted) flags |= POTENTIAL_SHIFTED;
     else flags &= ~POTENTIAL_SHIFTED;
+}
+
+bool MxPotential::getPeriodic() {
+	return (bool) flags & POTENTIAL_PERIODIC;
 }
 
 bool MxPotential::getRSquare() {

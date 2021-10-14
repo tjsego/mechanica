@@ -38,6 +38,7 @@
             shifted = POTENTIAL_SHIFTED
             bound = POTENTIAL_BOUND
             psum = POTENTIAL_SUM
+            periodic = POTENTIAL_PERIODIC
 
         class Kind(EnumPy):
             potential = POTENTIAL_KIND_POTENTIAL
@@ -99,6 +100,11 @@
         @shifted.setter
         def shifted(self, shifted: bool):
             self.setShifted(shifted)
+
+        @property
+        def periodic(self) -> bool:
+            """Periodic flag"""
+            return self.getPeriodic()
 
         @property
         def r_square(self) -> bool:

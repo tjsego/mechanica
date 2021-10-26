@@ -191,7 +191,7 @@ set(HEADERS
 
   event/MxEvent.h
   event/MxEventList.h
-  event/MxEventPyExecutor
+  event/MxEventPyExecutor.h
   event/MxParticleEvent.h
   event/MxParticleEventSingle.h
   event/MxParticleTimeEvent.h

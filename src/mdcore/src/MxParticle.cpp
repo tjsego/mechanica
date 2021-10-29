@@ -982,6 +982,7 @@ int particle_init(MxParticleHandle *self,
 
         MxVector3f _velocity;
         if (velocity) _velocity = *velocity;
+        else if(type->target_energy <= 0) _velocity = {0.0, 0.0, 0.0};
         else {
             // initial velocity, chosen to fit target temperature
             std::uniform_real_distribution<float> v(-1.0, 1.0);

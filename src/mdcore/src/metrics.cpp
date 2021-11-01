@@ -348,10 +348,10 @@ HRESULT MxParticles_RadiusOfGyration(int32_t *parts, uint16_t nr_parts,
         dx[1] = r[1] - (p->x[1] + o[1]);
         dx[2] = r[2] - (p->x[2] + o[2]);
         
-        r2 += dx.length();
+        r2 += dx.dot();
     }
     
-    *result = std::sqrt(r2);
+    *result = std::sqrt(r2 / nr_parts);
     
     return S_OK;
 }

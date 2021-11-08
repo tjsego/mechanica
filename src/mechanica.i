@@ -36,7 +36,12 @@
 
 // Lie to SWIG; so long as these aren't passed to the C compiler, no problem
 #define __attribute__(x)
-#define aligned(x)
+
+%begin %{
+#ifdef _MSC_VER
+#define SWIG_PYTHON_INTERPRETER_NO_DEBUG
+#endif
+%}
 
 %{
 

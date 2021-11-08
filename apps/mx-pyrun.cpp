@@ -8,7 +8,23 @@
 #include <iostream>
 #include <string>
 
+#if defined(_MSC_VER) || defined(_WIN32)
+#  if defined(_DEBUG)
+#    define MX_DEBUG_MARKER
+#    undef _DEBUG
+#  endif
+#endif
+
 #include <Python.h>
+
+#if defined(_MSC_VER) || defined(_WIN32)
+#  if defined(MX_DEBUG_MARKER)
+#    define _DEBUG
+#    undef  MX_DEBUG_MARKER
+#  endif
+#  pragma warning(pop)
+#endif
+
 #include <stddef.h>
 #include "mx-pyrun.h"
 

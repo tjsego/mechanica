@@ -173,7 +173,7 @@ your platform, which is the script behind the automated installation from source
 This script includes all variables and the compiler(s) that correspond to building a
 fully customized version of Mechanica.
 
-Mechanica currently supports the `Release` and `RelWithDebInfo` build types. The
+Mechanica currently supports the `Release`, `Debug` and `RelWithDebInfo` build types. The
 computational core of Mechanica and C++ front-end can be found throughout the subdirectory
 `src`. Bindings for other supported languages are generated using
 `SWIG <http://swig.org/>`_. To develop the interface of any other supported language

@@ -7,8 +7,8 @@
  */
 #include "MxParticleEventSingle.h"
 
-#include "../mdcore/include/engine.h"
 #include <MxLogger.h>
+#include <MxUniverse.h>
 
 MxParticleEventSingle::MxParticleEventSingle(MxParticleType *targetType, 
                                              MxParticleEventMethod *invokeMethod, 
@@ -28,7 +28,7 @@ MxParticleEventSingle *MxOnParticleEventSingle(MxParticleType *targetType,
 {
     MxParticleEventSingle *event = new MxParticleEventSingle(targetType, invokeMethod, predicateMethod);
 
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
 
     return event;
 }
@@ -55,7 +55,7 @@ MxParticleSingleEventPy *MxOnParticleEventSinglePy(MxParticleType *targetType,
 
     MxParticleSingleEventPy *event = new MxParticleSingleEventPy(targetType, invokeExecutor, predicateExecutor);
 
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
 
     return event;
 }

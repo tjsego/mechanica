@@ -10,7 +10,7 @@
 
 #include <MxPy.h>
 #include <MxLogger.h>
-#include <engine.h>
+#include <MxUniverse.h>
 
 MxEvent::MxEvent() : 
     MxEventBase(), 
@@ -53,7 +53,7 @@ MxEvent *MxOnEvent(MxEventMethod *invokeMethod, MxEventMethod *predicateMethod) 
     Log(LOG_TRACE);
 
     MxEvent *event = new MxEvent(invokeMethod, predicateMethod);
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
     return event;
 }
 
@@ -98,6 +98,6 @@ MxEventPy *MxOnEventPy(MxEventPyInvokePyExecutor *invokeExecutor, MxEventPyPredi
     Log(LOG_TRACE);
 
     MxEventPy *event = new MxEventPy(invokeExecutor, predicateExecutor);
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
     return event;
 }

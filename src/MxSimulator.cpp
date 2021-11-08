@@ -662,6 +662,8 @@ HRESULT modules_init() {
 
 int universe_init(const MxUniverseConfig &conf ) {
 
+    Universe.events = new MxEventBaseList();
+
     MxVector3i cells = conf.spaceGridSize;
 
     double cutoff = conf.cutoff;

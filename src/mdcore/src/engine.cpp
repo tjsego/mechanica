@@ -1206,11 +1206,6 @@ int engine_step ( struct engine *e ) {
 			return error(engine_err);
 	}
 
-    // notify time listeners
-    if(!SUCCEEDED(e->events->eval(e->time * e->dt))) {
-        return error(engine_err);
-    }
-
     for(MxConstantForce* p : e->constant_forces) {
         p->onTime(e->time * e->dt);
     }
@@ -1643,8 +1638,6 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
     /* Init the comm arrays. */
     e->send = NULL;
     e->recv = NULL;
-
-    e->events = new MxEventBaseList();
 
     e->integrator = EngineIntegrator::FORWARD_EULER;
 

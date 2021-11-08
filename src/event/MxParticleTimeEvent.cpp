@@ -8,7 +8,7 @@
 #include "MxParticleTimeEvent.h"
 
 #include <MxUtil.h>
-#include "../mdcore/include/engine.h"
+#include <MxUniverse.h>
 #include <MxLogger.h>
 
 double MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEvent &event, const double &time) {
@@ -157,7 +157,7 @@ MxParticleTimeEvent *MxOnParticleTimeEvent(MxParticleType *targetType,
     
     MxParticleTimeEvent *event = new MxParticleTimeEvent(targetType, period, invokeMethod, predicateMethod, nextTimeSetter, start_time, end_time, particleSelector);
 
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
 
     return event;
 }
@@ -260,7 +260,7 @@ MxParticleTimeEventPy *MxOnParticleTimeEventPy(MxParticleType *targetType,
     
     MxParticleTimeEventPy *event = new MxParticleTimeEventPy(targetType, period, invokeExecutor, predicateExecutor, nextTimeSetter, start_time, end_time, particleSelector);
 
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
 
     return event;
 }

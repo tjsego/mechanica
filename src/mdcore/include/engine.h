@@ -27,7 +27,6 @@
 #include "MxBoundaryConditions.hpp"
 #include <mutex>
 #include <thread>
-#include "../../event/MxEventList.h"
 
 
 /* engine error codes */
@@ -358,9 +357,6 @@ typedef struct engine {
     uint32_t timers_mask;
     
     long timer_output_period;
-
-	MxEventBaseList *events;
-
 
     /**
      * vector of constant forces. Because these forces get

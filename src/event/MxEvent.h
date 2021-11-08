@@ -22,7 +22,7 @@ enum class MxEventFlag : unsigned int {
 };
 
 // Base class of all events
-struct MxEventBase {
+struct CAPI_EXPORT MxEventBase {
 
     // Flags set by invoke and predicate to provide feedback
     std::forward_list<MxEventFlag> flags;

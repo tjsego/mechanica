@@ -211,8 +211,10 @@ function(add_mdcore_single)
   # temporarily add add these includes until we get a stable public API
   target_include_directories(mdcore_single PUBLIC ${MDCORE_INCLUDE_DIR}
     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include> 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${MX_INCLUDE_DIR}/mdcore>
+    $<INSTALL_INTERFACE:${MX_INCLUDE_DIR}/mdcore/private>
     ${Python_INCLUDE_DIRS}
     #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
   )
@@ -235,8 +237,8 @@ endfunction(add_mdcore_single)
 # alwasy build the single precision version
 add_mdcore_single()
 
-
-
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${MX_INCLUDE_DIR}/mdcore)
+install(FILES ${PRIVATE_HEADERS} DESTINATION ${MX_INCLUDE_DIR}/mdcore/private)
 
 
 # Set-up for general (double-precision) case

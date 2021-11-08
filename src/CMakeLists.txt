@@ -140,7 +140,6 @@ set(SRC
 
 
 set(HEADERS
-  ${MECHANICA_PUBLIC_HEADERS}
   MxDebug.h
   mechanica_llvm.h
   mechanica_private.h
@@ -191,7 +190,7 @@ set(HEADERS
 
   event/MxEvent.h
   event/MxEventList.h
-  event/MxEventPyExecutor
+  event/MxEventPyExecutor.h
   event/MxParticleEvent.h
   event/MxParticleEventSingle.h
   event/MxParticleTimeEvent.h
@@ -257,8 +256,11 @@ set(HEADERS
   types/MxMatrix3.h
   types/MxMatrix4.h
   types/MxQuaternion.h
-  )
-
+)
+set(HEADERS_PRIVATE ${HEADERS})
+foreach(_PSHDR ${MECHANICA_PUBLIC_HEADERS_STATIC})
+  list(APPEND ${HEADERS} ${PROJECT_SOURCE_DIR}/include/${_PSHDR})
+endforeach()
 
 include(models/modeltree.cmake)
 add_subdirectory(models)
@@ -651,3 +653,7 @@ install(FILES
         DESTINATION 
         ${MX_SITEPACKAGES_REL}/mechanica
 )
+foreach(_PRHDR ${HEADERS_PRIVATE})
+  cmake_path(GET _PRHDR PARENT_PATH _PRHDR_PARENT)
+  install(FILES ${_PRHDR} DESTINATION include/mechanica/private/${_PRHDR_PARENT})
+endforeach()

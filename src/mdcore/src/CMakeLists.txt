@@ -134,7 +134,15 @@ SET(SOURCES
   DissapativeParticleDynamics.cpp
   MxBoundaryConditions.cpp
   MxBind.cpp
-  )
+)
+
+set(MDCORE_COMPILEDEFS_PUBLIC MDCORE_SINGLE PTHREAD_LOCK)
+set(MDCORE_COMPILEDEFS_PRIVATE C_BUILDING_DLL)
+set(MDCORE_LIBS   
+  LibSBML::LibSBML
+  Threads::Threads
+  Magnum::Magnum
+)
 
 if(MDCORE_USE_MPI)
   set(SOURCES ${SOURCES} engine_exchange.c)
@@ -152,6 +160,12 @@ endif()
 #else
 #    SOURCES_CUDA =
 #endif
+find_package(CUDAToolkit)
+if(CUDAToolkit_FOUND AND MX_WITHCUDA)
+  set(MDCORE_HAVECUDA ON)
+else()
+  set(MDCORE_HAVECUDA OFF)
+endif()
 
 
 # Build the libmdcore libraries
@@ -193,15 +207,29 @@ function(add_mdcore_single)
   source_group("Source Files" FILES ${SOURCES})
   source_group("Header Files" FILES ${SINGLE_HEADERS})
 
+  if(MDCORE_HAVECUDA)
+    list(APPEND MDCORE_LIBS 
+      CUDA::cudart 
+      CUDA::cuda_driver 
+      CUDA::nvrtc
+    )
+  endif()
+
   add_library(mdcore_single OBJECT ${SOURCES} ${SINGLE_HEADERS})
 
-  target_compile_definitions(mdcore_single PUBLIC MDCORE_SINGLE)
-  target_compile_definitions(mdcore_single PRIVATE C_BUILDING_DLL)
+  target_compile_definitions(mdcore_single PUBLIC ${MDCORE_COMPILEDEFS_PUBLIC})
+  target_compile_definitions(mdcore_single PRIVATE ${MDCORE_COMPILEDEFS_PRIVATE})
 
   set_target_properties(mdcore_single PROPERTIES
     CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN 1
+    VISIBILITY_INLINES_HIDDEN 1 
+    POSITION_INDEPENDENT_CODE ON 
+  )
+  if(MDCORE_HAVECUDA)
+    set_target_properties(mdcore_single PROPERTIES 
+      CUDA_SEPARABLE_COMPILATION ON
     )
+  endif()
 
   # hack for getting compile definitions through to eclipse project files,
   # this is NOT needed for the build, just for the clipse project files
@@ -219,11 +247,7 @@ function(add_mdcore_single)
     #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
   )
 
-target_link_libraries(mdcore_single PUBLIC
-  LibSBML::LibSBML
-  Threads::Threads
-  Magnum::Magnum
-  )
+target_link_libraries(mdcore_single PUBLIC ${MDCORE_LIBS})
 
 
 message("pybind header: ${PYBIND11_INCLUDE_DIR}")

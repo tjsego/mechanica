@@ -201,7 +201,7 @@ class MxMatrix : public Matrix<size, T> {
     operator const MagnumImplType<T>*() {                                               \
         return static_cast<const MagnumImplType<T>*>(this);                             \
     }                                                                                   \
-    operator MagnumImplType<T>&() const {                                               \
+    operator MagnumImplType<T>&() {                                                     \
         return *static_cast<MagnumImplType<T>*>(this);                                  \
     }                                                                                   \
     operator const MagnumImplType<T>&() const {                                         \
@@ -212,7 +212,7 @@ class MxMatrix : public Matrix<size, T> {
         for(int i = 0; i < other.Size; ++i) this->operator[](i) = other[i];             \
     }                                                                                   \
     operator Matrix<size, T>*() { return reinterpret_cast<Matrix<size, T>*>(this); }    \
-    operator Matrix<size, T>&() const {                                                 \
+    operator Matrix<size, T>&() {                                                       \
         return *reinterpret_cast<Matrix<size, T>*>(this);                               \
     }                                                                                   \
     operator const Matrix<size, T>*() {                                                 \

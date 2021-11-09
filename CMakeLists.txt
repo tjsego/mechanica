@@ -1,5 +1,5 @@
-# need 3.19 for find(REAL_PATH...)
-cmake_minimum_required (VERSION 3.19)
+# need 3.20.3 for CUDA fixes
+cmake_minimum_required (VERSION 3.20.3)
 
 
 if(APPLE)
@@ -115,6 +115,32 @@ elseif(MX_ENABLE_SSE4)
   add_compile_options(-msse4.2)
 else()
   set(MX_SIMD_SIZE 0)
+endif()
+
+find_package(CUDAToolkit)
+if(CUDAToolkit_FOUND)
+  message(STATUS "Detected CUDA")
+  message(STATUS "  Version           : ${CUDAToolkit_VERSION}")
+  message(STATUS "  Architectures     : ${CMAKE_CUDA_ARCHITECTURES}")
+  message(STATUS "  Compiler          : ${CUDAToolkit_NVCC_EXECUTABLE}")
+  set(MX_HAVECUDA ON)
+else()
+  message(STATUS "No detected CUDA support")
+  set(MX_HAVECUDA OFF)
+endif()
+
+set(MX_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include/mechanica)
+set(MX_RESOURCE_DIR ${CMAKE_INSTALL_PREFIX}/resources/mechanica)
+
+if(MX_HAVECUDA)
+  enable_language(CUDA)
+  set(MX_CUDA_DIR ${MX_RESOURCE_DIR}/cuda)
+  set(MX_CUDA_INCLUDE_DIR ${CUDAToolkit_INCLUDE_DIRS})
+  option(MX_WITHCUDA             "Enable GPU-accelerated calculations using CUDA" OFF)
+  option(MX_CUDA_DEBUG           "Enable CUDA debug mode" OFF)
+  if(DEFINED ENV{MX_WITHCUDA})
+    set(MX_WITHCUDA ON)
+  endif()
 endif()
 
 # quiet linker warnings on Apple

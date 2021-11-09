@@ -104,8 +104,8 @@ struct MxParticle  {
      * whole 4 vector here. 
      */
     union {
-        FPTYPE f[4] __attribute__ ((aligned (16)));
-        MxVector3f force __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) f[4];
+        MX_ALIGNED(MxVector3f, 16) force;
         
         struct {
             float __dummy0[3];
@@ -116,8 +116,8 @@ struct MxParticle  {
 
 	/** Particle velocity */
     union {
-        FPTYPE v[4] __attribute__ ((aligned (16)));
-        MxVector3f velocity __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) v[4];
+        MX_ALIGNED(MxVector3f, 16) velocity;
         
         struct {
             float __dummy1[3];
@@ -128,8 +128,8 @@ struct MxParticle  {
     
     /** Particle position */
     union {
-        FPTYPE x[4] __attribute__ ((aligned (16)));
-        MxVector3f position __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) x[4];
+        MX_ALIGNED(MxVector3f, 16) position;
 
         struct {
             float __dummy2[3];
@@ -140,7 +140,7 @@ struct MxParticle  {
 
     /** random force force */
     union {
-        MxVector3f persistent_force __attribute__ ((aligned (16)));
+        MX_ALIGNED(MxVector3f, 16) persistent_force;
     };
 
     // inverse mass
@@ -267,7 +267,7 @@ HRESULT MxParticle_Verify();
  * 
  * This is a safe way to work with a particle. 
  */
-struct CAPI_EXPORT MxParticleHandle {
+struct MxParticleHandle {
     int id;
     int typeId;
 
@@ -418,7 +418,7 @@ struct CAPI_EXPORT MxParticleHandle {
  * actual particle with position, velocity, etc. However, particles 
  * of this *type* can be created with one of these. 
  */
-struct CAPI_EXPORT MxParticleType {
+struct MxParticleType {
 
     static const int MAX_NAME = 64;
 

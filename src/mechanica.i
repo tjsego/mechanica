@@ -36,6 +36,7 @@
 
 // Lie to SWIG; so long as these aren't passed to the C compiler, no problem
 #define __attribute__(x)
+#define MX_ALIGNED(RTYPE, VAL) RTYPE
 
 %begin %{
 #ifdef _MSC_VER

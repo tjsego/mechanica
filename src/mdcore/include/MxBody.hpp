@@ -19,8 +19,8 @@ struct MxBody
 {
     /** Particle position */
     union {
-        FPTYPE x[4] __attribute__ ((aligned (16)));
-        MxVector3f position __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) x[4];
+        MX_ALIGNED(MxVector3f, 16) position;
 
         struct {
             float __dummy[3];
@@ -30,8 +30,8 @@ struct MxBody
 
     /** linear velocity */
     union {
-        FPTYPE v[4] __attribute__ ((aligned (16)));
-        MxVector3f velocity __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) v[4];
+        MX_ALIGNED(MxVector3f, 16) velocity;
     };
     
     /**
@@ -41,24 +41,24 @@ struct MxBody
      * integrators, that need to separate the random and coherent forces.
      */
     union {
-        FPTYPE f[4] __attribute__ ((aligned (16)));
-        MxVector3f force __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) f[4];
+        MX_ALIGNED(MxVector3f, 16) force;
     };
     
     union {
-        FPTYPE pad_orientation[4] __attribute__ ((aligned (16)));
-        MxQuaternionf orientation __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) pad_orientation[4];
+        MX_ALIGNED(MxQuaternionf, 16) orientation;
     };
     
     /** angular velocity */
     union {
-        FPTYPE _spin[4] __attribute__ ((aligned (16)));
-        MxVector3f spin __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) _spin[4];
+        MX_ALIGNED(MxVector3f, 16) spin;
     };
 
     union {
-        FPTYPE _torque[4] __attribute__ ((aligned (16)));
-        MxVector3f torque __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) _torque[4];
+        MX_ALIGNED(MxVector3f, 16) torque;
     };
     
     /**
@@ -76,7 +76,7 @@ struct MxBody
 
     /** random force force */
     union {
-        MxVector3f persistent_force __attribute__ ((aligned (16)));
+        MX_ALIGNED(MxVector3f, 16) persistent_force;
     };
 
     // inverse mass

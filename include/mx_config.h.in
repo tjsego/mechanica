@@ -14,10 +14,13 @@
 #cmakedefine MX_WINDOWS
 #cmakedefine MX_MODEL_DIR "@MX_MODEL_DIR@"
 
+#cmakedefine MX_WITHCUDA
+
 #define MX_VERSION_MAJOR @MX_VERSION_MAJOR@
 #define MX_VERSION_MINOR @MX_VERSION_MINOR@
 #define MX_VERSION_PATCH @MX_VERSION_PATCH@
 #define MX_VERSION_DEV @MX_VERSION_DEV@
+#define MX_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
 #define MX_VERSION "@MX_VERSION_MAJOR@.@MX_VERSION_MINOR@.@MX_VERSION_PATCH@"
 #define MX_SYSTEM_NAME "@CMAKE_SYSTEM_NAME@"
 #define MX_SYSTEM_VERSION "@CMAKE_SYSTEM_VERSION@"
@@ -31,6 +34,22 @@ static const char *mxBuildDate() {
 static const char *mxBuildTime() {
     return __TIME__;
 }
+
+static const bool mxHasCuda() {
+#ifdef MX_WITHCUDA
+    return true;
+#else
+    return false;
+#endif
+}
+
+#ifdef MX_WITHCUDA
+#define MX_CUDA_ARCHS "@CMAKE_CUDA_ARCHITECTURES@"
+#define MX_INCLUDE_DIR "@MX_INCLUDE_DIR@"
+#define MX_CUDA_DIR "@MX_CUDA_DIR@"
+#define MX_CUDA_INCLUDE_DIR "@MX_CUDA_INCLUDE_DIR@"
+#cmakedefine MX_CUDA_DEBUG
+#endif
 
 
 #endif /* INCLUDE_MX_CONFIG_H_ */

@@ -141,6 +141,10 @@
 
 //                                      Imports
 
+#ifdef MX_WITHCUDA
+%include "mx_cuda.i"
+#endif
+
 // Logger
 %include "MxLogger.i"
 
@@ -180,6 +184,8 @@
 //                                      Post-imports
 
 %pythoncode %{
+
+    has_cuda = mxHasCuda()
     
 # From MxSimulator
 

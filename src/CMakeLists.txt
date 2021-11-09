@@ -285,7 +285,10 @@ set(SRC ${SRC} ${MX_MODEL_SRCS_LOCAL})
 #target_include_directories(mechanica_OBJECTS PRIVATE "${PROJECT_SOURCE_DIR}/include")
 #target_include_directories(mechanica_OBJECTS PRIVATE ${NUMPY_INCLUDE_DIR})
 
-
+if(MX_WITHCUDA)
+  list(APPEND HEADERS mx_cuda.h)
+  list(APPEND SRC mx_cuda.cpp)
+endif()
 
 # this is the "object library" target: compiles the sources only once
 # need at least one src file in a project for xcode to build it, xcode

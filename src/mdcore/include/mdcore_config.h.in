@@ -70,7 +70,15 @@
 #undef HAVE_CLOCK_GETTIME
 
 /* The cuda compiler is installed. */
-#undef HAVE_CUDA
+#ifdef MX_WITHCUDA
+    #ifndef HAVE_CUDA
+        #define HAVE_CUDA
+    #endif
+#else
+    #ifdef HAVE_CUDA
+        #undef HAVE_CUDA
+    #endif
+#endif
 
 /* Define to 1 if you have the <c_asm.h> header file. */
 #undef HAVE_C_ASM_H

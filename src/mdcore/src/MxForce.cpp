@@ -16,7 +16,7 @@
 #include <MxPy.h>
 
 static Berendsen *berenderson_create(float tau);
-static Gaussian *random_create(float std, float mean, float durration);
+static Gaussian *random_create(float mean, float std, float durration);
 static Friction *friction_create(float coef, float mean, float std, float durration);
 
 static float scaling_constant(MxParticle *part, int stateVectorIndex) {
@@ -121,7 +121,7 @@ Gaussian* MxForce::random(const float &std, const float &mean, const float &dura
     Log(LOG_DEBUG);
 
     try {
-        return random_create(std, mean, duration);
+        return random_create(mean, std, duration);
     }
     catch (const std::exception &e) {
         MX_RETURN_EXP(e);

@@ -15,6 +15,8 @@
 #ifndef SRC_CONFIG_H_
 #define SRC_CONFIG_H_
 
+#include "mx_config.h"
+
 #ifdef MDCORE_SINGLE
 #include "mdcore_single_config.h"
 #endif

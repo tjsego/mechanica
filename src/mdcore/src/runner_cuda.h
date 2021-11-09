@@ -24,7 +24,7 @@
 #define cuda_frame                          32
 #define cuda_maxpots                        100
 #define max_fingers                         1
-#define cuda_maxblocks                      64
+// #define cuda_maxblocks                      128
 #define cuda_memcpy_chunk                   6
 #define cuda_sum_chunk                      3
 #define cuda_maxqueues                      30

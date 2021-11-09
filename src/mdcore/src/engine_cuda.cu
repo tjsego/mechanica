@@ -27,7 +27,7 @@
 #include <string.h>
 
 /* Include conditional headers. */
-#include "../config.h"
+#include "mdcore_config.h"
 #ifdef HAVE_MPI
     #include <mpi.h>
 #endif
@@ -41,16 +41,18 @@
 #undef __ALTIVEC__
 #undef __AVX__
 
+#include <cuda_runtime.h>
+
 /* include local headers */
 #include "cycle.h"
 #include "errs.h"
 #include "fptype.h"
 #include "lock.h"
-#include "part.h"
-#include "cell.h"
+#include "MxParticle.h"
+#include "space_cell.h"
 #include "task.h"
 #include "space.h"
-#include "potential.h"
+#include "MxPotential.h"
 #include "bond.h"
 #include "rigid.h"
 #include "angle.h"
@@ -59,7 +61,7 @@
 #include "reader.h"
 #include "engine.h"
 #include "runner_cuda.h"
-
+#include "../../mx_cuda.h"
 
 /* the error macro. */
 #define error(id)				( engine_err = errs_register( id , engine_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
@@ -103,12 +105,54 @@ __global__ void runner_run_verlet_cuda_448 ( float *forces , int *counts , int *
 __global__ void runner_run_cuda_448 ( float *forces , int *counts , int *ind );
 __global__ void runner_run_verlet_cuda_480 ( float *forces , int *counts , int *ind , int verlet_rebuild );
 __global__ void runner_run_cuda_480 ( float *forces , int *counts , int *ind );
-// __global__ void runner_run_verlet_cuda_512 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-// __global__ void runner_run_cuda_512 ( float *forces , int *counts , int *ind );
+__global__ void runner_run_verlet_cuda_512 ( float *forces , int *counts , int *ind , int verlet_rebuild );
+__global__ void runner_run_cuda_512 ( float *forces , int *counts , int *ind );
 int runner_bind ( cudaArray *cuArray_coeffs , cudaArray *cuArray_pind , cudaArray *cuArray_diags );
 int runner_parts_bind ( cudaArray *cuArray_parts );
 int runner_parts_unbind ( );
 
+
+/**
+ * @brief Set the number of threads of a CUDA device to use
+ * 
+ * @param id The CUDA device id
+ * @param nr_threads The number of threads to use
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_setthreads(struct engine *e, int id, int nr_threads) {
+    if(id >= e->nr_devices)
+        return engine_err_cuda;
+
+    for(int i = 0; i < e->nr_devices; i++) {
+        if(e->devices[i] == id) {
+            e->nr_threads[i] = nr_threads;
+            return engine_err_ok;
+        }
+    }
+    return engine_err_cuda;
+}
+
+/**
+ * @brief Set the number of blocks of a CUDA device to use
+ * 
+ * @param id The CUDA device id
+ * @param nr_blocks The number of blocks to use
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_setblocks(struct engine *e, int id, int nr_blocks) {
+    if(id >= e->nr_devices)
+        return engine_err_cuda;
+
+    for(int i = 0; i < e->nr_devices; i++) {
+        if(e->devices[i] == id) {
+            e->nr_blocks[i] = nr_blocks;
+            return engine_err_ok;
+        }
+    }
+    return engine_err_cuda;
+}
 
 /**
  * @brief Set the ID of the CUDA device to use
@@ -128,8 +172,12 @@ extern "C" int engine_cuda_setdevice ( struct engine *e , int id ) {
     if ( cudaSetDevice( id ) != cudaSuccess ||
          cudaStreamCreate( (cudaStream_t *)&e->streams[0] ) != cudaSuccess )
         return cuda_error(engine_err_cuda);
-    else
+    else {
+        // Do auto configuration
+        engine_cuda_setthreads(e, id, MxCUDA::maxThreadsPerBlock(id));
+        engine_cuda_setblocks(e, id, MxCUDA::maxBlockDimX(id));
         return engine_err_ok;
+    }
         
     }
     
@@ -162,12 +210,48 @@ extern "C" int engine_cuda_setdevices ( struct engine *e , int nr_devices , int 
              cudaStreamCreate( (cudaStream_t *)&e->streams[k] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
             
+        // Do auto configuration
+        engine_cuda_setthreads(e, ids[k], MxCUDA::maxThreadsPerBlock(ids[k]));
+        engine_cuda_setblocks(e, ids[k], MxCUDA::maxBlockDimX(ids[k]));
+        
         }
         
     /* That's it. */
     return engine_err_ok;
         
     }
+
+/**
+ * @brief Clear CUDA devices. Engine must not be in CUDA run mode. 
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_cleardevices(struct engine *e) {
+    
+    // Check inputs
+    
+    if(e == NULL)
+        return error(engine_err_null);
+
+    // Check state
+
+    //  If nothing to do, then do nothing
+    if(e->nr_devices == 0)
+        return engine_err_ok;
+
+	//  If already on device, then error
+    if(e->flags & engine_flag_cuda)
+		return engine_err_cuda;
+
+    // Clear all set devices
+    
+    for(int i = 0; i < e->nr_devices; i++) {
+        e->devices[i] = 0;
+    }
+    e->nr_devices = 0;
+
+    return engine_err_ok;
+}
     
 
 /* End CUDA-related stuff. */

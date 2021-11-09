@@ -257,6 +257,18 @@ set(HEADERS
   types/MxMatrix4.h
   types/MxQuaternion.h
 )
+
+if(MX_WITHCUDA)
+  list(APPEND SRC 
+    cuda/MxEngineCUDAConfig.cpp 
+    cuda/MxSimulatorCUDAConfig.cpp
+  )
+  list(APPEND HEADERS 
+    cuda/MxEngineCUDAConfig.h 
+    cuda/MxSimulatorCUDAConfig.h
+  )
+endif()
+
 set(HEADERS_PRIVATE ${HEADERS})
 foreach(_PSHDR ${MECHANICA_PUBLIC_HEADERS_STATIC})
   list(APPEND ${HEADERS} ${PROJECT_SOURCE_DIR}/include/${_PSHDR})

@@ -340,7 +340,14 @@ int engine_advance_forward_euler ( struct engine *e ) {
         auto func = [dt, &h, &h2, &maxv, &maxv2, &maxx, &maxx2, &epot](int cid) -> void {
             cell_advance_forward_euler(dt, h, h2, maxv, maxv2, maxx, maxx2, cid);
             
-            MxFluxes::integrate(cid);
+            // Patching a strange bug here. 
+            // When built with CUDA support, space_cell alignment is off in MxFluxes_integrate when retrieved from static engine. 
+            // TODO: fix space cell alignment issue when built with CUDA
+            #ifdef HAVE_CUDA
+            MxFluxes_integrate(&_Engine.s.cells[cid]);
+            #else
+            MxFluxes_integrate(cid);
+            #endif
             
             bodies_advance_forward_euler(dt, cid);
         };

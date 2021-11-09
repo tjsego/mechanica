@@ -414,6 +414,7 @@ int space_cell_init (struct space_cell *c , int *loc , double *origin , double *
 	/* default flags. */
 	c->flags = cell_flag_none;
 	c->nodeID = 0;
+	c->GPUID = 0;
     
     /*
     

@@ -11,7 +11,6 @@
 #include "../../state/MxStateVector.h"
 #include "flux_eval.hpp"
 #include "space.h"
-#include "space_cell.h"
 #include "engine.h"
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
@@ -106,12 +105,9 @@ static void integrate_statevector(MxStateVector *s) {
     }
 }
 
-HRESULT MxFluxes::integrate(int cellId) {
-    
-    space_cell *c = &_Engine.s.cells[cellId];
+HRESULT MxFluxes_integrate(space_cell *c) {
     MxParticle *p;
     MxStateVector *s;
-    
     
     for(int i = 0; i < c->count; ++i) {
         p = &c->parts[i];
@@ -123,6 +119,10 @@ HRESULT MxFluxes::integrate(int cellId) {
     }
     
     return S_OK;
+}
+
+HRESULT MxFluxes_integrate(int cellId) {
+    return MxFluxes_integrate(&_Engine.s.cells[cellId]);
 }
 
 MxFluxes *MxFluxes::addFlux(FluxKind kind, MxFluxes *fluxes,

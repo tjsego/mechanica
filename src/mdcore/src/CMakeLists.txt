@@ -167,6 +167,18 @@ else()
   set(MDCORE_HAVECUDA OFF)
 endif()
 
+if(MDCORE_HAVECUDA)
+  list(APPEND MDCORE_COMPILEDEFS_PRIVATE HAVE_CUDA)
+
+  list(APPEND PUBLIC_HEADERS 
+    "${MDCORE_SOURCE_DIR}/src/runner_cuda.h" 
+    "${MDCORE_SOURCE_DIR}/src/runner_cuda_main.h"
+  )
+  list(APPEND SOURCES 
+    engine_cuda.cu 
+    runner_cuda.cu 
+  )
+endif()
 
 # Build the libmdcore libraries
 #lib_LTLIBRARIES = libmdcore.la libmdcore_single.la

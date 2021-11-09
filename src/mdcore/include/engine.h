@@ -106,6 +106,12 @@ enum EngineIntegrator {
 #define engine_bonded_maxnrthreads       16
 #define engine_bonded_nrthreads          ((omp_get_num_threads()<engine_bonded_maxnrthreads)?omp_get_num_threads():engine_bonded_maxnrthreads)
 
+#ifdef MDCORE_MAXNRTYPES
+#define engine_maxnrtypes 				 MDCORE_MAXNRTYPES
+#else
+#define engine_maxnrtypes				 128
+#endif
+
 /** Timmer IDs. */
 enum {
 	engine_timer_step = 0,
@@ -188,7 +194,7 @@ typedef struct engine {
 	 */
 	unsigned int integrator_flags;
 
-#ifdef WITH_CUDA
+#ifdef HAVE_CUDA
 	/** Some flags controlling which cuda scheduling we use. */
 	unsigned int flags_cuda;
 #endif
@@ -342,6 +348,7 @@ typedef struct engine {
 	int *taboo_cuda[ engine_maxgpu ];
 	int nrtasks_cuda[ engine_maxgpu ];
 	void *streams[ engine_maxgpu ];
+	int nr_blocks[engine_maxgpu], nr_threads[engine_maxgpu];
 #endif
 
 	/** Timers. */
@@ -616,7 +623,7 @@ CAPI_FUNC(int) engine_rigid_sort ( struct engine *e );
 CAPI_FUNC(int) engine_rigid_unsort ( struct engine *e );
 CAPI_FUNC(int) engine_setexplepot ( struct engine *e , struct MxPotential *ep );
 CAPI_FUNC(int) engine_shuffle ( struct engine *e );
-CAPI_FUNC(int) engine_split_bisect ( struct engine *e , int N );
+CAPI_FUNC(int) engine_split_bisect ( struct engine *e , int N, int particle_flags );
 CAPI_FUNC(int) engine_split ( struct engine *e );
 
 CAPI_FUNC(int) engine_start ( struct engine *e , int nr_runners , int nr_queues );
@@ -678,14 +685,22 @@ CAPI_FUNC(int) engine_exchange_rigid_wait ( struct engine *e );
 CAPI_FUNC(int) engine_exchange_wait ( struct engine *e );
 #endif
 
-#if defined(HAVE_CUDA) && defined(WITH_CUDA)
+#if defined(HAVE_CUDA)
 CAPI_FUNC(int) engine_nonbond_cuda ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_load ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_load_parts ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_unload_parts ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_queues_finalize ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_finalize ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_setthreads(struct engine *e, int id, int nr_threads);
+CAPI_FUNC(int) engine_cuda_setblocks(struct engine *e, int id, int nr_blocks);
 CAPI_FUNC(int) engine_cuda_setdevice ( struct engine *e , int id );
 CAPI_FUNC(int) engine_cuda_setdevices ( struct engine *e , int nr_devices , int *ids );
-CAPI_FUNC(int) engine_split_METIS ( struct engine *e, int N, int flags);
+CAPI_FUNC(int) engine_cuda_cleardevices(struct engine *e);
+CAPI_FUNC(int) engine_split_gpu( struct engine *e, int N, int flags);
+
+CAPI_FUNC(int) engine_toCUDA(struct engine *e);
+CAPI_FUNC(int) engine_fromCUDA(struct engine *e);
 #endif
 
 #ifdef WITH_METIS

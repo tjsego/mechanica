@@ -13,6 +13,9 @@
 #include "MxPropagator.h"
 #include "MxController.h"
 #include "MxView.h"
+#ifdef MX_WITHCUDA
+#include "cuda/MxSimulatorCUDAConfig.h"
+#endif
 
 #include "Magnum/Platform/GLContext.h"
 #include "Magnum/Platform/Implementation/DpiScaling.h"
@@ -454,6 +457,10 @@ struct CAPI_EXPORT MxSimulator {
     static const int getNumThreads();
 
     static const MxGlfwWindow *getWindow();
+
+    #ifdef MX_WITHCUDA
+    static MxSimulatorCUDAConfig *getCUDAConfig();
+    #endif
     
     // list of windows.
     std::vector<MxGlfwWindow*> windows;

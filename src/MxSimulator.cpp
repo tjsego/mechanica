@@ -59,6 +59,9 @@
     }
 
 static MxSimulator* Simulator = NULL;
+#ifdef MX_WITHCUDA
+static MxSimulatorCUDAConfig *SimulatorCUDAConfig = NULL;
+#endif
 
 static void simulator_interactive_run();
 
@@ -509,7 +512,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
     if((o = PyDict_GetItemString(kwargs, "windowless"))) {
         windowless = new bool(mx::cast<PyObject, bool>(o));
 
-        Log(LOG_INFORMATION) << "got windowless" << *windowless ? "True" : "False";
+        Log(LOG_INFORMATION) << "got windowless " << (*windowless ? "True" : "False");
     }
     else windowless = NULL;
 
@@ -651,6 +654,12 @@ const MxGlfwWindow *MxSimulator::getWindow() {
     SIM_FINALLY(0);
 }
 
+#ifdef MX_WITHCUDA
+MxSimulatorCUDAConfig *MxSimulator::getCUDAConfig() {
+    return SimulatorCUDAConfig;
+}
+#endif
+
 HRESULT modules_init() {
     Log(LOG_DEBUG) << ", initializing modules... " ;
 
@@ -758,6 +767,10 @@ HRESULT MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std:
         }
         
         MxSimulator *sim = new MxSimulator();
+
+        #ifdef MX_WITHCUDA
+        SimulatorCUDAConfig = new MxSimulatorCUDAConfig();
+        #endif
         
         Universe.name = conf.title();
 
@@ -987,6 +1000,10 @@ HRESULT MxSimulator::initConfig(const MxSimulator_Config &conf, const MxSimulato
 
     MxSimulator *sim = new MxSimulator();
 
+    #ifdef MX_WITHCUDA
+    SimulatorCUDAConfig = new MxSimulatorCUDAConfig();
+    #endif
+
     // init the engine first
     /* Initialize scene particles */
     universe_init(conf.universeConfig);
@@ -1072,6 +1089,10 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
         }
         
         MxSimulator *sim = new MxSimulator();
+
+        #ifdef MX_WITHCUDA
+        SimulatorCUDAConfig = new MxSimulatorCUDAConfig();
+        #endif
 
         Log(LOG_INFORMATION) << "successfully created new simulator";
 

@@ -187,7 +187,7 @@ struct CAPI_EXPORT MxFluxes
 /**
  * integrate all of the fluxes for a space cell.
  */
-HRESULT MxFluxes_integrate(space_cell *cell);
+HRESULT MxFluxes_integrate(space_cell *cell, float dt=-1.0);
 
 /**
  * integrate all of the fluxes for a space cell.

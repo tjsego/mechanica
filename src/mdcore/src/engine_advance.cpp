@@ -344,7 +344,7 @@ int engine_advance_forward_euler ( struct engine *e ) {
             // When built with CUDA support, space_cell alignment is off in MxFluxes_integrate when retrieved from static engine. 
             // TODO: fix space cell alignment issue when built with CUDA
             #ifdef HAVE_CUDA
-            MxFluxes_integrate(&_Engine.s.cells[cid]);
+            MxFluxes_integrate(&_Engine.s.cells[cid], _Engine.dt);
             #else
             MxFluxes_integrate(cid);
             #endif

@@ -4,6 +4,7 @@ mx.init()
 
 
 class AType(mx.ParticleType):
+    radius = 0.25
     species = ['S1', 'S2', 'S3']
     style = {"colormap": {"species": "S1",
                           "map": "rainbow",

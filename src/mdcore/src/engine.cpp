@@ -26,6 +26,7 @@
 #include <float.h>
 #include <string.h>
 #include <MxCluster.hpp>
+#include <Flux.hpp>
 
 /* Include conditional headers. */
 #include "mdcore_config.h"
@@ -1292,6 +1293,36 @@ int engine_addpot ( struct engine *e , struct MxPotential *p , int i , int j ) {
 
 	/* end on a good note. */
 	return engine_err_ok;
+}
+
+int engine_addfluxes(struct engine *e, struct MxFluxes *f, int i, int j) {
+	Log(LOG_DEBUG);
+
+	/* check for nonsense. */
+	if ( e == NULL )
+		return error(engine_err_null);
+	if ( i < 0 || i >= e->nr_types || j < 0 || j >= e->nr_types )
+		return error(engine_err_range);
+
+	MxFluxes **fluxes = e->fluxes;
+	fluxes[i * e->max_type + j] = f;
+
+	if(i != j) fluxes[j * e->max_type + i] = f;
+
+	return engine_err_ok;
+}
+
+MxFluxes *engine_getfluxes(struct engine *e, int i, int j) {
+	Log(LOG_DEBUG);
+
+	/* check for nonsense. */
+	if ( e == NULL )
+		return 0;
+	if ( i < 0 || i >= e->nr_types || j < 0 || j >= e->nr_types )
+		return 0;
+
+	MxFluxes **fluxes = e->fluxes;
+	return fluxes[i * e->max_type + j];
 }
 
 CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e, struct MxForce *p,

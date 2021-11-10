@@ -442,6 +442,8 @@ typedef struct engine_comm {
 /* associated functions */
 CAPI_FUNC(int) engine_addpot ( struct engine *e , struct MxPotential *p , int i , int j );
 
+CAPI_FUNC(int) engine_addfluxes(struct engine *e, struct MxFluxes *f, int i, int j);
+MxFluxes *engine_getfluxes(struct engine *e, int i, int j);
 
 /**
  * add a particle / cuboid potential

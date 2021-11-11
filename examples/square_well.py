@@ -38,8 +38,8 @@ mx.bind.types(pot_rr, Receptor, Receptor)
 mx.bind.types(pot_nr, Nucleus, Receptor)
 
 # create a random force (Brownian motion), zero mean of given amplitide
-tstat = mx.Force.random(0, 3)
-vtstat = mx.Force.random(0, 5)
+tstat = mx.Force.random(mean=0, std=3)
+vtstat = mx.Force.random(mean=0, std=5)
 
 # bind it just like any other force
 mx.bind.force(tstat, Receptor)

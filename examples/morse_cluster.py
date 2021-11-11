@@ -44,7 +44,7 @@ p2 = mx.Potential.morse(d=0.5, a=2.5, max=3)
 mx.bind.types(p1, A, A, bound=True)
 mx.bind.types(p2, B, B, bound=True)
 
-rforce = mx.Force.random(0, 10)
+rforce = mx.Force.random(mean=0, std=10)
 mx.bind.force(rforce, A)
 mx.bind.force(rforce, B)
 

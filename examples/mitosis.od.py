@@ -31,7 +31,7 @@ Cell = CellType.get()
 
 mx.Universe.bind(pot, Cell, Cell)
 
-rforce = mx.Force.random(0, 0.5)
+rforce = mx.Force.random(mean=0, std=0.5)
 
 mx.bind.force(rforce, Cell)
 

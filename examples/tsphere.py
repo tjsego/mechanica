@@ -44,7 +44,7 @@ beads = [Green(p) for p in pts]
 # distance and connects them with a bond.
 # mx.bind.bonds(pot, beads, 0.7)
 
-rforce = mx.Force.random(0, 0.01, duration=0.1)
+rforce = mx.Force.random(mean=0, std=0.01, duration=0.1)
 
 # hook up the potentials
 # mx.bind.force(rforce, Green)

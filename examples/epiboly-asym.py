@@ -47,7 +47,7 @@ mx.bind.types(pc, A, C)
 mx.bind.types(pc, B, C)
 mx.bind.types(pa, A, A)
 
-r = mx.Force.random(0, 5)
+r = mx.Force.random(mean=0, std=5)
 
 mx.bind.force(r, A)
 

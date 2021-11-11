@@ -16,6 +16,7 @@ mx.init(dim=dim,
         cutoff=cutoff,
         clip_planes=[([8, 8, 8], [1, 1, 0]), ([11, 11, 11], [-1, -1, 0])])
 
+
 class AType(mx.ParticleType):
     mass = 40
     radius = 0.4
@@ -46,7 +47,7 @@ mx.bind.types(pot_ab, A, B)
 # enable the objects to move around, otherwise they tend to get trapped
 # in a potential
 
-rforce = mx.Force.random(0, 50)
+rforce = mx.Force.random(mean=0, std=50)
 
 # bind it just like any other force
 mx.bind.force(rforce, A)

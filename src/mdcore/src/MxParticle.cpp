@@ -607,10 +607,10 @@ MxParticleHandle *MxParticle_FissionSimple(MxParticle *self,
         
         // pointers after engine_addpart could change...
         self = _Engine.s.partlist[self_id];
-        self->position += sep;
+        space_setpos(&_Engine.s, self_id, (vec + sep).data());
         
         // p is valid, because that's the result of the addpart
-        p->position -= sep;
+        space_setpos(&_Engine.s, p->id, (vec - sep).data());
         Log(LOG_DEBUG) << self->position << ", " << p->position;
         
         // all is good, set the new radii
@@ -718,7 +718,7 @@ bool MxParticle::verify() {
     }
     
     bool pindex = this == _Engine.s.partlist[this->id];
-    
+
     assert("particle pos below zero" && gte);
     assert("particle pos over cell size" && lt);
     assert("particle not in correct partlist location" && pindex);

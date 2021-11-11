@@ -114,7 +114,8 @@ static MxQuaternionf integrate_angular_velocity_2(const MxVector3f &av, double d
 static inline void bodies_advance_forward_euler(const float dt, int cid)
 {
     if(cid == 0) {
-        for (MxCuboid& c : _Engine.s.cuboids) {
+        for(int i = 0; i < _Engine.s.cuboids.size(); i++) {
+            MxCuboid &c = _Engine.s.cuboids[i];
             c.orientation = c.orientation * integrate_angular_velocity_2(c.spin, dt);
             MxCuboid_UpdateAABB(&c);
         }

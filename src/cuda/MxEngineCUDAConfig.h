@@ -102,6 +102,17 @@ struct CAPI_EXPORT MxEngineCUDAConfig {
      */
     HRESULT setThreads(unsigned int numThreads, int deviceId=-1);
 
+    /**
+     * @brief Update potentials on a CUDA device. 
+     * 
+     * Useful for notifying the device that a potential has changed. 
+     * 
+     * If engine is not on a device, then the call is ignored. 
+     * 
+     * @return HRESULT 
+     */
+    HRESULT refreshPotentials();
+
 private:
     bool on_device;
 };

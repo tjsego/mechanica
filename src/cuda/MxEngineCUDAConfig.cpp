@@ -104,3 +104,17 @@ HRESULT MxEngineCUDAConfig::setThreads(unsigned int numThreads, int deviceId) {
 
     return S_OK;
 }
+
+HRESULT MxEngineCUDAConfig::refreshPotentials() {
+    if(!this->onDevice()) {
+        Log(LOG_DEBUG) << "Attempting to refresh potentials when not on device. Ignoring.";
+        return S_OK;
+    }
+
+    if(engine_cuda_refresh_pots(&_Engine) < 0) {
+        Log(LOG_CRITICAL) << "Attempting to refresh potentials failed (" << engine_err << ").";
+        return E_FAIL;
+    }
+
+    return S_OK;
+}

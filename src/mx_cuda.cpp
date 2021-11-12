@@ -10,6 +10,8 @@
 
 #include <MxLogger.h>
 
+#include <cuda_gl_interop.h>
+
 #include <cstdarg>
 #include <filesystem>
 #include <iostream>
@@ -543,6 +545,10 @@ int MxCUDADevice::multiGPUBoardGroupId() { return MxCUDA::multiGPUBoardGroupId(*
 
 void MxCUDA::init() {
     cuInit(0);
+}
+
+void MxCUDA::setGLDevice(const int &deviceId) {
+    cudaGLSetGLDevice(deviceId);
 }
 
 std::string MxCUDA::getDeviceName(const int &deviceId) {

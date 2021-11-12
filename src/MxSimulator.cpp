@@ -769,6 +769,8 @@ HRESULT MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std:
         MxSimulator *sim = new MxSimulator();
 
         #ifdef MX_WITHCUDA
+        MxCUDA::init();
+        MxCUDA::setGLDevice(0);
         SimulatorCUDAConfig = new MxSimulatorCUDAConfig();
         #endif
         
@@ -1001,6 +1003,8 @@ HRESULT MxSimulator::initConfig(const MxSimulator_Config &conf, const MxSimulato
     MxSimulator *sim = new MxSimulator();
 
     #ifdef MX_WITHCUDA
+    MxCUDA::init();
+    MxCUDA::setGLDevice(0);
     SimulatorCUDAConfig = new MxSimulatorCUDAConfig();
     #endif
 
@@ -1091,6 +1095,8 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
         MxSimulator *sim = new MxSimulator();
 
         #ifdef MX_WITHCUDA
+        MxCUDA::init();
+        MxCUDA::setGLDevice(0);
         SimulatorCUDAConfig = new MxSimulatorCUDAConfig();
         #endif
 

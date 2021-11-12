@@ -648,6 +648,8 @@ struct MxCUDA {
      */
     static void init();
 
+    static void setGLDevice(const int &deviceId);
+
     /**
      * @brief Get the name of a device
      * 

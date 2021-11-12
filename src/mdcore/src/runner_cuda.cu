@@ -2490,35 +2490,22 @@ int engine_cuda_queues_finalize ( struct engine *e ) {
 }
 
 /**
- * @brief Load the potentials and cell pairs onto the CUDA device.
+ * @brief Load the potentials onto the CUDA device
  *
  * @param e The #engine.
  *
  * @return #engine_err_ok or < 0 on error (see #engine_err).
  */
- 
-extern "C" int engine_cuda_load ( struct engine *e ) {
-
-    
-    int i, j, k, nr_pots, nr_coeffs, nr_tasks, max_coeffs = 0, c1 ,c2;
-    int did, *cellsorts;
-    int *pind = (int*)malloc(sizeof(int) * e->max_type * e->max_type), *pind_cuda[ engine_maxgpu ];
-    struct space *s = &e->s;
+extern "C" int engine_cuda_load_pots(struct engine *e) {
+    int i, j, nr_pots, nr_coeffs, max_coeffs = 0;
+    int did;
+    int *pind = (int*)malloc(sizeof(int) * e->max_type * e->max_type);
     int nr_devices = e->nr_devices;
     struct MxPotential **pots = (MxPotential**)malloc(sizeof(MxPotential*) * e->nr_types * (e->nr_types + 1) / 2 + 1);
-    struct task_cuda *tasks_cuda, *tc, *ts;
-    struct task *t;
     float *finger, *coeffs_cuda;
-    float cutoff = e->s.cutoff, cutoff2 = e->s.cutoff2, dscale; //, buff[ e->nr_types ];
-    cudaArray *cuArray_coeffs[ engine_maxgpu ], *cuArray_pind[ engine_maxgpu ];
+    float cutoff = e->s.cutoff, cutoff2 = e->s.cutoff2;
     cudaChannelFormatDesc channelDesc_int = cudaCreateChannelDesc<int>();
-    cudaChannelFormatDesc channelDesc_float = cudaCreateChannelDesc<float>();
     cudaChannelFormatDesc channelDesc_float4 = cudaCreateChannelDesc<float4>();
-    float h[3], dim[3], *corig;
-    void *dummy[ engine_maxgpu ];
-
-    /*Split the space over the available GPUs*/
-    engine_split_gpu( e , nr_devices , engine_split_GPU  );
 
     /* Set the coeff properties. */
     tex_coeffs.addressMode[0] = cudaAddressModeClamp;
@@ -2562,17 +2549,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
         if ( e->p[i]->n + 1 > max_coeffs )
             max_coeffs = e->p[i]->n + 1;
     
-        }
-       
-    /* Copy eps and rmin to the device. */
-    /* for ( i = 0 ; i < e->nr_types ; i++ )
-        buff[i] = sqrt( fabs( e->types[i].eps ) );
-    if ( cudaMemcpyToSymbol( "cuda_eps" , buff , sizeof(float) * e->nr_types , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-        return cuda_error(engine_err_cuda);
-    for ( i = 0 ; i < e->nr_types ; i++ )
-        buff[i] = e->types[i].rmin;
-    if ( cudaMemcpyToSymbol( "cuda_rmin" , buff , sizeof(float) * e->nr_types , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-        return cuda_error(engine_err_cuda); */
+    }
 
     /* Pack the potential matrix. */
     for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
@@ -2599,19 +2576,160 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
         memcpy( finger , pots[i]->c , sizeof(float) * potential_chunk * (pots[i]->n + 1) );
         finger = &finger[ (pots[i]->n + 1) * potential_chunk ];
         } */
-    printf( "engine_cuda_load: packed %i potentials with %i coefficient chunks (%i kB).\n" , nr_pots , max_coeffs , (int)(sizeof(float4)*(2*max_coeffs+2)*nr_pots)/1024 ); fflush(stdout);
     free(pots);
         
     /* Bind the potential coefficients to a texture. */
     for ( did = 0 ; did < nr_devices ; did++ ) {
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMallocArray( &cuArray_coeffs[did] , &channelDesc_float4 , 2*max_coeffs + 2 , nr_pots ) != cudaSuccess )
+        if ( cudaMallocArray( (cudaArray**)&e->cuArray_coeffs[did] , &channelDesc_float4 , 2*max_coeffs + 2 , nr_pots ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToArray( cuArray_coeffs[did] , 0 , 0 , coeffs_cuda , sizeof(float4) * (2*max_coeffs + 2) * nr_pots , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpyToArray( (cudaArray*)e->cuArray_coeffs[did] , 0 , 0 , coeffs_cuda , sizeof(float4) * (2*max_coeffs + 2) * nr_pots , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
-    free( coeffs_cuda );
+    }
+
+    /* Copy the potential indices to the device. */
+    for ( did = 0 ; did < nr_devices ; did++ ) {
+        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMallocArray( (cudaArray**)&e->cuArray_pind[did] , &channelDesc_int , e->max_type * e->max_type , 1 ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpyToArray( (cudaArray*)e->cuArray_pind[did] , 0 , 0 , pind , sizeof(int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+    }
+    
+    /* Store pind as a constant too. */
+    for ( did = 0 ; did < nr_devices ; did++ ) {
+        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMalloc( &e->pind_cuda[did] , sizeof(unsigned int) * e->max_type * e->max_type ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpy( e->pind_cuda[did] , pind , sizeof(unsigned int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpyToSymbol( cuda_pind , &e->pind_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+    }
+    free(pind);
+            
+    /* Bind the textures on the device. */
+    for ( did = 0 ; did < nr_devices ; did++ ) {
+        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaBindTextureToArray( tex_coeffs , (cudaArray*)e->cuArray_coeffs[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaBindTextureToArray( tex_pind , (cudaArray*)e->cuArray_pind[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+    }
+
+    return engine_err_ok;
+}
+
+__global__ void engine_pots_finalize_device() {
+    if(threadIdx.x != 0 || blockIdx.x != 0) {
+        return;
+    }
+
+    if(cudaFree(cuda_pind) != cudaSuccess) {
+        printf("%s\n", "engine_parts_finalize_device failed (cuda_pind)!");
+        return;
+    }
+}
+
+/**
+ * @brief Unload the potentials on the CUDA device
+ *
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_unload_pots(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        // Unbind the textures
+
+        if(cudaUnbindTexture(tex_coeffs) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaUnbindTexture(tex_pind) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        // Free the potentials.
+
+        if(cudaFreeArray((cudaArray*)e->cuArray_coeffs[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaFreeArray((cudaArray*)e->cuArray_pind[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        engine_pots_finalize_device<<<1, 1>>>();
+        if(cudaPeekAtLastError() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        
+        if(cudaFree(e->pind_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Refresh the potentials on the CUDA device. 
+ * 
+ * Can be safely called while on the CUDA device to reload all potential data from the engine. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err)
+ */
+extern "C" int engine_cuda_refresh_pots(struct engine *e) {
+    
+    if(engine_cuda_unload_pots(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_load_pots(e) < 0)
+        return error(engine_err);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Load the potentials and cell pairs onto the CUDA device.
+ *
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+ 
+extern "C" int engine_cuda_load ( struct engine *e ) {
+
+    int i, k, nr_tasks, c1 ,c2;
+    int did, *cellsorts;
+    struct space *s = &e->s;
+    int nr_devices = e->nr_devices;
+    struct task_cuda *tasks_cuda, *tc, *ts;
+    struct task *t;
+    float cutoff = e->s.cutoff, cutoff2 = e->s.cutoff2, dscale; //, buff[ e->nr_types ];
+    cudaChannelFormatDesc channelDesc_float4 = cudaCreateChannelDesc<float4>();
+    float h[3], dim[3], *corig;
+    void *dummy[ engine_maxgpu ];
+
+    /*Split the space over the available GPUs*/
+    engine_split_gpu( e , nr_devices , engine_split_GPU  );
     
     /* Copy the cell edge lengths to the device. */
     h[0] = s->h[0]*s->span[0];
@@ -2646,40 +2764,6 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         }
     free( corig );
-    
-    /* Copy the potential indices to the device. */
-    for ( did = 0 ;did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMallocArray( &cuArray_pind[did] , &channelDesc_int , e->max_type * e->max_type , 1 ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToArray( cuArray_pind[did] , 0 , 0 , pind , sizeof(int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        }
-    
-    /* Store pind as a constant too. */
-    for ( did = 0 ;did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMalloc( &pind_cuda[did] , sizeof(unsigned int) * e->max_type * e->max_type ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMemcpy( pind_cuda[did] , pind , sizeof(unsigned int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_pind , &pind_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        }
-    free(pind);
-            
-    /* Bind the textures on the device. */
-    for ( did = 0 ;did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaBindTextureToArray( tex_coeffs , cuArray_coeffs[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaBindTextureToArray( tex_pind , cuArray_pind[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        }
-        
         
     /* Set the constant pointer to the null potential and other useful values. */
     dscale = ((float)SHRT_MAX) / ( 3.0 * sqrt( s->h[0]*s->h[0]*s->span[0]*s->span[0] + s->h[1]*s->h[1]*s->span[1]*s->span[1] + s->h[2]*s->h[2]*s->span[2]*s->span[2] ) );
@@ -2694,7 +2778,6 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_maxtype , &(e->max_type) , sizeof(int) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-	printf("%i \n", e->max_type);
         if ( cudaMemcpyToSymbol( cuda_dscale , &dscale , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_nr_cells , &(s->nr_cells) , sizeof(int) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
@@ -2868,6 +2951,9 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         }
 
+    if(engine_cuda_load_pots(e) < 0)
+        return error(engine_err);
+    
     /* Init the pair queue on the device. */
     if ( engine_cuda_queues_load( e ) < 0 )
         return error(engine_err);
@@ -2880,11 +2966,6 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
 
 __global__ void engine_parts_finalize_device() {
     if(threadIdx.x != 0 || blockIdx.x != 0) {
-        return;
-    }
-
-    if(cudaFree(cuda_pind) != cudaSuccess) {
-        printf("%s\n", "engine_parts_finalize_device failed (cuda_pind)!");
         return;
     }
 
@@ -2914,6 +2995,9 @@ __global__ void engine_parts_finalize_device() {
  */
 extern "C" int engine_parts_finalize(struct engine *e) {
 
+    if(engine_cuda_unload_pots(e) < 0)
+        return error(engine_err);
+
     for(int did = 0; did < e->nr_devices; did++) {
 
         if(cudaSetDevice(e->devices[did]) != cudaSuccess)
@@ -2922,8 +3006,7 @@ extern "C" int engine_parts_finalize(struct engine *e) {
         // Free the potentials.
 
         engine_parts_finalize_device<<<1, 1>>>();
-        
-        if(cudaFree(e->pind_cuda[did]) != cudaSuccess)
+        if(cudaPeekAtLastError() != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
         e->nrtasks_cuda[did] = 0;

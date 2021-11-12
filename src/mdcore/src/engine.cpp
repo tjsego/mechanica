@@ -1291,6 +1291,11 @@ int engine_addpot ( struct engine *e , struct MxPotential *p , int i , int j ) {
 
     if ( i != j ) pots[ j * e->max_type + i ] = p;
 
+	#if defined(HAVE_CUDA)
+	if(e->flags & engine_flag_cuda && engine_cuda_refresh_pots(e) < 0)
+		return error(engine_err);
+	#endif
+
 	/* end on a good note. */
 	return engine_err_ok;
 }

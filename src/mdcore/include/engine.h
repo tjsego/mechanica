@@ -338,7 +338,7 @@ typedef struct engine {
 	int nrpots_cuda, *pind_cuda[ engine_maxgpu ], *offsets_cuda[ engine_maxgpu ];
 	void *cuArray_coeffs[engine_maxgpu], *cuArray_pind[engine_maxgpu];
 	int nr_devices, devices[ engine_maxgpu ];
-	float *forces_cuda[ engine_maxgpu ];
+	float *forces_cuda[ engine_maxgpu ], *cutoff2_cuda[engine_maxgpu];
 	void *cuArray_parts[ engine_maxgpu ], *parts_cuda[ engine_maxgpu ];
 	void *parts_cuda_local;
 	int *cells_cuda_local[ engine_maxgpu];

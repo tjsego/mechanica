@@ -119,7 +119,7 @@ __constant__ int cuda_nrqueues;
 __constant__ int cuda_queue_size;
 
 /* Some constants. */
-__constant__ float cuda_cutoff2 = 0.0f;
+__constant__ float *cuda_cutoff2;
 __constant__ float cuda_cutoff = 0.0f;
 __constant__ float cuda_dscale = 0.0f;
 __constant__ float cuda_maxdist = 0.0f;
@@ -989,7 +989,7 @@ __device__ void runner_dopair_unsorted_cuda ( float4 *parts_i , int count_i , fl
                 dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
 
                 /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pjoff + (int)pi.w ] ) != 0 ) {
+                if ( r2 < cuda_cutoff2[ pjoff + (int)pi.w ] && ( pot = cuda_pind[ pjoff + (int)pi.w ] ) != 0 ) {
 
                     // atomicAdd( &cuda_rcount , 1 );
                 
@@ -1127,10 +1127,10 @@ __device__ void runner_dopair4_unsorted_cuda ( float4 *parts_i , int count_i , f
 
                 
             /* Get the potentials. */
-            valid.x = ( valid.x && r2.x < cuda_cutoff2 );
-            valid.y = ( valid.y && r2.y < cuda_cutoff2 );
-            valid.z = ( valid.z && r2.z < cuda_cutoff2 );
-            valid.w = ( valid.w && r2.w < cuda_cutoff2 );
+            valid.x = ( valid.x && r2.x < cuda_cutoff2[ pjoff + (int)pi[0].w ] );
+            valid.y = ( valid.y && r2.y < cuda_cutoff2[ pjoff + (int)pi[1].w ] );
+            valid.z = ( valid.z && r2.z < cuda_cutoff2[ pjoff + (int)pi[2].w ] );
+            valid.w = ( valid.w && r2.w < cuda_cutoff2[ pjoff + (int)pi[3].w ] );
             pot.x = valid.x ? cuda_pind[ pjoff + (int)pi[0].w ] : 0;
             pot.y = valid.y ? cuda_pind[ pjoff + (int)pi[1].w ] : 0;
             pot.z = valid.z ? cuda_pind[ pjoff + (int)pi[2].w ] : 0;
@@ -1347,7 +1347,7 @@ __device__ void runner_dopair_cuda ( float4 *parts_i , int count_i , float4 *par
                     
                 /* Set the null potential if anything is bad. */
 	        
-                 if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
+                 if ( r2 < cuda_cutoff2[ pioff + (int)pj.w ] && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
 
                     /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
                         threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
@@ -1465,7 +1465,7 @@ __device__  void runner_dopair_left_cuda ( float4 *parts_i , int count_i , float
                 dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
                     
                 /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
+                if ( r2 < cuda_cutoff2[ pioff + (int)pj.w ] && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
 
                     /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
                         threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
@@ -1584,7 +1584,7 @@ __device__ void runner_dopair_right_cuda ( float4 *parts_i , int count_i , float
                 dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
                     
                 /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
+                if ( r2 < cuda_cutoff2[ pioff + (int)pj.w ] && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
 
                     /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
                         threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
@@ -1682,7 +1682,7 @@ __device__ void runner_doself_cuda ( float4 *parts , int count , float *forces ,
             dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
 
             /* Set the null potential if anything is bad. */
-            if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pjoff + (int)pi.w ] ) != 0 ) {
+            if ( r2 < cuda_cutoff2[ pjoff + (int)pi.w ] && ( pot = cuda_pind[ pjoff + (int)pi.w ] ) != 0 ) {
 
                 /* Interact particles pi and pj. */
                 potential_eval_cuda_tex( pot , r2 , &ee , &eff );
@@ -2503,7 +2503,7 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
     int nr_devices = e->nr_devices;
     struct MxPotential **pots = (MxPotential**)malloc(sizeof(MxPotential*) * e->nr_types * (e->nr_types + 1) / 2 + 1);
     float *finger, *coeffs_cuda;
-    float cutoff = e->s.cutoff, cutoff2 = e->s.cutoff2;
+    float cutoff = e->s.cutoff, *cutoff2 = (float*)malloc(sizeof(float) * e->max_type * e->max_type);
     cudaChannelFormatDesc channelDesc_int = cudaCreateChannelDesc<int>();
     cudaChannelFormatDesc channelDesc_float4 = cudaCreateChannelDesc<float4>();
 
@@ -2555,10 +2555,12 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
     for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
         if ( e->p[i] == NULL ) {
             pind[i] = 0;
+            cutoff2[i] = e->s.cutoff2;
             }
         else {
             for ( j = 0 ; j < nr_pots && pots[j] != e->p[i] ; j++ );
             pind[i] = j;
+            cutoff2[i] = min(e->s.cutoff2, e->p[i]->b * e->p[i]->b);
             }
         }
         
@@ -2610,6 +2612,19 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
             return cuda_error(engine_err_cuda);
     }
     free(pind);
+
+    // Store the cutoffs
+    for (did = 0; did < nr_devices; did++) {
+        if (cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if ( cudaMalloc(&e->cutoff2_cuda[did], sizeof(float) * e->max_type * e->max_type) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpy(e->cutoff2_cuda[did], cutoff2, sizeof(float) * e->max_type * e->max_type, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpyToSymbol(cuda_cutoff2, &e->cutoff2_cuda[did], sizeof(void*), 0, cudaMemcpyHostToDevice ) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+    free(cutoff2);
             
     /* Bind the textures on the device. */
     for ( did = 0 ; did < nr_devices ; did++ ) {
@@ -2622,17 +2637,6 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
     }
 
     return engine_err_ok;
-}
-
-__global__ void engine_pots_finalize_device() {
-    if(threadIdx.x != 0 || blockIdx.x != 0) {
-        return;
-    }
-
-    if(cudaFree(cuda_pind) != cudaSuccess) {
-        printf("%s\n", "engine_parts_finalize_device failed (cuda_pind)!");
-        return;
-    }
 }
 
 /**
@@ -2664,12 +2668,11 @@ extern "C" int engine_cuda_unload_pots(struct engine *e) {
 
         if(cudaFreeArray((cudaArray*)e->cuArray_pind[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-
-        engine_pots_finalize_device<<<1, 1>>>();
-        if(cudaPeekAtLastError() != cudaSuccess)
-            return cuda_error(engine_err_cuda);
         
         if(cudaFree(e->pind_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        
+        if(cudaFree(e->cutoff2_cuda[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
     }
@@ -2723,7 +2726,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
     int nr_devices = e->nr_devices;
     struct task_cuda *tasks_cuda, *tc, *ts;
     struct task *t;
-    float cutoff = e->s.cutoff, cutoff2 = e->s.cutoff2, dscale; //, buff[ e->nr_types ];
+    float cutoff = e->s.cutoff, dscale; //, buff[ e->nr_types ];
     cudaChannelFormatDesc channelDesc_float4 = cudaCreateChannelDesc<float4>();
     float h[3], dim[3], *corig;
     void *dummy[ engine_maxgpu ];
@@ -2769,8 +2772,6 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
     dscale = ((float)SHRT_MAX) / ( 3.0 * sqrt( s->h[0]*s->h[0]*s->span[0]*s->span[0] + s->h[1]*s->h[1]*s->span[1]*s->span[1] + s->h[2]*s->h[2]*s->span[2]*s->span[2] ) );
     for ( did = 0 ;did < nr_devices ; did++ ) {
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_cutoff2 , &cutoff2 , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_cutoff , &cutoff , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
@@ -2964,28 +2965,6 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
     }
 
 
-__global__ void engine_parts_finalize_device() {
-    if(threadIdx.x != 0 || blockIdx.x != 0) {
-        return;
-    }
-
-    if(cudaFree(cuda_corig) != cudaSuccess) {
-        printf("%s\n", "engine_parts_finalize_device failed (cuda_corig)!");
-        return;
-    }
-
-    if(cudaFree(cuda_tasks) != cudaSuccess) {
-        printf("%s\n", "engine_parts_finalize_device failed (cuda_tasks)!");
-        return;
-    }
-    
-    if(cudaFree(cuda_taboo) != cudaSuccess) {
-        printf("%s\n", "engine_parts_finalize_device failed (cuda_taboo)!");
-        return;
-    }
-}
-
-
 /**
  * @brief Removes the potentials and cell pairs on the CUDA device.
  *
@@ -3004,10 +2983,6 @@ extern "C" int engine_parts_finalize(struct engine *e) {
             return cuda_error(engine_err_cuda);
 
         // Free the potentials.
-
-        engine_parts_finalize_device<<<1, 1>>>();
-        if(cudaPeekAtLastError() != cudaSuccess)
-            return cuda_error(engine_err_cuda);
 
         e->nrtasks_cuda[did] = 0;
 

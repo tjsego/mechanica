@@ -16,11 +16,24 @@
 
 #include <utility>
 
+// TODO: document interface of MxBind
+
 
 struct CAPI_EXPORT MxBind {
 
     static HRESULT particles(MxPotential *p, MxParticle *a, MxParticle *b);
 
+    /**
+     * @brief Bind a potential to a pair of particle types. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param p The potential
+     * @param a The first type
+     * @param b The second type
+     * @param bound Flag signifying whether this potential exclusively operates on particles of different clusters, optional
+     * @return HRESULT 
+     */
     static HRESULT types(MxPotential *p, MxParticleType *a, MxParticleType *b, bool bound=false);
 
     static HRESULT cuboid(MxPotential *p, MxParticleType *t);

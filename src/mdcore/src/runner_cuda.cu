@@ -3031,3 +3031,33 @@ extern "C" int engine_cuda_finalize ( struct engine *e ) {
 
     return engine_err_ok;
 }
+
+/**
+ * @brief Refresh the engine image on the CUDA device. 
+ * 
+ * Can be safely called while on the CUDA device to reload all data from the engine. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err)
+ */
+extern "C" int engine_cuda_refresh(struct engine *e) {
+    
+    if(engine_cuda_finalize(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_load(e) < 0)
+        return error(engine_err);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}

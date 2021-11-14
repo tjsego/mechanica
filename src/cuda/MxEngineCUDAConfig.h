@@ -113,6 +113,20 @@ struct CAPI_EXPORT MxEngineCUDAConfig {
      */
     HRESULT refreshPotentials();
 
+    /**
+     * @brief Update the image of the engine on a CUDA device. 
+     * 
+     * Necessary to notify the device of changes to engine data that 
+     * are not automatically handled by Mechanica. Refer to documentation 
+     * of specific functions and members for which Mechanica 
+     * automatically handles. 
+     * 
+     * If engine is not on a device, then the call is ignored. 
+     * 
+     * @return HRESULT 
+     */
+    HRESULT refresh();
+
 private:
     bool on_device;
 };

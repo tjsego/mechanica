@@ -698,6 +698,7 @@ CAPI_FUNC(int) engine_cuda_unload_pots ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_refresh_pots ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_queues_finalize ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_finalize ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_refresh ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_setthreads(struct engine *e, int id, int nr_threads);
 CAPI_FUNC(int) engine_cuda_setblocks(struct engine *e, int id, int nr_blocks);
 CAPI_FUNC(int) engine_cuda_setdevice ( struct engine *e , int id );

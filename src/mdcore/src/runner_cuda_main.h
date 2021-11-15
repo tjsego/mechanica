@@ -41,25 +41,10 @@ int k, threadID;
     __shared__ unsigned int dshift;
   //  struct queue_cuda *myq /*, *queues[ cuda_maxqueues ]*/;
 //    unsigned int seed = 6178 + blockIdx.x;
-    #ifdef FORCES_LOCAL
-        __shared__ __align__(16) int buff[ 8*cuda_nparts ];
-        float *forces_i = (float *)&buff[ 0 ];
-        float *forces_j = (float *)&buff[ 3*cuda_nparts ];
-        unsigned int *sort_i = (unsigned int *)&buff[ 6*cuda_nparts ];
-        unsigned int *sort_j = (unsigned int *)&buff[ 7*cuda_nparts ];
-    #else
-        float *forces_i, *forces_j;
-        __shared__ unsigned int sort_i[ cuda_nparts ];
-        __shared__ unsigned int sort_j[ cuda_nparts ];
-    #endif
-    #if !defined(PARTS_TEX)
-        #ifdef PARTS_LOCAL
-            float4 *parts_i;
-            __shared__ float4 parts_j[ cuda_nparts ];
-        #else
-            float4 *parts_i, *parts_j;
-        #endif
-    #endif
+    float *forces_i, *forces_j;
+    __shared__ unsigned int sort_i[ cuda_nparts ];
+    __shared__ unsigned int sort_j[ cuda_nparts ];
+    MxParticleCUDA *parts_i, *parts_j;
 
 	TIMER_TIC2
     
@@ -123,67 +108,34 @@ int k, threadID;
                 cuda_memcpy( sort_j , &cuda_sortlists[ 13*ind[cjd] + counts[cjd]*cuda_tasks[tid].flags ] , sizeof(int)*counts[cjd] );
                 __syncthreads();
                 /* Copy the particle data into the local buffers. */
-                #ifndef PARTS_TEX
-                    #ifdef PARTS_LOCAL
-                        parts_i = &cuda_parts[ ind[cid] ];
-                        cuda_memcpy( parts_j , &cuda_parts[ ind[cjd] ] , sizeof(float4) * counts[cjd] );
-                        // __threadfence_block();
-                    #else
-                        parts_i = &cuda_parts[ ind[cid] ];
-                        parts_j = &cuda_parts[ ind[cjd] ];
-                    #endif
-                #endif
+                parts_i = &cuda_parts[ ind[cid] ];
+                parts_j = &cuda_parts[ ind[cjd] ];
                 
                 /*Set to left interaction*/
                 /* Compute the cell pair interactions. */
-                #ifdef PARTS_TEX
-                    runner_dopair_left_cuda(
-                        cid , counts[cid] ,
-                        cjd , counts[cjd] ,
-                        forces_i , forces_j , 
-                        sort_i , sort_j ,
-                        shift , dshift ,
-                        &epot );
-                #else
-                    runner_dopair_left_cuda(
-                        parts_i , counts[cid] ,
-                        parts_j , counts[cjd] ,
-                        forces_i , forces_j , 
-                        sort_i , sort_j ,
-                        shift , dshift ,
-                        &epot );
-                #endif
+                runner_dopair_left_cuda(
+                    parts_i , counts[cid] ,
+                    parts_j , counts[cjd] ,
+                    forces_i , forces_j , 
+                    sort_i , sort_j ,
+                    shift , dshift ,
+                    &epot 
+                );
+
                 /* Copy the particle data into the local buffers. */
-                #ifndef PARTS_TEX
-                    #ifdef PARTS_LOCAL
-                        parts_i = &cuda_parts[ ind[cid] ];
-                        cuda_memcpy( parts_j , &cuda_parts[ ind[cjd] ] , sizeof(float4) * counts[cjd] );
-                        // __threadfence_block();
-                    #else
-                        parts_i = &cuda_parts[ ind[cjd] ];
-                        parts_j = &cuda_parts[ ind[cid] ];
-                    #endif
-                #endif
+                parts_i = &cuda_parts[ ind[cjd] ];
+                parts_j = &cuda_parts[ ind[cid] ];
                 
                 /*Set to right interaction*/
                 /* Compute the cell pair interactions. */
-                #ifdef PARTS_TEX
-                    runner_dopair_right_cuda(
-                        cid , counts[cid] ,
-                        cjd , counts[cjd] ,
-                        forces_i , forces_j , 
-                        sort_i , sort_j ,
-                        shift , dshift ,
-                        &epot );
-                #else
-                    runner_dopair_right_cuda(
-                        parts_i , counts[cjd] ,
-                        parts_j , counts[cid] ,
-                        forces_j , forces_i , 
-                        sort_j , sort_i ,
-                        shift , dshift ,
-                        &epot );
-                #endif
+                runner_dopair_right_cuda(
+                    parts_i , counts[cjd] ,
+                    parts_j , counts[cid] ,
+                    forces_j , forces_i , 
+                    sort_j , sort_i ,
+                    shift , dshift ,
+                    &epot
+                );
 
 		#ifdef TASK_TIMERS
 	    if(threadID==0)
@@ -207,20 +159,10 @@ int k, threadID;
                 forces_i = &forces[ 3*ind[cid] ];
                 
                 /* Copy the particle data into the local buffers. */
-                #ifndef PARTS_TEX
-                    #ifdef PARTS_LOCAL
-                        cuda_memcpy( parts_j , &cuda_parts[ ind[cid] ] , sizeof(float4) * counts[cid] );
-                    #else
-                        parts_j = &cuda_parts[ ind[cid] ];
-                    #endif
-                #endif
+                parts_j = &cuda_parts[ ind[cid] ];
                 
                 /* Compute the cell self interactions. */
-                #ifdef PARTS_TEX
-                    runner_doself_cuda( cid , counts[cid] , forces_i , &epot );
-                #else
-                    runner_doself_cuda( parts_j , counts[cid] , forces_i , &epot );
-                #endif
+                runner_doself_cuda( parts_j , counts[cid] , forces_i , &epot );
 
 		#ifdef TASK_TIMERS
 	    if(threadID==0)
@@ -242,16 +184,7 @@ int k, threadID;
             cid = cuda_tasks[tid].i;
             
             /* Copy the particle data into the local buffers. */
-            #ifndef PARTS_TEX
-                #ifdef PARTS_LOCAL
-                    cuda_memcpy( parts_j , &cuda_parts[ ind[cid] ] , sizeof(float4) * counts[cid] );
-                #elif defined(FORCES_LOCAL)
-                    parts_j = (float4 *)forces_i;
-                    cuda_memcpy( parts_j , &cuda_parts[ ind[cid] ] , sizeof(float4) * counts[cid] );
-                #else
-                    parts_j = &cuda_parts[ ind[cid] ];
-                #endif
-            #endif
+            parts_j = &cuda_parts[ ind[cid] ];
             
             /* Loop over the different sort IDs. */
             if( cuda_tasks[tid].flags != 0 )
@@ -262,11 +195,7 @@ int k, threadID;
                     continue;
                     
                 /* Call the sorting function with the buffer. */
-                #ifdef PARTS_TEX
-                    runner_dosort_cuda( cid , counts[cid] , sort_i , sid );
-                #else
-                    runner_dosort_cuda( parts_j , counts[cid] , sort_i , sid );
-                #endif
+                runner_dosort_cuda( parts_j , counts[cid] , sort_i , sid );
                 __syncthreads();
                 /* Copy the local shared memory back to the global memory. */
                 

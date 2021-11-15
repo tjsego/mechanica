@@ -32,9 +32,6 @@
 
 /* Some flags that control optional behaviour */
 // #define TIMERS
-// #define PARTS_TEX
-// #define PARTS_LOCAL
-// #define FORCES_LOCAL
 
 
 /** Timers for the cuda parts. */

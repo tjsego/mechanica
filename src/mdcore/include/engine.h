@@ -335,11 +335,11 @@ typedef struct engine {
 	/** Pointers to device data for CUDA. */
 #ifdef HAVE_CUDA
 	void *sortlists_cuda[ engine_maxgpu ];
-	int nrpots_cuda, *pind_cuda[ engine_maxgpu ], *offsets_cuda[ engine_maxgpu ];
-	void *cuArray_coeffs[engine_maxgpu], *cuArray_pind[engine_maxgpu];
+	int nr_pots_cuda, *pind_cuda[ engine_maxgpu ], *offsets_cuda[ engine_maxgpu ];
 	int nr_devices, devices[ engine_maxgpu ];
-	float *forces_cuda[ engine_maxgpu ], *cutoff2_cuda[engine_maxgpu];
-	void *cuArray_parts[ engine_maxgpu ], *parts_cuda[ engine_maxgpu ];
+	float *forces_cuda[ engine_maxgpu ];
+	void *parts_cuda[ engine_maxgpu ];
+	void **pots_cuda[engine_maxgpu];
 	void *parts_cuda_local;
 	int *cells_cuda_local[ engine_maxgpu];
 	int cells_cuda_nr[ engine_maxgpu ];
@@ -695,6 +695,8 @@ CAPI_FUNC(int) engine_cuda_load_parts ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_unload_parts ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_load_pots ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_unload_pots ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_refresh_particles ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_update_nr_parts(struct engine *e);
 CAPI_FUNC(int) engine_cuda_refresh_pots ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_queues_finalize ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_finalize ( struct engine *e );

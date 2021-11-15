@@ -88,6 +88,7 @@ __constant__ int cuda_nr_cells = 0;
 /* The parts (non-texture access). */
 __constant__ float4 *cuda_parts;
 __constant__ int cuda_nr_parts;
+__constant__ int cuda_size_parts;
 
 /* Diagonal entries and potential index lookup table. */
 __constant__ unsigned int *cuda_pind;
@@ -2711,6 +2712,121 @@ extern "C" int engine_cuda_refresh_pots(struct engine *e) {
 }
 
 /**
+ * @brief Sets the number of particles on all current CUDA devices. 
+ * 
+ * @param nr_parts The current number of particles
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_update_nr_parts(struct engine *e) {
+
+    /* Allocate the particle and force data. */
+    for(int did = 0; did < e->nr_devices; did++) {
+        if (cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if (cudaMemcpyToSymbol(cuda_nr_parts, &e->s.nr_parts, sizeof(int), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+
+    return engine_err_ok;
+
+}
+
+/**
+ * @brief Allocates particle buffers. Must be called before running on a CUDA device. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+int engine_cuda_allocate_particles(struct engine *e) {
+
+    /* Allocate the particle buffer. */
+    if((e->parts_cuda_local = (float4*)malloc(sizeof(float4) * e->s.size_parts)) == NULL)
+        return error(engine_err_malloc);
+
+    /* Allocate the particle and force data. */
+    for(int did = 0; did < e->nr_devices; did++) {
+        if (cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if (cudaMemcpyToSymbol(cuda_nr_parts, &e->s.nr_parts, sizeof(int), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if (cudaMemcpyToSymbol(cuda_size_parts, &e->s.size_parts, sizeof(int), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if (cudaMalloc(&e->parts_cuda[did], sizeof(float4) * e->s.size_parts) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if (cudaMemcpyToSymbol(cuda_parts, &e->parts_cuda[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if (cudaMalloc(&e->forces_cuda[did], sizeof(float) * 3 * e->s.size_parts) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+
+    return engine_err_ok;
+}
+
+
+/**
+ * @brief Closes particle buffers. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+int engine_cuda_finalize_particles(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        // Free the particle and force data
+
+        if(cudaFree(e->parts_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaFree(e->forces_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    // Free the particle buffer
+
+    free(e->parts_cuda_local);
+
+    return engine_err_ok;
+}
+
+
+/**
+ * @brief Refreshes particle buffers. Can be safely used to resize buffers while running on CUDA device. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_refresh_particles(struct engine *e) {
+    
+    if(engine_cuda_finalize_particles(e) < 0)
+        return cuda_error(engine_err_cuda);
+
+    if(engine_cuda_allocate_particles(e) < 0)
+        return cuda_error(engine_err_cuda);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+
+/**
  * @brief Load the potentials and cell pairs onto the CUDA device.
  *
  * @param e The #engine.
@@ -2918,39 +3034,8 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         }
         
-    /* Allocate the particle buffer. */
-    #ifdef PARTS_TEX
-        if ( ( e->parts_cuda_local = (float4 *)malloc( sizeof( float4 ) * s->nr_cells * 512 ) ) == NULL )
-            return error(engine_err_malloc);
-    #else
-        if ( ( e->parts_cuda_local = (float4 *)malloc( sizeof( float4 ) * s->nr_parts ) ) == NULL )
-            return error(engine_err_malloc);
-    #endif
-
-    /* Allocate the particle and force data. */
-    for ( did = 0 ;did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_nr_parts , &s->nr_parts , sizeof(int) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        #ifdef PARTS_TEX
-            tex_parts.addressMode[0] = cudaAddressModeClamp;
-            tex_parts.addressMode[1] = cudaAddressModeClamp;
-            tex_parts.filterMode = cudaFilterModePoint;
-            tex_parts.normalized = false;
-            if ( cudaMallocArray( (cudaArray **)&e->cuArray_parts[did] , &channelDesc_float4 , 512 , s->nr_cells ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-            if ( cudaBindTextureToArray( tex_parts , (cudaArray *)e->cuArray_parts[did] ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-        #else
-            if ( cudaMalloc( &e->parts_cuda[did] , sizeof( float4 ) * s->nr_parts ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-            if ( cudaMemcpyToSymbol( cuda_parts , &e->parts_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-        #endif
-        if ( cudaMalloc( &e->forces_cuda[did] , sizeof( float ) * 3 * s->nr_parts ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        }
+    if(engine_cuda_allocate_particles(e) < 0)
+        return error(engine_err);
 
     if(engine_cuda_load_pots(e) < 0)
         return error(engine_err);
@@ -2977,12 +3062,13 @@ extern "C" int engine_parts_finalize(struct engine *e) {
     if(engine_cuda_unload_pots(e) < 0)
         return error(engine_err);
 
+    if(engine_cuda_finalize_particles(e) < 0)
+        return error(engine_err);
+
     for(int did = 0; did < e->nr_devices; did++) {
 
         if(cudaSetDevice(e->devices[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-
-        // Free the potentials.
 
         e->nrtasks_cuda[did] = 0;
 
@@ -2997,19 +3083,7 @@ extern "C" int engine_parts_finalize(struct engine *e) {
         if(cudaFree(e->ind_cuda[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
-        // Free the particle and force data
-
-        if(cudaFree(e->parts_cuda[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-
-        if(cudaFree(e->forces_cuda[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-
     }
-
-    // Free the particle buffer
-
-    free(e->parts_cuda_local);
 
     return engine_err_ok;
 }

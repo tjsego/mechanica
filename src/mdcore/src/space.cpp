@@ -420,10 +420,19 @@ int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct M
         free( s->celllist );
         s->partlist = temp;
         s->celllist = tempc;
+
+        #if defined(HAVE_CUDA)
+            if(_Engine.flags & engine_flag_cuda && engine_cuda_refresh_particles(&_Engine) < 0)
+                return error(space_err_malloc);
+        #endif
     }
 
     /* Increase the number of parts. */
     s->nr_parts++;
+    #if defined(HAVE_CUDA)
+        if(_Engine.flags & engine_flag_cuda && engine_cuda_update_nr_parts(&_Engine) < 0)
+            return error(space_err_malloc);
+    #endif
     
     if(p->id < 0 || p->id >= s->nr_parts) {
         return error(space_err_invalid_partid);

@@ -540,7 +540,9 @@ struct MxParticleType {
     bool isCluster();
 
     /**
-     * @brief Particle constructor
+     * @brief Particle constructor. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param position position of new particle, optional
      * @param velocity velocity of new particle, optional

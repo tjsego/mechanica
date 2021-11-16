@@ -274,7 +274,7 @@ MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
         result = true;
     }
     else if(pot->kind == POTENTIAL_KIND_COMBINATION) {
-        if(pot->flags | POTENTIAL_SUM) {
+        if(pot->flags & POTENTIAL_SUM) {
             potential_eval_super_ex(cell, pot->pca, part_i, part_j, _dx, _r2, num_dens, epot);
             potential_eval_super_ex(cell, pot->pcb, part_i, part_j, _dx, _r2, num_dens, epot);
             result = true;

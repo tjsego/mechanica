@@ -99,8 +99,8 @@ int k, threadID;
             
             
             /* Put a finger on the forces. */
-                forces_i = &forces[ 3*ind[cid] ];
-                forces_j = &forces[ 3*ind[cjd] ];
+                forces_i = &forces[ 4*ind[cid] ];
+                forces_j = &forces[ 4*ind[cjd] ];
                 
                 /* Load the sorted indices. */
 
@@ -156,7 +156,7 @@ int k, threadID;
             cid = cuda_tasks[tid].i;
             
                 /* Put a finger on the forces. */
-                forces_i = &forces[ 3*ind[cid] ];
+                forces_i = &forces[ 4*ind[cid] ];
                 
                 /* Copy the particle data into the local buffers. */
                 parts_j = &cuda_parts[ ind[cid] ];

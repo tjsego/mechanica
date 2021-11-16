@@ -127,6 +127,25 @@ struct CAPI_EXPORT MxEngineCUDAConfig {
      */
     HRESULT refresh();
 
+    /**
+     * @brief Set the seed for the random number generator on a CUDA device. 
+     * 
+     * The seed is uniformly applied to all devices. 
+     * Resets all random number generators. 
+     * Can be used when on or off a CUDA device. 
+     * 
+     * @param seed The seed. 
+     * @return HRESULT 
+     */
+    HRESULT setSeed(const unsigned int seed);
+
+    /**
+     * @brief Get the seed for the random number generator on a CUDA device. 
+     * 
+     * @return unsigned int 
+     */
+    unsigned int getSeed();
+
 private:
     bool on_device;
 };

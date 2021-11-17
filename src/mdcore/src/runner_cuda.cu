@@ -1216,9 +1216,6 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
     
     /* Get the wraps. */
     wrap_i = (count_i < cuda_frame) ? cuda_frame : count_i;
-    
-    /* Make sure everybody is in the same place. */
-    // __threadfence_block();
 
     /* Loop over the particles in cell_j, frame-wise. */
     for ( pjd = threadID ; pjd < count_j ; pjd += cuda_frame ) {
@@ -1236,6 +1233,7 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
             /* Wrap the particle index correctly. */
             if ( ( pid = ind + threadID ) >= wrap_i )
                 pid -= wrap_i;
+            
             if ( pid < count_i ) {
             
                 /* Get a handle on the wrapped particle pid in cell_i. */
@@ -1246,48 +1244,42 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
                 dx[0] = pi.x.x - pjx.x; r2 += dx[0]*dx[0];
                 dx[1] = pi.x.y - pjx.y; r2 += dx[1]*dx[1];
                 dx[2] = pi.x.z - pjx.z; r2 += dx[2]*dx[2];
-                pind = cuda_pind[pjoff + pi.typeId];
 
-                if(pind == 0) {
+                if ( r2 >= cuda_cutoff2 ) {
                     continue;
                 }
 
-                /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 ) {
+                w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
-                    // atomicAdd( &cuda_rcount , 1 );
-                    w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
-                
-                    /* Interact particles pi and pj. */
-                    potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, &forces_i[4*pid], pjf, &eval_result);
+                pind = cuda_pind[pjoff + pi.typeId];
+                if(pind == 0) {
+                    forces_i[4*pid + 3] += number_density;
+                    pjf[3] += number_density;
+                    continue;
+                }
+            
+                /* Interact particles pi and pj. */
+                potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, &forces_i[4*pid], pjf, &eval_result);
 
-                    /* Store the interaction force and energy. */
-                    epot += ee;
+                /* Store the interaction force and energy. */
+                epot += ee;
 
-                    /* Sync the shared memory values. */
-                    // __threadfence_block();
-                
-                    } /* in range and potential. */
-
-                } /* valid pid? */
+            } /* valid pid? */
         
-            } /* loop over parts in cell_i. */
+        } /* loop over parts in cell_i. */
             
         /* Update the force on pj. */
         for ( k = 0 ; k < 4 ; k++ )
             forces_j[ 4*pjd + k ] += pjf[k];
-
-        /* Sync the shared memory values. */
-        // __threadfence_block();
             
-        } /* loop over the particles in cell_j. */
+    } /* loop over the particles in cell_j. */
         
     /* Store the potential energy. */
     *epot_global += epot;
         
     TIMER_TOC(tid_pair)
         
-    }
+}
 
 
 /**
@@ -1323,9 +1315,6 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
     
     /* Get the wraps. */
     wrap_i = (count_i < cuda_frame) ? cuda_frame : count_i;
-    
-    /* Make sure everybody is in the same place. */
-    // __threadfence_block();
 
     /* Loop over the particles in cell_j, frame-wise. */
     for ( pjd = threadID ; pjd < count_j ; pjd += cuda_frame ) {
@@ -1372,7 +1361,6 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
             dx[10] = pjx.y - pi[3].x.y; r2.w += dx[10] * dx[10];
             dx[11] = pjx.z - pi[3].x.z; r2.w += dx[11] * dx[11];
 
-                
             /* Get the potentials. */
             valid.x = ( valid.x && r2.x < cuda_cutoff2 );
             valid.y = ( valid.y && r2.y < cuda_cutoff2 );
@@ -1383,58 +1371,66 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
             pot.z = valid.z ? cuda_pind[ pjoff + pi[2].typeId ] : 0;
             pot.w = valid.w ? cuda_pind[ pjoff + pi[3].typeId ] : 0;
             
-            /* if ( pot.x != 0 )
-                atomicAdd( &cuda_rcount , 1 );
-            if ( pot.y != 0 )
-                atomicAdd( &cuda_rcount , 1 );
-            if ( pot.z != 0 )
-                atomicAdd( &cuda_rcount , 1 );
-            if ( pot.w != 0 )
-                atomicAdd( &cuda_rcount , 1 ); */
-            
             /* Update the forces. */
             if ( valid.x ) {
                 w_cubic_spline_cuda(r2.x, cuda_cutoff, &number_density.x);
-                potential_eval_super_ex_cuda(cuda_pots[pot.x], pi[0], pj, &dx[0], r2.x, number_density.x, &ee.x, pjf, &forces_i[4*pid.x], &eval_result);
-                epot += ee.x;
+                if(pot.x == 0) {
+                    pjf[3] += number_density.x;
+                    forces_i[4*pid.x + 3] += number_density.x;
                 }
-            // __threadfence_block();
+                else {
+                    potential_eval_super_ex_cuda(cuda_pots[pot.x], pi[0], pj, &dx[0], r2.x, number_density.x, &ee.x, pjf, &forces_i[4*pid.x], &eval_result);
+                    epot += ee.x;
+                }
+            }
             if ( valid.y ) {
                 w_cubic_spline_cuda(r2.y, cuda_cutoff, &number_density.y);
-                potential_eval_super_ex_cuda(cuda_pots[pot.y], pi[1], pj, &dx[3], r2.y, number_density.y, &ee.y, pjf, &forces_i[4*pid.y], &eval_result);
-                epot += ee.y;
+                if(pot.y == 0) {
+                    pjf[3] += number_density.y;
+                    forces_i[4*pid.y + 3] += number_density.y;
                 }
-            // __threadfence_block();
+                else {
+                    potential_eval_super_ex_cuda(cuda_pots[pot.y], pi[1], pj, &dx[3], r2.y, number_density.y, &ee.y, pjf, &forces_i[4*pid.y], &eval_result);
+                    epot += ee.y;
+                }
+            }
             if ( valid.z ) {
                 w_cubic_spline_cuda(r2.z, cuda_cutoff, &number_density.z);
-                potential_eval_super_ex_cuda(cuda_pots[pot.z], pi[2], pj, &dx[6], r2.z, number_density.z, &ee.z, pjf, &forces_i[4*pid.z], &eval_result);
-                epot += ee.z;
+                if(pot.z == 0) {
+                    pjf[3] += number_density.z;
+                    forces_i[4*pid.z + 3] += number_density.z;
                 }
-            // __threadfence_block();
+                else {
+                    potential_eval_super_ex_cuda(cuda_pots[pot.z], pi[2], pj, &dx[6], r2.z, number_density.z, &ee.z, pjf, &forces_i[4*pid.z], &eval_result);
+                    epot += ee.z;
+                }
+            }
             if ( valid.w ) {
                 w_cubic_spline_cuda(r2.w, cuda_cutoff, &number_density.w);
-                potential_eval_super_ex_cuda(cuda_pots[pot.w], pi[3], pj, &dx[9], r2.w, number_density.w, &ee.w, pjf, &forces_i[4*pid.w], &eval_result);
-                epot += ee.w;
+                if(pot.w == 0) {
+                    pjf[3] += number_density.w;
+                    forces_i[4*pid.w + 3] += number_density.w;
                 }
-            // __threadfence_block();
+                else {
+                    potential_eval_super_ex_cuda(cuda_pots[pot.w], pi[3], pj, &dx[9], r2.w, number_density.w, &ee.w, pjf, &forces_i[4*pid.w], &eval_result);
+                    epot += ee.w;
+                }
+            }
         
-            } /* loop over parts in cell_i. */
+        } /* loop over parts in cell_i. */
 
         /* Update the force on pj. */
         for ( k = 0 ; k < 4 ; k++ )
             forces_j[ 4*pjd + k ] += pjf[k];
-
-        /* Sync the shared memory values. */
-        // __threadfence_block();
             
-        } /* loop over the particles in cell_j. */
+    } /* loop over the particles in cell_j. */
         
     /* Store the potential energy. */
     *epot_global += epot;
         
     TIMER_TOC(tid_pair)
         
-    }
+}
 
 
 /**
@@ -1519,7 +1515,6 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
     
     /* Pre-compute the inverse norm of the shift. */
     dmaxdist = 2 + cuda_dscale * cuda_maxdist;
-       
 
     /* Loop over the particles in cell_j, frame-wise. */
     cj = count_j;
@@ -1563,52 +1558,42 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
                 dx[0] = pix.x - pj.x.x; r2 += dx[0]*dx[0];
                 dx[1] = pix.y - pj.x.y; r2 += dx[1]*dx[1];
                 dx[2] = pix.z - pj.x.z; r2 += dx[2]*dx[2];
-                pind = cuda_pind[pioff + pj.typeId];
-
-                if(pind == 0) {
+                
+                if ( r2 >= cuda_cutoff2 ) {
                     continue;
                 }
-                    
-                /* Set the null potential if anything is bad. */
-	        
-                 if ( r2 < cuda_cutoff2 ) {
 
-                    /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
-                        threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
+                w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
-                    // atomicAdd( &cuda_pairs_done , 1 );
-                    w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
-                    
-                    /* Interact particles pi and pj. */
-                    potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, &forces_j[4*spjd], &eval_result);
-
-                    /* Store the interaction energy. */
-                    epot += ee;
-
-                    /* Sync the shared memory values. */
-                    // __threadfence_block();
+                pind = cuda_pind[pioff + pj.typeId];
+                if(pind == 0) {
+                    pif[3] += number_density;
+                    forces_j[4*spjd + 3] += number_density;
+                    continue;
+                }
                 
-                     } /* in range and potential. */
+                /* Interact particles pi and pj. */
+                potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, &forces_j[4*spjd], &eval_result);
 
-                } /* do we have a pair? */
+                /* Store the interaction energy. */
+                epot += ee;
+
+            } /* do we have a pair? */
         
-            } /* loop over parts in cell_i. */
+        } /* loop over parts in cell_i. */
             
         /* Update the force on pj. */
         for ( k = 0 ; k < 4 ; k++ )
             forces_i[ 4*spid + k ] += pif[k];
-    
-        /* Sync the shared memory values. */
-        // __threadfence_block();
         
-        } /* loop over the particles in cell_j. */
+    } /* loop over the particles in cell_j. */
         
     /* Store the potential energy. */
     *epot_global += epot;
         
     TIMER_TOC(tid_pair)
     
-    }
+}
 
 
 /**
@@ -1645,14 +1630,10 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , int count_i
     
     /* Pre-compute the inverse norm of the shift. */
     dmaxdist = 2 + cuda_dscale * cuda_maxdist;
-
-	/* nr_threads >= count_i */
     
     for ( i = threadID ; i < count_i ;  i += blockDim.x  ) {
-    /*cj = count_j-1;
-    while ( cj > 0 && ( sort_j[cj] & 0xffff ) + dshift  <= dmaxdist +( sort_i[threadID] & 0xffff ) )
-            cj -= 1;*/
-    di= sort_i[i]&0xffff;      
+
+        di = sort_i[i]&0xffff;
         /* Get a direct pointer on the pjdth part in cell_j. */
         spid = sort_i[i] >> 16;
         pi = parts_i[ spid ];
@@ -1663,60 +1644,49 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , int count_i
         /* Loop over the particles in cell_j. */
         for ( pjd = count_j-1 ; pjd >=0 && (sort_j[pjd]&0xffff)+dshift<=dmaxdist+di ; pjd-- ) {
                  
-                /* Get a handle on the wrapped particle pid in cell_i. */
+            /* Get a handle on the wrapped particle pid in cell_i. */
 
-                spjd = sort_j[pjd] >> 16;
-                pj = parts_j[ spjd ];
+            spjd = sort_j[pjd] >> 16;
+            pj = parts_j[ spjd ];
 
-                /* Compute the radius between pi and pj. */
-                r2 = 0.0f;
-                dx[0] = pix.x - pj.x.x; r2 += dx[0]*dx[0];
-                dx[1] = pix.y - pj.x.y; r2 += dx[1]*dx[1];
-                dx[2] = pix.z - pj.x.z; r2 += dx[2]*dx[2];
+            /* Compute the radius between pi and pj. */
+            r2 = 0.0f;
+            dx[0] = pix.x - pj.x.x; r2 += dx[0]*dx[0];
+            dx[1] = pix.y - pj.x.y; r2 += dx[1]*dx[1];
+            dx[2] = pix.z - pj.x.z; r2 += dx[2]*dx[2];
 
-                pind = cuda_pind[ pioff + pj.typeId ];
-                if(pind == 0) {
-                    continue;
-                }
-                    
-                /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 ) {
+            if ( r2 >= cuda_cutoff2 ) {
+                continue;
+            }
 
-                    /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
-                        threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
+            w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
-                    // atomicAdd( &cuda_pairs_done , 1 );
-                    w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
-                    
-                    /* Interact particles pi and pj. */
-                    potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
+            pind = cuda_pind[ pioff + pj.typeId ];
+            if(pind == 0) {
+                pif[3] += number_density;
+                continue;
+            }
+            
+            /* Interact particles pi and pj. */
+            potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
 
-                    /* Store the interaction energy. */
-                    epot += ee;
+            /* Store the interaction energy. */
+            epot += ee;
 
-                    /* Sync the shared memory values. */
-                    // __threadfence_block();
-                
-                    } /* in range and potential. */
-
-            } /* loop over parts in cell_i. */
+        } /* loop over parts in cell_i. */
             
         /* Update the force on pj. */
         for ( k = 0 ; k < 4 ; k++ )
         	atomicAdd( &forces_i[ 4*spid + k], pif[k] );
-            //forces_i[ 3*spid + k ] += pif[k];
-    	
-        /* Sync the shared memory values. */
-        // __threadfence_block();
         
-        } /* loop over the particles in cell_j. */
+    } /* loop over the particles in cell_j. */
         
     /* Store the potential energy. */
     *epot_global += epot;
         
     TIMER_TOC(tid_pair)
     
-    }
+}
 
 
 
@@ -1754,15 +1724,10 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , int count_i
     
     /* Pre-compute the inverse norm of the shift. */
     dmaxdist = 2 + cuda_dscale * cuda_maxdist;
-       
-
-	/* nr_threads >= count_i */
 
     for ( i = threadID ; i < count_i ;  i += blockDim.x  ) {
-    /*cj = 0;
-    while ( cj < count_j && ( sort_i[threadID] & 0xffff ) + dshift  <= dmaxdist +( sort_j[cj] & 0xffff ) )
-            cj += 1;*/
-    dj = sort_i[i]&0xffff;      
+
+        dj = sort_i[i]&0xffff;
         /* Get a direct pointer on the pjdth part in cell_j. */
         spid = sort_i[i] >> 16;
         pi = parts_i[ spid ];
@@ -1773,52 +1738,42 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , int count_i
         
         /* Loop over the particles in cell_j. */
         for ( pjd = 0 ; pjd < count_j && dj+ dshift <= dmaxdist+(sort_j[pjd]&0xffff) ; pjd++ ) {
-  				/*if((sort_i[threadID]&0xffff + dshift < dmaxdist))
-		 			break;		               */
-                /* Get a handle on the wrapped particle pid in cell_i. */
-                spjd = sort_j[pjd] >> 16;
-                pj = parts_j[ spjd ];
 
-                /* Compute the radius between pi and pj. */
-                r2 = 0.0f;
-                dx[0] = pix.x - pj.x.x; r2 += dx[0]*dx[0];
-                dx[1] = pix.y - pj.x.y; r2 += dx[1]*dx[1];
-                dx[2] = pix.z - pj.x.z; r2 += dx[2]*dx[2];
-                pind = cuda_pind[pioff + pj.typeId];
+            /* Get a handle on the wrapped particle pid in cell_i. */
+            spjd = sort_j[pjd] >> 16;
+            pj = parts_j[ spjd ];
 
-                if(pind == 0) {
-                    continue;
-                }
-                    
-                /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 ) {
-
-                    /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
-                        threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
-
-                    // atomicAdd( &cuda_pairs_done , 1 );
-                    w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
-                    
-                    /* Interact particles pi and pj. */
-                    potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
-
-                    /* Store the interaction force and energy. */
-                    epot += ee;
-
-                    /* Sync the shared memory values. */
-                    // __threadfence_block();
+            /* Compute the radius between pi and pj. */
+            r2 = 0.0f;
+            dx[0] = pix.x - pj.x.x; r2 += dx[0]*dx[0];
+            dx[1] = pix.y - pj.x.y; r2 += dx[1]*dx[1];
+            dx[2] = pix.z - pj.x.z; r2 += dx[2]*dx[2];
                 
-                    } /* in range and potential. */
-            } /* loop over parts in cell_i. */
+            if ( r2 >= cuda_cutoff2 ) {
+                continue;
+            }
+
+            w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
+
+            pind = cuda_pind[pioff + pj.typeId];
+            if(pind == 0) {
+                pif[3] += number_density;
+                continue;
+            }
+            
+            /* Interact particles pi and pj. */
+            potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
+
+            /* Store the interaction force and energy. */
+            epot += ee;
+
+        } /* loop over parts in cell_i. */
             
         /* Update the force on pj. */
         for ( k = 0 ; k < 4 ; k++ )
         	atomicAdd( &forces_i[ 4*spid + k] , pif[k]);
-    		//forces_i[ 3*spid + k] += pif[k];
-        /* Sync the shared memory values. */
-        // __threadfence_block();
         
-        } /* loop over the particles in cell_j. */
+    } /* loop over the particles in cell_j. */
         
     /* Store the potential energy. */
     *epot_global += epot;
@@ -1849,9 +1804,6 @@ __device__ void runner_doself_cuda ( MxParticleCUDA *parts , int count , float *
     
     /* Get the size of the frame, i.e. the number of threads in this block. */
     threadID = threadIdx.x;
-    
-    /* Make sure everybody is in the same place. */
-    // __threadfence_block();
 
     /* Loop over the particles in the cell, frame-wise. */
     for ( i = threadID ; i < count ;  i += blockDim.x  ) {
@@ -1864,23 +1816,26 @@ __device__ void runner_doself_cuda ( MxParticleCUDA *parts , int count , float *
         /* Loop over the particles in cell_i. */
         for ( pid = 0 ; pid < count ; pid++ ) {
         	if(i != pid ) {
-            /* Get a handle on the wrapped particle pid in cell_i. */
-            pi = parts[ pid ];
+                /* Get a handle on the wrapped particle pid in cell_i. */
+                pi = parts[ pid ];
 
-            /* Compute the radius between pi and pj. */
-            r2 = 0.0f;
-            dx[0] = pi.x.x - pj.x.x; r2 += dx[0]*dx[0];
-            dx[1] = pi.x.y - pj.x.y; r2 += dx[1]*dx[1];
-            dx[2] = pi.x.z - pj.x.z; r2 += dx[2]*dx[2];
-            pind = cuda_pind[pjoff + pi.typeId];
+                /* Compute the radius between pi and pj. */
+                r2 = 0.0f;
+                dx[0] = pi.x.x - pj.x.x; r2 += dx[0]*dx[0];
+                dx[1] = pi.x.y - pj.x.y; r2 += dx[1]*dx[1];
+                dx[2] = pi.x.z - pj.x.z; r2 += dx[2]*dx[2];
 
-            if(pind == 0) {
-                continue;
-            }
+                if ( r2 >= cuda_cutoff2 ) {
+                    continue;
+                }
 
-            /* Set the null potential if anything is bad. */
-            if ( r2 < cuda_cutoff2 ) {
                 w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
+
+                pind = cuda_pind[pjoff + pi.typeId];
+                if(pind == 0) {
+                    pjf[3] += number_density;
+                    continue;
+                }
 
                 /* Interact particles pi and pj. */
                 potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
@@ -1888,22 +1843,15 @@ __device__ void runner_doself_cuda ( MxParticleCUDA *parts , int count , float *
                 /* Store the interaction force and energy. */
                 epot += ee;
 
-                /* Sync the shared memory values. */
-                // __threadfence_block();
-            
-                } /* in range and potential. */
 			}
-            } /* loop over parts in cell_i. */
+        } /* loop over parts in cell_i. */
             
         /* Update the force on pj. */
         for ( k = 0 ; k < 4 ; k++ )
         	atomicAdd( &forces[ 4*i + k], pjf[k] );
-			//forces[ 3*threadID + k] += pjf[k];
-        /* Sync the shared memory values. */
-        // __threadfence_block();
 
-        } /* loop over the particles in cell_j. */
-        
+    } /* loop over the particles in cell_j. */
+
     /* Store the potential energy. */
     *epot_global += epot;
         

@@ -700,6 +700,7 @@ CAPI_FUNC(int) engine_cuda_unload_pots ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_refresh_particles ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_update_nr_parts(struct engine *e);
 CAPI_FUNC(int) engine_cuda_refresh_pots ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_boundary_conditions_refresh(struct engine *e);
 CAPI_FUNC(int) engine_cuda_queues_finalize ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_finalize ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_refresh ( struct engine *e );

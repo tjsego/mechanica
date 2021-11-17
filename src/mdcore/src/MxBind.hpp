@@ -38,8 +38,27 @@ struct CAPI_EXPORT MxBind {
 
     static HRESULT cuboid(MxPotential *p, MxParticleType *t);
 
-    static HRESULT boundaryConditions(MxPotential *p, MxBoundaryConditions *bcs, MxParticleType *t);
-
+    /**
+     * @brief Bind a potential to a pair of particle type and all boundary conditions. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param p The potential
+     * @param t The particle type
+     * @return HRESULT 
+     */
+    static HRESULT boundaryConditions(MxPotential *p, MxParticleType *t);
+    
+    /**
+     * @brief Bind a potential to a pair of particle type and a boundary conditions. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param p The potential
+     * @param bcs The boundary condition
+     * @param t The particle type
+     * @return HRESULT 
+     */
     static HRESULT boundaryCondition(MxPotential *p, MxBoundaryCondition *bc, MxParticleType *t);
 
     static HRESULT force(MxForce *force, MxParticleType *a_type, const std::string* coupling_symbol=NULL);

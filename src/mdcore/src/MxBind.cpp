@@ -132,8 +132,8 @@ HRESULT MxBind::cuboid(MxPotential *p, MxParticleType *t) {
     return universe_bind_potential_cuboid(p, t);
 }
 
-HRESULT MxBind::boundaryConditions(MxPotential *p, MxBoundaryConditions *bcs, MxParticleType *t) {
-    return universe_bind_potential(p, bcs, t);
+HRESULT MxBind::boundaryConditions(MxPotential *p, MxParticleType *t) {
+    return universe_bind_potential(p, &_Engine.boundary_conditions, t);
 }
 
 HRESULT MxBind::boundaryCondition(MxPotential *p, MxBoundaryCondition *bc, MxParticleType *t) {

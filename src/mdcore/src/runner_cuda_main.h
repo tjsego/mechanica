@@ -162,7 +162,7 @@ int k, threadID;
                 parts_j = &cuda_parts[ ind[cid] ];
                 
                 /* Compute the cell self interactions. */
-                runner_doself_cuda( parts_j , counts[cid] , forces_i , &epot );
+                runner_doself_cuda(parts_j, counts[cid], cid, forces_i, &epot);
 
 		#ifdef TASK_TIMERS
 	    if(threadID==0)

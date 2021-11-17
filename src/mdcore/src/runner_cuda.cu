@@ -19,7 +19,7 @@
 
 // TODO: implement hook for potentials by particles
 // TODO: implement support for clusters
-// TODO: implement boundary conditions
+// TODO: break up source by content
 
 /* Include configuratin header */
 #include <mdcore_config.h>
@@ -137,6 +137,12 @@ __device__ unsigned int *cuda_sortlists = NULL;
 
 /* Cell origins. */
 __constant__ float *cuda_corig;
+
+// Cell dimensions
+__constant__ float3 *cuda_cdims;
+
+// Cell flags
+__constant__ unsigned int *cuda_cflags;
 
 /* The potential parameters (hard-wired size for now). */
 __constant__ float cuda_eps[ 100 ];
@@ -819,6 +825,9 @@ __device__ void cuda_finalize_onDevice(MxPotential &p) {
 
 struct MxPotentialCUDA {
 
+    // Flag signifying whether instance is a placeholder
+    bool empty;
+
     // DPD coefficients alpha, gamma, sigma
     float3 dpd_cfs;
 
@@ -826,7 +835,14 @@ struct MxPotentialCUDA {
     MxPotential pot;
 
     __host__ __device__ 
+    MxPotentialCUDA() :
+        empty{true}
+    {}
+
+    __host__ __device__ 
     MxPotentialCUDA(MxPotential *p, bool toDevice=true) {
+        this->empty = false;
+
         if(toDevice) this->pot = cuda_toDevice(p);
         else this->pot = *p;
 
@@ -840,7 +856,9 @@ struct MxPotentialCUDA {
     
     __device__ 
     void finalize() {
-        cudaFree(&this->pot.c);
+        if(!this->empty)
+            cudaFree(&this->pot.c);
+        this->empty = true;
     }
 };
 
@@ -879,6 +897,182 @@ int cuda_fromDevice(MxParticleCUDA pc, MxParticle *p) {
 
     return engine_err_ok;
 }
+
+
+
+
+
+struct MxBoundaryConditionCUDA {
+
+    float3 normal;
+
+    float3 velocity;
+
+    float radius;
+
+    MxPotentialCUDA *pots;
+
+    __host__ __device__ 
+    MxBoundaryConditionCUDA() {}
+
+    __host__ 
+    MxBoundaryConditionCUDA(const MxBoundaryCondition &_bc) {
+        this->normal = make_float3(_bc.normal[0], _bc.normal[1], _bc.normal[2]);
+        this->velocity = make_float3(_bc.velocity[0], _bc.velocity[1], _bc.velocity[2]);
+        this->radius = _bc.radius;
+
+        MxPotential *p;
+        
+        size_t size_pots = sizeof(MxPotentialCUDA) * engine_maxnrtypes;
+        if(cudaMalloc(&this->pots, size_pots) != cudaSuccess) {
+            printf("Boundary condition allocation failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
+            return;
+        }
+
+        MxPotentialCUDA *cu_pots = (MxPotentialCUDA*)malloc(size_pots);
+        for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) 
+            if((p = _bc.potenntials[typeId]) != NULL) 
+                cu_pots[typeId] = MxPotentialCUDA(p);
+
+        if(cudaMemcpy(this->pots, cu_pots, size_pots, cudaMemcpyHostToDevice) != cudaSuccess)
+            printf("Boundary condition copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
+        
+        free(cu_pots);
+    }
+
+    __device__ 
+    void finalize() {
+        for(int typeId = 0; typeId < engine_maxnrtypes; typeId++)
+            this->pots[typeId].finalize();
+        
+        if(cudaFree(&this->pots) != cudaSuccess) 
+            printf("Boundary condition finalize failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
+    }
+};
+
+
+struct MxBoundaryConditionsCUDA {
+    
+    // Left, right, front, back, bottom, top
+    MxBoundaryConditionCUDA *bcs;
+
+    __host__ __device__ 
+    MxBoundaryConditionsCUDA() {}
+    
+    __host__ 
+    MxBoundaryConditionsCUDA(const MxBoundaryConditions &_bcs) {
+        size_t size_bcs = sizeof(MxBoundaryConditionCUDA) * 6;
+
+        if(cudaMalloc(&this->bcs, size_bcs) != cudaSuccess) {
+            printf("Boundary conditions allocation failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
+            return;
+        }
+
+        MxBoundaryConditionCUDA *cu_bcs = (MxBoundaryConditionCUDA*)malloc(size_bcs);
+
+        cu_bcs[0] = MxBoundaryConditionCUDA(_bcs.left);
+        cu_bcs[1] = MxBoundaryConditionCUDA(_bcs.right);
+        cu_bcs[2] = MxBoundaryConditionCUDA(_bcs.front);
+        cu_bcs[3] = MxBoundaryConditionCUDA(_bcs.back);
+        cu_bcs[4] = MxBoundaryConditionCUDA(_bcs.bottom);
+        cu_bcs[5] = MxBoundaryConditionCUDA(_bcs.top);
+
+        if(cudaMemcpy(this->bcs, cu_bcs, size_bcs, cudaMemcpyHostToDevice) != cudaSuccess)
+            printf("Boundary conditions copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
+
+        free(cu_bcs);
+    }
+
+    __device__ 
+    void finalize() {
+        for(int bcId = 0; bcId < 6; bcId++)
+            this->bcs[bcId].finalize();
+
+        if(cudaFree(&this->bcs) != cudaSuccess) 
+            printf("Boundary conditions finalize failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
+    }
+
+};
+
+__constant__ MxBoundaryConditionsCUDA cuda_bcs;
+
+
+extern "C" int engine_cuda_boundary_conditions_load(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        MxBoundaryConditionsCUDA bcs(e->boundary_conditions);
+
+        if(cudaMemcpyToSymbol(cuda_bcs, &bcs, sizeof(void*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+__global__ 
+void engine_cuda_boundary_conditions_finalize_device() {
+    if(threadIdx.x != 0 || blockIdx.x != 0)
+        return;
+
+    cuda_bcs.finalize();
+}
+
+/**
+ * @brief Finalize boundary conditions on device. 
+ * 
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+int engine_cuda_boundary_conditions_finalize(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        engine_cuda_boundary_conditions_finalize_device<<<1, 1>>>();
+        if(cudaPeekAtLastError() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Refresh boundary conditions on device. Can be safely called while on device. 
+ * 
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_boundary_conditions_refresh(struct engine *e) {
+    
+    if(engine_cuda_boundary_conditions_finalize(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_boundary_conditions_load(e) < 0)
+        return error(engine_err);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
 
 /** 
  * @brief Evaluates the given potential at the given point (interpolated).
@@ -1060,6 +1254,55 @@ __device__ inline void dpd_eval_cuda(MxPotential pot, MxParticleCUDA pi, MxParti
 }
 
 
+__device__ inline void dpd_boundary_eval_cuda(MxPotential pot, MxParticleCUDA pi, float3 velocity, float3 dpd_cfs, float *dx, float r2, float *e, float *force, bool *result) {
+
+    float delta = rsqrtf(cuda_dt);
+    
+    float cutoff = pot.b;
+    
+    if(r2 > cutoff * cutoff) {
+        *result = false;
+        return;
+    }
+    
+    float r = sqrtf(r2);
+    
+    if(r < pot.a) {
+        *result = false;
+        return;
+    }
+    
+    // unit vector
+    float3 unit_vec{dx[0] / r, dx[1] / r, dx[2] / r};
+    
+    float3 v{pi.v.x - velocity.x, pi.v.y - velocity.y, pi.v.z - velocity.z};
+    
+    // conservative force
+    float omega_c = 1 - r / cutoff;
+    
+    float fc = dpd_cfs.x * omega_c;
+    
+    // dissapative force
+    float omega_d = omega_c * omega_c;
+    
+    float fd = - dpd_cfs.y * omega_d * (unit_vec.x * v.x + unit_vec.y * v.y + unit_vec.z * v.z);
+    
+    float fr = dpd_cfs.z * omega_c * delta;
+    
+    float f = fc + fd + fr;
+    
+    force[0] += f * unit_vec.x;
+    force[1] += f * unit_vec.y;
+    force[2] += f * unit_vec.z;
+    
+    // TODO: correct energy
+    *e = 0;
+
+    *result = true;
+
+}
+
+
 // Underlying evaluation call; using templates to eliminate instructional overhead
 template<uint32_t kind> 
 __device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda, 
@@ -1181,6 +1424,178 @@ __device__ inline void potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
     else if(kind == POTENTIAL_KIND_DPD) {
         _potential_eval_super_ex_cuda<POTENTIAL_KIND_DPD>(p_cuda, pi, pj, dx, r2, number_density, epot, fi, fj, result);
     }
+}
+
+// Underlying evaluation call; using templates to eliminate instructional overhead
+template<uint32_t kind> 
+__device__ inline void _boundary_eval_cuda_ex_cuda(MxPotentialCUDA p_cuda, 
+                                                   MxParticleCUDA part, 
+                                                   MxBoundaryConditionCUDA bc, 
+                                                   float *dx, 
+                                                   float r2, 
+                                                   float *epot, 
+                                                   float *force, 
+                                                   bool *result) 
+{
+    float e;
+    *result = false;
+    float _dx[3], _r2;
+
+    auto a = p_cuda.pot.a;
+    
+    // if distance is less that potential min distance, define random
+    // for repulsive force.
+    if(r2 < a * a) {
+        _dx[0] = bc.normal.x * a;
+        _dx[1] = bc.normal.y * a;
+        _dx[2] = bc.normal.z * a;
+        _r2 = a * a;
+    }
+    else {
+        _r2 = r2;
+        for (int k = 0; k < 3; k++) _dx[k] = dx[k];
+    }
+    
+    if(kind == POTENTIAL_KIND_DPD) {
+        /* update the forces if part in range */
+        dpd_boundary_eval_cuda(p_cuda.pot, part, bc.velocity, p_cuda.dpd_cfs, _dx, _r2, &e, force, result);
+        
+        if(*result) {
+            /* tabulate the energy */
+            *epot += e;
+        }
+    }
+    else {
+        float f;
+    
+        /* update the forces if part in range */
+        potential_eval_ex_cuda(&p_cuda.pot, part.radius, bc.radius, _r2 , &e , &f, result);
+        if(*result) {
+            
+            for (int k = 0 ; k < 3 ; k++ ) {
+                force[k] -= f * _dx[k];
+            }
+            
+            /* tabulate the energy */
+            *epot += e;
+        }
+    }
+}
+
+__device__ inline void boundary_eval_cuda_ex_cuda(MxPotentialCUDA p_cuda, 
+                                                  MxParticleCUDA part, 
+                                                  MxBoundaryConditionCUDA bc, 
+                                                  float *dx, 
+                                                  float r2, 
+                                                  float *epot, 
+                                                  float *force, 
+                                                  bool *result) 
+{
+    uint32_t kind = p_cuda.pot.kind;
+
+    if(kind == POTENTIAL_KIND_POTENTIAL) {
+        _boundary_eval_cuda_ex_cuda<POTENTIAL_KIND_POTENTIAL>(p_cuda, part, bc, dx, r2, epot, force, result);
+    }
+    else if(kind == POTENTIAL_KIND_DPD) {
+        _boundary_eval_cuda_ex_cuda<POTENTIAL_KIND_DPD>(p_cuda, part, bc, dx, r2, epot, force, result);
+    }
+}
+
+__device__ 
+void boundary_eval_cuda(MxParticleCUDA part, float3 cell_dim, unsigned int cell_flags, float *force, float *epot, bool *result) {
+    
+    MxPotentialCUDA potc;
+    MxPotential *pot;
+    float r;
+    MxBoundaryConditionCUDA bc;
+    bool eval_result = false;
+    
+    float dx[3] = {0.f, 0.f, 0.f};
+    
+    if(cell_flags & cell_active_left) {
+        bc = cuda_bcs.bcs[0];
+        potc = bc.pots[part.typeId];
+        if(!potc.empty) {
+            r = part.x.x;
+            pot = &potc.pot;
+            if(r < pot->b) {
+                dx[0] = r;
+                boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r * r, epot, force, &eval_result);
+                *result |= eval_result;
+            }
+        }
+    }
+    
+    if(cell_flags & cell_active_right) {
+        bc = cuda_bcs.bcs[1];
+        potc = bc.pots[part.typeId];
+        if(!potc.empty) {
+            r = cell_dim.x - part.x.x;
+            pot = &potc.pot;
+            if(r < pot->b) {
+                dx[0] = -r;
+                boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r * r, epot, force, &eval_result);
+                *result |= eval_result;
+            }
+        }
+    }
+    
+    if(cell_flags & cell_active_front) {
+        bc = cuda_bcs.bcs[2];
+        potc = bc.pots[part.typeId];
+        if(!potc.empty) {
+            r = part.x.y;
+            pot = &potc.pot;
+            if(r < pot->b) {
+                dx[1] = r;
+                boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r * r, epot, force, &eval_result);
+                *result |= eval_result;
+            }
+        }
+    }
+    
+    if(cell_flags & cell_active_back) {
+        bc = cuda_bcs.bcs[3];
+        potc = bc.pots[part.typeId];
+        if(!potc.empty) {
+            r = cell_dim.y - part.x.y;
+            pot = &potc.pot;
+            if(r < pot->b) {
+                dx[1] = -r;
+                boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r * r, epot, force, &eval_result);
+                *result |= eval_result;
+            }
+        }
+    }
+    
+    if(cell_flags & cell_active_bottom) {
+        bc = cuda_bcs.bcs[4];
+        potc = bc.pots[part.typeId];
+        if(!potc.empty) {
+            r = part.x.z;
+            pot = &potc.pot;
+            if(r < pot->b) {
+                dx[2] = r;
+                boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r * r, epot, force, &eval_result);
+                *result |= eval_result;
+            }
+        }
+    }
+    
+    if(cell_flags & cell_active_top) {
+        bc = cuda_bcs.bcs[5];
+        potc = bc.pots[part.typeId];
+        if(!potc.empty) {
+            r = cell_dim.z - part.x.z;
+            pot = &potc.pot;
+            if(r < pot->b) {
+                dx[2] = -r;
+                boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r * r, epot, force, &eval_result);
+                *result |= eval_result;
+            }
+        }
+    }
+
 }
 
 
@@ -1791,7 +2206,7 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , int count_i
  *
  * @sa #runner_dopair.
  */
-__device__ void runner_doself_cuda ( MxParticleCUDA *parts , int count , float *forces , float *epot_global ) {
+__device__ void runner_doself_cuda (MxParticleCUDA *parts, int count, int cell_id, float *forces, float *epot_global) {
     int k, pid, threadID;
     int pjoff;
     MxParticleCUDA pi, pj;
@@ -1799,6 +2214,8 @@ __device__ void runner_doself_cuda ( MxParticleCUDA *parts , int count , float *
     float epot = 0.0f, dx[3], pif[4], pjf[4], r2, ee;
     bool eval_result;
     float number_density;
+    unsigned int cell_flags = cuda_cflags[cell_id];
+    bool boundary = cell_flags & cell_active_any;
     
     TIMER_TIC
     
@@ -1812,7 +2229,11 @@ __device__ void runner_doself_cuda ( MxParticleCUDA *parts , int count , float *
         pj = parts[ i ];
         pjoff = pj.typeId * cuda_maxtype;
         pjf[0] = 0.0f; pjf[1] = 0.0f; pjf[2] = 0.0f; pjf[3] = 0.0f;
-            
+
+        if(boundary) {
+            boundary_eval_cuda(pj, cuda_cdims[cell_id], cell_flags, pjf, &epot, &eval_result);
+        }
+        
         /* Loop over the particles in cell_i. */
         for ( pid = 0 ; pid < count ; pid++ ) {
         	if(i != pid ) {
@@ -2894,6 +3315,8 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
     float dt = e->dt, cutoff = e->s.cutoff, cutoff2 = e->s.cutoff2, dscale; //, buff[ e->nr_types ];
     float h[3], dim[3], *corig;
     void *dummy[ engine_maxgpu ];
+    unsigned int *cflags;
+    float3 *cdims;
 
     /*Split the space over the available GPUs*/
     engine_split_gpu( e , nr_devices , engine_split_GPU  );
@@ -2931,6 +3354,41 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         }
     free( corig );
+
+    // Copy the cell dimensions to devices
+    if((cdims = (float3*)malloc(sizeof(float3) * s->nr_cells)) == NULL)
+        return error(engine_err_malloc);
+    for(i = 0; i < s->nr_cells; i++) {
+        cdims[i] = make_float3(s->cells[i].dim[0], s->cells[i].dim[1], s->cells[i].dim[2]);
+    }
+    for(did = 0; did < nr_devices; did++) {
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMalloc(&dummy[did], sizeof(float3) * s->nr_cells) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpy(dummy[did], cdims, sizeof(float3) * s->nr_cells, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpyToSymbol(cuda_cdims, &dummy[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+    free(cdims);
+
+    // Copy the cell flags to devices
+    if((cflags = (unsigned int*)malloc(sizeof(unsigned int) * s->nr_cells)) == NULL)
+        return error(engine_err_malloc);
+    for(i = 0; i < s->nr_cells; i++)
+        cflags[i] = s->cells[i].flags;
+    for(did = 0; did < nr_devices; did++) {
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMalloc(&dummy[did], sizeof(unsigned int) * s->nr_cells) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpy(dummy[did], cflags, sizeof(unsigned int) * s->nr_cells, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpyToSymbol(cuda_cflags, &dummy[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+    free(cflags);
         
     /* Set the constant pointer to the null potential and other useful values. */
     dscale = ((float)SHRT_MAX) / ( 3.0 * sqrt( s->h[0]*s->h[0]*s->span[0]*s->span[0] + s->h[1]*s->h[1]*s->span[1]*s->span[1] + s->h[2]*s->h[2]*s->span[2]*s->span[2] ) );
@@ -3089,6 +3547,10 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
     // Allocate random number generators
     if(engine_cuda_rand_norm_init(e) < 0)
         return error(engine_err);
+
+    // Allocate boundary conditions
+    if(engine_cuda_boundary_conditions_load(e) < 0)
+        return error(engine_err);
         
     if(engine_cuda_allocate_particles(e) < 0)
         return error(engine_err);
@@ -3116,6 +3578,9 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
 extern "C" int engine_parts_finalize(struct engine *e) {
 
     if(engine_cuda_rand_norm_finalize(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_boundary_conditions_finalize(e) < 0)
         return error(engine_err);
 
     if(engine_cuda_unload_pots(e) < 0)

@@ -119,6 +119,20 @@ HRESULT MxEngineCUDAConfig::refreshPotentials() {
     return S_OK;
 }
 
+HRESULT MxEngineCUDAConfig::refreshBoundaryConditions() {
+    if(!this->onDevice()) {
+        Log(LOG_DEBUG) << "Attempting to refresh boundary conditions when not on device. Ignoring.";
+        return S_OK;
+    }
+
+    if(engine_cuda_boundary_conditions_refresh(&_Engine) < 0) {
+        Log(LOG_CRITICAL) << "Attempting to refresh boundary conditions failed (" << engine_err << ").";
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
 HRESULT MxEngineCUDAConfig::refresh() {
     if(!this->onDevice()) {
         Log(LOG_DEBUG) << "Attempting to refresh engine when not on device. Ignoring.";

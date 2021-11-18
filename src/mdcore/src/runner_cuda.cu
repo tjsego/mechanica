@@ -18,8 +18,8 @@
  ******************************************************************************/
 
 // TODO: implement hook for potentials by particles
-// TODO: implement support for clusters
 // TODO: break up source by content
+// TODO: implement fluxes
 
 /* Include configuratin header */
 #include <mdcore_config.h>
@@ -94,6 +94,7 @@ __constant__ int cuda_size_parts;
 
 /* Diagonal entries and potential index lookup table. */
 __constant__ unsigned int *cuda_pind;
+__constant__ unsigned int *cuda_pind_cluster;
 
 /* The mutex for accessing the cell pair list. */
 __device__ int cuda_cell_mutex = 0;
@@ -127,10 +128,11 @@ __constant__ float cuda_cutoff2 = 0.0f;
 __constant__ float cuda_cutoff = 0.0f;
 __constant__ float cuda_dscale = 0.0f;
 __constant__ float cuda_maxdist = 0.0f;
-__constant__ struct MxPotential **cuda_p;
 __constant__ int cuda_maxtype = 0;
 __constant__ struct MxPotentialCUDA *cuda_pots;
+__constant__ struct MxPotentialCUDA *cuda_pots_cluster;
 __constant__ int cuda_nr_pots;
+__constant__ int cuda_nr_pots_cluster; // For some reason, adding this causes crash during potential unload???
 
 /* Sortlists for the Verlet algorithm. */
 __device__ unsigned int *cuda_sortlists = NULL;
@@ -143,10 +145,6 @@ __constant__ float3 *cuda_cdims;
 
 // Cell flags
 __constant__ unsigned int *cuda_cflags;
-
-/* The potential parameters (hard-wired size for now). */
-__constant__ float cuda_eps[ 100 ];
-__constant__ float cuda_rmin[ 100 ];
 
 /* Use a set of variables to communicate with the outside world. */
 __device__ float cuda_fio[32];
@@ -843,8 +841,12 @@ struct MxPotentialCUDA {
     MxPotentialCUDA(MxPotential *p, bool toDevice=true) {
         this->empty = false;
 
+        #if defined(__CUDA_ARCH__)
+        this->pot = *p;
+        #else
         if(toDevice) this->pot = cuda_toDevice(p);
         else this->pot = *p;
+        #endif
 
         if(p->kind == POTENTIAL_KIND_DPD) {
             DPDPotential *p_dpd = (DPDPotential*)p;
@@ -863,11 +865,13 @@ struct MxPotentialCUDA {
 };
 
 struct MxParticleCUDA {
-    int id;
-    int typeId;
-    float radius;
     float4 x;
     float4 v;
+    float radius;
+    int id;
+    int typeId;
+    int clusterId;
+    uint16_t flags;
 
     __host__ __device__ 
     MxParticleCUDA() :
@@ -877,11 +881,13 @@ struct MxParticleCUDA {
 
     __host__ __device__ 
     MxParticleCUDA(MxParticle *p) : 
+        x{p->x[0], p->x[1], p->x[2], p->x[3]}, 
+        v{p->v[0], p->v[1], p->v[2], p->v[3]}, 
+        radius{p->radius}, 
         id{p->id}, 
         typeId{p->typeId}, 
-        radius{p->radius}, 
-        x{p->x[0], p->x[1], p->x[2], p->x[3]}, 
-        v{p->v[0], p->v[1], p->v[2], p->v[3]}
+        clusterId{p->clusterId}, 
+        flags{p->flags}
     {}
 };
 
@@ -1623,6 +1629,9 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
     float4 pjx;
     bool eval_result;
     float number_density;
+    MxPotentialCUDA *cu_pots;
+    unsigned int *cu_pind;
+    bool iscluster, iscluster_maybe;
     
     TIMER_TIC
     
@@ -1641,6 +1650,7 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
         pjx = float4(pj.x);
         pjx.x += shift[0]; pjx.y += shift[1]; pjx.z += shift[2];
         pjf[0] = 0.0f; pjf[1] = 0.0f; pjf[2] = 0.0f; pjf[3] = 0.0f;
+        iscluster_maybe = pj.flags & PARTICLE_CLUSTER;
         
         /* Loop over the particles in cell_i. */
         for ( ind = 0 ; ind < wrap_i ; ind++ ) {
@@ -1666,7 +1676,11 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
 
                 w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
-                pind = cuda_pind[pjoff + pi.typeId];
+                iscluster = iscluster_maybe && pi.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId;
+                cu_pots = iscluster ? cuda_pots_cluster : cuda_pots;
+                cu_pind = iscluster ? cuda_pind_cluster : cuda_pind;
+
+                pind = cu_pind[pjoff + pi.typeId];
                 if(pind == 0) {
                     forces_i[4*pid + 3] += number_density;
                     pjf[3] += number_density;
@@ -1674,7 +1688,7 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
                 }
             
                 /* Interact particles pi and pj. */
-                potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, &forces_i[4*pid], pjf, &eval_result);
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, &forces_i[4*pid], pjf, &eval_result);
 
                 /* Store the interaction force and energy. */
                 epot += ee;
@@ -1722,6 +1736,9 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
     float epot = 0.0f, dx[12], pjf[4];
     bool eval_result;
     float4 number_density;
+    MxPotentialCUDA *cu_pots[4];
+    unsigned int *cu_pind[4];
+    bool iscluster, iscluster_maybe;
     
     TIMER_TIC
     
@@ -1741,6 +1758,8 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
         pjx.x += shift[0]; pjx.y += shift[1]; pjx.z += shift[2];
         for ( k = 0 ; k < 4 ; k++ )
             pjf[k] = 0.0f;
+
+        iscluster_maybe = pj.flags & PARTICLE_CLUSTER;
         
         /* Loop over the particles in cell_i. */
         for ( ind = 0 ; ind < wrap_i ; ind += 4 ) {
@@ -1760,6 +1779,24 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
             pi[1] = ( valid.y = ( pid.y < count_i ) && ( ind + 1 < wrap_i ) ) ? parts_i[ pid.y ] : pj;
             pi[2] = ( valid.z = ( pid.z < count_i ) && ( ind + 2 < wrap_i ) ) ? parts_i[ pid.z ] : pj;
             pi[3] = ( valid.w = ( pid.w < count_i ) && ( ind + 3 < wrap_i ) ) ? parts_i[ pid.w ] : pj;
+            if(iscluster_maybe) {
+                for(k = 0; k < 4; k++) {
+                    if(pi[k].flags & PARTICLE_CLUSTER && pi[k].clusterId == pj.clusterId) {
+                        cu_pind[k] = cuda_pind_cluster;
+                        cu_pots[k] = cuda_pots_cluster;
+                    }
+                    else {
+                        cu_pind[k] = cuda_pind;
+                        cu_pots[k] = cuda_pots;
+                    }
+                }
+            }
+            else {
+                for(k = 0; k < 4; k++) {
+                    cu_pind[k] = cuda_pind;
+                    cu_pots[k] = cuda_pots;
+                }
+            }
             
             /* Compute the pairwise distances. */
             r2 = make_float4( 0.0f );
@@ -1781,10 +1818,10 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
             valid.y = ( valid.y && r2.y < cuda_cutoff2 );
             valid.z = ( valid.z && r2.z < cuda_cutoff2 );
             valid.w = ( valid.w && r2.w < cuda_cutoff2 );
-            pot.x = valid.x ? cuda_pind[ pjoff + pi[0].typeId ] : 0;
-            pot.y = valid.y ? cuda_pind[ pjoff + pi[1].typeId ] : 0;
-            pot.z = valid.z ? cuda_pind[ pjoff + pi[2].typeId ] : 0;
-            pot.w = valid.w ? cuda_pind[ pjoff + pi[3].typeId ] : 0;
+            pot.x = valid.x ? cu_pind[0][ pjoff + pi[0].typeId ] : 0;
+            pot.y = valid.y ? cu_pind[1][ pjoff + pi[1].typeId ] : 0;
+            pot.z = valid.z ? cu_pind[2][ pjoff + pi[2].typeId ] : 0;
+            pot.w = valid.w ? cu_pind[3][ pjoff + pi[3].typeId ] : 0;
             
             /* Update the forces. */
             if ( valid.x ) {
@@ -1794,7 +1831,7 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
                     forces_i[4*pid.x + 3] += number_density.x;
                 }
                 else {
-                    potential_eval_super_ex_cuda(cuda_pots[pot.x], pi[0], pj, &dx[0], r2.x, number_density.x, &ee.x, pjf, &forces_i[4*pid.x], &eval_result);
+                    potential_eval_super_ex_cuda(cu_pots[0][pot.x], pi[0], pj, &dx[0], r2.x, number_density.x, &ee.x, pjf, &forces_i[4*pid.x], &eval_result);
                     epot += ee.x;
                 }
             }
@@ -1805,7 +1842,7 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
                     forces_i[4*pid.y + 3] += number_density.y;
                 }
                 else {
-                    potential_eval_super_ex_cuda(cuda_pots[pot.y], pi[1], pj, &dx[3], r2.y, number_density.y, &ee.y, pjf, &forces_i[4*pid.y], &eval_result);
+                    potential_eval_super_ex_cuda(cu_pots[1][pot.y], pi[1], pj, &dx[3], r2.y, number_density.y, &ee.y, pjf, &forces_i[4*pid.y], &eval_result);
                     epot += ee.y;
                 }
             }
@@ -1816,7 +1853,7 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
                     forces_i[4*pid.z + 3] += number_density.z;
                 }
                 else {
-                    potential_eval_super_ex_cuda(cuda_pots[pot.z], pi[2], pj, &dx[6], r2.z, number_density.z, &ee.z, pjf, &forces_i[4*pid.z], &eval_result);
+                    potential_eval_super_ex_cuda(cu_pots[2][pot.z], pi[2], pj, &dx[6], r2.z, number_density.z, &ee.z, pjf, &forces_i[4*pid.z], &eval_result);
                     epot += ee.z;
                 }
             }
@@ -1827,7 +1864,7 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
                     forces_i[4*pid.w + 3] += number_density.w;
                 }
                 else {
-                    potential_eval_super_ex_cuda(cuda_pots[pot.w], pi[3], pj, &dx[9], r2.w, number_density.w, &ee.w, pjf, &forces_i[4*pid.w], &eval_result);
+                    potential_eval_super_ex_cuda(cu_pots[3][pot.w], pi[3], pj, &dx[9], r2.w, number_density.w, &ee.w, pjf, &forces_i[4*pid.w], &eval_result);
                     epot += ee.w;
                 }
             }
@@ -1922,6 +1959,9 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
     float dx[3], pif[4];
     bool eval_result;
     float number_density;
+    MxPotentialCUDA *cu_pots;
+    unsigned int *cu_pind;
+    bool iscluster, iscluster_maybe;
     
     TIMER_TIC
     
@@ -1952,6 +1992,7 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
         pioff = pi.typeId * cuda_maxtype;
         pix.x -= shift[0]; pix.y -= shift[1]; pix.z -= shift[2];
         pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f; pif[3] = 0.0f;
+        iscluster_maybe = pi.flags & PARTICLE_CLUSTER;
         
         /* Loop over the particles in cell_i. */
 
@@ -1980,7 +2021,11 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
 
                 w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
-                pind = cuda_pind[pioff + pj.typeId];
+                iscluster = iscluster_maybe && pj.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId;
+                cu_pots = iscluster ? cuda_pots_cluster : cuda_pots;
+                cu_pind = iscluster ? cuda_pind_cluster : cuda_pind;
+
+                pind = cu_pind[pioff + pj.typeId];
                 if(pind == 0) {
                     pif[3] += number_density;
                     forces_j[4*spjd + 3] += number_density;
@@ -1988,7 +2033,7 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
                 }
                 
                 /* Interact particles pi and pj. */
-                potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, &forces_j[4*spjd], &eval_result);
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, &forces_j[4*spjd], &eval_result);
 
                 /* Store the interaction energy. */
                 epot += ee;
@@ -2037,6 +2082,9 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , int count_i
     float dx[3], pif[4], pjf[4];
     bool eval_result;
     float number_density;
+    MxPotentialCUDA *cu_pots;
+    unsigned int *cu_pind;
+    bool iscluster, iscluster_maybe;
     
     TIMER_TIC
     
@@ -2056,6 +2104,8 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , int count_i
         pioff = pi.typeId * cuda_maxtype;
         pix.x -= shift[0]; pix.y -= shift[1]; pix.z -= shift[2];
         pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f; pif[3] = 0.0f;
+        iscluster_maybe = pi.flags & PARTICLE_CLUSTER;
+
         /* Loop over the particles in cell_j. */
         for ( pjd = count_j-1 ; pjd >=0 && (sort_j[pjd]&0xffff)+dshift<=dmaxdist+di ; pjd-- ) {
                  
@@ -2076,14 +2126,18 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , int count_i
 
             w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
-            pind = cuda_pind[ pioff + pj.typeId ];
+            iscluster = iscluster_maybe && pj.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId;
+            cu_pots = iscluster ? cuda_pots_cluster : cuda_pots;
+            cu_pind = iscluster ? cuda_pind_cluster : cuda_pind;
+
+            pind = cu_pind[ pioff + pj.typeId ];
             if(pind == 0) {
                 pif[3] += number_density;
                 continue;
             }
             
             /* Interact particles pi and pj. */
-            potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
+            potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
 
             /* Store the interaction energy. */
             epot += ee;
@@ -2131,6 +2185,9 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , int count_i
     float dx[3], pif[4], pjf[4];
     bool eval_result;
     float number_density;
+    MxPotentialCUDA *cu_pots;
+    unsigned int *cu_pind;
+    bool iscluster, iscluster_maybe;
     
     TIMER_TIC
     
@@ -2150,6 +2207,7 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , int count_i
         pioff = pi.typeId * cuda_maxtype;
         pix.x += shift[0]; pix.y += shift[1]; pix.z += shift[2];
         pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f; pif[3] = 0.0f;
+        iscluster_maybe = pi.flags & PARTICLE_CLUSTER;
         
         /* Loop over the particles in cell_j. */
         for ( pjd = 0 ; pjd < count_j && dj+ dshift <= dmaxdist+(sort_j[pjd]&0xffff) ; pjd++ ) {
@@ -2170,14 +2228,18 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , int count_i
 
             w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
-            pind = cuda_pind[pioff + pj.typeId];
+            iscluster = iscluster_maybe && pj.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId;
+            cu_pots = iscluster ? cuda_pots_cluster : cuda_pots;
+            cu_pind = iscluster ? cuda_pind_cluster : cuda_pind;
+
+            pind = cu_pind[pioff + pj.typeId];
             if(pind == 0) {
                 pif[3] += number_density;
                 continue;
             }
             
             /* Interact particles pi and pj. */
-            potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
+            potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
 
             /* Store the interaction force and energy. */
             epot += ee;
@@ -2216,6 +2278,9 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, int count, int cell_i
     float number_density;
     unsigned int cell_flags = cuda_cflags[cell_id];
     bool boundary = cell_flags & cell_active_any;
+    MxPotentialCUDA *cu_pots;
+    unsigned int *cu_pind;
+    bool iscluster, iscluster_maybe;
     
     TIMER_TIC
     
@@ -2229,6 +2294,7 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, int count, int cell_i
         pj = parts[ i ];
         pjoff = pj.typeId * cuda_maxtype;
         pjf[0] = 0.0f; pjf[1] = 0.0f; pjf[2] = 0.0f; pjf[3] = 0.0f;
+        iscluster_maybe = pj.flags & PARTICLE_CLUSTER;
 
         if(boundary) {
             boundary_eval_cuda(pj, cuda_cdims[cell_id], cell_flags, pjf, &epot, &eval_result);
@@ -2252,14 +2318,18 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, int count, int cell_i
 
                 w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
-                pind = cuda_pind[pjoff + pi.typeId];
+                iscluster = iscluster_maybe && pi.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId;
+                cu_pots = iscluster ? cuda_pots_cluster : cuda_pots;
+                cu_pind = iscluster ? cuda_pind_cluster : cuda_pind;
+
+                pind = cu_pind[pjoff + pi.typeId];
                 if(pind == 0) {
                     pjf[3] += number_density;
                     continue;
                 }
 
                 /* Interact particles pi and pj. */
-                potential_eval_super_ex_cuda(cuda_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
 
                 /* Store the interaction force and energy. */
                 epot += ee;
@@ -3016,11 +3086,13 @@ int engine_cuda_queues_finalize ( struct engine *e ) {
  * @return #engine_err_ok or < 0 on error (see #engine_err).
  */
 extern "C" int engine_cuda_load_pots(struct engine *e) {
-    int i, j, nr_pots, nr_coeffs, max_coeffs = 0;
+    int i, j, nr_pots, nr_pots_cluster;
     int did;
-    int *pind = (int*)malloc(sizeof(int) * e->max_type * e->max_type);
     int nr_devices = e->nr_devices;
+    int *pind = (int*)malloc(sizeof(int) * e->max_type * e->max_type);
+    int *pind_cluster = (int*)malloc(sizeof(int) * e->max_type * e->max_type);
     struct MxPotential **pots = (MxPotential**)malloc(sizeof(MxPotential*) * e->nr_types * (e->nr_types + 1) / 2 + 1);
+    struct MxPotential **pots_cluster = (MxPotential**)malloc(sizeof(MxPotential*) * e->nr_types * (e->nr_types + 1) / 2 + 1);
 
     /* Init the null potential. */
     if ( ( pots[0] = (struct MxPotential *)alloca( sizeof(struct MxPotential) ) ) == NULL )
@@ -3032,9 +3104,19 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
     if ( ( pots[0]->c = (FPTYPE *)alloca( sizeof(float) * potential_chunk ) ) == NULL )
         return error(engine_err_malloc);
     bzero( pots[0]->c , sizeof(float) * potential_chunk );
-    nr_pots = 1; nr_coeffs = 1;
+
+    if ( ( pots_cluster[0] = (struct MxPotential *)alloca( sizeof(struct MxPotential) ) ) == NULL )
+        return error(engine_err_malloc);
+    pots_cluster[0]->alpha[0] = pots_cluster[0]->alpha[1] = pots_cluster[0]->alpha[2] = pots_cluster[0]->alpha[3] = 0.0f;
+    pots_cluster[0]->a = 0.0; pots_cluster[0]->b = FLT_MAX;
+    pots_cluster[0]->flags = POTENTIAL_NONE;
+    pots_cluster[0]->n = 0;
+    if ( ( pots_cluster[0]->c = (FPTYPE *)alloca( sizeof(float) * potential_chunk ) ) == NULL )
+        return error(engine_err_malloc);
+    bzero( pots_cluster[0]->c , sizeof(float) * potential_chunk );
     
     /* Start by identifying the unique potentials in the engine. */
+    nr_pots = 1;
     for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
     
         /* Skip if there is no potential or no parts of this type. */
@@ -3049,27 +3131,56 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
         /* Store this potential and the number of coefficient entries it has. */
         pots[nr_pots] = e->p[i];
         nr_pots += 1;
-        nr_coeffs += e->p[i]->n + 1;
-        if ( e->p[i]->n + 1 > max_coeffs )
-            max_coeffs = e->p[i]->n + 1;
     
     }
 
-    /* Pack the potential matrix. */
+    nr_pots_cluster = 1;
+    for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
+    
+        /* Skip if there is no potential or no parts of this type. */
+        if ( e->p_cluster[i] == NULL )
+            continue;
+            
+        /* Check this potential against previous potentials. */
+        for ( j = 0 ; j < nr_pots_cluster && e->p_cluster[i] != pots_cluster[j] ; j++ );
+        if ( j < nr_pots_cluster )
+            continue;
+            
+        /* Store this potential and the number of coefficient entries it has. */
+        pots_cluster[nr_pots_cluster] = e->p_cluster[i];
+        nr_pots_cluster += 1;
+    
+    }
+
+    /* Pack the potential matrices. */
     for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
         if ( e->p[i] == NULL ) {
             pind[i] = 0;
-            }
+        }
         else {
             for ( j = 0 ; j < nr_pots && pots[j] != e->p[i] ; j++ );
             pind[i] = j;
-            }
         }
+    }
+    for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
+        if ( e->p_cluster[i] == NULL ) {
+            pind_cluster[i] = 0;
+        }
+        else {
+            for ( j = 0 ; j < nr_pots_cluster && pots_cluster[j] != e->p_cluster[i] ; j++ );
+            pind_cluster[i] = j;
+        }
+    }
 
     // Pack the potentials
     MxPotentialCUDA *pots_cuda = (MxPotentialCUDA*)malloc(sizeof(MxPotentialCUDA) * nr_pots);
     for(i = 1; i < nr_pots; i++) {
         pots_cuda[i] = MxPotentialCUDA(pots[i]);
+    }
+
+    MxPotentialCUDA *pots_cluster_cuda = (MxPotentialCUDA*)malloc(sizeof(MxPotentialCUDA) * nr_pots_cluster);
+    for(i = 1; i < nr_pots_cluster; i++) {
+        pots_cluster_cuda[i] = MxPotentialCUDA(pots_cluster[i]);
     }
     
     /* Store pind as a constant. */
@@ -3084,6 +3195,18 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
             return cuda_error(engine_err_cuda);
     }
     free(pind);
+    
+    for ( did = 0 ; did < nr_devices ; did++ ) {
+        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMalloc( &e->pind_cluster_cuda[did] , sizeof(unsigned int) * e->max_type * e->max_type ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpy( e->pind_cluster_cuda[did] , pind_cluster , sizeof(unsigned int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpyToSymbol( cuda_pind_cluster , &e->pind_cluster_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+    }
+    free(pind_cluster);
 
     // Store the potentials
     for(did = 0; did < nr_devices; did++) {
@@ -3099,23 +3222,22 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
     free(pots);
     free(pots_cuda);
     e->nr_pots_cuda = nr_pots;
+    
+    for(did = 0; did < nr_devices; did++) {
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMalloc(&e->pots_cluster_cuda[did], sizeof(MxPotentialCUDA) * nr_pots_cluster) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpy(e->pots_cluster_cuda[did], pots_cluster_cuda, sizeof(MxPotentialCUDA) * nr_pots_cluster, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpyToSymbol(cuda_pots_cluster, &e->pots_cluster_cuda[did], sizeof(void*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+    free(pots_cluster);
+    free(pots_cluster_cuda);
+    e->nr_pots_cluster_cuda = nr_pots_cluster;
 
     return engine_err_ok;
-}
-
-__global__ void unload_pots_device(int nr_pots) {
-    int tid = threadIdx.x + gridDim.x * blockIdx.x;
-
-    while(tid < nr_pots) {
-        cuda_pots[tid].finalize();
-
-        tid += gridDim.x;
-    }
-}
-
-cudaError_t finalize_pots_device(struct engine *e) {
-    unload_pots_device<<<1, 1024>>>(e->nr_pots_cuda);
-    return cudaPeekAtLastError();
 }
 
 /**
@@ -3136,17 +3258,20 @@ extern "C" int engine_cuda_unload_pots(struct engine *e) {
         
         if(cudaFree(e->pind_cuda[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-
-        // Free all potential members
-        if(finalize_pots_device(e) != cudaSuccess)
+        
+        if(cudaFree(e->pind_cluster_cuda[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
         
         if(cudaFree((MxPotentialCUDA*)e->pots_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        
+        if(cudaFree((MxPotentialCUDA*)e->pots_cluster_cuda[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
     }
 
     e->nr_pots_cuda = 0;
+    e->nr_pots_cluster_cuda = 0;
 
     return engine_err_ok;
 }

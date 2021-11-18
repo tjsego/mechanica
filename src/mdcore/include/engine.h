@@ -335,11 +335,11 @@ typedef struct engine {
 	/** Pointers to device data for CUDA. */
 #ifdef HAVE_CUDA
 	void *sortlists_cuda[ engine_maxgpu ];
-	int nr_pots_cuda, *pind_cuda[ engine_maxgpu ], *offsets_cuda[ engine_maxgpu ];
+	int nr_pots_cuda, nr_pots_cluster_cuda, *pind_cuda[ engine_maxgpu ], *pind_cluster_cuda[ engine_maxgpu ], *offsets_cuda[ engine_maxgpu ];
 	int nr_devices, devices[ engine_maxgpu ];
 	float *forces_cuda[ engine_maxgpu ];
 	void *parts_cuda[ engine_maxgpu ];
-	void **pots_cuda[engine_maxgpu];
+	void **pots_cuda[engine_maxgpu], **pots_cluster_cuda[engine_maxgpu];
 	void *parts_cuda_local;
 	int *cells_cuda_local[ engine_maxgpu];
 	int cells_cuda_nr[ engine_maxgpu ];

@@ -1314,6 +1314,11 @@ int engine_addfluxes(struct engine *e, struct MxFluxes *f, int i, int j) {
 
 	if(i != j) fluxes[j * e->max_type + i] = f;
 
+	#if defined(HAVE_CUDA)
+	if(e->flags & engine_flag_cuda && engine_cuda_refresh_fluxes(e) < 0)
+		return error(engine_err);
+	#endif
+
 	return engine_err_ok;
 }
 

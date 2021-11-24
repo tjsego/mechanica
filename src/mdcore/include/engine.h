@@ -336,11 +336,11 @@ typedef struct engine {
 #ifdef HAVE_CUDA
 	void *sortlists_cuda[ engine_maxgpu ];
 	int nr_pots_cuda, nr_pots_cluster_cuda, *pind_cuda[ engine_maxgpu ], *pind_cluster_cuda[ engine_maxgpu ], *offsets_cuda[ engine_maxgpu ];
-	int nr_devices, devices[ engine_maxgpu ];
+	int nr_devices, devices[ engine_maxgpu ], nr_queues_cuda;
 	float *forces_cuda[ engine_maxgpu ];
-	void *parts_cuda[ engine_maxgpu ];
+	void *parts_cuda[ engine_maxgpu ], *part_states_cuda[engine_maxgpu];
 	void **pots_cuda[engine_maxgpu], **pots_cluster_cuda[engine_maxgpu];
-	void *parts_cuda_local;
+	void *parts_cuda_local, *part_states_cuda_local;
 	int *cells_cuda_local[ engine_maxgpu];
 	int cells_cuda_nr[ engine_maxgpu ];
 	int *counts_cuda[ engine_maxgpu ], *counts_cuda_local[ engine_maxgpu ];
@@ -352,6 +352,9 @@ typedef struct engine {
 	int nr_blocks[engine_maxgpu], nr_threads[engine_maxgpu];
 	void *rand_norm_cuda[engine_maxgpu];
 	unsigned int rand_norm_seed_cuda;
+	int nr_fluxes_cuda, *fxind_cuda[engine_maxgpu];
+	void **fluxes_cuda[engine_maxgpu];
+	float *fluxes_next_cuda[engine_maxgpu];
 #endif
 
 	/** Timers. */
@@ -698,8 +701,10 @@ CAPI_FUNC(int) engine_cuda_unload_parts ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_load_pots ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_unload_pots ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_refresh_particles ( struct engine *e );
-CAPI_FUNC(int) engine_cuda_update_nr_parts(struct engine *e);
 CAPI_FUNC(int) engine_cuda_refresh_pots ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_load_fluxes ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_unload_fluxes ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_refresh_fluxes ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_boundary_conditions_refresh(struct engine *e);
 CAPI_FUNC(int) engine_cuda_queues_finalize ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_finalize ( struct engine *e );

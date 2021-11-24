@@ -114,6 +114,17 @@ struct CAPI_EXPORT MxEngineCUDAConfig {
     HRESULT refreshPotentials();
 
     /**
+     * @brief Update fluxes on a CUDA device. 
+     * 
+     * Useful for notifying the device that a flux has changed. 
+     * 
+     * If engine is not on a device, then the call is ignored. 
+     * 
+     * @return HRESULT 
+     */
+    HRESULT refreshFluxes();
+
+    /**
      * @brief Update boundary conditions on a CUDA device. 
      * 
      * Useful for notifying the device that a boundary condition has changed. 

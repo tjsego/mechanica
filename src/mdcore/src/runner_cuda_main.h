@@ -30,8 +30,8 @@
  */
  
     
-    
-__global__ void runner_run_cuda(cuda_nparts) ( float *forces , int *counts , int *ind , int verlet_rebuild ) {
+template<bool is_stateful> 
+__global__ void runner_run_cuda(cuda_nparts) ( float *forces , float *fluxes , int *counts , int *ind , int verlet_rebuild , unsigned int nr_states ) {
     
 int k, threadID;
     int cid, cjd, sid;
@@ -41,7 +41,8 @@ int k, threadID;
     __shared__ unsigned int dshift;
   //  struct queue_cuda *myq /*, *queues[ cuda_maxqueues ]*/;
 //    unsigned int seed = 6178 + blockIdx.x;
-    float *forces_i, *forces_j;
+    float *forces_i, *forces_j, *fluxes_i, *fluxes_j, *states_i, *states_j;
+    float *cuda_part_states;
     __shared__ unsigned int sort_i[ cuda_nparts ];
     __shared__ unsigned int sort_j[ cuda_nparts ];
     MxParticleCUDA *parts_i, *parts_j;
@@ -50,6 +51,8 @@ int k, threadID;
     
     /* Get the block and thread ids. */
     threadID = threadIdx.x;
+
+    MxFluxCUDA_getPartStates(&cuda_part_states);
 
     /* Main loop... */
     while ( 1 ) {
@@ -66,8 +69,8 @@ int k, threadID;
         /* Exit if we didn't get a valid task. */
         
             
-        if(tid < 0)
-        	break;
+        if(tid < 0) 
+            break;
 	
         /* Switch task type. */
         if ( cuda_tasks[tid].type == task_type_pair ) {
@@ -101,6 +104,12 @@ int k, threadID;
             /* Put a finger on the forces. */
                 forces_i = &forces[ 4*ind[cid] ];
                 forces_j = &forces[ 4*ind[cjd] ];
+                if(is_stateful) {
+                    fluxes_i = &fluxes[nr_states * ind[cid]];
+                    fluxes_j = &fluxes[nr_states * ind[cjd]];
+                    states_i = &cuda_part_states[nr_states * ind[cid]];
+                    states_j = &cuda_part_states[nr_states * ind[cjd]];
+                }
                 
                 /* Load the sorted indices. */
 
@@ -113,27 +122,25 @@ int k, threadID;
                 
                 /*Set to left interaction*/
                 /* Compute the cell pair interactions. */
-                runner_dopair_left_cuda(
-                    parts_i , counts[cid] ,
-                    parts_j , counts[cjd] ,
+                runner_dopair_left_cuda<is_stateful>(
+                    parts_i , states_i , counts[cid] ,
+                    parts_j , states_j , counts[cjd] ,
                     forces_i , forces_j , 
+                    fluxes_i , fluxes_j , 
                     sort_i , sort_j ,
-                    shift , dshift ,
+                    shift , dshift , nr_states , 
                     &epot 
                 );
 
-                /* Copy the particle data into the local buffers. */
-                parts_i = &cuda_parts[ ind[cjd] ];
-                parts_j = &cuda_parts[ ind[cid] ];
-                
                 /*Set to right interaction*/
                 /* Compute the cell pair interactions. */
-                runner_dopair_right_cuda(
-                    parts_i , counts[cjd] ,
-                    parts_j , counts[cid] ,
+                runner_dopair_right_cuda<is_stateful>(
+                    parts_j , states_j , counts[cjd] ,
+                    parts_i , states_i , counts[cid] ,
                     forces_j , forces_i , 
+                    fluxes_j , fluxes_i , 
                     sort_j , sort_i ,
-                    shift , dshift ,
+                    shift , dshift , nr_states , 
                     &epot
                 );
 
@@ -157,12 +164,16 @@ int k, threadID;
             
                 /* Put a finger on the forces. */
                 forces_i = &forces[ 4*ind[cid] ];
+                if(is_stateful) {
+                    fluxes_i = &fluxes[nr_states * ind[cid]];
+                    states_j = &cuda_part_states[nr_states * ind[cid]];
+                }
                 
                 /* Copy the particle data into the local buffers. */
                 parts_j = &cuda_parts[ ind[cid] ];
                 
                 /* Compute the cell self interactions. */
-                runner_doself_cuda(parts_j, counts[cid], cid, forces_i, &epot);
+                runner_doself_cuda<is_stateful>(parts_j , states_j , counts[cid], cid, forces_i, fluxes_i, nr_states, &epot);
 
 		#ifdef TASK_TIMERS
 	    if(threadID==0)

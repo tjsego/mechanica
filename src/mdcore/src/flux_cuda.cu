@@ -7,9 +7,7 @@
  */
 
 #include "flux_cuda.h"
-#include <mdcore_config.h>
 
-#include <Flux.hpp>
 #include "errs.h"
 #include <engine.h>
 
@@ -17,11 +15,6 @@
 
 // Diagonal entries and flux index lookup table
 __constant__ unsigned int *cuda_fxind;
-
-// The part states
-__constant__ float *cuda_part_states;
-
-__constant__ float cuda_cutoff_flx = 0.f;
 
 // The fluxes
 __constant__ struct MxFluxesCUDA *cuda_fluxes = NULL;
@@ -61,31 +54,8 @@ cudaError_t MxFluxCUDA_toDevice(struct MxFluxCUDA *f, T *memPtr, T *fluxPtr) {
     }
 
 
-struct MxFluxTypeIdPairCUDA {
-    int16_t a;
-    int16_t b;
+// MxFluxCUDA
 
-    MxFluxTypeIdPairCUDA(TypeIdPair tip) : a{tip.a}, b{tip.b} {}
-};
-
-
-// A wrap of MxFlux
-struct MxFluxCUDA {
-    int32_t size;
-    int8_t *kinds;
-    MxFluxTypeIdPairCUDA *type_ids;
-    int32_t *indices_a;
-    int32_t *indices_b;
-    float *coef;
-    float *decay_coef;
-    float *target;
-
-    __host__ 
-    MxFluxCUDA(MxFlux f);
-
-    __device__ 
-    void finalize();
-};
 
 __host__ 
 MxFluxCUDA::MxFluxCUDA(MxFlux f) : 
@@ -123,17 +93,8 @@ void MxFluxCUDA::finalize() {
 }
 
 
-// A wrap of MxFluxes
-struct MxFluxesCUDA {
-    int32_t size;
-    MxFluxCUDA *fluxes;
+// MxFluxesCUDA
 
-    __host__ 
-    MxFluxesCUDA(MxFluxes *f);
-
-    __device__ 
-    void finalize();
-};
 
 __host__ 
 MxFluxesCUDA::MxFluxesCUDA(MxFluxes *f) : 
@@ -162,150 +123,10 @@ void MxFluxesCUDA::finalize() {
         printf("Fluxes member free failed (fluxes): %s\n", cudaGetErrorString(cudaPeekAtLastError()));
 }
 
-
 __device__ 
-void flux_fick_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
-    *result *= flux.coef[i] * (si - sj);
-}
-
-__device__ 
-void flux_secrete_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
-    float q = flux.coef[i] * (si - flux.target[i]);
-    float scale = q > 0.f;  // forward only, 1 if > 0, 0 if < 0.
-    *result *= scale * q;
-}
-
-__device__ 
-void flux_uptake_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
-    float q = flux.coef[i] * (flux.target[i] - sj) * si;
-    float scale = q > 0.f;
-    *result *= scale * q;
-}
-
-__device__ 
-void flux_eval_ex_cuda(unsigned int typeTableIndex, float r, float *states_i, float *states_j, int type_i, int type_j, float *qvec_i, bool *result) {
-    
-    // Check whether requested calculations are relevant
-    
-    unsigned int fluxes_index = cuda_fxind[typeTableIndex];
-    if(fluxes_index == 0) {
-        *result = false;
-        return;
-    }
-
-    // Do calculations
-
-    float ssi, ssj;
-    float q;
-
-    *result = true;
-    
-    MxFluxCUDA flux = cuda_fluxes[fluxes_index].fluxes[0];
-    float term = 1. - r / cuda_cutoff_flx;
-    term = term * term;
-
-    int qind;
-    
-    for(int i = 0; i < flux.size; ++i) {
-
-        if(type_i == flux.type_ids[i].a) {
-            qind = flux.indices_a[i];
-            ssi = states_i[qind];
-            ssj = states_j[flux.indices_b[i]];
-            q = - term;
-        }
-        else {
-            qind = flux.indices_b[i];
-            ssi = states_j[flux.indices_a[i]];
-            ssj = states_i[qind];
-            q = term;
-        }
-
-        switch(flux.kinds[i]) {
-            case FLUX_FICK:
-                flux_fick_cuda(flux, i, ssi, ssj, &q);
-                break;
-            case FLUX_SECRETE:
-                flux_secrete_cuda(flux, i, ssi, ssj, &q);
-                break;
-            case FLUX_UPTAKE:
-                flux_uptake_cuda(flux, i, ssi, ssj, &q);
-                break;
-            default:
-                assert(0);
-        }
-
-        qvec_i[qind] += q - 0.5 * flux.decay_coef[i] * states_i[qind];
-    }
-}
-
-__device__ 
-void flux_eval_ex_cuda(unsigned int typeTableIndex, float r, float *states_i, float *states_j, int type_i, int type_j, float *qvec_i, float *qvec_j, bool *result) {
-    
-    // Check whether requested calculations are relevant
-    
-    unsigned int fluxes_index = cuda_fxind[typeTableIndex];
-    if(fluxes_index == 0) {
-        *result = false;
-        return;
-    }
-
-    // Do calculations
-
-    *result = true;
-    
-    MxFluxCUDA flux = cuda_fluxes[fluxes_index].fluxes[0];
-    float term = 1. - r / cuda_cutoff_flx;
-    term = term * term;
-
-    float *qi, *qj, *si, *sj;
-    
-    for(int i = 0; i < flux.size; ++i) {
-
-        if(type_i == flux.type_ids[i].a) {
-            si = states_i;
-            sj = states_j;
-            qi = qvec_i;
-            qj = qvec_j;
-        }
-        else {
-            si = states_j;
-            sj = states_i;
-            qi = qvec_j;
-            qj = qvec_i;
-        }
-        
-        float ssi = si[flux.indices_a[i]];
-        float ssj = sj[flux.indices_b[i]];
-        float q =  term;
-        float mult;
-        
-        switch(flux.kinds[i]) {
-            case FLUX_FICK:
-                flux_fick_cuda(flux, i, ssi, ssj, &mult);
-                q *= mult;
-                break;
-            case FLUX_SECRETE:
-                flux_secrete_cuda(flux, i, ssi, ssj, &mult);
-                q *= mult;
-                break;
-            case FLUX_UPTAKE:
-                flux_uptake_cuda(flux, i, ssi, ssj, &mult);
-                q *= mult;
-                break;
-            default:
-                assert(0);
-        }
-        
-        float half_decay = flux.decay_coef[i] * 0.5;
-        qi[flux.indices_a[i]] -= q + half_decay * ssi;
-        qj[flux.indices_b[i]] += q - half_decay * ssj;
-    }
-}
-
-__device__ 
-void MxFluxCUDA_getPartStates(float **result) {
-    *result = cuda_part_states;
+void MxFluxCUDA_getFluxes(unsigned int **fxind_cuda, MxFluxesCUDA **fluxes_cuda) {
+    *fxind_cuda = cuda_fxind;
+    *fluxes_cuda = cuda_fluxes;
 }
 
 __device__ 
@@ -316,98 +137,6 @@ void MxFluxCUDA_getNrFluxes(unsigned int *nr_fluxes) {
 __device__ 
 void MxFluxCUDA_getNrStates(unsigned int *nr_states) {
     *nr_states = cuda_nr_fluxes - 1;
-}
-
-__global__ 
-void MxFluxCUDA_copy_partstates(float *states, int count, int ind, int nr_states) {
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-    int j, k;
-
-    while(i < count) {
-        k = i + ind;
-        for(j = 0; j < nr_states; j++) 
-            states[i * nr_states + j] = cuda_part_states[k * nr_states + j];
-        i += blockDim.x * gridDim.x;
-    }
-}
-
-
-/**
- * @brief Allocate the particle states on the CUDA device. 
- * 
- * All operations are performed according to engine current state. 
- * 
- * The performed operations are already applied while managing particle data. 
- * However, state data can also change with changes in fluxes, and so this allows 
- * data allocation without allocating particle data. Effectively, this exclusively 
- * allocates all state data according to the current configuration of the engine. 
- *
- * @param e The #engine.
- *
- * @return #engine_err_ok or < 0 on error (see #engine_err).
- */
-int engine_cuda_allocate_part_states(struct engine *e) { 
-
-    int nr_states = e->nr_fluxes_cuda - 1;
-
-    if(nr_states < 1) 
-        return engine_err_ok;
-
-    // Allocate the particle state buffer
-    if((e->part_states_cuda_local = (float*)malloc(sizeof(float) * nr_states * e->s.size_parts)) == NULL)
-        return error(engine_err_malloc);
-
-    /* Allocate the particle state data. */
-    for(int did = 0; did < e->nr_devices; did++) {
-        if (cudaSetDevice( e->devices[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if (cudaMalloc(&e->part_states_cuda[did], sizeof(float) * nr_states * e->s.size_parts) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-        if (cudaMemcpyToSymbol(cuda_part_states, &e->part_states_cuda[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-    }
-
-    return engine_err_ok;
-}
-
-/**
- * @brief Finalize the particle states on the CUDA device. 
- * 
- * All operations are performed according to engine current state. 
- * 
- * The performed operations are already applied while managing particle data. 
- * However, state data can also change with changes in fluxes, and so this allows 
- * data deallocation without deallocating particle data. Effectively, this exclusively 
- * deallocates all state data according to the current configuration of the engine. 
- *
- * @param e The #engine.
- *
- * @return #engine_err_ok or < 0 on error (see #engine_err).
- */
-int engine_cuda_finalize_part_states(struct engine *e) { 
-
-    int nr_states = e->nr_fluxes_cuda - 1;
-
-    if(nr_states < 1) 
-        return engine_err_ok;
-
-    for(int did = 0; did < e->nr_devices; did++) {
-
-        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-
-        // Free the particle state data
-
-        if(cudaFree(e->part_states_cuda[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-
-    }
-
-    // Free the particle state buffer
-
-    free(e->part_states_cuda_local);
-
-    return engine_err_ok;
 }
 
 
@@ -473,8 +202,6 @@ extern "C" int engine_cuda_load_fluxes(struct engine *e) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_fxind , &e->fxind_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if(cudaMemcpyToSymbol(cuda_cutoff_flx, &cutoff, sizeof(float), 0, cudaMemcpyHostToDevice) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
     }
     free(fxind);
 
@@ -497,16 +224,8 @@ extern "C" int engine_cuda_load_fluxes(struct engine *e) {
     int nr_states = e->nr_fluxes_cuda - 1;
     bool updating_states = e->nr_fluxes_cuda != nr_fluxes;
 
-    if(updating_states && nr_states > 0) 
-        if(engine_cuda_finalize_part_states(e) < 0) 
-            return error(engine_err);
-
     e->nr_fluxes_cuda = nr_fluxes;
     nr_states = e->nr_fluxes_cuda - 1;
-
-    if(updating_states && nr_states > 0) 
-        if(engine_cuda_allocate_part_states(e) < 0) 
-            return error(engine_err);
 
     // Allocate the flux buffer
     if(nr_states > 0) {
@@ -553,12 +272,6 @@ extern "C" int engine_cuda_unload_fluxes(struct engine *e) {
 
         if(cudaSetDevice(e->devices[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-
-        // Free the states
-
-        if(nr_states > 0)
-            if(engine_cuda_finalize_part_states(e) < 0)
-                return error(engine_err);
 
         // Free the fluxes.
         

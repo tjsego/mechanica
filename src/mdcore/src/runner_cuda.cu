@@ -18,7 +18,6 @@
  ******************************************************************************/
 
 // TODO: implement hook for potentials by particles
-// TODO: break up source by content
 
 /* Include configuratin header */
 #include <mdcore_config.h>
@@ -37,7 +36,6 @@
 
 #include <cuda_runtime.h>
 #include <curand.h>
-#include <curand_kernel.h>
 
 /* Include some conditional headers. */
 #ifdef HAVE_MPI
@@ -60,12 +58,12 @@
 #include "errs.h"
 #include "fptype.h"
 #include "lock.h"
-#include "MxParticle.h"
+#include "MxParticle_cuda.h"
 #include "space_cell.h"
 #include "space.h"
 #include "task.h"
-#include "MxPotential.h"
-#include "DissapativeParticleDynamics.hpp"
+#include "MxPotential_cuda.h"
+#include "MxBoundaryConditions_cuda.h"
 #include "Flux.hpp"
 #include "engine.h"
 #include "runner_cuda.h"
@@ -80,10 +78,11 @@
 #define error(id)				( engine_err = errs_register( id , engine_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
 #define cuda_error(id)			( engine_err = errs_register( id , cudaGetErrorString(cudaGetLastError()) , __LINE__ , __FUNCTION__ , __FILE__ ) )
 
-struct MxParticleCUDA;
-
 /* The parts (non-texture access). */
 __constant__ MxParticleCUDA *cuda_parts;
+
+// Boundary conditions
+__constant__ MxBoundaryConditionsCUDA cuda_bcs;
 
 /* Diagonal entries and potential index lookup table. */
 __constant__ unsigned int *cuda_pind;
@@ -789,224 +788,31 @@ __device__ void cuda_sort_ascending ( unsigned int *a , int count ) {
     }
 
 
-/**
- * @brief Loads a potential onto a CUDA device
- * 
- * @param p The potential
- * 
- * @return The loaded potential, or NULL if failed
- */
-MxPotential cuda_toDevice(MxPotential *p) {
-    MxPotential p_d(*p);
-
-    // Alloc and copy coefficients
-    if(cudaMalloc(&p_d.c, sizeof(FPTYPE) * (p->n + 1) * potential_chunk) != cudaSuccess) {
-        mx_error(E_FAIL, cudaGetErrorString(cudaPeekAtLastError()));
-        return p_d;
-    }
-    if(cudaMemcpy(p_d.c, p->c, sizeof(FPTYPE) * (p->n + 1) * potential_chunk, cudaMemcpyHostToDevice) != cudaSuccess) {
-        mx_error(E_FAIL, cudaGetErrorString(cudaPeekAtLastError()));
-        return p_d;
-    }
-
-    if(p->pca != NULL)
-        *p_d.pca = cuda_toDevice(p->pca);
-    if(p->pcb != NULL)
-        *p_d.pcb = cuda_toDevice(p->pcb);
-
-    return p_d;
+__device__ 
+void engine_cuda_rand_norm(int threadID, int nr_rands, float *result) {
+    int i;
+    curandState *rand_norm = &cuda_rand_norm[threadID];
+    for(i = 0; i < nr_rands; i++) 
+        result[i] = curand_normal(rand_norm);
 }
 
-/**
- * @brief Finalize a potential on a CUDA device
- * 
- * @param p The potential
- * 
- */
-__device__ void cuda_finalize_onDevice(MxPotential &p) {
-    cudaFree(&p.c);
+__device__ 
+void engine_cuda_rand_norm_getState(int threadID, curandState **rand_norm) {
+    *rand_norm = &cuda_rand_norm[threadID];
 }
 
-struct MxPotentialCUDA {
-
-    // Flag signifying whether instance is a placeholder
-    bool empty;
-
-    // DPD coefficients alpha, gamma, sigma
-    float3 dpd_cfs;
-
-    // The potential
-    MxPotential pot;
-
-    __host__ __device__ 
-    MxPotentialCUDA() :
-        empty{true}
-    {}
-
-    __host__ __device__ 
-    MxPotentialCUDA(MxPotential *p, bool toDevice=true) {
-        this->empty = false;
-
-        #if defined(__CUDA_ARCH__)
-        this->pot = *p;
-        #else
-        if(toDevice) this->pot = cuda_toDevice(p);
-        else this->pot = *p;
-        #endif
-
-        if(p->kind == POTENTIAL_KIND_DPD) {
-            DPDPotential *p_dpd = (DPDPotential*)p;
-            this->dpd_cfs.x = p_dpd->alpha;
-            this->dpd_cfs.y = p_dpd->gamma;
-            this->dpd_cfs.z = p_dpd->sigma;
-        }
-    }
-    
-    __device__ 
-    void finalize() {
-        if(!this->empty)
-            cudaFree(&this->pot.c);
-        this->empty = true;
-    }
-};
-
-struct MxParticleCUDA {
-    float4 x;
-    float4 v;
-    float radius;
-    int id;
-    int typeId;
-    int clusterId;
-    uint16_t flags;
-
-    __host__ __device__ 
-    MxParticleCUDA() :
-        id{-1}, 
-        typeId{-1}
-    {}
-
-    __host__ __device__ 
-    MxParticleCUDA(MxParticle *p) : 
-        x{p->x[0], p->x[1], p->x[2], p->x[3]}, 
-        v{p->v[0], p->v[1], p->v[2], p->v[3]}, 
-        radius{p->radius}, 
-        id{p->id}, 
-        typeId{p->typeId}, 
-        clusterId{p->clusterId}, 
-        flags{p->flags}
-    {}
-};
-
-MxParticleCUDA cuda_toDevice(MxParticle *p) {
-    return MxParticleCUDA(p);
+__device__ 
+void engine_cuda_random_vector3(float vecLength, float *result) {
+    curandState *rand_norm;
+    engine_cuda_rand_norm_getState(threadIdx.x + blockIdx.x * blockDim.x, &rand_norm);
+    result[0] = curand_normal(rand_norm);
+    result[1] = curand_normal(rand_norm);
+    result[2] = curand_normal(rand_norm);
+    float len = sqrtf(result[0] * result[0] + result[1] * result[1] + result[2] * result[2]);
+    result[0] = result[0] * vecLength / len;
+    result[1] = result[1] * vecLength / len;
+    result[2] = result[2] * vecLength / len;
 }
-
-int cuda_fromDevice(MxParticleCUDA pc, MxParticle *p) {
-    p->radius = pc.radius;
-    
-    p->x[0] = pc.x.x; p->x[1] = pc.x.y; p->x[2] = pc.x.z; p->x[3] = pc.x.w;
-    p->v[0] = pc.v.x; p->v[1] = pc.v.y; p->v[2] = pc.v.z; p->v[3] = pc.v.w;
-
-    return engine_err_ok;
-}
-
-
-
-
-
-struct MxBoundaryConditionCUDA {
-
-    float3 normal;
-
-    float3 velocity;
-
-    float radius;
-
-    MxPotentialCUDA *pots;
-
-    __host__ __device__ 
-    MxBoundaryConditionCUDA() {}
-
-    __host__ 
-    MxBoundaryConditionCUDA(const MxBoundaryCondition &_bc) {
-        this->normal = make_float3(_bc.normal[0], _bc.normal[1], _bc.normal[2]);
-        this->velocity = make_float3(_bc.velocity[0], _bc.velocity[1], _bc.velocity[2]);
-        this->radius = _bc.radius;
-
-        MxPotential *p;
-        
-        size_t size_pots = sizeof(MxPotentialCUDA) * engine_maxnrtypes;
-        if(cudaMalloc(&this->pots, size_pots) != cudaSuccess) {
-            printf("Boundary condition allocation failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-            return;
-        }
-
-        MxPotentialCUDA *cu_pots = (MxPotentialCUDA*)malloc(size_pots);
-        for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) 
-            if((p = _bc.potenntials[typeId]) != NULL) 
-                cu_pots[typeId] = MxPotentialCUDA(p);
-
-        if(cudaMemcpy(this->pots, cu_pots, size_pots, cudaMemcpyHostToDevice) != cudaSuccess)
-            printf("Boundary condition copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-        
-        free(cu_pots);
-    }
-
-    __device__ 
-    void finalize() {
-        for(int typeId = 0; typeId < engine_maxnrtypes; typeId++)
-            this->pots[typeId].finalize();
-        
-        if(cudaFree(&this->pots) != cudaSuccess) 
-            printf("Boundary condition finalize failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-    }
-};
-
-
-struct MxBoundaryConditionsCUDA {
-    
-    // Left, right, front, back, bottom, top
-    MxBoundaryConditionCUDA *bcs;
-
-    __host__ __device__ 
-    MxBoundaryConditionsCUDA() {}
-    
-    __host__ 
-    MxBoundaryConditionsCUDA(const MxBoundaryConditions &_bcs) {
-        size_t size_bcs = sizeof(MxBoundaryConditionCUDA) * 6;
-
-        if(cudaMalloc(&this->bcs, size_bcs) != cudaSuccess) {
-            printf("Boundary conditions allocation failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-            return;
-        }
-
-        MxBoundaryConditionCUDA *cu_bcs = (MxBoundaryConditionCUDA*)malloc(size_bcs);
-
-        cu_bcs[0] = MxBoundaryConditionCUDA(_bcs.left);
-        cu_bcs[1] = MxBoundaryConditionCUDA(_bcs.right);
-        cu_bcs[2] = MxBoundaryConditionCUDA(_bcs.front);
-        cu_bcs[3] = MxBoundaryConditionCUDA(_bcs.back);
-        cu_bcs[4] = MxBoundaryConditionCUDA(_bcs.bottom);
-        cu_bcs[5] = MxBoundaryConditionCUDA(_bcs.top);
-
-        if(cudaMemcpy(this->bcs, cu_bcs, size_bcs, cudaMemcpyHostToDevice) != cudaSuccess)
-            printf("Boundary conditions copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-
-        free(cu_bcs);
-    }
-
-    __device__ 
-    void finalize() {
-        for(int bcId = 0; bcId < 6; bcId++)
-            this->bcs[bcId].finalize();
-
-        if(cudaFree(&this->bcs) != cudaSuccess) 
-            printf("Boundary conditions finalize failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-    }
-
-};
-
-__constant__ MxBoundaryConditionsCUDA cuda_bcs;
 
 
 extern "C" int engine_cuda_boundary_conditions_load(struct engine *e) {
@@ -1322,7 +1128,6 @@ __device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
                                                     MxParticleCUDA pj, 
                                                     float *dx, 
                                                     float r2, 
-                                                    float number_density, 
                                                     float *epot, 
                                                     float *fi, 
                                                     float *fj, 
@@ -1345,7 +1150,6 @@ __device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
         _r2 = _dx[0]*_dx[0] + _dx[1]*_dx[1] + _dx[2]*_dx[2];
     }
     else {
-        num_dens = number_density;
         _r2 = r2;
         for (int k = 0; k < 3; k++) _dx[k] = dx[k];
     }
@@ -1386,8 +1190,8 @@ __device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
     else if(kind == POTENTIAL_KIND_COMBINATION) {
         if(flags & POTENTIAL_SUM) {
             bool resulta, resultb;
-            potential_eval_super_ex_cuda(MxPotentialCUDA(p_cuda.pot.pca, false), pi, pj, _dx, _r2, num_dens, epot, fi, fj, &resulta);
-            potential_eval_super_ex_cuda(MxPotentialCUDA(p_cuda.pot.pcb, false), pi, pj, _dx, _r2, num_dens, epot, fi, fj, &resultb);
+            potential_eval_super_ex_cuda(MxPotentialCUDA(p_cuda.pot.pca, false), pi, pj, _dx, _r2, epot, fi, fj, &resulta);
+            potential_eval_super_ex_cuda(MxPotentialCUDA(p_cuda.pot.pcb, false), pi, pj, _dx, _r2, epot, fi, fj, &resultb);
             *result = resulta || resultb;
         }
     }
@@ -1419,7 +1223,6 @@ __device__ inline void potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
                                                     MxParticleCUDA pj, 
                                                     float *dx, 
                                                     float r2, 
-                                                    float number_density, 
                                                     float *epot, 
                                                     float *fi, 
                                                     float *fj, 
@@ -1428,13 +1231,13 @@ __device__ inline void potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
     uint32_t kind = p_cuda.pot.kind;
 
     if(kind == POTENTIAL_KIND_POTENTIAL) {
-        _potential_eval_super_ex_cuda<POTENTIAL_KIND_POTENTIAL>(p_cuda, pi, pj, dx, r2, number_density, epot, fi, fj, result);
+        _potential_eval_super_ex_cuda<POTENTIAL_KIND_POTENTIAL>(p_cuda, pi, pj, dx, r2, epot, fi, fj, result);
     }
     else if(kind == POTENTIAL_KIND_COMBINATION) {
-        _potential_eval_super_ex_cuda<POTENTIAL_KIND_COMBINATION>(p_cuda, pi, pj, dx, r2, number_density, epot, fi, fj, result);
+        _potential_eval_super_ex_cuda<POTENTIAL_KIND_COMBINATION>(p_cuda, pi, pj, dx, r2, epot, fi, fj, result);
     }
     else if(kind == POTENTIAL_KIND_DPD) {
-        _potential_eval_super_ex_cuda<POTENTIAL_KIND_DPD>(p_cuda, pi, pj, dx, r2, number_density, epot, fi, fj, result);
+        _potential_eval_super_ex_cuda<POTENTIAL_KIND_DPD>(p_cuda, pi, pj, dx, r2, epot, fi, fj, result);
     }
 }
 
@@ -1611,6 +1414,127 @@ void boundary_eval_cuda(MxParticleCUDA part, float3 cell_dim, unsigned int cell_
 }
 
 
+__device__ inline 
+void flux_fick_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
+    *result *= flux.coef[i] * (si - sj);
+}
+
+__device__ inline 
+void flux_secrete_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
+    float q = flux.coef[i] * (si - flux.target[i]);
+    float scale = q > 0.f;  // forward only, 1 if > 0, 0 if < 0.
+    *result *= scale * q;
+}
+
+__device__ inline 
+void flux_uptake_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
+    float q = flux.coef[i] * (flux.target[i] - sj) * si;
+    float scale = q > 0.f;
+    *result *= scale * q;
+}
+
+__device__ inline 
+void flux_eval_ex_cuda(MxFluxesCUDA fluxes, float r, float *states_i, float *states_j, int type_i, int type_j, float *qvec_i) {
+
+    // Do calculations
+
+    float ssi, ssj;
+    float q;
+    
+    MxFluxCUDA flux = fluxes.fluxes[0];
+    float term = 1. - r / cuda_cutoff;
+    term = term * term;
+
+    int qind;
+    
+    for(int i = 0; i < flux.size; ++i) {
+
+        if(type_i == flux.type_ids[i].a) {
+            qind = flux.indices_a[i];
+            ssi = states_i[qind];
+            ssj = states_j[flux.indices_b[i]];
+            q = - term;
+        }
+        else {
+            qind = flux.indices_b[i];
+            ssi = states_j[flux.indices_a[i]];
+            ssj = states_i[qind];
+            q = term;
+        }
+
+        switch(flux.kinds[i]) {
+            case FLUX_FICK:
+                flux_fick_cuda(flux, i, ssi, ssj, &q);
+                break;
+            case FLUX_SECRETE:
+                flux_secrete_cuda(flux, i, ssi, ssj, &q);
+                break;
+            case FLUX_UPTAKE:
+                flux_uptake_cuda(flux, i, ssi, ssj, &q);
+                break;
+            default:
+                assert(0);
+        }
+
+        qvec_i[qind] += q - 0.5 * flux.decay_coef[i] * states_i[qind];
+    }
+}
+
+__device__ inline 
+void flux_eval_ex_cuda(MxFluxesCUDA fluxes, float r, float *states_i, float *states_j, int type_i, int type_j, float *qvec_i, float *qvec_j) {
+
+    // Do calculations
+    
+    MxFluxCUDA flux = fluxes.fluxes[0];
+    float term = 1. - r / cuda_cutoff;
+    term = term * term;
+
+    float *qi, *qj, *si, *sj;
+    
+    for(int i = 0; i < flux.size; ++i) {
+
+        if(type_i == flux.type_ids[i].a) {
+            si = states_i;
+            sj = states_j;
+            qi = qvec_i;
+            qj = qvec_j;
+        }
+        else {
+            si = states_j;
+            sj = states_i;
+            qi = qvec_j;
+            qj = qvec_i;
+        }
+        
+        float ssi = si[flux.indices_a[i]];
+        float ssj = sj[flux.indices_b[i]];
+        float q =  term;
+        float mult;
+        
+        switch(flux.kinds[i]) {
+            case FLUX_FICK:
+                flux_fick_cuda(flux, i, ssi, ssj, &mult);
+                q *= mult;
+                break;
+            case FLUX_SECRETE:
+                flux_secrete_cuda(flux, i, ssi, ssj, &mult);
+                q *= mult;
+                break;
+            case FLUX_UPTAKE:
+                flux_uptake_cuda(flux, i, ssi, ssj, &mult);
+                q *= mult;
+                break;
+            default:
+                assert(0);
+        }
+        
+        float half_decay = flux.decay_coef[i] * 0.5;
+        qi[flux.indices_a[i]] -= q + half_decay * ssi;
+        qj[flux.indices_b[i]] += q - half_decay * ssj;
+    }
+}
+
+
 /**
  * @brief Compute the pairwise interactions for the given pair on a CUDA device.
  *
@@ -1682,6 +1606,9 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
 
                 w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
+                pjf[3] += number_density;
+                forces_i[4*pid + 3] += number_density;
+
                 if(iscluster_maybe && pi.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId) {
                     cu_pots = cuda_pots_cluster;
                     cu_pind = cuda_pind_cluster;
@@ -1692,14 +1619,11 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
                 }
 
                 pind = cu_pind[pjoff + pi.typeId];
-                if(pind == 0) {
-                    forces_i[4*pid + 3] += number_density;
-                    pjf[3] += number_density;
+                if(pind == 0) 
                     continue;
-                } 
             
                 /* Interact particles pi and pj. */
-                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, &forces_i[4*pid], pjf, &eval_result);
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, &ee, &forces_i[4*pid], pjf, &eval_result);
 
                 /* Store the interaction force and energy. */
                 epot += ee;
@@ -1837,45 +1761,37 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
             /* Update the forces. */
             if ( valid.x ) {
                 w_cubic_spline_cuda(r2.x, cuda_cutoff, &number_density.x);
-                if(pot.x == 0) {
-                    pjf[3] += number_density.x;
-                    forces_i[4*pid.x + 3] += number_density.x;
-                }
-                else {
-                    potential_eval_super_ex_cuda(cu_pots[0][pot.x], pi[0], pj, &dx[0], r2.x, number_density.x, &ee.x, pjf, &forces_i[4*pid.x], &eval_result);
+                pjf[3] += number_density.x;
+                forces_i[4*pid.x + 3] += number_density.x;
+                if(pot.x != 0) {
+                    potential_eval_super_ex_cuda(cu_pots[0][pot.x], pi[0], pj, &dx[0], r2.x, &ee.x, pjf, &forces_i[4*pid.x], &eval_result);
                     epot += ee.x;
                 }
             }
             if ( valid.y ) {
                 w_cubic_spline_cuda(r2.y, cuda_cutoff, &number_density.y);
-                if(pot.y == 0) {
-                    pjf[3] += number_density.y;
-                    forces_i[4*pid.y + 3] += number_density.y;
-                }
-                else {
-                    potential_eval_super_ex_cuda(cu_pots[1][pot.y], pi[1], pj, &dx[3], r2.y, number_density.y, &ee.y, pjf, &forces_i[4*pid.y], &eval_result);
+                pjf[3] += number_density.y;
+                forces_i[4*pid.y + 3] += number_density.y;
+                if(pot.y != 0) {
+                    potential_eval_super_ex_cuda(cu_pots[1][pot.y], pi[1], pj, &dx[3], r2.y, &ee.y, pjf, &forces_i[4*pid.y], &eval_result);
                     epot += ee.y;
                 }
             }
             if ( valid.z ) {
                 w_cubic_spline_cuda(r2.z, cuda_cutoff, &number_density.z);
-                if(pot.z == 0) {
-                    pjf[3] += number_density.z;
-                    forces_i[4*pid.z + 3] += number_density.z;
-                }
-                else {
-                    potential_eval_super_ex_cuda(cu_pots[2][pot.z], pi[2], pj, &dx[6], r2.z, number_density.z, &ee.z, pjf, &forces_i[4*pid.z], &eval_result);
+                pjf[3] += number_density.z;
+                forces_i[4*pid.z + 3] += number_density.z;
+                if(pot.z != 0) {
+                    potential_eval_super_ex_cuda(cu_pots[2][pot.z], pi[2], pj, &dx[6], r2.z, &ee.z, pjf, &forces_i[4*pid.z], &eval_result);
                     epot += ee.z;
                 }
             }
             if ( valid.w ) {
                 w_cubic_spline_cuda(r2.w, cuda_cutoff, &number_density.w);
-                if(pot.w == 0) {
-                    pjf[3] += number_density.w;
-                    forces_i[4*pid.w + 3] += number_density.w;
-                }
-                else {
-                    potential_eval_super_ex_cuda(cu_pots[3][pot.w], pi[3], pj, &dx[9], r2.w, number_density.w, &ee.w, pjf, &forces_i[4*pid.w], &eval_result);
+                pjf[3] += number_density.w;
+                forces_i[4*pid.w + 3] += number_density.w;
+                if(pot.w != 0) {
+                    potential_eval_super_ex_cuda(cu_pots[3][pot.w], pi[3], pj, &dx[9], r2.w, &ee.w, pjf, &forces_i[4*pid.w], &eval_result);
                     epot += ee.w;
                 }
             }
@@ -2032,6 +1948,9 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
 
                 w_cubic_spline_cuda(r2, cuda_cutoff, &number_density);
 
+                pif[3] += number_density;
+                forces_j[4*spjd + 3] += number_density;
+
                 if(iscluster_maybe && pj.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId) {
                     cu_pots = cuda_pots_cluster;
                     cu_pind = cuda_pind_cluster;
@@ -2042,14 +1961,11 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
                 }
 
                 pind = cu_pind[pioff + pj.typeId];
-                if(pind == 0) {
-                    pif[3] += number_density;
-                    forces_j[4*spjd + 3] += number_density;
+                if(pind == 0) 
                     continue;
-                }
 
                 /* Interact particles pi and pj. */
-                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, &forces_j[4*spjd], &eval_result);
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, &ee, pif, &forces_j[4*spjd], &eval_result);
 
                 /* Store the interaction energy. */
                 epot += ee;
@@ -2087,25 +2003,30 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
  * @sa #runner_dopair.
  */
 template<bool is_stateful> 
-__device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , float *states_i , int count_i , MxParticleCUDA *parts_j , float *states_j , int count_j , float *forces_i , float *forces_j , float *fluxes_i , float *fluxes_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , unsigned int nr_states , float *epot_global ) {
+__device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , int count_i , MxParticleCUDA *parts_j , int count_j , float *forces_i , float *forces_j , float *fluxes_i , float *fluxes_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , unsigned int nr_states , float *epot_global ) {
     int k, pjd, spid, spjd, threadID;
-    int pioff;
     unsigned int dmaxdist, di;
     MxParticleCUDA pi, pj;
     float4 pix;
     int pind, i;
     float epot = 0.0f, r2, r, ee = 0.0f;
-    float dx[3], pif[4], pjf[4], pifx[MX_SIMD_SIZE], *pis;
+    float dx[3], pif[4], pjf[4], pifx[MX_SIMD_SIZE];
     bool eval_result;
     float number_density;
     MxPotentialCUDA *cu_pots;
     unsigned int *cu_pind;
     bool iscluster_maybe;
+    MxFluxesCUDA *fluxes_cuda;
+    unsigned int *cu_fxind, fxind;
     
     TIMER_TIC
     
     /* Get the size of the frame, i.e. the number of threads in this block. */
     threadID = threadIdx.x;
+
+    if(is_stateful) {
+        MxFluxCUDA_getFluxes(&cu_fxind, &fluxes_cuda);
+    }
     
     /* Pre-compute the inverse norm of the shift. */
     dmaxdist = 2 + cuda_dscale * cuda_maxdist;
@@ -2117,13 +2038,11 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , float *stat
         spid = sort_i[i] >> 16;
         pi = parts_i[ spid ];
         pix = float4(pi.x);
-        pioff = pi.typeId * cuda_maxtype;
         pix.x -= shift[0]; pix.y -= shift[1]; pix.z -= shift[2];
         pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f; pif[3] = 0.0f;
         iscluster_maybe = pi.flags & PARTICLE_CLUSTER;
 
         if(is_stateful) {
-            pis = &states_i[nr_states * spid];
             memset(pifx, 0.f, nr_states * sizeof(float));
         }
 
@@ -2147,6 +2066,8 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , float *stat
 
             w_cubic_spline_cuda(r2, cuda_cutoff, &number_density, &r);
 
+            pif[3] += number_density;
+
             if(iscluster_maybe && pj.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId) {
                 cu_pots = cuda_pots_cluster;
                 cu_pind = cuda_pind_cluster;
@@ -2156,20 +2077,20 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , float *stat
                 cu_pind = cuda_pind;
             }
 
-            pind = cu_pind[ pioff + pj.typeId ];
-            if(pind == 0) {
-                pif[3] += number_density;
-            } 
-            else {
+            pind = cu_pind[ pi.typeId * cuda_maxtype + pj.typeId ];
+            if(pind != 0) {
                 /* Interact particles pi and pj. */
-                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, &ee, pif, pjf, &eval_result);
 
                 /* Store the interaction energy. */
                 epot += ee;
             }
 
-            if(is_stateful) 
-                flux_eval_ex_cuda(pioff + pj.typeId, r, pis, &states_j[nr_states * spjd], pi.typeId, pj.typeId, pifx, &eval_result);
+            if(is_stateful) { 
+                fxind = cu_fxind[pi.typeId * cuda_maxtype + pj.typeId];
+                if(fxind != 0)
+                    flux_eval_ex_cuda(fluxes_cuda[fxind], r, pi.states, pj.states, pi.typeId, pj.typeId, pifx);
+            }
 
         } /* loop over parts in cell_i. */
             
@@ -2208,25 +2129,30 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , float *stat
  * @sa #runner_dopair.
  */
 template<bool is_stateful> 
-__device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , float *states_i , int count_i , MxParticleCUDA *parts_j , float *states_j , int count_j , float *forces_i , float *forces_j , float *fluxes_i , float *fluxes_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , unsigned int nr_states , float *epot_global ) {
+__device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , int count_i , MxParticleCUDA *parts_j , int count_j , float *forces_i , float *forces_j , float *fluxes_i , float *fluxes_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , unsigned int nr_states , float *epot_global ) {
     int k, pjd, spid, spjd, threadID;
-    int pioff;
     unsigned int dmaxdist, dj;
     MxParticleCUDA pi, pj;
     float4 pix;
     int pind, i;
     float epot = 0.0f, r2, r, ee = 0.0f;
-    float dx[3], pif[4], pjf[4], pifx[MX_SIMD_SIZE], *pis;
+    float dx[3], pif[4], pjf[4], pifx[MX_SIMD_SIZE];
     bool eval_result;
     float number_density;
     MxPotentialCUDA *cu_pots;
     unsigned int *cu_pind;
     bool iscluster_maybe;
+    MxFluxesCUDA *fluxes_cuda;
+    unsigned int *cu_fxind, fxind;
     
     TIMER_TIC
     
     /* Get the size of the frame, i.e. the number of threads in this block. */
     threadID = threadIdx.x;
+
+    if(is_stateful) {
+        MxFluxCUDA_getFluxes(&cu_fxind, &fluxes_cuda);
+    }
     
     /* Pre-compute the inverse norm of the shift. */
     dmaxdist = 2 + cuda_dscale * cuda_maxdist;
@@ -2238,13 +2164,11 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , float *stat
         spid = sort_i[i] >> 16;
         pi = parts_i[ spid ];
         pix = float4(pi.x);
-        pioff = pi.typeId * cuda_maxtype;
         pix.x += shift[0]; pix.y += shift[1]; pix.z += shift[2];
         pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f; pif[3] = 0.0f;
         iscluster_maybe = pi.flags & PARTICLE_CLUSTER;
 
         if(is_stateful) {
-            pis = &states_i[nr_states * spid];
             memset(pifx, 0.f, nr_states * sizeof(float));
         }
         
@@ -2267,6 +2191,8 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , float *stat
 
             w_cubic_spline_cuda(r2, cuda_cutoff, &number_density, &r);
 
+            pif[3] += number_density;
+
             if(iscluster_maybe && pj.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId) {
                 cu_pots = cuda_pots_cluster;
                 cu_pind = cuda_pind_cluster;
@@ -2276,20 +2202,20 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , float *stat
                 cu_pind = cuda_pind;
             }
 
-            pind = cu_pind[pioff + pj.typeId];
-            if(pind == 0) {
-                pif[3] += number_density;
-            } 
-            else {
+            pind = cu_pind[pi.typeId * cuda_maxtype + pj.typeId];
+            if(pind != 0) {
                 /* Interact particles pi and pj. */
-                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, &ee, pif, pjf, &eval_result);
 
                 /* Store the interaction force and energy. */
                 epot += ee;
             }
 
-            if(is_stateful) 
-                flux_eval_ex_cuda(pioff + pj.typeId, r, pis, &states_j[nr_states * spjd], pi.typeId, pj.typeId, pifx, &eval_result);
+            if(is_stateful) { 
+                fxind = cu_fxind[pi.typeId * cuda_maxtype + pj.typeId];
+                if(fxind != 0)
+                    flux_eval_ex_cuda(fluxes_cuda[fxind], r, pi.states, pj.states, pi.typeId, pj.typeId, pifx);
+            }
 
         } /* loop over parts in cell_i. */
             
@@ -2320,12 +2246,12 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , float *stat
  * @sa #runner_dopair.
  */
 template<bool is_stateful> 
-__device__ void runner_doself_cuda (MxParticleCUDA *parts, float *states, int count, int cell_id, float *forces, float *fluxes, unsigned int nr_states, float *epot_global) {
+__device__ void runner_doself_cuda (MxParticleCUDA *parts, int count, int cell_id, float *forces, float *fluxes, unsigned int nr_states, float *epot_global) {
     int k, pid, threadID;
     int pjoff;
     MxParticleCUDA pi, pj;
     int pind, i;
-    float epot = 0.0f, dx[3], pif[4], pjf[4], r2, r, ee, pjfx[MX_SIMD_SIZE], *pjs;
+    float epot = 0.0f, dx[3], pif[4], pjf[4], r2, r, ee, pjfx[MX_SIMD_SIZE];
     bool eval_result;
     float number_density;
     unsigned int cell_flags = cuda_cflags[cell_id];
@@ -2333,11 +2259,17 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, float *states, int co
     MxPotentialCUDA *cu_pots;
     unsigned int *cu_pind;
     bool iscluster_maybe;
+    MxFluxesCUDA *fluxes_cuda;
+    unsigned int *cu_fxind, fxind;
     
     TIMER_TIC
 
     /* Get the size of the frame, i.e. the number of threads in this block. */
     threadID = threadIdx.x;
+
+    if(is_stateful) {
+        MxFluxCUDA_getFluxes(&cu_fxind, &fluxes_cuda);
+    }
 
     /* Loop over the particles in the cell, frame-wise. */
     for ( i = threadID ; i < count ;  i += blockDim.x  ) {
@@ -2349,7 +2281,6 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, float *states, int co
         iscluster_maybe = pj.flags & PARTICLE_CLUSTER;
 
         if(is_stateful) {
-            pjs = &states[nr_states * i];
             memset(pjfx, 0.f, nr_states * sizeof(float));
         }
 
@@ -2375,6 +2306,8 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, float *states, int co
 
                 w_cubic_spline_cuda(r2, cuda_cutoff, &number_density, &r);
 
+                pjf[3] += number_density;
+
                 if(iscluster_maybe && pi.flags & PARTICLE_CLUSTER && pi.clusterId == pj.clusterId) {
                     cu_pots = cuda_pots_cluster;
                     cu_pind = cuda_pind_cluster;
@@ -2385,19 +2318,19 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, float *states, int co
                 }
 
                 pind = cu_pind[pjoff + pi.typeId];
-                if(pind == 0) {
-                    pjf[3] += number_density;
-                } 
-                else {
+                if(pind != 0) {
                     /* Interact particles pi and pj. */
-                    potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, number_density, &ee, pif, pjf, &eval_result);
+                    potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, &ee, pif, pjf, &eval_result);
 
                     /* Store the interaction force and energy. */
                     epot += ee;
                 }
 
-                if(is_stateful) 
-                    flux_eval_ex_cuda(pjoff + pi.typeId, r, pjs, &states[nr_states * pid], pj.typeId, pi.typeId, pjfx, &eval_result);
+                if(is_stateful) { 
+                    fxind = cu_fxind[pjoff + pi.typeId];
+                    if(fxind != 0)
+                        flux_eval_ex_cuda(fluxes_cuda[fxind], r, pj.states, pi.states, pj.typeId, pi.typeId, pjfx);
+                }
 
 			}
         } /* loop over parts in cell_i. */
@@ -2580,7 +2513,7 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
     float ms_load, ms_run, ms_unload;
     struct MxParticle *p;
     MxParticleCUDA *parts_cuda = (MxParticleCUDA *)e->parts_cuda_local, *buff_part;
-    float *part_states_cuda = (float*)e->part_states_cuda_local, *buff_state;
+    float *part_states_cuda = (float*)e->part_states_cuda_local;
     struct space *s = &e->s;
     FPTYPE maxdist = s->cutoff + 2*s->maxdx;
     int *counts = e->counts_cuda_local[ 0 ], *inds = e->ind_cuda_local[ 0 ];
@@ -2658,19 +2591,13 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         buff_part = (MxParticleCUDA *)&parts_cuda[ inds[cid] ];
 
         if(nr_states > 0) {
-            buff_state = (float*)&part_states_cuda[nr_states * inds[cid]];
-
             for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
-                MxParticle *p = &s->cells[cid].parts[pid];
-
-                buff_part[ pid ] = cuda_toDevice(p);
-                for(fid = 0; fid < nr_states; fid++)
-                    buff_state[nr_states * pid + fid] = p->state_vector->fvec[fid];
+                buff_part[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid], nr_states);
             }
         } 
         else {
             for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
-                buff_part[ pid ] = cuda_toDevice(&s->cells[cid].parts[pid]);
+                buff_part[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid]);
             }
         }
 
@@ -2692,10 +2619,6 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         if ( cudaMemcpyAsync( e->parts_cuda[did] , parts_cuda , sizeof(MxParticleCUDA) * s->nr_parts , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
 
-        if(nr_states > 0) {
-            if ( cudaMemcpyAsync( e->part_states_cuda[did] , part_states_cuda , sizeof(float) * nr_states * s->nr_parts , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-        }
     /* Start the clock. */
     // tic = getticks();
 	}
@@ -2724,9 +2647,8 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         if(nr_states > 0) 
             cuda_memset_float<<<8,512,0,stream>>>( e->fluxes_next_cuda[did] , 0.0f , nr_states * s->nr_parts );
 
-        dim3 nr_threads(e->nr_threads[did], 1);
-        int nb = (s->nr_parts + nr_threads.x - 1) / nr_threads.x;
-        dim3 nr_blocks(std::min(nb, e->nr_blocks[did]), 1);
+        dim3 nr_threads(std::min(e->nr_threads[did], maxcount), 1, 1);
+        dim3 nr_blocks(std::min(e->nrtasks_cuda[did], e->nr_blocks[did]), 1, 1);
             
         /* Start the appropriate kernel. */
         if(nr_states > 0) {
@@ -2929,7 +2851,7 @@ extern "C" int engine_cuda_load_parts ( struct engine *e ) {
         /* Copy the particle data to the device. */
         buff = (MxParticleCUDA *)&parts_cuda[ inds[cid] ];
         for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
-            buff[ pid ] = cuda_toDevice(&s->cells[cid].parts[pid]);
+            buff[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid]);
             }
 
         }

@@ -174,11 +174,17 @@ if(MDCORE_HAVECUDA)
     "${MDCORE_SOURCE_DIR}/src/runner_cuda.h" 
     "${MDCORE_SOURCE_DIR}/src/runner_cuda_main.h"
     "${MDCORE_SOURCE_DIR}/src/flux_cuda.h"
+    "${MDCORE_SOURCE_DIR}/src/MxBoundaryConditions_cuda.h" 
+    "${MDCORE_SOURCE_DIR}/src/MxParticle_cuda.h" 
+    "${MDCORE_SOURCE_DIR}/src/MxPotential_cuda.h" 
   )
   list(APPEND SOURCES 
     engine_cuda.cu 
     runner_cuda.cu 
     flux_cuda.cu 
+    MxBoundaryConditions_cuda.cu 
+    MxParticle_cuda.cu 
+    MxPotential_cuda.cu 
   )
 endif()
 

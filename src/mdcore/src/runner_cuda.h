@@ -17,6 +17,8 @@
  * 
  ******************************************************************************/
 
+#include <curand_kernel.h>
+
 /* Set the max number of parts for shared buffers. */
 #define cuda_maxparts                       512
 #define cuda_maxdiags                       352
@@ -116,4 +118,13 @@ struct task_cuda {
     
     };
     
-    
+
+__device__ 
+void engine_cuda_rand_norm(int threadID, int nr_rands, float *result);
+
+__device__ 
+void engine_cuda_random_vector3(float vecLength, float *result);
+
+__device__ 
+void engine_cuda_rand_norm_getState(int threadID, curandState **rand_norm);
+

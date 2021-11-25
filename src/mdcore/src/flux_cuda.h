@@ -11,22 +11,57 @@
 
 #include <cuda_runtime.h>
 
-__device__ 
-void flux_eval_ex_cuda(unsigned int typeTableIndex, float r, float *states_i, float *states_j, int type_i, int type_j, float *qvec_i, bool *result);
+#include <mdcore_config.h>
+#include <Flux.hpp>
+
+
+struct MxFluxTypeIdPairCUDA {
+    int16_t a;
+    int16_t b;
+
+    MxFluxTypeIdPairCUDA(TypeIdPair tip) : a{tip.a}, b{tip.b} {}
+};
+
+
+// A wrap of MxFlux
+struct MxFluxCUDA {
+    int32_t size;
+    int8_t *kinds;
+    MxFluxTypeIdPairCUDA *type_ids;
+    int32_t *indices_a;
+    int32_t *indices_b;
+    float *coef;
+    float *decay_coef;
+    float *target;
+
+    __host__ 
+    MxFluxCUDA(MxFlux f);
+
+    __device__ 
+    void finalize();
+};
+
+
+// A wrap of MxFluxes
+struct MxFluxesCUDA {
+    int32_t size;
+    MxFluxCUDA *fluxes;
+
+    __host__ 
+    MxFluxesCUDA(MxFluxes *f);
+
+    __device__ 
+    void finalize();
+};
+
 
 __device__ 
-void flux_eval_ex_cuda(unsigned int typeTableIndex, float r, float *states_i, float *states_j, int type_i, int type_j, float *qvec_i, float *qvec_j, bool *result);
-
-__device__ 
-void MxFluxCUDA_getPartStates(float **result);
+void MxFluxCUDA_getFluxes(unsigned int **fxind_cuda, MxFluxesCUDA **fluxes_cuda);
 
 __device__ 
 void MxFluxCUDA_getNrFluxes(unsigned int *nr_fluxes);
 
 __device__ 
 void MxFluxCUDA_getNrStates(unsigned int *nr_states);
-
-__global__ 
-void MxFluxCUDA_copy_partstates(float *states, int count, int ind, int nr_states);
 
 #endif // SRC_MDCORE_SRC_FLUX_CUDA_H_

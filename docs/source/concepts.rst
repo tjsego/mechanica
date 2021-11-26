@@ -22,3 +22,4 @@ Concepts
     metrics
     style
     controls
+    cuda

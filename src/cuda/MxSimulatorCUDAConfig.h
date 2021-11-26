@@ -21,7 +21,7 @@
  * 
  */
 struct CAPI_EXPORT MxSimulatorCUDAConfig {
-    /* Mechanica engine CUDA runtime control interface */
+    /** Mechanica engine CUDA runtime control interface */
     MxEngineCUDAConfig engine;
 };
 

@@ -66,6 +66,8 @@ In C++, the simulator and universe can both be easily accessed to use the same m
     universe->step()            // time steps the simulation
     universe->stop()            // stops the simulation
 
+.. _running_a_sim_windowless:
+
 Running Windowless
 ^^^^^^^^^^^^^^^^^^^
 

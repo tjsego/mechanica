@@ -459,6 +459,11 @@ struct CAPI_EXPORT MxSimulator {
     static const MxGlfwWindow *getWindow();
 
     #ifdef MX_WITHCUDA
+    /**
+     * @brief Get simulator CUDA runtime interface
+     * 
+     * @return MxSimulatorCUDAConfig* 
+     */
     static MxSimulatorCUDAConfig *getCUDAConfig();
     #endif
     

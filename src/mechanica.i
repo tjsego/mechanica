@@ -186,6 +186,11 @@
 %pythoncode %{
 
     has_cuda = mxHasCuda()
+    """
+    Flag signifying whether CUDA support is installed.
+
+    :meta hide-value:
+    """
     
 # From MxSimulator
 

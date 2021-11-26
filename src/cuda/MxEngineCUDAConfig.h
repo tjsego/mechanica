@@ -16,7 +16,7 @@
  * 
  * This object provides control for configuring engine calculations 
  * on CUDA devices. Associated calculations include nonbonded particle 
- * interactions, sorting and space partitioning. 
+ * interactions and sorting, fluxes and space partitioning. 
  * 
  * At any time during a simulation, supported engine calculations 
  * can be sent to a particular CUDA device, or brought back to the 

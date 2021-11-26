@@ -113,6 +113,34 @@ To specify a different version of Python, simply add a call to
 `update the conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-python.html#updating-or-upgrading-python>`_
 in the previous commands before calling `mx_install_all`.
 
+Enabling GPU Acceleration
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Mechanica supports GPU acceleration using CUDA. To enable GPU acceleration, simply tell
+Mechanica to build with CUDA support and specify the compute capability of all available
+GPUs in the typical way before calling `mx_install_all`.
+
+On Windows
+
+.. code-block:: bat
+
+    set MX_WITHCUDA=1
+    set CUDAARCHS=35;50
+    call mechanica/package/local/mx_install
+
+On Linux
+
+.. code-block:: bash
+
+    export MX_WITHCUDA=1
+    export CUDAARCHS=35;50
+    bash mechanica/package/local/mx_install.sh
+
+.. note::
+
+    Mechanica currently supports offloading computations onto CUDA-supporting GPU devices
+    of compute capability 3.5 or greater and installed drivers of at least 456.38 on Windows, and
+    450.80.02 on Linux.
+
 Enabling Interactive Mechanica
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -284,7 +284,7 @@ __device__ void cuda_mutex_lock ( int *m ) {
     TIMER_TIC
     while ( atomicCAS( m , 0 , 1 ) != 0 );
     TIMER_TOC( tid_mutex )
-    }
+}
 
 
 /**
@@ -302,7 +302,7 @@ __device__ int cuda_mutex_trylock ( int *m ) {
     int res = atomicCAS( m , 0 , 1 ) == 0;
     TIMER_TOC( tid_mutex )
     return res;
-    }
+}
 
 
 /**
@@ -329,7 +329,7 @@ __device__ int cuda_mutex_lock_cond ( int *m , int *c ) {
             }
     TIMER_TOC( tid_mutex )
     return 0;
-    }
+}
 
 
 /**
@@ -344,7 +344,7 @@ __device__ void cuda_mutex_unlock ( int *m ) {
     TIMER_TIC
     atomicExch( m , 0 );
     TIMER_TOC( tid_mutex )
-    }
+}
     
     
 /**
@@ -376,7 +376,7 @@ __device__ int cuda_queue_gettask ( struct queue_cuda *q ) {
     /* Return the acquired task ID. */
     return tid;
     
-    }
+}
 
 
 /**
@@ -398,7 +398,7 @@ __device__ void cuda_queue_puttask ( struct queue_cuda *q , int tid ) {
     /* Write the task back to the queue. */
     q->data[ind] = tid;
     
-    }
+}
     
     
 /**
@@ -409,7 +409,7 @@ __noinline__ __device__ uint get_smid ( void ) {
     uint ret;
     asm("mov.u32 %0, %smid;" : "=r"(ret) );
     return ret;
-    }
+}
 
 
 /**
@@ -441,7 +441,7 @@ __device__ int runner_cuda_gettask ( struct queue_cuda *q , int steal ) {
                 /* No locking needed. */
                 break;
             
-                }
+            }
             else if ( cuda_tasks[tid].type == task_type_self ) {
             
                 /* Decode this task. */
@@ -451,7 +451,7 @@ __device__ int runner_cuda_gettask ( struct queue_cuda *q , int steal ) {
                 if ( cuda_mutex_trylock( &cuda_taboo[ cid ] ) )
                     break;
                         
-                }
+            }
             else if ( cuda_tasks[tid].type == task_type_pair ) {
             
                 /* Decode this task. */
@@ -465,14 +465,14 @@ __device__ int runner_cuda_gettask ( struct queue_cuda *q , int steal ) {
                     else
                         cuda_mutex_unlock( &cuda_taboo[ cid ] );
                         
-                }
-
             }
+
+        }
                 
         /* Put this task back into the queue. */
         cuda_queue_puttask( q , tid );
     
-        }
+    }
         
     /* Put this task into the recycling queue, if needed. */
     if ( tid >= 0 ) {
@@ -480,14 +480,14 @@ __device__ int runner_cuda_gettask ( struct queue_cuda *q , int steal ) {
             atomicSub( (int *)&q->count , 1 );
         else
             q->rec_data[ atomicAdd( (int *)&q->rec_count , 1 ) ] = tid;
-        }
+    }
         
     TIMER_TOC(tid_queue);
         
     /* Return whatever we got. */
     return tid;
 
-    }
+}
 
 __device__ int runner_cuda_gettask_nolock ( struct queue_cuda *q , int steal ) {
 
@@ -503,7 +503,7 @@ __device__ int runner_cuda_gettask_nolock ( struct queue_cuda *q , int steal ) {
     
             break;
 
-            }
+        }
         /*if( cuda_tasks[tid].type == task_type_pair )
         {
 	       	cid = cuda_tasks[tid].i;
@@ -518,7 +518,7 @@ __device__ int runner_cuda_gettask_nolock ( struct queue_cuda *q , int steal ) {
         /* Put this task back into the queue. */
         cuda_queue_puttask( q , tid );
     
-        }
+    }
         
     /* Put this task into the recycling queue, if needed. */
     if ( tid >= 0 ) {
@@ -526,14 +526,14 @@ __device__ int runner_cuda_gettask_nolock ( struct queue_cuda *q , int steal ) {
             atomicSub( (int *)&q->count , 1 );
         else
             q->rec_data[ atomicAdd( (int *)&q->rec_count , 1 ) ] = tid;
-        }
+    }
         
     TIMER_TOC(tid_queue);
         
     /* Return whatever we got. */
     return tid;
 
-    }
+}
 
 __device__ inline void w_cubic_spline_cuda(float r2, float h, float *result) {
     float r = rsqrt(r2);
@@ -599,7 +599,7 @@ __device__ inline void cuda_memcpy ( void *dest , void *source , int count ) {
         
     TIMER_TOC(tid_memcpy)
         
-    }
+}
 
 
     
@@ -616,7 +616,7 @@ __device__ inline void cuda_memcpy_old ( void *dest , void *source , int count )
         
     TIMER_TOC(tid_memcpy)
         
-    }
+}
 
 
 /**
@@ -643,17 +643,17 @@ __device__ inline void cuda_sum ( float *a , float *b , int count ) {
         for ( j = 0 ; j < cuda_sum_chunk ; j++ ) {
             i = (cuda_sum_chunk*k+j)*cuda_frame + threadID;
             chunk[j] = a[i] + b[i];
-            }
+        }
         #pragma unroll
         for ( j = 0 ; j < cuda_sum_chunk ; j++ )
             a[ (cuda_sum_chunk*k+j)*cuda_frame + threadID ] = chunk[j];
-        }
+    }
     for ( k = cuda_sum_chunk*cuda_frame*icount + threadID ; k < count ; k += cuda_frame )
         a[k] += b[k];
         
     TIMER_TOC(tid_update)
         
-    }
+}
     
     
     
@@ -685,8 +685,8 @@ __device__ inline void cuda_sort_descending ( unsigned int *a , int count ) {
             if  ( ( swap_i & 0xffff ) < ( swap_j & 0xffff ) ) {
                 a[ind] = swap_j;
                 a[jnd] = swap_i;
-                }
             }
+        }
             
         /* Let that last step sink in. */
             __syncthreads();
@@ -701,17 +701,17 @@ __device__ inline void cuda_sort_descending ( unsigned int *a , int count ) {
                 if  ( ( swap_i & 0xffff ) < ( swap_j & 0xffff ) ) {
                     a[ind] = swap_j;
                     a[jnd] = swap_i;
-                    }
                 }
-                __syncthreads();
             }
-            
+                __syncthreads();
         }
+            
+    }
         
     TIMER_TOC(tid_sort)
 
         
-    }
+}
 
     
 
@@ -748,12 +748,12 @@ __device__ void cuda_sort_ascending ( unsigned int *a , int count ) {
             if  ( ( swap_i[0] & 0xffff ) > ( swap_j[0] & 0xffff ) ) {
                 a[ind[0]] = swap_j[0];
                 a[jnd[0]] = swap_i[0];
-                }
+            }
             if  ( ( swap_i[1] & 0xffff ) > ( swap_j[1] & 0xffff ) ) {
                 a[ind[1]] = swap_j[1];
                 a[jnd[1]] = swap_i[1];
-                }
             }
+        }
             
         /* Let that last step sink in. */
         // __threadfence_block();
@@ -772,20 +772,20 @@ __device__ void cuda_sort_ascending ( unsigned int *a , int count ) {
                 if  ( ( swap_i[0] & 0xffff ) > ( swap_j[0] & 0xffff ) ) {
                     a[ind[0]] = swap_j[0];
                     a[jnd[0]] = swap_i[0];
-                    }
+                }
                 if  ( ( swap_i[1] & 0xffff ) > ( swap_j[1] & 0xffff ) ) {
                     a[ind[1]] = swap_j[1];
                     a[jnd[1]] = swap_i[1];
-                    }
                 }
-            // __threadfence_block();
             }
-            
+            // __threadfence_block();
         }
+            
+    }
         
     TIMER_TOC(tid_sort)
         
-    }
+}
 
 
 __device__ 
@@ -934,14 +934,14 @@ __device__ inline void potential_eval_cuda ( struct MxPotential *p , float r2 , 
     for ( k = 4 ; k < potential_chunk ; k++ ) {
         eff = eff * x + ee;
         ee = ee * x + c[k];
-        }
+    }
 
     /* store the result */
     *e = ee; *f = eff * c[1] * ir;
         
     TIMER_TOC(tid_potential)
         
-    }
+}
 
 
 /** 
@@ -1002,7 +1002,7 @@ __device__ inline void potential_eval_ex_cuda (struct MxPotential *p, float ri, 
     for ( k = 4 ; k < potential_chunk ; k++ ) {
         eff = eff * x + ee;
         ee = ee * x + c[k];
-        }
+    }
 
     /* store the result */
     *e = ee; *f = eff * c[1] * ir;
@@ -1473,7 +1473,7 @@ void flux_eval_ex_cuda(MxFluxesCUDA fluxes, float r, float *states_i, float *sta
                 flux_uptake_cuda(flux, i, ssi, ssj, &q);
                 break;
             default:
-                assert(0);
+                __builtin_unreachable();
         }
 
         qvec_i[qind] += q - 0.5 * flux.decay_coef[i] * states_i[qind];
@@ -1525,7 +1525,7 @@ void flux_eval_ex_cuda(MxFluxesCUDA fluxes, float r, float *states_i, float *sta
                 q *= mult;
                 break;
             default:
-                assert(0);
+                __builtin_unreachable();
         }
         
         float half_decay = flux.decay_coef[i] * 0.5;
@@ -1858,7 +1858,7 @@ __device__ inline void runner_dosort_cuda ( MxParticleCUDA *parts_i , int count_
     /* Sort using normalized bitonic sort. */
     cuda_sort_descending( sort_i , count_i );
 
-    }
+}
     
     
 /**
@@ -2003,7 +2003,7 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
  * @sa #runner_dopair.
  */
 template<bool is_stateful> 
-__device__  void runner_dopair_left_cuda ( MxParticleCUDA *parts_i , int count_i , MxParticleCUDA *parts_j , int count_j , float *forces_i , float *forces_j , float *fluxes_i , float *fluxes_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , unsigned int nr_states , float *epot_global ) {
+__device__  void runner_dopair_left_cuda ( MxParticleCUDA * parts_i , int count_i , MxParticleCUDA *parts_j , int count_j , float *forces_i , float *forces_j , float *fluxes_i , float *fluxes_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , unsigned int nr_states , float *epot_global ) {
     int k, pjd, spid, spjd, threadID;
     unsigned int dmaxdist, di;
     MxParticleCUDA pi, pj;
@@ -2350,7 +2350,7 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, int count, int cell_i
         
     TIMER_TOC(tid_self)
     
-    }
+}
 
 
 
@@ -2513,7 +2513,6 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
     float ms_load, ms_run, ms_unload;
     struct MxParticle *p;
     MxParticleCUDA *parts_cuda = (MxParticleCUDA *)e->parts_cuda_local, *buff_part;
-    float *part_states_cuda = (float*)e->part_states_cuda_local;
     struct space *s = &e->s;
     FPTYPE maxdist = s->cutoff + 2*s->maxdx;
     int *counts = e->counts_cuda_local[ 0 ], *inds = e->ind_cuda_local[ 0 ];
@@ -2554,54 +2553,54 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
 
         /* Get the stream. */
         stream = (cudaStream_t)e->streams[did];
-    /* Load the particle data onto the device. */
-    // tic = getticks();
-    // if ( ( maxcount = engine_cuda_load_parts( e ) ) < 0 )
-    //     return error(engine_err);
-    // e->timers[ engine_timer_cuda_load ] += getticks() - tic;
-    counts = e->counts_cuda_local[ did ];
-    inds = e->ind_cuda_local[ did ];
-    /* Clear the counts array. */
-    bzero( counts , sizeof(int) * s->nr_cells );
+        /* Load the particle data onto the device. */
+        // tic = getticks();
+        // if ( ( maxcount = engine_cuda_load_parts( e ) ) < 0 )
+        //     return error(engine_err);
+        // e->timers[ engine_timer_cuda_load ] += getticks() - tic;
+        counts = e->counts_cuda_local[ did ];
+        inds = e->ind_cuda_local[ did ];
+        /* Clear the counts array. */
+        bzero( counts , sizeof(int) * s->nr_cells );
 
-    /* Load the counts. */
-    for( maxcount = 0, k = 0; k < e->cells_cuda_nr[did] ; k++ )
-	if( ( counts[e->cells_cuda_local[did][k]] = s->cells[e->cells_cuda_local[did][k]].count ) > maxcount )
-	    maxcount = counts[ e->cells_cuda_local[did][k]];
-/*    for ( maxcount = 0 , k = 0 ; k < s->nr_marked ; k++ )
-        if ( ( counts[ s->cid_marked[k] ] = s->cells[ s->cid_marked[k] ].count ) > maxcount )
-            maxcount = counts[ s->cid_marked[k] ];*/
+        /* Load the counts. */
+        for( maxcount = 0, k = 0; k < e->cells_cuda_nr[did] ; k++ )
+        if( ( counts[e->cells_cuda_local[did][k]] = s->cells[e->cells_cuda_local[did][k]].count ) > maxcount )
+            maxcount = counts[ e->cells_cuda_local[did][k]];
+    /*    for ( maxcount = 0 , k = 0 ; k < s->nr_marked ; k++ )
+            if ( ( counts[ s->cid_marked[k] ] = s->cells[ s->cid_marked[k] ].count ) > maxcount )
+                maxcount = counts[ s->cid_marked[k] ];*/
 
-    /* Raise maxcount to the next multiple of 32. */
-    maxcount = ( maxcount + (cuda_frame - 1) ) & ~(cuda_frame - 1);
-    // printf( "engine_cuda_load_parts: maxcount=%i.\n" , maxcount );
+        /* Raise maxcount to the next multiple of 32. */
+        maxcount = ( maxcount + (cuda_frame - 1) ) & ~(cuda_frame - 1);
+        // printf( "engine_cuda_load_parts: maxcount=%i.\n" , maxcount );
 
-    /* Compute the indices. */
-    inds[0] = 0;
-    for ( k = 1 ; k < e->cells_cuda_nr[did] ; k++ )
-        inds[k] = inds[k-1] + counts[k-1];
+        /* Compute the indices. */
+        inds[0] = 0;
+        for ( k = 1 ; k < e->cells_cuda_nr[did] ; k++ )
+            inds[k] = inds[k-1] + counts[k-1];
 
-    /* Loop over the marked cells. */
-    for ( k = 0 ; k < e->cells_cuda_nr[did] ; k++ ) {
+        /* Loop over the marked cells. */
+        for ( k = 0 ; k < e->cells_cuda_nr[did] ; k++ ) {
 
-        /* Get the cell id. */
-        cid = e->cells_cuda_local[did][k];
+            /* Get the cell id. */
+            cid = e->cells_cuda_local[did][k];
 
-        /* Copy the particle data to the device. */
-        buff_part = (MxParticleCUDA *)&parts_cuda[ inds[cid] ];
+            /* Copy the particle data to the device. */
+            buff_part = (MxParticleCUDA *)&parts_cuda[ inds[cid] ];
 
-        if(nr_states > 0) {
-            for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
-                buff_part[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid], nr_states);
+            if(nr_states > 0) {
+                for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
+                    buff_part[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid], nr_states);
+                }
+            } 
+            else {
+                for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
+                    buff_part[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid]);
+                }
             }
-        } 
-        else {
-            for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
-                buff_part[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid]);
-            }
+
         }
-
-    }
 
 	/* Start by setting the maxdist on the device. */
         if ( cudaMemcpyToSymbolAsync( cuda_maxdist , &maxdist , sizeof(float) , 0 , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
@@ -2634,7 +2633,7 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
 	/* Loop over the devices and call the different kernels on each stream. */
     for ( did = 0 ; did < e->nr_devices ; did++ ) {
 
-	/* Set the device ID. */
+	    /* Set the device ID. */
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
 
@@ -2647,9 +2646,9 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         if(nr_states > 0) 
             cuda_memset_float<<<8,512,0,stream>>>( e->fluxes_next_cuda[did] , 0.0f , nr_states * s->nr_parts );
 
-        dim3 nr_threads(std::min(e->nr_threads[did], maxcount), 1, 1);
+        dim3 nr_threads(e->nr_threads[did], 1, 1);
         dim3 nr_blocks(std::min(e->nrtasks_cuda[did], e->nr_blocks[did]), 1, 1);
-            
+        
         /* Start the appropriate kernel. */
         if(nr_states > 0) {
             engine_nonbond_cuda_kernel_launch<true>(maxcount, nr_blocks, nr_threads, stream, 
@@ -2688,7 +2687,7 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
                 return cuda_error(engine_err_cuda);
         }
         
-        }
+    }
         
     // e->timers[ engine_timer_cuda_dopairs ] += getticks() - tic;
     
@@ -2776,7 +2775,7 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         if(nr_states > 0)
             free(fluxes_next_cuda[did]);
         
-        }
+    }
         
     /* Check for any missed CUDA errors. */
     if ( cudaPeekAtLastError() != cudaSuccess )
@@ -2803,7 +2802,7 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
     /* Go away. */
     return engine_err_ok;
     
-    }
+}
 
 
 
@@ -2852,9 +2851,9 @@ extern "C" int engine_cuda_load_parts ( struct engine *e ) {
         buff = (MxParticleCUDA *)&parts_cuda[ inds[cid] ];
         for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
             buff[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid]);
-            }
-
         }
+
+    }
 
     // printf( "engine_cuda_load_parts: packed %i cells with %i parts each (%i kB).\n" , s->nr_cells , maxcount , (sizeof(float4)*maxcount*s->nr_cells)/1024 );
 
@@ -2888,12 +2887,12 @@ extern "C" int engine_cuda_load_parts ( struct engine *e ) {
         if ( cudaMemsetAsync( e->forces_cuda[did] , 0 , sizeof( float ) * 4 * s->nr_parts , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
             
-        }
+    }
     
     /* Our work is done here. */
     return maxcount;
 
-    }
+}
     
     
 
@@ -2933,7 +2932,7 @@ extern "C" int engine_cuda_unload_parts ( struct engine *e ) {
         if ( cudaMemcpyFromSymbolAsync( &epot[did] , cuda_epot_out , sizeof(float) , 0 , cudaMemcpyDeviceToHost , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         
-        }
+    }
 
     /* Loop over the devices. */
     for ( did = 0 ; did < e->nr_devices ; did++ ) {
@@ -2973,12 +2972,12 @@ extern "C" int engine_cuda_unload_parts ( struct engine *e ) {
         /* Deallocate the parts array and counts array. */
         free( forces_cuda[did] );
         
-        }
+    }
         
     /* Our work is done here. */
     return engine_err_ok;
 
-    }
+}
 
 /**
  * @brief Load the queues onto the CUDA device.
@@ -3053,7 +3052,7 @@ int engine_cuda_queues_load ( struct engine *e ) {
             queues[qid].last = queues[qid].count;
             queues[qid].rec_count = 0;
 
-            }
+        }
 
         /* Copy the queue structures to the device. */
         if ( cudaMemcpyToSymbol( cuda_queues , queues , sizeof(struct queue_cuda) * nr_queues , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
@@ -3066,12 +3065,12 @@ int engine_cuda_queues_load ( struct engine *e ) {
         /* Clean up. */
         free( data );
         
-        }
+    }
         
     /* Fade to grey. */
     return engine_err_ok;
 
-    }
+}
 
 
 __global__ void engine_cuda_queues_finalize_device(int nr_queues) {
@@ -3485,7 +3484,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_dim , dim , sizeof(float) * 3 , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
         
     /* Copy the cell origins to the device. */
     if ( ( corig = (float *)malloc( sizeof(float) * s->nr_cells * 3 ) ) == NULL )
@@ -3494,7 +3493,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
         corig[ 3*i + 0 ] = s->cells[i].origin[0];
         corig[ 3*i + 1 ] = s->cells[i].origin[1];
         corig[ 3*i + 2 ] = s->cells[i].origin[2];
-        }
+    }
     for ( did = 0 ; did < nr_devices ; did++ ) {
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
@@ -3504,7 +3503,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_corig , &dummy[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
     free( corig );
 
     // Copy the cell dimensions to devices
@@ -3559,7 +3558,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_dscale , &dscale , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
         
     /* Allocate and fill the task list. */
     if ( ( tasks_cuda = (struct task_cuda *)malloc( sizeof(struct task_cuda) * s->nr_tasks ) ) == NULL )
@@ -3597,26 +3596,25 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             if ( t->type == task_type_sort ) {
                 tc->flags = 0;
                 cellsorts[ t->i ] = nr_tasks;
-                }
+            }
 
-	    /*Add the cell to list of cells for this GPU if needed*/
-  	    c1=1; c2=1;
-	    for(int i = 0; i < e->cells_cuda_nr[did] ; i++ )
-	    {
-	    /* Check cell is valid */
-		if(t->i < 0 || t->i == e->cells_cuda_local[did][i])
-		    c1 = 0;
-		if(t->j < 0 || t->j == e->cells_cuda_local[did][i])
-		    c2 = 0;
-   	    }
-	    if( c1 )
-		e->cells_cuda_local[did][e->cells_cuda_nr[did]++] = t->i;
-	    if( c2 )
-		e->cells_cuda_local[did][e->cells_cuda_nr[did]++] = t->j;	                
+            /*Add the cell to list of cells for this GPU if needed*/
+            c1=1; c2=1;
+            for(int i = 0; i < e->cells_cuda_nr[did] ; i++ ) {
+                /* Check cell is valid */
+                if(t->i < 0 || t->i == e->cells_cuda_local[did][i])
+                    c1 = 0;
+                if(t->j < 0 || t->j == e->cells_cuda_local[did][i])
+                    c2 = 0;
+            }
+            if( c1 )
+                e->cells_cuda_local[did][e->cells_cuda_nr[did]++] = t->i;
+            if( c2 )
+                e->cells_cuda_local[did][e->cells_cuda_nr[did]++] = t->j;	                
             /* Add one task. */
             nr_tasks += 1;
 		
-            }
+        }
 
         /* Link each pair task to its sorts. */
         for ( i = 0 ; i < nr_tasks ; i++ ) {
@@ -3631,8 +3629,8 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
                 ts->flags |= (1 << tc->flags);
                 ts->unlock[ ts->nr_unlock ] = i;
                 ts->nr_unlock += 1;
-                }
             }
+        }
         
         /* Set the waits. */
         for ( i = 0 ; i < nr_tasks ; i++ )
@@ -3652,7 +3650,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
         /* Remember the number of tasks. */
         e->nrtasks_cuda[did] = nr_tasks;
             
-        }
+    }
     
 	/* Clean up */
     free( tasks_cuda );
@@ -3666,21 +3664,21 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_sortlists , &e->sortlists_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
 
 
     for ( did = 0 ;did < nr_devices ; did++ ) {
 	    /* Allocate the cell counts and offsets. */
-    if ( ( e->counts_cuda_local[did] = (int *)malloc( sizeof(int) * s->nr_cells ) ) == NULL ||
-         ( e->ind_cuda_local[did] = (int *)malloc( sizeof(int) * s->nr_cells ) ) == NULL )
-        return error(engine_err_malloc);
+        if ( ( e->counts_cuda_local[did] = (int *)malloc( sizeof(int) * s->nr_cells ) ) == NULL ||
+            ( e->ind_cuda_local[did] = (int *)malloc( sizeof(int) * s->nr_cells ) ) == NULL )
+            return error(engine_err_malloc);
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMalloc( &e->counts_cuda[did] , sizeof(int) * s->nr_cells ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMalloc( &e->ind_cuda[did] , sizeof(int) * s->nr_cells ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
         
     /* Allocate and init the taboo list on the device. */
     for ( did = 0 ;did < nr_devices ; did++ ) {
@@ -3692,7 +3690,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_taboo , &dummy[did] , sizeof(int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
 
     // Allocate random number generators
     if(engine_cuda_rand_norm_init(e) < 0)
@@ -3718,7 +3716,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
     /* He's done it! */
     return engine_err_ok;
     
-    }
+}
 
 
 /**

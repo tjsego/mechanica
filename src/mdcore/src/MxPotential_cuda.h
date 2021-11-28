@@ -25,6 +25,10 @@
 MxPotential MxToCUDADevice(MxPotential *p);
 
 
+__host__ __device__ 
+void Mx_cudaFree(MxPotential *p);
+
+
 // A wrap of MxPotential
 struct MxPotentialCUDA {
 
@@ -61,10 +65,9 @@ struct MxPotentialCUDA {
         }
     }
     
-    __device__ 
+    __host__ __device__ 
     void finalize() {
-        if(!this->empty)
-            cudaFree(&this->pot.c);
+        if(!this->empty) Mx_cudaFree(&this->pot);
         this->empty = true;
     }
 };

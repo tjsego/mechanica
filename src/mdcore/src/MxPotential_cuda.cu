@@ -30,3 +30,15 @@ MxPotential MxToCUDADevice(MxPotential *p) {
     return p_d;
 }
 
+__host__ __device__ 
+void Mx_cudaFree(MxPotential *p) {
+    if(p->pca != NULL) {
+        Mx_cudaFree(p->pca);
+    }
+    if(p->pcb != NULL) {
+        Mx_cudaFree(p->pcb);
+    }
+
+    cudaFree(p->c);
+    p->c = NULL;
+}

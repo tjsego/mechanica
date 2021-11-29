@@ -11,6 +11,11 @@ GPU-Accelerated Modules
 
         :type: MxEngineCUDAConfig
 
+    .. autoproperty:: bonds
+
+        :type: MxBondCUDAConfig
+
+
 .. autoclass:: MxEngineCUDAConfig
 
     .. automethod:: onDevice
@@ -40,6 +45,30 @@ GPU-Accelerated Modules
     .. automethod:: setSeed
 
     .. automethod:: getSeed
+
+
+.. autoclass:: MxBondCUDAConfig
+
+    .. automethod:: onDevice
+
+    .. automethod:: getDevice
+
+    .. automethod:: setDevice
+
+    .. automethod:: toDevice
+
+    .. automethod:: fromDevice
+
+    .. automethod:: setBlocks
+
+    .. automethod:: setThreads
+
+    .. automethod:: refreshBond
+
+    .. automethod:: refreshBonds
+
+    .. automethod:: refresh
+
 
 .. autoclass:: cuda
 

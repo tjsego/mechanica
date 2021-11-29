@@ -86,7 +86,7 @@ engine task.
 
 Many Mechanica operations automatically update data when running on a GPU.
 However, some operations (*e.g.*, :ref:`binding <binding>` a :class:`Potential`)
-require manual refreshing on engine data for changes to be reflected when running on a GPU.
+require manual refreshing of engine data for changes to be reflected when running on a GPU.
 Engine GPU acceleration runtime control provides methods to explicitly tell Mechanica to
 refresh data on a GPU at various levels of granularity, ::
 
@@ -104,3 +104,40 @@ engine data on a GPU.
     when running on a GPU. When in doubt, refresh the data! Performing a refresh comes with
     additional computational cost but must be performed only after all changes to simulation data
     have been made, and before the next simulation step is called.
+
+GPU-Accelerated Bonds
+^^^^^^^^^^^^^^^^^^^^^^
+Bond GPU acceleration is a GPU-accelerated simulation feature that offloads
+:ref:`bonded interactions <bonded_interactions>` onto a GPU.
+All runtime controls of bond GPU acceleration are available on :class:`MxBondCUDAConfig`, which is
+an attribute with name ``bonds`` on :class:`MxSimulatorCUDAConfig`, ::
+
+    cuda_config_bonds = mx.Simulator.getCUDAConfig().bonds  # Get bond cuda runtime interface
+
+The bond GPU acceleration runtime control interface is very similar to that of engine GPU acceleration.
+Bond GPU acceleration can be enabled, disabled and customized at any point in simulation, ::
+
+    cuda_config_bonds.setBlocks(numBlocks=64)                 # Set number of blocks
+    cuda_config_bonds.setThreads(numThreads=32)               # Set number of threads per block
+    cuda_config_bonds.toDevice()                              # Send bonds to GPU
+    # Simulation code here...
+    if cuda_config_bonds.onDevice():                          # Ensure bonds are on GPU
+        cuda_config_bonds.fromDevice()                        # Bring bonds back from GPU
+
+Setting a number of blocks specifies the maximum number of CUDA thread blocks that can be deployed
+during a simulation step, which calculate pairwise forces due to each bond.
+Setting a number of threads per block specifies the number of threads launched per block to work
+force calculations.
+
+Adding and destroying bonds both automatically update data while running on a GPU.
+However, changes to bond properties (*e.g.*, half life) and bond potential
+require manual refreshing of bond data for changes to be reflected when running on a GPU.
+Bond GPU acceleration runtime control provides methods to explicitly tell Mechanica to
+refresh data on a GPU at various levels of granularity, ::
+
+    cuda_config_bonds.refreshBond(bond)    # Capture changes to a bond
+    cuda_config_bonds.refreshBonds(bonds)  # Capture changes to multiple bonds
+    cuda_config_bonds.refresh()            # Capture all changes
+
+Refer to the :ref:`Mechanica API Reference <api_reference>` for which operations automatically update
+bond data on a GPU.

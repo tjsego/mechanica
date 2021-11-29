@@ -153,9 +153,12 @@ __global__ void cuda_init_rand_norm_device(curandState *rand_norm, int nr_rands,
     }
 }
 
-int engine_cuda_rand_norm_init(struct engine *e) {
+extern "C" int engine_cuda_rand_norm_init(struct engine *e) {
 
     for(int did = 0; did < e->nr_devices; did++) {
+
+        if(e->rand_norm_init_cuda[did]) 
+            continue;
 
         if(cudaSetDevice(e->devices[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
@@ -174,6 +177,8 @@ int engine_cuda_rand_norm_init(struct engine *e) {
         if(cudaMemcpyToSymbol(cuda_rand_norm, &e->rand_norm_cuda[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
+        e->rand_norm_init_cuda[did] = true;
+
     }
 
     return engine_err_ok;
@@ -182,13 +187,18 @@ int engine_cuda_rand_norm_init(struct engine *e) {
 
 int engine_cuda_rand_norm_finalize(struct engine *e) {
 
-    for(int did = 0; did < e->nr_devices; did++) {
+    for(int did = 0; did < e->nr_devices; did++) { 
+
+        if(!e->rand_norm_init_cuda[did]) 
+            continue;
 
         if(cudaSetDevice(e->devices[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
         if(cudaFree(e->rand_norm_cuda[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
+
+        e->rand_norm_init_cuda[did] = false;
 
     }
     
@@ -787,7 +797,6 @@ __device__ void cuda_sort_ascending ( unsigned int *a , int count ) {
         
 }
 
-
 __device__ 
 void engine_cuda_rand_norm(int threadID, int nr_rands, float *result) {
     int i;
@@ -892,22 +901,7 @@ extern "C" int engine_cuda_boundary_conditions_refresh(struct engine *e) {
 }
 
 
-/** 
- * @brief Evaluates the given potential at the given point (interpolated).
- *
- * @param p The #potential to be evaluated.
- * @param r2 The radius at which it is to be evaluated, squared.
- * @param e Pointer to a floating-point value in which to store the
- *      interaction energy.
- * @param f Pointer to a floating-point value in which to store the
- *      magnitude of the interaction force divided by r.
- *
- * Note that for efficiency reasons, this function does not check if any
- * of the parameters are @c NULL or if @c sqrt(r2) is within the interval
- * of the #potential @c p.
- */
-
-__device__ inline void potential_eval_cuda ( struct MxPotential *p , float r2 , float *e , float *f ) {
+__device__ void potential_eval_cuda ( struct MxPotential *p , float r2 , float *e , float *f ) {
 
     int ind, k;
     float x, ee, eff, *c, ir, r;

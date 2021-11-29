@@ -351,10 +351,12 @@ typedef struct engine {
 	void *streams[ engine_maxgpu ];
 	int nr_blocks[engine_maxgpu], nr_threads[engine_maxgpu];
 	void *rand_norm_cuda[engine_maxgpu];
+	int rand_norm_init_cuda[engine_maxgpu];
 	unsigned int rand_norm_seed_cuda;
 	int nr_fluxes_cuda, *fxind_cuda[engine_maxgpu];
 	void **fluxes_cuda[engine_maxgpu];
 	float *fluxes_next_cuda[engine_maxgpu];
+	bool bonds_cuda = false;
 #endif
 
 	/** Timers. */
@@ -715,6 +717,7 @@ CAPI_FUNC(int) engine_cuda_setdevice ( struct engine *e , int id );
 CAPI_FUNC(int) engine_cuda_setdevices ( struct engine *e , int nr_devices , int *ids );
 CAPI_FUNC(int) engine_cuda_cleardevices(struct engine *e);
 CAPI_FUNC(int) engine_split_gpu( struct engine *e, int N, int flags);
+CAPI_FUNC(int) engine_cuda_rand_norm_init(struct engine *e);
 CAPI_FUNC(int) engine_cuda_rand_norm_setSeed(struct engine *e, unsigned int seed, bool onDevice);
 
 CAPI_FUNC(int) engine_toCUDA(struct engine *e);

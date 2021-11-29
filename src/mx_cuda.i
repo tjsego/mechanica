@@ -2,6 +2,7 @@
     #include "mx_cuda.h"
 
     #include "cuda/MxSimulatorCUDAConfig.h"
+    #include "cuda/MxBondCUDAConfig.h"
     #include "cuda/MxEngineCUDAConfig.h"
 
 %}
@@ -17,6 +18,7 @@
 %ignore MxCUDADevice;
 
 %include "mx_cuda.h"
+%include "cuda/MxBondCUDAConfig.h"
 %include "cuda/MxEngineCUDAConfig.h"
 %include "cuda/MxSimulatorCUDAConfig.h"
 

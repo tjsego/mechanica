@@ -11,6 +11,7 @@
 #include <mx_cuda.h>
 
 #include "MxEngineCUDAConfig.h"
+#include "MxBondCUDAConfig.h"
 
 
 /**
@@ -23,6 +24,9 @@
 struct CAPI_EXPORT MxSimulatorCUDAConfig {
     /** Mechanica engine CUDA runtime control interface */
     MxEngineCUDAConfig engine;
+
+    /** Mechanica bonds CUDA runtime control interface */
+    MxBondCUDAConfig bonds;
 };
 
 #endif // SRC_CUDA_MXSIMULATORCUDACONFIG_H_

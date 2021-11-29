@@ -173,6 +173,7 @@ if(MDCORE_HAVECUDA)
   list(APPEND PUBLIC_HEADERS 
     "${MDCORE_SOURCE_DIR}/src/runner_cuda.h" 
     "${MDCORE_SOURCE_DIR}/src/runner_cuda_main.h"
+    "${MDCORE_SOURCE_DIR}/src/bond_cuda.h"
     "${MDCORE_SOURCE_DIR}/src/flux_cuda.h"
     "${MDCORE_SOURCE_DIR}/src/MxBoundaryConditions_cuda.h" 
     "${MDCORE_SOURCE_DIR}/src/MxParticle_cuda.h" 
@@ -181,6 +182,7 @@ if(MDCORE_HAVECUDA)
   list(APPEND SOURCES 
     engine_cuda.cu 
     runner_cuda.cu 
+    bond_cuda.cu 
     flux_cuda.cu 
     MxBoundaryConditions_cuda.cu 
     MxParticle_cuda.cu 

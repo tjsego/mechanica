@@ -58,6 +58,10 @@
 #include <../../mx_error.h>
 #include <../../rendering/NOMStyle.hpp>
 
+#ifdef HAVE_CUDA
+#include "bond_cuda.h"
+#endif
+
 NOMStyle *MxBond_StylePtr = new NOMStyle("lime");
 
 /* Global variables. */
@@ -92,6 +96,12 @@ static bool pair_check(std::vector<std::pair<MxParticleType*, MxParticleType*>* 
  */
  
 int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_out ) {
+
+    #ifdef HAVE_CUDA
+    if(e->bonds_cuda) {
+        return engine_bond_eval_cuda(bonds, N, e, epot_out);
+    }
+    #endif
 
     int bid, pid, pjd, k, *loci, *locj, shift[3], ld_pots;
     double h[3], epot = 0.0;
@@ -632,6 +642,12 @@ int MxBondHandle::_init(uint32_t flags,
     
     this->id = result;
 
+    #ifdef HAVE_CUDA
+    if(_Engine.bonds_cuda) 
+        if(engine_cuda_add_bond(bond) < 0) 
+            return error(engine_err);
+    #endif
+
     Log(LOG_TRACE) << "Created bond: " << this->id  << ", i: " << bond->i << ", j: " << bond->j;
 
     return 0;
@@ -840,11 +856,19 @@ static void make_pairlist(const MxParticleList *parts,
     } /* loop over all particles */
 }
 
+static bool MxBond_destroyingAll = false;
+
 CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b) {
     
     std::unique_lock<std::mutex> lock(_Engine.bonds_mutex);
     
     if(b->flags & BOND_ACTIVE) {
+        #ifdef HAVE_CUDA
+        if(_Engine.bonds_cuda && !MxBond_destroyingAll) 
+            if(engine_cuda_finalize_bond(b->id) < 0) 
+                return E_FAIL;
+        #endif
+
         // this clears the BOND_ACTIVE flag
         bzero(b, sizeof(MxBond));
         _Engine.nr_active_bonds -= 1;
@@ -853,7 +877,17 @@ CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b) {
 }
 
 HRESULT MxBond_DestroyAll() {
+    MxBond_destroyingAll = true;
+
+    #ifdef HAVE_CUDA
+    if(_Engine.bonds_cuda) 
+        if(engine_cuda_finalize_bonds_all(&_Engine) < 0) 
+            return E_FAIL;
+    #endif
+
     for(auto bh : MxBondHandle::items()) bh->destroy();
+
+    MxBond_destroyingAll = false;
     return S_OK;
 }
 

@@ -16,6 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  ******************************************************************************/
+#ifndef SRC_MDCORE_SRC_RUNNER_CUDA_H_
+#define SRC_MDCORE_SRC_RUNNER_CUDA_H_
+
+#include <task.h>
 
 #include <curand_kernel.h>
 
@@ -119,6 +123,23 @@ struct task_cuda {
     };
     
 
+/** 
+ * @brief Evaluates the given potential at the given point (interpolated).
+ *
+ * @param p The #potential to be evaluated.
+ * @param r2 The radius at which it is to be evaluated, squared.
+ * @param e Pointer to a floating-point value in which to store the
+ *      interaction energy.
+ * @param f Pointer to a floating-point value in which to store the
+ *      magnitude of the interaction force divided by r.
+ *
+ * Note that for efficiency reasons, this function does not check if any
+ * of the parameters are @c NULL or if @c sqrt(r2) is within the interval
+ * of the #potential @c p.
+ */
+__device__ 
+void potential_eval_cuda(struct MxPotential *p, float r2, float *e, float *f);
+
 __device__ 
 void engine_cuda_rand_norm(int threadID, int nr_rands, float *result);
 
@@ -128,3 +149,4 @@ void engine_cuda_random_vector3(float vecLength, float *result);
 __device__ 
 void engine_cuda_rand_norm_getState(int threadID, curandState **rand_norm);
 
+#endif // SRC_MDCORE_SRC_RUNNER_CUDA_H_

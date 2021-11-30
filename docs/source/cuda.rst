@@ -139,5 +139,15 @@ refresh data on a GPU at various levels of granularity, ::
     cuda_config_bonds.refreshBonds(bonds)  # Capture changes to multiple bonds
     cuda_config_bonds.refresh()            # Capture all changes
 
+Angle GPU acceleration is a similar GPU-accelerated simulation feature that offloads
+angle interactions onto a GPU.
+The angle GPU acceleration runtime control interface is pratically identical to that
+of bond GPU acceleration (*e.g.*, ``refreshAngles`` for angle GPU acceleration is analogous
+to ``refreshBonds`` for bond GPU acceleration).
+The angle GPU acceleration runtime control interface is accessible as an attribute with name
+``angles`` on :class:`MxSimulatorCUDAConfig`, ::
+
+    cuda_config_angles = mx.Simulator.getCUDAConfig().angles  # Get angle cuda runtime interface
+
 Refer to the :ref:`Mechanica API Reference <api_reference>` for which operations automatically update
-bond data on a GPU.
+bond and angle data on a GPU.

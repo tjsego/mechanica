@@ -70,6 +70,27 @@ GPU-Accelerated Modules
     .. automethod:: refresh
 
 
+.. autoclass:: MxAngleCUDAConfig
+
+    .. automethod:: onDevice
+
+    .. automethod:: getDevice
+
+    .. automethod:: toDevice
+
+    .. automethod:: fromDevice
+
+    .. automethod:: setBlocks
+
+    .. automethod:: setThreads
+
+    .. automethod:: refreshAngle
+
+    .. automethod:: refreshAngles
+
+    .. automethod:: refresh
+
+
 .. autoclass:: cuda
 
 .. autoclass:: MxCUDA

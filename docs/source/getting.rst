@@ -68,6 +68,8 @@ Likewise Mechanica can be imported in Python scripts and interactive consoles
     import mechanica as mx
 
 
+.. _customizing_the_build:
+
 Customizing the Build
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -138,7 +140,7 @@ environment as previously described and install the ``notebook``, ``ipywidgets``
 Enabling GPU Acceleration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Mechanica supports GPU acceleration using CUDA. To enable GPU acceleration,
-:ref:`customize the build <Customizing the Build>` by installing the ``cuda-toolkit``
+:ref:`customize the build <customizing_the_build>` by installing the ``cuda-toolkit``
 package from the nvidia conda channel into the build environment *before* building Mechanica.
 
 On Windows

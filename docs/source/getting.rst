@@ -113,33 +113,6 @@ To specify a different version of Python, simply add a call to
 `update the conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-python.html#updating-or-upgrading-python>`_
 in the previous commands before calling `mx_install_all`.
 
-Enabling GPU Acceleration
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-Mechanica supports GPU acceleration using CUDA. To enable GPU acceleration, simply tell
-Mechanica to build with CUDA support and specify the compute capability of all available
-GPUs in the typical way before calling `mx_install_all`.
-
-On Windows
-
-.. code-block:: bat
-
-    set MX_WITHCUDA=1
-    set CUDAARCHS=35;50
-    call mechanica/package/local/mx_install
-
-On Linux
-
-.. code-block:: bash
-
-    export MX_WITHCUDA=1
-    export CUDAARCHS=35;50
-    bash mechanica/package/local/mx_install.sh
-
-.. note::
-
-    Mechanica currently supports offloading computations onto CUDA-supporting GPU devices
-    of compute capability 3.5 or greater and installed drivers of at least 456.38 on Windows, and
-    450.80.02 on Linux.
 
 Enabling Interactive Mechanica
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -160,6 +133,56 @@ environment as previously described and install the ``notebook``, ``ipywidgets``
 .. code-block:: bash
 
     conda install -c conda-forge notebook ipywidgets ipyevents
+
+
+Enabling GPU Acceleration
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Mechanica supports GPU acceleration using CUDA. To enable GPU acceleration,
+:ref:`customize the build <Customizing the Build>` by installing the ``cuda-toolkit``
+package from the nvidia conda channel into the build environment *before* building Mechanica.
+
+On Windows
+
+.. code-block:: bat
+
+    call %MYMXSRC%/package/local/win/mx_install_vars
+    call %MXSRCDIR%/package/local/win/mx_install_env
+    conda activate %MXENV%
+    conda install -c nvidia cuda-toolkit
+
+On Linux
+
+.. code-block:: bash
+
+    source $MYMXSRC/package/local/linux/mx_install_vars.sh
+    bash $MXSRCDIR/package/local/linux/mx_install_env.sh
+    conda activate $MXENV
+    conda install -c nvidia cuda-toolkit
+
+Then tell Mechanica to build with CUDA support and specify the compute capability of all available
+GPUs in the typical way before calling `mx_install_all`.
+
+On Windows
+
+.. code-block:: bat
+
+    set MX_WITHCUDA=1
+    set CUDAARCHS=35;50
+    call mechanica/package/local/mx_install_all
+
+On Linux
+
+.. code-block:: bash
+
+    export MX_WITHCUDA=1
+    export CUDAARCHS=35;50
+    bash mechanica/package/local/mx_install_all.sh
+
+.. note::
+
+    Mechanica currently supports offloading computations onto CUDA-supporting GPU devices
+    of compute capability 3.5 or greater and installed drivers of at least 456.38 on Windows, and
+    450.80.02 on Linux.
 
 
 Setting Up a Development Environment

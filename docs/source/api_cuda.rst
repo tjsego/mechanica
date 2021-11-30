@@ -5,6 +5,9 @@ GPU-Accelerated Modules
 
     This section of the Mechanica API is only available in CUDA-supported installations.
 
+
+.. autoclass:: SimulatorCUDAConfig
+
 .. autoclass:: MxSimulatorCUDAConfig
 
     .. autoproperty:: engine
@@ -15,6 +18,8 @@ GPU-Accelerated Modules
 
         :type: MxBondCUDAConfig
 
+
+.. autoclass:: EngineCUDAConfig
 
 .. autoclass:: MxEngineCUDAConfig
 
@@ -47,6 +52,8 @@ GPU-Accelerated Modules
     .. automethod:: getSeed
 
 
+.. autoclass:: BondCUDAConfig
+
 .. autoclass:: MxBondCUDAConfig
 
     .. automethod:: onDevice
@@ -69,6 +76,8 @@ GPU-Accelerated Modules
 
     .. automethod:: refresh
 
+
+.. autoclass:: AngleCUDAConfig
 
 .. autoclass:: MxAngleCUDAConfig
 

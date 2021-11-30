@@ -26,4 +26,8 @@
 
 %pythoncode %{
     cuda = MxCUDA
+    AngleCUDAConfig = MxAngleCUDAConfig
+    BondCUDAConfig = MxBondCUDAConfig
+    EngineCUDAConfig = MxEngineCUDAConfig
+    SimulatorCUDAConfig = MxSimulatorCUDAConfig
 %}

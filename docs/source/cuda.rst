@@ -43,18 +43,19 @@ Each GPU-accelerated simulation feature has its own runtime control interface fo
 deploying on a GPU. GPU runtime control of simulation modules can be accessed directly from
 :class:`Simulator`, ::
 
-    cuda_config_sim: mx.MxSimulatorCUDAConfig = mx.Simulator.getCUDAConfig()
+    cuda_config_sim: mx.SimulatorCUDAConfig = mx.Simulator.getCUDAConfig()
 
-The returned :class:`MxSimulatorCUDAConfig` provides convenient access to all current GPU-accelerated
-simulation features.
+The returned :class:`SimulatorCUDAConfig` (:class:`MxSimulatorCUDAConfig` in C++) provides
+convenient access to all current GPU-accelerated simulation features.
 
 GPU-Accelerated Engine
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 Engine GPU acceleration is a GPU-accelerated simulation feature that offloads nonbonded potential
 interactions, fluxes, particle sorting and space partitioning onto a GPU.
-All runtime controls of engine GPU acceleration are available on :class:`MxEngineCUDAConfig`, which is
-an attribute with name ``engine`` on :class:`MxSimulatorCUDAConfig`, ::
+All runtime controls of engine GPU acceleration are available on :class:`EngineCUDAConfig`
+(:class:`MxEngineCUDAConfig` in C++), which is an attribute with name ``engine``
+on :class:`SimulatorCUDAConfig`, ::
 
     cuda_config_engine = mx.Simulator.getCUDAConfig().engine  # Get engine cuda runtime interface
 
@@ -109,8 +110,9 @@ GPU-Accelerated Bonds
 ^^^^^^^^^^^^^^^^^^^^^^
 Bond GPU acceleration is a GPU-accelerated simulation feature that offloads
 :ref:`bonded interactions <bonded_interactions>` onto a GPU.
-All runtime controls of bond GPU acceleration are available on :class:`MxBondCUDAConfig`, which is
-an attribute with name ``bonds`` on :class:`MxSimulatorCUDAConfig`, ::
+All runtime controls of bond GPU acceleration are available on :class:`BondCUDAConfig`
+(:class:`MxBondCUDAConfig` in C++), which is an attribute with name ``bonds``
+on :class:`SimulatorCUDAConfig`, ::
 
     cuda_config_bonds = mx.Simulator.getCUDAConfig().bonds  # Get bond cuda runtime interface
 
@@ -144,8 +146,9 @@ angle interactions onto a GPU.
 The angle GPU acceleration runtime control interface is pratically identical to that
 of bond GPU acceleration (*e.g.*, ``refreshAngles`` for angle GPU acceleration is analogous
 to ``refreshBonds`` for bond GPU acceleration).
-The angle GPU acceleration runtime control interface is accessible as an attribute with name
-``angles`` on :class:`MxSimulatorCUDAConfig`, ::
+The angle GPU acceleration runtime control interface is accessible on :class:`AngleCUDAConfig`
+(:class:`MxAngleCUDAConfig` in C++), which is available as an attribute with name ``angles``
+on :class:`MxSimulatorCUDAConfig`, ::
 
     cuda_config_angles = mx.Simulator.getCUDAConfig().angles  # Get angle cuda runtime interface
 

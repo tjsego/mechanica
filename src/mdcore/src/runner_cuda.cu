@@ -901,6 +901,37 @@ extern "C" int engine_cuda_boundary_conditions_refresh(struct engine *e) {
 }
 
 
+__device__ void potential_eval_r_cuda(struct MxPotential *p, FPTYPE r, FPTYPE *e, FPTYPE *f) {
+
+    int ind, k;
+    FPTYPE x, ee, eff, *c;
+    
+    TIMER_TIC
+
+    /* compute the index */
+    ind = fmaxf(0.0f, p->alpha[0] + r * (p->alpha[1] + r * p->alpha[2]));
+
+    /* get the table offset */
+    c = &(p->c[ind * potential_chunk]);
+
+    /* adjust x to the interval */
+    x = (r - c[0]) * c[1];
+
+    /* compute the potential and its derivative */
+    ee = c[2] * x + c[3];
+    eff = c[2];
+    for ( k = 4 ; k < potential_chunk ; k++ ) {
+        eff = eff * x + ee;
+        ee = ee * x + c[k];
+        }
+
+    /* store the result */
+    *e = ee; *f = eff * c[1];
+
+    TIMER_TOC(tid_potential)
+
+}
+
 __device__ void potential_eval_cuda ( struct MxPotential *p , float r2 , float *e , float *f ) {
 
     int ind, k;
@@ -1184,8 +1215,8 @@ __device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
     else if(kind == POTENTIAL_KIND_COMBINATION) {
         if(flags & POTENTIAL_SUM) {
             bool resulta, resultb;
-            potential_eval_super_ex_cuda(MxPotentialCUDA(p_cuda.pot.pca, false), pi, pj, _dx, _r2, epot, fi, fj, &resulta);
-            potential_eval_super_ex_cuda(MxPotentialCUDA(p_cuda.pot.pcb, false), pi, pj, _dx, _r2, epot, fi, fj, &resultb);
+            potential_eval_super_ex_cuda(MxPotentialCUDA(*p_cuda.pot.pca, false), pi, pj, _dx, _r2, epot, fi, fj, &resulta);
+            potential_eval_super_ex_cuda(MxPotentialCUDA(*p_cuda.pot.pcb, false), pi, pj, _dx, _r2, epot, fi, fj, &resultb);
             *result = resulta || resultb;
         }
     }
@@ -3219,12 +3250,12 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
     // Pack the potentials
     MxPotentialCUDA *pots_cuda = (MxPotentialCUDA*)malloc(sizeof(MxPotentialCUDA) * nr_pots);
     for(i = 1; i < nr_pots; i++) {
-        pots_cuda[i] = MxPotentialCUDA(pots[i]);
+        pots_cuda[i] = MxPotentialCUDA(*pots[i]);
     }
 
     MxPotentialCUDA *pots_cluster_cuda = (MxPotentialCUDA*)malloc(sizeof(MxPotentialCUDA) * nr_pots_cluster);
     for(i = 1; i < nr_pots_cluster; i++) {
-        pots_cluster_cuda[i] = MxPotentialCUDA(pots_cluster[i]);
+        pots_cluster_cuda[i] = MxPotentialCUDA(*pots_cluster[i]);
     }
     
     /* Store pind as a constant. */

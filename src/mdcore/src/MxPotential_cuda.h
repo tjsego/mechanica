@@ -22,7 +22,7 @@
  * 
  * @return The loaded potential, or NULL if failed
  */
-MxPotential MxToCUDADevice(MxPotential *p);
+MxPotential MxToCUDADevice(const MxPotential &p);
 
 
 __host__ __device__ 
@@ -47,18 +47,18 @@ struct MxPotentialCUDA {
     {}
 
     __host__ __device__ 
-    MxPotentialCUDA(MxPotential *p, bool toDevice=true) {
+    MxPotentialCUDA(const MxPotential &p, bool toDevice=true) {
         this->empty = false;
 
         #if defined(__CUDA_ARCH__)
-        this->pot = *p;
+        this->pot = p;
         #else
         if(toDevice) this->pot = MxToCUDADevice(p);
-        else this->pot = *p;
+        else this->pot = p;
         #endif
 
-        if(p->kind == POTENTIAL_KIND_DPD) {
-            DPDPotential *p_dpd = (DPDPotential*)p;
+        if(p.kind == POTENTIAL_KIND_DPD) {
+            DPDPotential *p_dpd = (DPDPotential*)&p;
             this->dpd_cfs.x = p_dpd->alpha;
             this->dpd_cfs.y = p_dpd->gamma;
             this->dpd_cfs.z = p_dpd->sigma;

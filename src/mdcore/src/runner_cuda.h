@@ -121,7 +121,23 @@ struct task_cuda {
     int unlock[ task_max_unlock ];
     
     };
-    
+
+/**
+ * @brief Evaluates the given potential at the given point (interpolated).
+ *
+ * @param p The #potential to be evaluated.
+ * @param r The radius at which it is to be evaluated.
+ * @param e Pointer to a floating-point value in which to store the
+ *      interaction energy.
+ * @param f Pointer to a floating-point value in which to store the
+ *      magnitude of the interaction force.
+ *
+ * Note that for efficiency reasons, this function does not check if any
+ * of the parameters are @c NULL or if @c sqrt(r2) is within the interval
+ * of the #potential @c p.
+ */
+
+__device__ void potential_eval_r_cuda(struct MxPotential *p, FPTYPE r, FPTYPE *e, FPTYPE *f);    
 
 /** 
  * @brief Evaluates the given potential at the given point (interpolated).

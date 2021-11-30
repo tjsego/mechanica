@@ -357,6 +357,7 @@ typedef struct engine {
 	void **fluxes_cuda[engine_maxgpu];
 	float *fluxes_next_cuda[engine_maxgpu];
 	bool bonds_cuda = false;
+	bool angles_cuda = false;
 #endif
 
 	/** Timers. */

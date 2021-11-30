@@ -12,6 +12,7 @@
 
 #include "MxEngineCUDAConfig.h"
 #include "MxBondCUDAConfig.h"
+#include "MxAngleCUDAConfig.h"
 
 
 /**
@@ -27,6 +28,9 @@ struct CAPI_EXPORT MxSimulatorCUDAConfig {
 
     /** Mechanica bonds CUDA runtime control interface */
     MxBondCUDAConfig bonds;
+
+    /** Mechanica angles CUDA runtime control interface */
+    MxAngleCUDAConfig angles;
 };
 
 #endif // SRC_CUDA_MXSIMULATORCUDACONFIG_H_

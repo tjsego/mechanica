@@ -15,6 +15,7 @@ struct MxBondCUDA {
     uint32_t flags;
     float dissociation_energy;
     float half_life;
+    int2 pids;
 
     MxPotential p;
 

@@ -260,11 +260,13 @@ set(HEADERS
 
 if(MX_WITHCUDA)
   list(APPEND SRC 
+    cuda/MxAngleCUDAConfig.cpp 
     cuda/MxBondCUDAConfig.cpp 
     cuda/MxEngineCUDAConfig.cpp 
     cuda/MxSimulatorCUDAConfig.cpp
   )
   list(APPEND HEADERS 
+    cuda/MxAngleCUDAConfig.h 
     cuda/MxBondCUDAConfig.h 
     cuda/MxEngineCUDAConfig.h 
     cuda/MxSimulatorCUDAConfig.h

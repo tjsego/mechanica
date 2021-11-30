@@ -33,7 +33,7 @@ MxBoundaryConditionCUDA::MxBoundaryConditionCUDA(const MxBoundaryCondition &_bc)
     MxPotentialCUDA *cu_pots = (MxPotentialCUDA*)malloc(size_pots);
     for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) 
         if((p = _bc.potenntials[typeId]) != NULL) 
-            cu_pots[typeId] = MxPotentialCUDA(p);
+            cu_pots[typeId] = MxPotentialCUDA(*p);
 
     if(cudaMemcpy(this->pots, cu_pots, size_pots, cudaMemcpyHostToDevice) != cudaSuccess)
         printf("Boundary condition copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));

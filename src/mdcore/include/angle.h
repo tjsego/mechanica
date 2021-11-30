@@ -87,7 +87,9 @@ typedef struct MxAngle {
               uint32_t flags=0);
 
     /**
-     * @brief Creates an angle bond
+     * @brief Creates an angle bond. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param potential potential of the bond
      * @param p1 first outer particle
@@ -122,7 +124,9 @@ struct MxAngleHandle {
     std::string str();
 
     /**
-     * @brief Destroy the angle
+     * @brief Destroy the angle. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @return HRESULT 
      */
@@ -204,7 +208,9 @@ CAPI_DATA(NOMStyle*) MxAngle_StylePtr;
 CAPI_FUNC(HRESULT) MxAngle_Destroy(MxAngle *a);
 
 /**
- * @brief Destroys all angles in the universe
+ * @brief Destroys all angles in the universe. 
+ * 
+ * Automatically updates when running on a CUDA device. 
  * 
  * @return HRESULT 
  */

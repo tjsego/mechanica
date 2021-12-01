@@ -1206,8 +1206,8 @@ __device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
     else if(kind == POTENTIAL_KIND_COMBINATION) {
         if(flags & POTENTIAL_SUM) {
             bool resulta, resultb;
-            potential_eval_super_ex_cuda(MxPotentialCUDA(*p_cuda.pot.pca, false), pi, pj, _dx, _r2, epot, fi, fj, &resulta);
-            potential_eval_super_ex_cuda(MxPotentialCUDA(*p_cuda.pot.pcb, false), pi, pj, _dx, _r2, epot, fi, fj, &resultb);
+            potential_eval_super_ex_cuda(p_cuda.fromA(), pi, pj, _dx, _r2, epot, fi, fj, &resulta);
+            potential_eval_super_ex_cuda(p_cuda.fromB(), pi, pj, _dx, _r2, epot, fi, fj, &resultb);
             *result = resulta || resultb;
         }
     }

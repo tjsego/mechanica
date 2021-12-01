@@ -46,16 +46,12 @@ struct MxPotentialCUDA {
         empty{true}
     {}
 
-    __host__ __device__ 
+    __host__ 
     MxPotentialCUDA(const MxPotential &p, bool toDevice=true) {
         this->empty = false;
 
-        #if defined(__CUDA_ARCH__)
-        this->pot = p;
-        #else
         if(toDevice) this->pot = MxToCUDADevice(p);
         else this->pot = p;
-        #endif
 
         if(p.kind == POTENTIAL_KIND_DPD) {
             DPDPotential *p_dpd = (DPDPotential*)&p;
@@ -63,6 +59,34 @@ struct MxPotentialCUDA {
             this->dpd_cfs.y = p_dpd->gamma;
             this->dpd_cfs.z = p_dpd->sigma;
         }
+    }
+
+    __device__ 
+    MxPotentialCUDA fromA() {
+        MxPotentialCUDA pc;
+        pc.pot = *this->pot.pca;
+        pc.empty = false;
+        if(this->pot.pca->kind == POTENTIAL_KIND_DPD) {
+            DPDPotential *pc_dpd = (DPDPotential*)&pc.pot;
+            pc.dpd_cfs.x = pc_dpd->alpha;
+            pc.dpd_cfs.y = pc_dpd->gamma;
+            pc.dpd_cfs.z = pc_dpd->sigma;
+        }
+        return pc;
+    }
+
+    __device__ 
+    MxPotentialCUDA fromB() {
+        MxPotentialCUDA pc;
+        pc.pot = *this->pot.pca;
+        pc.empty = false;
+        if(this->pot.pca->kind == POTENTIAL_KIND_DPD) {
+            DPDPotential *pc_dpd = (DPDPotential*)&pc.pot;
+            pc.dpd_cfs.x = pc_dpd->alpha;
+            pc.dpd_cfs.y = pc_dpd->gamma;
+            pc.dpd_cfs.z = pc_dpd->sigma;
+        }
+        return pc;
     }
     
     __host__ 

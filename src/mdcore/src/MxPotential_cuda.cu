@@ -23,14 +23,20 @@ MxPotential MxToCUDADevice(const MxPotential &p) {
     }
 
     if(p.pca != NULL) { 
-        auto pca_d = new MxPotential(MxToCUDADevice(*p.pca));
-        p_d.pca = pca_d;
+        MxPotential pca_d = MxToCUDADevice(*p.pca);
+        if(cudaMalloc(&p_d.pca, sizeof(MxPotential)) != cudaSuccess) 
+            mx_error(E_FAIL, "pca malloc failed!");
+        if(cudaMemcpy(p_d.pca, &pca_d, sizeof(MxPotential), cudaMemcpyHostToDevice) != cudaSuccess) 
+            mx_error(E_FAIL, "pca load H2D failed!");
     }
     else 
         p_d.pca = NULL;
     if(p.pcb != NULL) { 
-        auto pcb_d = new MxPotential(MxToCUDADevice(*p.pcb));
-        p_d.pcb = pcb_d;
+        MxPotential pcb_d = MxToCUDADevice(*p.pcb);
+        if(cudaMalloc(&p_d.pcb, sizeof(MxPotential)) != cudaSuccess) 
+            mx_error(E_FAIL, "pcb malloc failed!");
+        if(cudaMemcpy(p_d.pcb, &pcb_d, sizeof(MxPotential), cudaMemcpyHostToDevice) != cudaSuccess) 
+            mx_error(E_FAIL, "pcb load H2D failed!");
     } 
     else 
         p_d.pcb = NULL;
@@ -44,12 +50,16 @@ void Mx_cudaFree(MxPotential *p) {
         return;
     
     if(p->pca != NULL) {
-        Mx_cudaFree(p->pca);
-        delete p->pca;
+        MxPotential *pca;
+        if(cudaMemcpy(pca, p->pca, sizeof(MxPotential), cudaMemcpyDeviceToHost) != cudaSuccess) 
+            printf("%s\n", "pca load D2H failed!");
+        Mx_cudaFree(pca);
     }
     if(p->pcb != NULL) {
-        Mx_cudaFree(p->pcb);
-        delete p->pcb;
+        MxPotential *pcb;
+        if(cudaMemcpy(pcb, p->pcb, sizeof(MxPotential), cudaMemcpyDeviceToHost) != cudaSuccess)
+            printf("%s\n", "pcb load D2H failed!");
+        Mx_cudaFree(pcb);
     }
 
     cudaFree(p->c);

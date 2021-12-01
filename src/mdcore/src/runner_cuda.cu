@@ -83,10 +83,11 @@ __constant__ MxParticleCUDA *cuda_parts;
 
 // Boundary conditions
 __constant__ MxBoundaryConditionsCUDA cuda_bcs;
+static MxBoundaryConditionsCUDA cuda_bcs_dev;
 
 /* Diagonal entries and potential index lookup table. */
-__constant__ unsigned int *cuda_pind;
-__constant__ unsigned int *cuda_pind_cluster;
+__constant__ int *cuda_pind;
+__constant__ int *cuda_pind_cluster;
 
 /* The mutex for accessing the cell pair list. */
 __device__ int cuda_cell_mutex = 0;
@@ -831,22 +832,14 @@ extern "C" int engine_cuda_boundary_conditions_load(struct engine *e) {
         if(cudaSetDevice(e->devices[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
-        MxBoundaryConditionsCUDA bcs(e->boundary_conditions);
+        cuda_bcs_dev = MxBoundaryConditionsCUDA(e->boundary_conditions);
 
-        if(cudaMemcpyToSymbol(cuda_bcs, &bcs, sizeof(void*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        if(cudaMemcpyToSymbol(cuda_bcs, &cuda_bcs_dev, sizeof(MxBoundaryConditionsCUDA), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
     }
 
     return engine_err_ok;
-}
-
-__global__ 
-void engine_cuda_boundary_conditions_finalize_device() {
-    if(threadIdx.x != 0 || blockIdx.x != 0)
-        return;
-
-    cuda_bcs.finalize();
 }
 
 /**
@@ -863,9 +856,7 @@ int engine_cuda_boundary_conditions_finalize(struct engine *e) {
         if(cudaSetDevice(e->devices[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
 
-        engine_cuda_boundary_conditions_finalize_device<<<1, 1>>>();
-        if(cudaPeekAtLastError() != cudaSuccess)
-            return cuda_error(engine_err_cuda);
+        cuda_bcs_dev.finalize();
 
     }
 
@@ -1585,7 +1576,7 @@ __device__ void runner_dopair_unsorted_cuda ( MxParticleCUDA *parts_i , int coun
     bool eval_result;
     float number_density;
     MxPotentialCUDA *cu_pots;
-    unsigned int *cu_pind;
+    int *cu_pind;
     bool iscluster_maybe;
     
     TIMER_TIC
@@ -1697,7 +1688,7 @@ __device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int cou
     bool eval_result;
     float4 number_density;
     MxPotentialCUDA *cu_pots[4];
-    unsigned int *cu_pind[4];
+    int *cu_pind[4];
     bool iscluster_maybe;
     
     TIMER_TIC
@@ -1912,7 +1903,7 @@ __device__ void runner_dopair_cuda ( MxParticleCUDA *parts_i , int count_i , MxP
     bool eval_result;
     float number_density;
     MxPotentialCUDA *cu_pots;
-    unsigned int *cu_pind;
+    int *cu_pind;
     bool iscluster_maybe;
     
     TIMER_TIC
@@ -2039,7 +2030,7 @@ __device__  void runner_dopair_left_cuda ( MxParticleCUDA * parts_i , int count_
     bool eval_result;
     float number_density;
     MxPotentialCUDA *cu_pots;
-    unsigned int *cu_pind;
+    int *cu_pind;
     bool iscluster_maybe;
     MxFluxesCUDA *fluxes_cuda;
     unsigned int *cu_fxind, fxind;
@@ -2165,7 +2156,7 @@ __device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , int count_i
     bool eval_result;
     float number_density;
     MxPotentialCUDA *cu_pots;
-    unsigned int *cu_pind;
+    int *cu_pind;
     bool iscluster_maybe;
     MxFluxesCUDA *fluxes_cuda;
     unsigned int *cu_fxind, fxind;
@@ -2282,7 +2273,7 @@ __device__ void runner_doself_cuda (MxParticleCUDA *parts, int count, int cell_i
     unsigned int cell_flags = cuda_cflags[cell_id];
     bool boundary = cell_flags & cell_active_any;
     MxPotentialCUDA *cu_pots;
-    unsigned int *cu_pind;
+    int *cu_pind;
     bool iscluster_maybe;
     MxFluxesCUDA *fluxes_cuda;
     unsigned int *cu_fxind, fxind;
@@ -3262,11 +3253,11 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
     for ( did = 0 ; did < nr_devices ; did++ ) {
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMalloc( &e->pind_cuda[did] , sizeof(unsigned int) * e->max_type * e->max_type ) != cudaSuccess )
+        if ( cudaMalloc( &e->pind_cuda[did] , sizeof(int) * e->max_type * e->max_type ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpy( e->pind_cuda[did] , pind , sizeof(unsigned int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpy( e->pind_cuda[did] , pind , sizeof(int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_pind , &e->pind_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpyToSymbol( cuda_pind , &e->pind_cuda[did] , sizeof(int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
     }
     free(pind);
@@ -3274,11 +3265,11 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
     for ( did = 0 ; did < nr_devices ; did++ ) {
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMalloc( &e->pind_cluster_cuda[did] , sizeof(unsigned int) * e->max_type * e->max_type ) != cudaSuccess )
+        if ( cudaMalloc( &e->pind_cluster_cuda[did] , sizeof(int) * e->max_type * e->max_type ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpy( e->pind_cluster_cuda[did] , pind_cluster , sizeof(unsigned int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpy( e->pind_cluster_cuda[did] , pind_cluster , sizeof(int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_pind_cluster , &e->pind_cluster_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpyToSymbol( cuda_pind_cluster , &e->pind_cluster_cuda[did] , sizeof(int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
     }
     free(pind_cluster);
@@ -3291,7 +3282,7 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
             return cuda_error(engine_err_cuda);
         if(cudaMemcpy(e->pots_cuda[did], pots_cuda, sizeof(MxPotentialCUDA) * nr_pots, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if(cudaMemcpyToSymbol(cuda_pots, &e->pots_cuda[did], sizeof(void*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        if(cudaMemcpyToSymbol(cuda_pots, &e->pots_cuda[did], sizeof(MxPotentialCUDA*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
     }
     free(pots);
@@ -3305,7 +3296,7 @@ extern "C" int engine_cuda_load_pots(struct engine *e) {
             return cuda_error(engine_err_cuda);
         if(cudaMemcpy(e->pots_cluster_cuda[did], pots_cluster_cuda, sizeof(MxPotentialCUDA) * nr_pots_cluster, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if(cudaMemcpyToSymbol(cuda_pots_cluster, &e->pots_cluster_cuda[did], sizeof(void*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        if(cudaMemcpyToSymbol(cuda_pots_cluster, &e->pots_cluster_cuda[did], sizeof(MxPotentialCUDA*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
     }
     free(pots_cluster);
@@ -3401,7 +3392,7 @@ int engine_cuda_allocate_particles(struct engine *e) {
             return cuda_error(engine_err_cuda);
         if (cudaMalloc(&e->parts_cuda[did], sizeof(MxParticleCUDA) * e->s.size_parts) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if (cudaMemcpyToSymbol(cuda_parts, &e->parts_cuda[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        if (cudaMemcpyToSymbol(cuda_parts, &e->parts_cuda[did], sizeof(MxParticleCUDA *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
         if (cudaMalloc(&e->forces_cuda[did], sizeof(float) * 4 * e->s.size_parts) != cudaSuccess)
             return cuda_error(engine_err_cuda);
@@ -3526,7 +3517,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpy( dummy[did] , corig , sizeof(float) * s->nr_cells * 3 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_corig , &dummy[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpyToSymbol( cuda_corig , &dummy[did] , sizeof(float *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
     }
     free( corig );
@@ -3544,7 +3535,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if(cudaMemcpy(dummy[did], cdims, sizeof(float3) * s->nr_cells, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if(cudaMemcpyToSymbol(cuda_cdims, &dummy[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        if(cudaMemcpyToSymbol(cuda_cdims, &dummy[did], sizeof(float3 *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
     }
     free(cdims);
@@ -3561,7 +3552,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if(cudaMemcpy(dummy[did], cflags, sizeof(unsigned int) * s->nr_cells, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if(cudaMemcpyToSymbol(cuda_cflags, &dummy[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        if(cudaMemcpyToSymbol(cuda_cflags, &dummy[did], sizeof(unsigned int *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
     }
     free(cflags);
@@ -3687,7 +3678,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMalloc( &e->sortlists_cuda[did] , sizeof(unsigned int) * s->nr_parts * 13 ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_sortlists , &e->sortlists_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpyToSymbol( cuda_sortlists , &e->sortlists_cuda[did] , sizeof(unsigned int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
     }
 

@@ -65,7 +65,7 @@ struct MxPotentialCUDA {
         }
     }
     
-    __host__ __device__ 
+    __host__ 
     void finalize() {
         if(!this->empty) Mx_cudaFree(&this->pot);
         this->empty = true;

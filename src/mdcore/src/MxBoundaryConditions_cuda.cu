@@ -30,23 +30,29 @@ MxBoundaryConditionCUDA::MxBoundaryConditionCUDA(const MxBoundaryCondition &_bc)
         return;
     }
 
-    MxPotentialCUDA *cu_pots = (MxPotentialCUDA*)malloc(size_pots);
-    for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) 
-        if((p = _bc.potenntials[typeId]) != NULL) 
-            cu_pots[typeId] = MxPotentialCUDA(*p);
+    this->pots_h = (MxPotentialCUDA*)malloc(size_pots);
+    for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) { 
+        p = _bc.potenntials[typeId];
+        if(p != NULL) 
+            this->pots_h[typeId] = MxPotentialCUDA(*p);
+        else 
+            this->pots_h[typeId] = MxPotentialCUDA();
+    }
 
-    if(cudaMemcpy(this->pots, cu_pots, size_pots, cudaMemcpyHostToDevice) != cudaSuccess)
+    if(cudaMemcpy(this->pots, this->pots_h, size_pots, cudaMemcpyHostToDevice) != cudaSuccess)
         printf("Boundary condition copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-    
-    free(cu_pots);
 }
 
-__device__ 
+__host__ 
 void MxBoundaryConditionCUDA::finalize() {
-    for(int typeId = 0; typeId < engine_maxnrtypes; typeId++)
-        this->pots[typeId].finalize();
+    for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) {
+        auto p = this->pots_h[typeId];
+        p.finalize();
+    }
+
+    free(this->pots_h);
     
-    if(cudaFree(&this->pots) != cudaSuccess) 
+    if(cudaFree(this->pots) != cudaSuccess) 
         printf("Boundary condition finalize failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
 }
 
@@ -63,26 +69,26 @@ MxBoundaryConditionsCUDA::MxBoundaryConditionsCUDA(const MxBoundaryConditions &_
         return;
     }
 
-    MxBoundaryConditionCUDA *cu_bcs = (MxBoundaryConditionCUDA*)malloc(size_bcs);
+    this->bcs_h = (MxBoundaryConditionCUDA*)malloc(size_bcs);
 
-    cu_bcs[0] = MxBoundaryConditionCUDA(_bcs.left);
-    cu_bcs[1] = MxBoundaryConditionCUDA(_bcs.right);
-    cu_bcs[2] = MxBoundaryConditionCUDA(_bcs.front);
-    cu_bcs[3] = MxBoundaryConditionCUDA(_bcs.back);
-    cu_bcs[4] = MxBoundaryConditionCUDA(_bcs.bottom);
-    cu_bcs[5] = MxBoundaryConditionCUDA(_bcs.top);
+    this->bcs_h[0] = MxBoundaryConditionCUDA(_bcs.left);
+    this->bcs_h[1] = MxBoundaryConditionCUDA(_bcs.right);
+    this->bcs_h[2] = MxBoundaryConditionCUDA(_bcs.front);
+    this->bcs_h[3] = MxBoundaryConditionCUDA(_bcs.back);
+    this->bcs_h[4] = MxBoundaryConditionCUDA(_bcs.bottom);
+    this->bcs_h[5] = MxBoundaryConditionCUDA(_bcs.top);
 
-    if(cudaMemcpy(this->bcs, cu_bcs, size_bcs, cudaMemcpyHostToDevice) != cudaSuccess)
+    if(cudaMemcpy(this->bcs, this->bcs_h, size_bcs, cudaMemcpyHostToDevice) != cudaSuccess)
         printf("Boundary conditions copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-
-    free(cu_bcs);
 }
 
-__device__ 
+__host__ 
 void MxBoundaryConditionsCUDA::finalize() {
     for(int bcId = 0; bcId < 6; bcId++)
-        this->bcs[bcId].finalize();
+        this->bcs_h[bcId].finalize();
 
-    if(cudaFree(&this->bcs) != cudaSuccess) 
+    free(this->bcs_h);
+
+    if(cudaFree(this->bcs) != cudaSuccess) 
         printf("Boundary conditions finalize failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
 }

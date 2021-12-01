@@ -21,7 +21,7 @@ struct MxBoundaryConditionCUDA {
 
     float radius;
 
-    MxPotentialCUDA *pots;
+    MxPotentialCUDA *pots, *pots_h;
 
     __host__ __device__ 
     MxBoundaryConditionCUDA() {}
@@ -29,7 +29,7 @@ struct MxBoundaryConditionCUDA {
     __host__ 
     MxBoundaryConditionCUDA(const MxBoundaryCondition &_bc);
 
-    __device__ 
+    __host__ 
     void finalize();
 };
 
@@ -37,7 +37,7 @@ struct MxBoundaryConditionCUDA {
 struct MxBoundaryConditionsCUDA {
     
     // Left, right, front, back, bottom, top
-    MxBoundaryConditionCUDA *bcs;
+    MxBoundaryConditionCUDA *bcs, *bcs_h;
 
     __host__ __device__ 
     MxBoundaryConditionsCUDA() {}
@@ -45,7 +45,7 @@ struct MxBoundaryConditionsCUDA {
     __host__ 
     MxBoundaryConditionsCUDA(const MxBoundaryConditions &_bcs);
 
-    __device__ 
+    __host__ 
     void finalize();
 
 };

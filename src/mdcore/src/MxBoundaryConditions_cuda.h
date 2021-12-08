@@ -21,6 +21,8 @@ struct MxBoundaryConditionCUDA {
 
     float radius;
 
+    float pad;
+
     MxPotentialCUDA *pots, *pots_h;
 
     __host__ __device__ 

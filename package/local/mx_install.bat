@@ -8,26 +8,33 @@ if not exist "%MXSRCDIR%" exit 1
 
 call %MXSRCDIR%\package\local\win\mx_install_env
 
-call conda activate %MXENV%>NUL
+if not defined MX_WITHCUDA goto DoInstall
 
 rem Install CUDA support if requested
-if defined MX_WITHCUDA (
-    if %MX_WITHCUDA% == 1 (
-        rem Validate specified compute capability
-        if not defined CUDAARCHS (
-            echo No compute capability specified (e.g., "export CUDAARCHS=35;50")
-            exit 1
-        )
+if %MX_WITHCUDA% == 1 (
+    rem Validate specified compute capability
+    if not defined CUDAARCHS (
+        echo No compute capability specified
+        exit 1
+    ) 
+    echo Detected CUDA support request
+    echo Installing additional dependencies...
 
-        echo Detected CUDA support request
-        echo Installing additional dependencies...
-
-        set MXCUDAENV=%MXENV%
-        call conda install -y -c nvidia cuda-toolkit>NUL
-    )
+    goto SetupCUDA
 )
 
-call %MXSRCDIR%\package\local\win\mx_install_all
-if errorlevel 1 exit 2
+goto DoInstall
 
-cd %current_dir%
+:SetupCUDA
+
+    set MXCUDAENV=%MXENV%
+    call conda install -y -c nvidia -p %MXENV% cuda>NUL
+    goto DoInstall
+
+:DoInstall
+    call conda activate %MXENV%>NUL
+
+    call %MXSRCDIR%\package\local\win\mx_install_all
+    if errorlevel 1 exit 2
+
+    cd %current_dir%

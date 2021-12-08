@@ -29,70 +29,69 @@ __host__ __device__
 void Mx_cudaFree(MxPotential *p);
 
 
-// A wrap of MxPotential
-struct MxPotentialCUDA {
+struct MxPotentialCUDAData {
+    uint32_t kind;
 
-    // Flag signifying whether instance is a placeholder
-    bool empty;
+    /** Flags. */
+    uint32_t flags;
+
+    // a, b, r0_plusone
+    float3 w;
+
+    /** coordinate offset */
+    float3 offset;
+
+    /** Coefficients for the interval transform. */
+    float4 alpha;
+
+    /** Nr of intervals. */
+    int n;
 
     // DPD coefficients alpha, gamma, sigma
     float3 dpd_cfs;
 
-    // The potential
-    MxPotential pot;
+    /** The coefficients. */
+    float *c;
+
+    __host__ 
+    MxPotentialCUDAData() : flags{POTENTIAL_NONE} {}
+
+    __host__ 
+    MxPotentialCUDAData(MxPotential *p);
+
+    __host__ 
+    void finalize();
+};
+
+// A wrap of MxPotential
+struct MxPotentialCUDA {
+    // Number of underlying potentials
+    int nr_pots;
+
+    // Number of dpd potentials
+    int nr_dpds;
+
+    // Data of all underlying potentials
+    MxPotentialCUDAData *data;
 
     __host__ __device__ 
-    MxPotentialCUDA() :
-        empty{true}
+    MxPotentialCUDA() : 
+        nr_pots{0}, 
+        nr_dpds{0}
     {}
 
     __host__ 
-    MxPotentialCUDA(const MxPotential &p, bool toDevice=true) {
-        this->empty = false;
-
-        if(toDevice) this->pot = MxToCUDADevice(p);
-        else this->pot = p;
-
-        if(p.kind == POTENTIAL_KIND_DPD) {
-            DPDPotential *p_dpd = (DPDPotential*)&p;
-            this->dpd_cfs.x = p_dpd->alpha;
-            this->dpd_cfs.y = p_dpd->gamma;
-            this->dpd_cfs.z = p_dpd->sigma;
-        }
-    }
-
-    __device__ 
-    MxPotentialCUDA fromA() {
-        MxPotentialCUDA pc;
-        pc.pot = *this->pot.pca;
-        pc.empty = false;
-        if(this->pot.pca->kind == POTENTIAL_KIND_DPD) {
-            DPDPotential *pc_dpd = (DPDPotential*)&pc.pot;
-            pc.dpd_cfs.x = pc_dpd->alpha;
-            pc.dpd_cfs.y = pc_dpd->gamma;
-            pc.dpd_cfs.z = pc_dpd->sigma;
-        }
-        return pc;
-    }
-
-    __device__ 
-    MxPotentialCUDA fromB() {
-        MxPotentialCUDA pc;
-        pc.pot = *this->pot.pca;
-        pc.empty = false;
-        if(this->pot.pca->kind == POTENTIAL_KIND_DPD) {
-            DPDPotential *pc_dpd = (DPDPotential*)&pc.pot;
-            pc.dpd_cfs.x = pc_dpd->alpha;
-            pc.dpd_cfs.y = pc_dpd->gamma;
-            pc.dpd_cfs.z = pc_dpd->sigma;
-        }
-        return pc;
-    }
+    MxPotentialCUDA(MxPotential *p);
     
     __host__ 
     void finalize() {
-        if(!this->empty) Mx_cudaFree(&this->pot);
-        this->empty = true;
+        if(this->nr_pots == 0) 
+            return;
+
+        for(int i = 0; i < this->nr_pots; i++) 
+            this->data[i].finalize();
+
+        this->nr_pots = 0;
     }
 };
 

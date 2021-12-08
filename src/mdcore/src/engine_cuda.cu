@@ -74,43 +74,6 @@
 /* The parts (non-texture access). */
 extern __constant__ float4 *cuda_parts;
 
-/* Forward declaration of runner kernel. */
-__global__ void runner_run_verlet_cuda_32 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_32 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_64 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_64 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_96 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_96 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_128 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_128 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_160 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_160 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_192 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_192 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_224 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_224 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_256 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_256 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_288 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_288 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_320 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_320 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_352 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_352 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_384 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_384 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_416 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_416 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_448 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_448 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_480 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_480 ( float *forces , int *counts , int *ind );
-__global__ void runner_run_verlet_cuda_512 ( float *forces , int *counts , int *ind , int verlet_rebuild );
-__global__ void runner_run_cuda_512 ( float *forces , int *counts , int *ind );
-int runner_bind ( cudaArray *cuArray_coeffs , cudaArray *cuArray_pind , cudaArray *cuArray_diags );
-int runner_parts_bind ( cudaArray *cuArray_parts );
-int runner_parts_unbind ( );
-
 
 /**
  * @brief Set the number of threads of a CUDA device to use

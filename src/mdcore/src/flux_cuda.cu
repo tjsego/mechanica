@@ -221,18 +221,25 @@ extern "C" int engine_cuda_load_fluxes(struct engine *e) {
     free(fluxes);
     free(fluxes_cuda);
 
-    int nr_states = e->nr_fluxes_cuda - 1;
-    bool updating_states = e->nr_fluxes_cuda != nr_fluxes;
+    int nr_states_current = e->nr_fluxes_cuda - 1;
+    int nr_states_next = nr_fluxes - 1;
+
+    if(nr_states_current > 0 && nr_states_next == 0 && engine_cuda_finalize_particle_states(e) < 0) 
+        return error(engine_err_cuda);
 
     e->nr_fluxes_cuda = nr_fluxes;
-    nr_states = e->nr_fluxes_cuda - 1;
+
+    if(nr_states_next > 0 && nr_states_current == 0 && engine_cuda_allocate_particle_states(e) < 0) 
+        return error(engine_err_cuda);
+    else if(nr_states_current != nr_states_next && engine_cuda_refresh_particle_states(e) < 0) 
+        return error(engine_err_cuda);
 
     // Allocate the flux buffer
-    if(nr_states > 0) {
+    if(nr_states_next > 0) {
         for(did = 0; did < nr_devices; did++) {
             if(cudaSetDevice(e->devices[did]) != cudaSuccess)
                 return cuda_error(engine_err_cuda);
-            if (cudaMalloc(&e->fluxes_next_cuda[did], sizeof(float) * nr_states * e->s.size_parts) != cudaSuccess)
+            if (cudaMalloc(&e->fluxes_next_cuda[did], sizeof(float) * nr_states_next * e->s.size_parts) != cudaSuccess)
                 return cuda_error(engine_err_cuda);
         }
     }

@@ -140,29 +140,8 @@ environment as previously described and install the ``notebook``, ``ipywidgets``
 Enabling GPU Acceleration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Mechanica supports GPU acceleration using CUDA. To enable GPU acceleration,
-:ref:`customize the build <customizing_the_build>` by installing the ``cuda-toolkit``
-package from the nvidia conda channel into the build environment *before* building Mechanica.
-
-On Windows
-
-.. code-block:: bat
-
-    call %MYMXSRC%/package/local/win/mx_install_vars
-    call %MXSRCDIR%/package/local/win/mx_install_env
-    conda activate %MXENV%
-    conda install -c nvidia cuda-toolkit
-
-On Linux
-
-.. code-block:: bash
-
-    source $MYMXSRC/package/local/linux/mx_install_vars.sh
-    bash $MXSRCDIR/package/local/linux/mx_install_env.sh
-    conda activate $MXENV
-    conda install -c nvidia cuda-toolkit
-
-Then tell Mechanica to build with CUDA support and specify the compute capability of all available
-GPUs in the typical way before calling `mx_install_all`.
+simply tell Mechanica to build with CUDA support and specify the compute capability
+of all available GPUs in the typical way *before* calling `mx_install`.
 
 On Windows
 
@@ -170,7 +149,7 @@ On Windows
 
     set MX_WITHCUDA=1
     set CUDAARCHS=35;50
-    call mechanica/package/local/mx_install_all
+    call mechanica/package/local/mx_install
 
 On Linux
 
@@ -178,7 +157,7 @@ On Linux
 
     export MX_WITHCUDA=1
     export CUDAARCHS=35;50
-    bash mechanica/package/local/mx_install_all.sh
+    bash mechanica/package/local/mx_install.sh
 
 .. note::
 

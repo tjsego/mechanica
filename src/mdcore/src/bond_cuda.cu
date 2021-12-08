@@ -174,7 +174,7 @@ void cuda_bonds_generate_engine_parts_key(int nr_parts) {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
     int stride = blockDim.x * gridDim.x;
     for(int i = tid; i < nr_parts; i += stride) 
-        cuda_bonds_parts_from_engine_key[cuda_bonds_parts[i].id] = i;
+        cuda_bonds_parts_from_engine_key[cuda_bonds_parts[i].w.x] = i;
 }
 
 int cuda_bonds_parts_load(engine *e) { 
@@ -898,7 +898,7 @@ void bond_eval_cuda(MxBondCUDAData *bonds, int nr_bonds, float *forces, float *e
         pi = &cuda_bonds_parts[parts_key == NULL ? b->pids.x : parts_key[b->pids.x]];
         pj = &cuda_bonds_parts[parts_key == NULL ? b->pids.y : parts_key[b->pids.y]];
 
-        if(!(b->flags & BOND_ACTIVE) || (pi->flags & PARTICLE_GHOST && pj->flags & PARTICLE_GHOST)) {
+        if(!(b->flags & BOND_ACTIVE) || (pi->w.w & PARTICLE_GHOST && pj->w.w & PARTICLE_GHOST)) {
             forces[3 * i    ] = 0.f;
             forces[3 * i + 1] = 0.f;
             forces[3 * i + 2] = 0.f;
@@ -1732,11 +1732,7 @@ void angle_eval_cuda(MxAngleCUDAData *angles, int nr_angles, float *forces, floa
         pj = &cuda_bonds_parts[parts_key == NULL ? a->pids.y : parts_key[a->pids.y]];
         pk = &cuda_bonds_parts[parts_key == NULL ? a->pids.z : parts_key[a->pids.z]];
 
-        if(pi->id != a->pids.x) {
-            printf("%s\n", "Confirmed! We need a key when borrowing from the engine!");
-        }
-
-        if(!(a->flags & ANGLE_ACTIVE) || (pi->flags & PARTICLE_GHOST && pj->flags & PARTICLE_GHOST && pk->flags & PARTICLE_GHOST)) {
+        if(!(a->flags & ANGLE_ACTIVE) || (pi->w.w & PARTICLE_GHOST && pj->w.w & PARTICLE_GHOST && pk->w.w & PARTICLE_GHOST)) {
             forces[6 * i    ] = 0.f;
             forces[6 * i + 1] = 0.f;
             forces[6 * i + 2] = 0.f;

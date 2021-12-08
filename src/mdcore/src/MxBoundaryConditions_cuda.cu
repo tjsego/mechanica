@@ -34,7 +34,7 @@ MxBoundaryConditionCUDA::MxBoundaryConditionCUDA(const MxBoundaryCondition &_bc)
     for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) { 
         p = _bc.potenntials[typeId];
         if(p != NULL) 
-            this->pots_h[typeId] = MxPotentialCUDA(*p);
+            this->pots_h[typeId] = MxPotentialCUDA(p);
         else 
             this->pots_h[typeId] = MxPotentialCUDA();
     }

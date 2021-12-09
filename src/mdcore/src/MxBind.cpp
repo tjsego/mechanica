@@ -44,12 +44,13 @@ HRESULT universe_bind_potential(MxPotential *p, MxParticleType *a, MxParticleTyp
     }
 
     if(engine_addpot(&_Engine, pot, a->id, b->id) != engine_err_ok) {
-        std::string msg = "failed to add potential to engine: error";
-        msg += std::to_string(engine_err);
+        std::string msg = "failed to add potential to engine: error ";
+        msg += std::to_string(-engine_err);
         msg += ", ";
         msg += engine_err_msg[-engine_err];
         Log(LOG_CRITICAL) << msg;
-        return mx_error(E_FAIL, msg.c_str());
+        auto msg_c = msg.c_str();
+        return mx_error(E_FAIL, msg_c);
     }
     
     return S_OK;
@@ -131,8 +132,8 @@ HRESULT MxBind::cuboid(MxPotential *p, MxParticleType *t) {
     return universe_bind_potential_cuboid(p, t);
 }
 
-HRESULT MxBind::boundaryConditions(MxPotential *p, MxBoundaryConditions *bcs, MxParticleType *t) {
-    return universe_bind_potential(p, bcs, t);
+HRESULT MxBind::boundaryConditions(MxPotential *p, MxParticleType *t) {
+    return universe_bind_potential(p, &_Engine.boundary_conditions, t);
 }
 
 HRESULT MxBind::boundaryCondition(MxPotential *p, MxBoundaryCondition *bc, MxParticleType *t) {

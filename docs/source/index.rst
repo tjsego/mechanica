@@ -17,10 +17,11 @@ modeling and simulation environment. Mechanica provides the ability to create,
 simulate and explore models, simulations and virtual experiments of soft condensed
 matter physics at mulitple scales using a simple, intuitive interface. Mechanica
 is designed with an emphasis on problems in complex subcellular, cellular and tissue
-biophysics. Mechanica enables interactive work with simulations, where models and
-simulations can be built and interacted with in real-time during execution of a
-simulation. Mechanica is part of the
-`Tellurium <http://tellurium.analogmachine.org>`_ project.
+biophysics. Mechanica enables interactive work with simulations on heterogeneous
+computing architectures, where models and simulations can be built and interacted
+with in real-time during execution of a simulation, and computations can be selectively
+offloaded onto available GPUs on-the-fly.
+Mechanica is part of the `Tellurium <http://tellurium.analogmachine.org>`_ project.
 
 Mechanica is a native compiled C++ shared library that's designed to be used for model
 and simulation specification in compiled C++ code. Mechanica includes an extensive

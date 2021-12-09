@@ -152,6 +152,10 @@ HRESULT MxUniverse::reset() {
     UNIVERSE_FINALLY(1);
 }
 
+MxUniverse* MxUniverse::get() {
+    return &Universe;
+}
+
 MxParticleList *MxUniverse::particles() {
     UNIVERSE_TRY();
     return MxParticleList::all();
@@ -241,7 +245,7 @@ double MxUniverse::getDt() {
 }
 
 MxEventList *MxUniverse::getEventList() {
-    return (MxEventList *)_Engine.events;
+    return (MxEventList *)this->events;
 }
 
 MxBoundaryConditions *MxUniverse::getBoundaryConditions() {
@@ -289,6 +293,14 @@ CAPI_FUNC(HRESULT) MxUniverse_Step(double until, double dt) {
 
     while (_Engine.time < tf) {
         if ( engine_step( &_Engine ) != 0 ) {
+            printf("main: engine_step failed with engine_err=%i.\n",engine_err);
+            errs_dump(stdout);
+            // TODO: correct error reporting
+            return E_FAIL;
+        }
+
+        // notify time listeners
+        if(Universe.events->eval(_Engine.time * _Engine.dt) != 0) {
             printf("main: engine_step failed with engine_err=%i.\n",engine_err);
             errs_dump(stdout);
             // TODO: correct error reporting

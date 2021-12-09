@@ -134,7 +134,15 @@ SET(SOURCES
   DissapativeParticleDynamics.cpp
   MxBoundaryConditions.cpp
   MxBind.cpp
-  )
+)
+
+set(MDCORE_COMPILEDEFS_PUBLIC MDCORE_SINGLE PTHREAD_LOCK)
+set(MDCORE_COMPILEDEFS_PRIVATE C_BUILDING_DLL)
+set(MDCORE_LIBS   
+  LibSBML::LibSBML
+  Threads::Threads
+  Magnum::Magnum
+)
 
 if(MDCORE_USE_MPI)
   set(SOURCES ${SOURCES} engine_exchange.c)
@@ -152,7 +160,36 @@ endif()
 #else
 #    SOURCES_CUDA =
 #endif
+find_package(CUDAToolkit)
+if(CUDAToolkit_FOUND AND MX_WITHCUDA)
+  set(MDCORE_HAVECUDA ON)
+else()
+  set(MDCORE_HAVECUDA OFF)
+endif()
 
+if(MDCORE_HAVECUDA)
+  list(APPEND MDCORE_COMPILEDEFS_PRIVATE HAVE_CUDA)
+
+  list(APPEND PUBLIC_HEADERS 
+    "${MDCORE_SOURCE_DIR}/src/runner_cuda.h" 
+    "${MDCORE_SOURCE_DIR}/src/runner_cuda_main.h"
+    "${MDCORE_SOURCE_DIR}/src/angle_cuda.h"
+    "${MDCORE_SOURCE_DIR}/src/bond_cuda.h"
+    "${MDCORE_SOURCE_DIR}/src/flux_cuda.h"
+    "${MDCORE_SOURCE_DIR}/src/MxBoundaryConditions_cuda.h" 
+    "${MDCORE_SOURCE_DIR}/src/MxParticle_cuda.h" 
+    "${MDCORE_SOURCE_DIR}/src/MxPotential_cuda.h" 
+  )
+  list(APPEND SOURCES 
+    engine_cuda.cu 
+    runner_cuda.cu 
+    bond_cuda.cu 
+    flux_cuda.cu 
+    MxBoundaryConditions_cuda.cu 
+    MxParticle_cuda.cu 
+    MxPotential_cuda.cu 
+  )
+endif()
 
 # Build the libmdcore libraries
 #lib_LTLIBRARIES = libmdcore.la libmdcore_single.la
@@ -193,15 +230,29 @@ function(add_mdcore_single)
   source_group("Source Files" FILES ${SOURCES})
   source_group("Header Files" FILES ${SINGLE_HEADERS})
 
+  if(MDCORE_HAVECUDA)
+    list(APPEND MDCORE_LIBS 
+      CUDA::cudart 
+      CUDA::cuda_driver 
+      CUDA::nvrtc
+    )
+  endif()
+
   add_library(mdcore_single OBJECT ${SOURCES} ${SINGLE_HEADERS})
 
-  target_compile_definitions(mdcore_single PUBLIC MDCORE_SINGLE)
-  target_compile_definitions(mdcore_single PRIVATE C_BUILDING_DLL)
+  target_compile_definitions(mdcore_single PUBLIC ${MDCORE_COMPILEDEFS_PUBLIC})
+  target_compile_definitions(mdcore_single PRIVATE ${MDCORE_COMPILEDEFS_PRIVATE})
 
   set_target_properties(mdcore_single PROPERTIES
     CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN 1
+    VISIBILITY_INLINES_HIDDEN 1 
+    POSITION_INDEPENDENT_CODE ON 
+  )
+  if(MDCORE_HAVECUDA)
+    set_target_properties(mdcore_single PROPERTIES 
+      CUDA_SEPARABLE_COMPILATION ON
     )
+  endif()
 
   # hack for getting compile definitions through to eclipse project files,
   # this is NOT needed for the build, just for the clipse project files
@@ -211,17 +262,15 @@ function(add_mdcore_single)
   # temporarily add add these includes until we get a stable public API
   target_include_directories(mdcore_single PUBLIC ${MDCORE_INCLUDE_DIR}
     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include> 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${MX_INCLUDE_DIR}/mdcore>
+    $<INSTALL_INTERFACE:${MX_INCLUDE_DIR}/mdcore/private>
     ${Python_INCLUDE_DIRS}
     #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
   )
 
-target_link_libraries(mdcore_single PUBLIC
-  LibSBML::LibSBML
-  Threads::Threads
-  Magnum::Magnum
-  )
+target_link_libraries(mdcore_single PUBLIC ${MDCORE_LIBS})
 
 
 message("pybind header: ${PYBIND11_INCLUDE_DIR}")
@@ -235,8 +284,8 @@ endfunction(add_mdcore_single)
 # alwasy build the single precision version
 add_mdcore_single()
 
-
-
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${MX_INCLUDE_DIR}/mdcore)
+install(FILES ${PRIVATE_HEADERS} DESTINATION ${MX_INCLUDE_DIR}/mdcore/private)
 
 
 # Set-up for general (double-precision) case

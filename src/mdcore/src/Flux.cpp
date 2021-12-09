@@ -11,7 +11,6 @@
 #include "../../state/MxStateVector.h"
 #include "flux_eval.hpp"
 #include "space.h"
-#include "space_cell.h"
 #include "engine.h"
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
@@ -50,10 +49,7 @@ MxFluxes *MxFluxes::create(FluxKind kind, MxParticleType *a, MxParticleType *b,
         throw std::invalid_argument(msg);
     }
     
-    int fluxes_index1 = _Engine.max_type * a->id + b->id;
-    int fluxes_index2 = _Engine.max_type * b->id + a->id;
-    
-    MxFluxes *fluxes = _Engine.fluxes[fluxes_index1];
+    MxFluxes *fluxes = engine_getfluxes(&_Engine, a->id, b->id);
     
     if(fluxes == NULL) {
         fluxes = MxFluxes::newFluxes(8);
@@ -61,8 +57,7 @@ MxFluxes *MxFluxes::create(FluxKind kind, MxParticleType *a, MxParticleType *b,
     
     fluxes = MxFluxes::addFlux(kind, fluxes, a->id, b->id, index_a, index_b, k, decay, target);
     
-    _Engine.fluxes[fluxes_index1] = fluxes;
-    _Engine.fluxes[fluxes_index2] = fluxes;
+    engine_addfluxes(&_Engine, fluxes, a->id, b->id);
     
     return fluxes;
 }
@@ -98,31 +93,34 @@ MxFluxes *MxFluxes::uptake(MxParticleType *A, MxParticleType *B, const std::stri
     }
 }
 
-static void integrate_statevector(MxStateVector *s) {
+static void integrate_statevector(MxStateVector *s, float dt=-1.0) {
+    if(dt < 0) dt = _Engine.dt;
+
     for(int i = 0; i < s->size; ++i) {
         float konst = (s->species_flags[i] & SPECIES_KONSTANT) ? 0.f : 1.f;
-        s->fvec[i] += _Engine.dt * s->q[i] * konst;
+        s->fvec[i] += dt * s->q[i] * konst;
         s->q[i] = 0; // clear flux for next step
     }
 }
 
-HRESULT MxFluxes::integrate(int cellId) {
-    
-    space_cell *c = &_Engine.s.cells[cellId];
+HRESULT MxFluxes_integrate(space_cell *c, float dt) {
     MxParticle *p;
     MxStateVector *s;
-    
     
     for(int i = 0; i < c->count; ++i) {
         p = &c->parts[i];
         s = p->state_vector;
         
         if(s) {
-            integrate_statevector(s);
+            integrate_statevector(s, dt);
         }
     }
     
     return S_OK;
+}
+
+HRESULT MxFluxes_integrate(int cellId) {
+    return MxFluxes_integrate(&_Engine.s.cells[cellId]);
 }
 
 MxFluxes *MxFluxes::addFlux(FluxKind kind, MxFluxes *fluxes,

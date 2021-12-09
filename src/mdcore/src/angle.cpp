@@ -55,6 +55,10 @@
 #include "engine.h"
 #include <../../rendering/NOMStyle.hpp>
 
+#ifdef HAVE_CUDA
+#include "angle_cuda.h"
+#endif
+
 #include <iostream>
 
 NOMStyle *MxAngle_StylePtr = new NOMStyle("aqua");
@@ -85,7 +89,13 @@ const char *angle_err_msg[2] = {
  * 
  * @return #angle_err_ok or <0 on error (see #angle_err)
  */
-int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out ) {
+int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out ) { 
+
+    #ifdef HAVE_CUDA
+    if(e->angles_cuda) {
+        return engine_angle_eval_cuda(a, N, e, epot_out);
+    }
+    #endif
 
     MxAngle *angle;
     int aid, pid, pjd, pkd, k, *loci, *locj, *lock, shift;
@@ -705,8 +715,20 @@ HRESULT MxAngle_Destroy(MxAngle *a) {
     return S_OK;
 };
 
+static bool MxAngle_destroyingAll = false;
+
 HRESULT MxAngle_DestroyAll() {
+    MxAngle_destroyingAll = true;
+
+    #ifdef HAVE_CUDA
+    if(_Engine.angles_cuda) 
+        if(engine_cuda_finalize_angles_all(&_Engine) < 0) 
+            return E_FAIL;
+    #endif
+
     for(auto ah: MxAngleHandle::items()) ah->destroy();
+
+    MxAngle_destroyingAll = false;
     return S_OK;
 }
 
@@ -734,6 +756,11 @@ MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxP
     if(angle->i >=0 && angle->j >=0 && angle->k >=0)
         angle->flags = angle->flags | ANGLE_ACTIVE;
 
+    #ifdef HAVE_CUDA
+    if(_Engine.angles_cuda) 
+        engine_cuda_add_angle(handle);
+    #endif
+
     return handle;
 }
 
@@ -753,6 +780,11 @@ std::string MxAngleHandle::str() {
 }
 
 HRESULT MxAngleHandle::destroy() {
+    #ifdef HAVE_CUDA
+    if(_Engine.angles_cuda && !MxAngle_destroyingAll) 
+        engine_cuda_finalize_angle(this->id);
+    #endif
+
     return MxAngle_Destroy(this->angle());
 }
 

@@ -48,7 +48,7 @@ mx.bind.types(pot_ab, A, B)
 # create a random force. In overdamped dynamcis, we neeed a random force to
 # enable the objects to move around, otherwise they tend to get trapped
 # in a potential
-rforce = mx.Force.random(0, 50)
+rforce = mx.Force.random(mean=0, std=50)
 
 # bind it just like any other force
 mx.bind.force(rforce, A)
@@ -63,11 +63,3 @@ for p in np.random.random((B_count, 3)) * 15 + 2.5:
 
 # run the simulator
 mx.Simulator.run()
-
-
-
-
-
-
-
-

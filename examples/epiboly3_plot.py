@@ -98,7 +98,7 @@ mx.bind.types(p_yolk, Actin, Yolk)
 mx.bind.types(p_cell, Cell, Cell)
 mx.bind.types(p_cellactin, Cell, Actin)
 
-r = mx.Force.random(0, 20)
+r = mx.Force.random(mean=0, std=20)
 
 mx.bind.force(r, Cell)
 

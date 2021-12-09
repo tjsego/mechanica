@@ -106,7 +106,7 @@ mx.bind.types(pot_cc, Cell, Cell)
 # create a random force. In overdamped dynamcis, we neeed a random force to
 # enable the objects to move around, otherwise they tend to get trapped
 # in a potential
-rforce = mx.Force.random(0, 1)
+rforce = mx.Force.random(mean=0, std=1)
 
 # bind it just like any other force
 mx.bind.force(rforce, Cell)

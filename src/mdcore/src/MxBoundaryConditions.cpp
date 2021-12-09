@@ -445,10 +445,19 @@ std::string MxBoundaryConditions::str() {
     return s;
 }
 
+#if defined(HAVE_CUDA)
+static bool boundary_conditions_cuda_defer_update = false;
+#endif
+
 void MxBoundaryCondition::set_potential(struct MxParticleType *ptype,
         struct MxPotential *pot)
 {
     potenntials[ptype->id] = pot;
+
+    #if defined(HAVE_CUDA)
+    if(!boundary_conditions_cuda_defer_update)
+        engine_cuda_boundary_conditions_refresh(&_Engine);
+    #endif
 }
 
 std::string MxBoundaryCondition::kindStr() const {
@@ -498,12 +507,21 @@ std::string MxBoundaryCondition::str(bool show_type) const
 void MxBoundaryConditions::set_potential(struct MxParticleType *ptype,
         struct MxPotential *pot)
 {
+    #if defined(HAVE_CUDA)
+    boundary_conditions_cuda_defer_update = true;
+    #endif
+
     left.set_potential(ptype, pot);
     right.set_potential(ptype, pot);
     front.set_potential(ptype, pot);
     back.set_potential(ptype, pot);
     bottom.set_potential(ptype, pot);
     top.set_potential(ptype, pot);
+
+    #if defined(HAVE_CUDA)
+    boundary_conditions_cuda_defer_update = false;
+    engine_cuda_boundary_conditions_refresh(&_Engine);
+    #endif
 }
 
 void MxBoundaryConditionsArgsContainer::setValueAll(const int &_bcValue) {

@@ -45,6 +45,14 @@
 #define MX_ALWAYS_INLINE MX_INLINE
 #endif
 
-
+#if defined(__CUDACC__)
+  #define MX_ALIGNED(RTYPE, VAL) RTYPE __align__(VAL)
+#elif __has_attribute(aligned)
+  #define MX_ALIGNED(RTYPE, VAL) RTYPE __attribute__((aligned(VAL)))
+#elif defined(_MSC_VER)
+  #define MX_ALIGNED(RTYPE, VAL) __declspec(align(VAL)) RTYPE
+#else
+  #define MX_ALIGNED(RTYPE, VAL) RTYPE
+#endif
 
 #endif /* INCLUDE_PLATFORM_H_ */

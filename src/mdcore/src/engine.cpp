@@ -26,6 +26,7 @@
 #include <float.h>
 #include <string.h>
 #include <MxCluster.hpp>
+#include <Flux.hpp>
 
 /* Include conditional headers. */
 #include "mdcore_config.h"
@@ -80,7 +81,7 @@ int engine_err = engine_err_ok;
 
 /** TODO, clean up this design for types and static engine. */
 /** What is the maximum nr of types? */
-const int engine::max_type = 128;
+const int engine::max_type = engine_maxnrtypes;
 int engine::nr_types = 0;
 
 /**
@@ -355,6 +356,324 @@ if ( ( e->particle_flags & engine_flag_mpi ) && ( e->nr_nodes > 1 ) ) {
 		s->maxdx = maxdx;
 
 	/* All done! */
+	return engine_err_ok;
+
+}
+
+/**
+ * @brief Set-up the engine for distributed-memory parallel operation.
+ *
+ * @param e The #engine to set-up.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ *
+ * This function assumes that #engine_split_bisect or some similar
+ * function has already been called and that #nodeID, #nr_nodes as
+ * well as the #cell @c nodeIDs have been set.
+ */
+int engine_split ( struct engine *e ) {
+
+	int i, k, cid, cjd;
+	struct space_cell *ci, *cj, *ct;
+	struct space *s = &(e->s);
+
+	/* Check for nonsense inputs. */
+	if ( e == NULL )
+		return error(engine_err_null);
+
+	/* Start by allocating and initializing the send/recv lists. */
+	if ( ( e->send = (struct engine_comm *)malloc( sizeof(struct engine_comm) * e->nr_nodes ) ) == NULL ||
+			( e->recv = (struct engine_comm *)malloc( sizeof(struct engine_comm) * e->nr_nodes ) ) == NULL )
+		return error(engine_err_malloc);
+	for ( k = 0 ; k < e->nr_nodes ; k++ ) {
+		if ( ( e->send[k].cellid = (int *)malloc( sizeof(int) * 100 ) ) == NULL )
+			return error(engine_err_malloc);
+		e->send[k].size = 100;
+		e->send[k].count = 0;
+		if ( ( e->recv[k].cellid = (int *)malloc( sizeof(int) * 100 ) ) == NULL )
+			return error(engine_err_malloc);
+		e->recv[k].size = 100;
+		e->recv[k].count = 0;
+	}
+
+	/* Un-mark all cells. */
+	for ( cid = 0 ; cid < s->nr_cells ; cid++ )
+		s->cells[cid].flags &= ~cell_flag_marked;
+
+	/* Loop over each cell pair... */
+	for ( i = 0 ; i < s->nr_tasks ; i++ ) {
+
+		/* Is this task a pair? */
+		if ( s->tasks[i].type != task_type_pair )
+			continue;
+
+		/* Get the cells in this pair. */
+		cid = s->tasks[i].i;
+		cjd = s->tasks[i].j;
+		ci = &( s->cells[ cid ] );
+		cj = &( s->cells[ cjd ] );
+
+		/* If it is a ghost-ghost pair, skip it. */
+		if ( (ci->flags & cell_flag_ghost) && (cj->flags & cell_flag_ghost) )
+			continue;
+
+		/* Mark the cells. */
+		ci->flags |= cell_flag_marked;
+		cj->flags |= cell_flag_marked;
+
+		/* Make cj the ghost cell and bail if both are real. */
+		if ( ci->flags & cell_flag_ghost ) {
+			ct = ci; cj = ct;
+			k = cid; cid = cjd; cjd = k;
+		}
+		else if ( !( cj->flags & cell_flag_ghost ) )
+			continue;
+
+		/* Store the communication between cid and cjd. */
+		/* Store the send, if not already there... */
+		for ( k = 0 ; k < e->send[cj->nodeID].count && e->send[cj->nodeID].cellid[k] != cid ; k++ );
+		if ( k == e->send[cj->nodeID].count ) {
+			if ( e->send[cj->nodeID].count == e->send[cj->nodeID].size ) {
+				e->send[cj->nodeID].size += 100;
+				if ( ( e->send[cj->nodeID].cellid = (int *)realloc( e->send[cj->nodeID].cellid , sizeof(int) * e->send[cj->nodeID].size ) ) == NULL )
+					return error(engine_err_malloc);
+			}
+			e->send[cj->nodeID].cellid[ e->send[cj->nodeID].count++ ] = cid;
+		}
+		/* Store the recv, if not already there... */
+		for ( k = 0 ; k < e->recv[cj->nodeID].count && e->recv[cj->nodeID].cellid[k] != cjd ; k++ );
+		if ( k == e->recv[cj->nodeID].count ) {
+			if ( e->recv[cj->nodeID].count == e->recv[cj->nodeID].size ) {
+				e->recv[cj->nodeID].size += 100;
+				if ( ( e->recv[cj->nodeID].cellid = (int *)realloc( e->recv[cj->nodeID].cellid , sizeof(int) * e->recv[cj->nodeID].size ) ) == NULL )
+					return error(engine_err_malloc);
+			}
+			e->recv[cj->nodeID].cellid[ e->recv[cj->nodeID].count++ ] = cjd;
+		}
+
+	}
+
+	/* Nuke all ghost-ghost tasks. */
+	i = 0;
+	while ( i < s->nr_tasks ) {
+
+		/* Pair? */
+		if ( s->tasks[i].type == task_type_pair ) {
+
+			/* Get the cells in this pair. */
+			ci = &( s->cells[ s->tasks[i].i ] );
+			cj = &( s->cells[ s->tasks[i].j ] );
+
+			/* If it is a ghost-ghost pair, skip it. */
+			if ( (ci->flags & cell_flag_ghost) && (cj->flags & cell_flag_ghost) )
+				s->tasks[i] = s->tasks[ --(s->nr_tasks) ];
+			else
+				i += 1;
+
+		}
+
+		/* Self? */
+		else if ( s->tasks[i].type == task_type_self ) {
+
+			/* Get the cells in this pair. */
+			ci = &( s->cells[ s->tasks[i].i ] );
+
+			/* If it is a ghost-ghost pair, skip it. */
+			if ( ci->flags & cell_flag_ghost )
+				s->tasks[i] = s->tasks[ --(s->nr_tasks) ];
+			else
+				i += 1;
+
+		}
+
+		/* Sort? */
+		else if ( s->tasks[i].type == task_type_sort ) {
+
+			/* Get the cells in this pair. */
+			ci = &( s->cells[ s->tasks[i].i ] );
+
+			/* If it is a ghost-ghost pair, skip it. */
+			if ( !(ci->flags & cell_flag_marked) )
+				s->tasks[i] = s->tasks[ --(s->nr_tasks) ];
+			else
+				i += 1;
+
+		}
+
+	}
+
+	/* Clear all task dependencies and re-link each sort task with its cell. */
+	for ( i = 0 ; i < s->nr_tasks ; i++ ) {
+		s->tasks[i].nr_unlock = 0;
+		if ( s->tasks[i].type == task_type_sort ) {
+			s->cells[ s->tasks[i].i ].sort = &s->tasks[i];
+			s->tasks[i].flags = 0;
+		}
+	}
+
+	/* Run through the tasks and make each pair depend on the sorts.
+       Also set the flags for each sort. */
+	for ( k = 0 ; k < s->nr_tasks ; k++ )
+		if ( s->tasks[k].type == task_type_pair ) {
+			if ( task_addunlock( s->cells[ s->tasks[k].i ].sort , &s->tasks[k] ) != 0 ||
+					task_addunlock( s->cells[ s->tasks[k].j ].sort , &s->tasks[k] ) != 0 )
+				return error(space_err_task);
+			s->cells[ s->tasks[k].i ].sort->flags |= 1 << s->tasks[k].flags;
+			s->cells[ s->tasks[k].j ].sort->flags |= 1 << s->tasks[k].flags;
+		}
+
+
+	/* Empty unmarked cells. */
+	for ( k = 0 ; k < s->nr_cells ; k++ )
+		if ( !( s->cells[k].flags & cell_flag_marked ) )
+			space_cell_flush( &s->cells[k] , s->partlist , s->celllist );
+
+	/* Set ghost markings on particles. */
+	for ( cid = 0 ; cid < s->nr_cells ; cid++ )
+		if ( s->cells[cid].flags & cell_flag_ghost )
+			for ( k = 0 ; k < s->cells[cid].count ; k++ )
+				s->cells[cid].parts[k].flags |= PARTICLE_GHOST;
+
+	/* Fill the cid lists with marked, local and ghost cells. */
+	s->nr_real = 0; s->nr_ghost = 0; s->nr_marked = 0;
+	for ( cid = 0 ; cid < s->nr_cells ; cid++ )
+		if ( s->cells[cid].flags & cell_flag_marked ) {
+			s->cid_marked[ s->nr_marked++ ] = cid;
+			if ( s->cells[cid].flags & cell_flag_ghost ) {
+				s->cells[cid].id = -s->nr_cells;
+				s->cid_ghost[ s->nr_ghost++ ] = cid;
+			}
+			else {
+				s->cells[cid].id = s->nr_real;
+				s->cid_real[ s->nr_real++ ] = cid;
+			}
+		}
+
+	/* Done deal. */
+	return engine_err_ok;
+
+}
+
+
+/**
+ * @brief Placeholder for multi-GPU support. 
+ * 
+ * Future releases will integrate multi-GPU support. See https://github.com/tjsego/mechanica/blob/514eb5bbd6b389de6c4ed4f9fcffb3c61bbe80b1/src/mdcore/src/engine.cpp
+ * 
+ * @param e The #engine to split up
+ * @param N The number of computational nodes. Must equal 1. 
+ * @param flags Flag telling whether to split the space for MPI or for GPUs.
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+int engine_split_gpu( struct engine *e, int N, int flags) {
+	// Single GPU only
+	if(N == 1) {
+		for(int i = 0; i < e->s.nr_cells; i++) e->s.cells[i].GPUID = 0;
+		return engine_err_ok;
+	}
+	return engine_err_space;
+}
+
+
+/* Interior, recursive function that actually does the split. */
+static int engine_split_bisect_rec(struct engine *e, int N_min , int N_max ,
+		int x_min , int x_max , int y_min , int y_max , int z_min , int z_max ) {
+
+	int i, j, k, m, Nm;
+	int hx, hy, hz;
+	unsigned int flag = 0;
+	struct space_cell *c;
+
+	/* Check inputs. */
+	if ( x_max < x_min || y_max < y_min || z_max < z_min )
+		return error(engine_err_domain);
+
+	/* Is there nothing left to split? */
+	if ( N_min == N_max ) {
+
+		/* Flag as ghost or not? */
+		if ( N_min != e->nodeID )
+			flag = cell_flag_ghost;
+
+		/* printf("engine_split_bisect: marking range [ %i..%i , %i..%i , %i..%i ] with flag %i.\n",
+            x_min, x_max, y_min, y_max, z_min, z_max, flag ); */
+
+		/* Run through the cells. */
+		for ( i = x_min ; i < x_max ; i++ )
+			for ( j = y_min ; j < y_max ; j++ )
+				for ( k = z_min ; k < z_max ; k++ ) {
+					c = &( e->s.cells[ space_cellid(&(e->s),i,j,k) ] );
+					c->flags |= flag;
+					c->nodeID = N_min;
+				}
+	}
+
+	/* Otherwise, bisect. */
+	else {
+
+		hx = x_max - x_min;
+		hy = y_max - y_min;
+		hz = z_max - z_min;
+		Nm = (N_min + N_max) / 2;
+
+		/* Is the x-axis the largest? */
+		if ( hx > hy && hx > hz ) {
+			m = (x_min + x_max) / 2;
+			if ( engine_split_bisect_rec(e, N_min , Nm , x_min , m , y_min , y_max , z_min , z_max ) < 0 ||
+					engine_split_bisect_rec(e, Nm+1 , N_max , m , x_max , y_min , y_max , z_min , z_max ) < 0 )
+				return error(engine_err);
+		}
+
+		/* Nope, maybe the y-axis? */
+		else if ( hy > hz ) {
+			m = (y_min + y_max) / 2;
+			if ( engine_split_bisect_rec(e, N_min , Nm , x_min , x_max , y_min , m , z_min , z_max ) < 0 ||
+					engine_split_bisect_rec(e, Nm+1 , N_max , x_min , x_max , m , y_max , z_min , z_max ) < 0 )
+				return error(engine_err);
+		}
+
+		/* Then it has to be the z-axis. */
+		else {
+			m = (z_min + z_max) / 2;
+			if ( engine_split_bisect_rec(e, N_min , Nm , x_min , x_max , y_min , y_max , z_min , m ) < 0 ||
+					engine_split_bisect_rec(e, Nm+1 , N_max , x_min , x_max , y_min , y_max , m , z_max ) < 0 )
+				return error(engine_err);
+		}
+
+	}
+
+	/* So far, so good! */
+	return engine_err_ok;
+
+}
+
+
+
+
+/**
+ * @brief Split the computational domain over a number of nodes using
+ *      bisection.
+ *
+ * @param e The #engine to split up.
+ * @param N The number of computational nodes.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+
+int engine_split_bisect ( struct engine *e , int N ) {
+
+	/* Check inputs. */
+	if ( e == NULL )
+		return error(engine_err_null);
+
+	/* Call the recursive bisection. */
+	if ( engine_split_bisect_rec(e, 0 , N-1 , 0 , e->s.cdim[0] , 0 , e->s.cdim[1] , 0 , e->s.cdim[2] ) < 0 )
+		return error(engine_err);
+
+	/* Store the number of nodes. */
+	e->nr_nodes = N;
+
+	/* Call it a day. */
 	return engine_err_ok;
 
 }
@@ -972,8 +1291,48 @@ int engine_addpot ( struct engine *e , struct MxPotential *p , int i , int j ) {
 
     if ( i != j ) pots[ j * e->max_type + i ] = p;
 
+	#if defined(HAVE_CUDA)
+	if(e->flags & engine_flag_cuda && engine_cuda_refresh_pots(e) < 0)
+		return error(engine_err);
+	#endif
+
 	/* end on a good note. */
 	return engine_err_ok;
+}
+
+int engine_addfluxes(struct engine *e, struct MxFluxes *f, int i, int j) {
+	Log(LOG_DEBUG);
+
+	/* check for nonsense. */
+	if ( e == NULL )
+		return error(engine_err_null);
+	if ( i < 0 || i >= e->nr_types || j < 0 || j >= e->nr_types )
+		return error(engine_err_range);
+
+	MxFluxes **fluxes = e->fluxes;
+	fluxes[i * e->max_type + j] = f;
+
+	if(i != j) fluxes[j * e->max_type + i] = f;
+
+	#if defined(HAVE_CUDA)
+	if(e->flags & engine_flag_cuda && engine_cuda_refresh_fluxes(e) < 0)
+		return error(engine_err);
+	#endif
+
+	return engine_err_ok;
+}
+
+MxFluxes *engine_getfluxes(struct engine *e, int i, int j) {
+	Log(LOG_DEBUG);
+
+	/* check for nonsense. */
+	if ( e == NULL )
+		return 0;
+	if ( i < 0 || i >= e->nr_types || j < 0 || j >= e->nr_types )
+		return 0;
+
+	MxFluxes **fluxes = e->fluxes;
+	return fluxes[i * e->max_type + j];
 }
 
 CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e, struct MxForce *p,
@@ -992,6 +1351,97 @@ CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e, struct MxForce *p,
 
     /* end on a good note. */
     return engine_err_ok;
+}
+
+/**
+ * @brief Sends engine data to configured CUDA devices. 
+ * 
+ * Assumes that the engine has already been initialized and not running MPI. 
+ * 
+ * Initializations occur accordinging to CUDA configuration that 
+ * has already been set. 
+ * 
+ * @param e The #engine to start
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err)
+ */
+int engine_toCUDA(struct engine *e) {
+
+#if defined(HAVE_CUDA)
+	
+	// Check input
+
+	if(e == NULL)
+		return error(engine_err_null);
+
+	// Check state
+
+	if(!(e->flags & engine_flag_initialized)) 
+		return error(engine_err_cuda);
+
+	// If already on cuda, do nothing
+
+	if(e->flags & engine_flag_cuda)
+		return engine_err_ok;
+
+	// Start cuda run mode
+
+	if ( engine_cuda_load( e ) < 0 )
+		return error(engine_err);
+
+	e->flags |= engine_flag_cuda;
+
+	return engine_err_ok;
+
+#else
+
+	/* Was not compiled with CUDA support. */
+	return error(engine_err_nocuda);
+
+#endif
+}
+
+int engine_fromCUDA(struct engine *e) {
+
+#if defined(HAVE_CUDA)
+	
+	// Check input
+
+	if(e == NULL)
+		return error(engine_err_null);
+
+	// Check state
+
+	if(!(e->flags & engine_flag_initialized)) 
+		return error(engine_err_cuda);
+
+	// If not on cuda, do nothing
+
+	if(!(e->flags & engine_flag_cuda))
+		return engine_err_ok;
+
+	// Shut down cuda run mode
+
+	if(engine_cuda_finalize(e) < 0)
+		return engine_err_cuda;
+
+	e->flags &= ~engine_flag_cuda;
+
+	// Prep restarting local run mode
+
+    /* Run through the tasks and reset the waits. */
+    for (int k = 0 ; k < e->s.nr_tasks ; k++ )
+        for (int j = 0 ; j < e->s.tasks[k].nr_unlock ; j++ ) 
+			e->s.tasks[k].unlock[j]->wait = 0;
+
+	return engine_err_ok;
+
+#else
+
+	/* Was not compiled with CUDA support. */
+	return error(engine_err_nocuda);
+
+#endif
 }
 
 
@@ -1082,7 +1532,7 @@ int engine_start ( struct engine *e , int nr_runners , int nr_queues ) {
 		/* Set the number of runners. */
 		e->nr_runners = nr_runners;
 
-#if defined(HAVE_CUDA) && defined(WITH_CUDA)
+#if defined(HAVE_CUDA)
 		/* Load the potentials and pairs to the CUDA device. */
 		if ( engine_cuda_load( e ) < 0 )
 			return error(engine_err);
@@ -1206,11 +1656,6 @@ int engine_step ( struct engine *e ) {
 			return error(engine_err);
 	}
 
-    // notify time listeners
-    if(!SUCCEEDED(e->events->eval(e->time * e->dt))) {
-        return error(engine_err);
-    }
-
     for(MxConstantForce* p : e->constant_forces) {
         p->onTime(e->time * e->dt);
     }
@@ -1284,7 +1729,13 @@ int engine_force(struct engine *e) {
 
     /* Compute the non-bonded interactions. */
     tic = getticks();
-
+    #if defined(HAVE_CUDA)
+        if ( e->flags & engine_flag_cuda ) {
+            if ( engine_nonbond_cuda( e ) < 0 )
+                return error(engine_err);
+            }
+        else
+    #endif
     if ( engine_nonbond_eval( e ) < 0 ) {
         return error(engine_err);
     }
@@ -1414,6 +1865,13 @@ int engine_finalize ( struct engine *e ) {
     /* make sure the inputs are ok */
     if ( e == NULL )
         return error(engine_err_null);
+
+    // If running on CUDA, bring run mode back to local
+	if(e->flags & engine_flag_cuda)
+	#if defined(HAVE_CUDA)
+		if(engine_fromCUDA(e) < 0)
+			return error(engine_err);
+	#endif
 
     /* Shut down the runners, if they were started. */
     if ( e->runners != NULL ) {
@@ -1643,8 +2101,6 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
     /* Init the comm arrays. */
     e->send = NULL;
     e->recv = NULL;
-
-    e->events = new MxEventBaseList();
 
     e->integrator = EngineIntegrator::FORWARD_EULER;
 

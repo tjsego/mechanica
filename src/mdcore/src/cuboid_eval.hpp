@@ -192,9 +192,9 @@ MX_ALWAYS_INLINE bool potential_eval_cuboid_particle(MxCuboid *cube, MxParticle 
 
 inline std::vector<MxCuboid*> space_cell_intersecting_cuboids(struct space_cell *c) {
     std::vector<MxCuboid*> cuboids;
-    for (MxCuboid& cuboid : _Engine.s.cuboids) {
+    for(int i = 0; i < _Engine.s.cuboids.size(); i++) {
+        MxCuboid &cuboid = _Engine.s.cuboids[i];
         if(aabb_intersect_cuboid_spacecell(&cuboid, c)) {
-            aabb_intersect_cuboid_spacecell(&cuboid, c);
             cuboids.push_back(&cuboid);
         }
     }

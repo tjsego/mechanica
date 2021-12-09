@@ -20,6 +20,7 @@ cmake -DCMAKE_BUILD_TYPE:STRING=%MXBUILD_CONFIG% ^
       -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld ^
       -DPython_EXECUTABLE:PATH=%MXENV%\python.exe ^
       -DPThreads_ROOT:PATH=%MXENV%\Library ^
+      -DCMAKE_CUDA_COMPILER_TOOLKIT_ROOT=%MXCUDAENV% ^
       "%MXSRCDIR%"
 if errorlevel 1 exit 3
 

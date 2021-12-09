@@ -126,7 +126,7 @@
             step = kwargs["step"] if "step" in kwargs else 0.001
             range = kwargs["range"] if "range" in kwargs else (min, max, step)
 
-            if isinstance(min, float):
+            if isinstance(min, float) or isinstance(min, int):
                 xx = n.arange(*range)
             else:
                 t = 0

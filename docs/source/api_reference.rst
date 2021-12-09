@@ -42,6 +42,11 @@ This is the API Reference page for the module: :mod:`mechanica`
 .. autoclass:: mechanica.version
     :members:
 
+.. data:: has_cuda
+
+    :type: boolean
+    Flag signifying whether CUDA support is installed.
+
 .. include:: api_simulator.rst
 
 .. include:: api_universe.rst
@@ -71,6 +76,8 @@ This is the API Reference page for the module: :mod:`mechanica`
 .. include:: api_logger.rst
 
 .. include:: api_types.rst
+
+.. include:: api_cuda.rst
 
 Mechanica C++ API Reference
 ----------------------------

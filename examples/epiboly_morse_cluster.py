@@ -66,7 +66,7 @@ pb = mx.Potential.morse(d=15, a=5.5, min=0.1, max=2)
 pub = mx.Potential.morse(d=1, a=6, min=0.1, max=2)
 py = mx.Potential.morse(d=3, a=3, max=30)
 
-rforce = mx.Force.random(0, 500, 0.0001)
+rforce = mx.Force.random(mean=0, std=500, duration=0.0001)
 
 mx.bind.force(rforce, B)
 mx.bind.types(pb, B, B, bound=True)

@@ -10,6 +10,7 @@
 #include <MxUtil.h>
 #include <MxLogger.h>
 #include <engine.h>
+#include <MxUniverse.h>
 #include <MxPy.h>
 
 
@@ -83,7 +84,7 @@ MxTimeEvent* MxOnTimeEvent(const double &period, MxTimeEventMethod *invokeMethod
     
     MxTimeEvent *event = new MxTimeEvent(period, invokeMethod, predicateMethod, nextTimeSetter, start_time, end_time);
     
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
 
     return event;
 
@@ -164,6 +165,6 @@ MxTimeEventPy* MxOnTimeEventPy(const double &period,
     MxTimeEventNextTimeSetter *nextTimeSetter = getMxTimeEventNextTimeSetter((MxTimeEventTimeSetterEnum)nextTimeSetterEnum);
 
     auto event = new MxTimeEventPy(period, invokeExecutor, predicateExecutor, nextTimeSetter, start_time, end_time);
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
     return event;
 }

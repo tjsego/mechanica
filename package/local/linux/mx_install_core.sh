@@ -24,6 +24,7 @@ cmake -DCMAKE_BUILD_TYPE:STRING=${MXBUILD_CONFIG} \
       -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld \
       -DPython_EXECUTABLE:PATH=${MXENV}/bin/python \
       -DLIBXML_INCLUDE_DIR:PATH=${MXENV}/include/libxml2 \
+      -DCMAKE_CUDA_COMPILER_TOOLKIT_ROOT=${MXCUDAENV} \
       "${MXSRCDIR}"
 
 cmake --build . --config ${MXBUILD_CONFIG} --target install

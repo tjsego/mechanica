@@ -11,6 +11,7 @@
 #include "mechanica_private.h"
 #include "mdcore_single.h"
 #include <unordered_map>
+#include <event/MxEventList.h>
 
 /**
  * @brief The universe is a top level singleton object, and is automatically
@@ -42,6 +43,8 @@ struct CAPI_EXPORT MxUniverse  {
 
 
     bool isRunning;
+
+	MxEventBaseList *events;
 
     // name of the model / script, usually picked up from command line;
     std::string name;
@@ -90,6 +93,8 @@ struct CAPI_EXPORT MxUniverse  {
     static HRESULT start();
 
     static HRESULT reset();
+
+    static MxUniverse* get();
 
     /**
      * @brief Gets all particles in the universe

@@ -10,6 +10,7 @@
 #include <MxUtil.h>
 #include "../mdcore/include/engine.h"
 #include <MxLogger.h>
+#include <MxUniverse.h>
 
 MxParticleHandle *particleSelectorUniform(const int16_t &typeId, const int32_t &nr_parts) {
     if(nr_parts == 0) {
@@ -113,7 +114,7 @@ MxParticleEvent *MxOnParticleEvent(MxParticleType *targetType,
 {
     MxParticleEvent *event = new MxParticleEvent(targetType, invokeMethod, predicateMethod);
 
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
 
     return event;
 }
@@ -172,7 +173,7 @@ MxParticleEventPy *MxOnParticleEventPy(MxParticleType *targetType,
 
     MxParticleEventPy *event = new MxParticleEventPy(targetType, invokeExecutor, predicateExecutor, particleSelector);
 
-    _Engine.events->addEvent(event);
+    MxUniverse::get()->events->addEvent(event);
 
     return event;
 }

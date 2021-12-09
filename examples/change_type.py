@@ -26,7 +26,7 @@ mx.bind.types(p, A, A)
 mx.bind.types(p, B, B)
 mx.bind.types(p, A, B)
 
-r = mx.Force.random(0, 1)
+r = mx.Force.random(mean=0, std=1)
 
 mx.bind.force(r, A)
 

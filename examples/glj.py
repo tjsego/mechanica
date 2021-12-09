@@ -28,7 +28,7 @@ mx.bind.types(pot, Bead, Bead)
 # create a random force. In overdamped dynamcis, we neeed a random force to
 # enable the objects to move around, otherwise they tend to get trapped
 # in a potential
-rforce = mx.Force.random(0, 0.01)
+rforce = mx.Force.random(mean=0, std=0.01)
 mx.bind.force(rforce, Bead)
 
 

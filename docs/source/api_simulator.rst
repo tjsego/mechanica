@@ -13,6 +13,14 @@ Simulator
 
     .. automethod:: close
 
+    .. staticmethod:: getCUDAConfig()
+
+        Gets the Simulator CUDA runtime control interface.
+
+        Only available in CUDA-supported installations.
+
+        :rtype: MxSimulatorCUDAConfig
+
 .. autoclass:: MxSimulatorPy
     :show-inheritance:
 

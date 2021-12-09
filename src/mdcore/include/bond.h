@@ -86,7 +86,9 @@ typedef struct MxBond {
     struct NOMStyle *style;
 
     /**
-     * @brief Construct a new bond handle and underlying bond
+     * @brief Construct a new bond handle and underlying bond. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param potential bond potential
      * @param i ith particle
@@ -137,7 +139,9 @@ struct MxBondHandle {
     MxBondHandle(int id);
 
     /**
-     * @brief Construct a new bond handle and underlying bond
+     * @brief Construct a new bond handle and underlying bond. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param potential bond potential
      * @param i id of ith particle
@@ -154,7 +158,9 @@ struct MxBondHandle {
                  uint32_t flags);
 
     /**
-     * @brief For initializing a bond after constructing with default constructor
+     * @brief For initializing a bond after constructing with default constructor. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param pot bond potential
      * @param p1 ith particle
@@ -174,7 +180,9 @@ struct MxBondHandle {
     bool check();
     
     /**
-     * @brief Apply bonds to a list of particles
+     * @brief Apply bonds to a list of particles. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param pot the potential of the created bonds
      * @param parts list of particles
@@ -194,7 +202,9 @@ struct MxBondHandle {
                                                 uint32_t flags);
     
     /**
-     * @brief Destroy the bond
+     * @brief Destroy the bond. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @return HRESULT 
      */
@@ -250,12 +260,16 @@ CAPI_DATA(NOMStyle*) MxBond_StylePtr;
 /**
  * deletes, marks a bond ready for deleteion, removes the potential,
  * other vars, clears the bond, and makes is ready to be
- * over-written.
+ * over-written. 
+ * 
+ * Automatically updates when running on a CUDA device. 
  */
 CAPI_FUNC(HRESULT) MxBond_Destroy(MxBond *b);
 
 /**
- * @brief Deletes all bonds in the universe
+ * @brief Deletes all bonds in the universe. 
+ * 
+ * Automatically updates when running on a CUDA device. 
  * 
  * @return HRESULT 
  */

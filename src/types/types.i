@@ -156,6 +156,7 @@ typedef mx::type::MxQuaternion<float> MxQuaternionf;
 %template(lists) std::list<std::string>;
 %template(pairff) std::pair<float, float>;
 %template(umapsb) std::unordered_map<std::string, bool>;
+%template(umapss) std::unordered_map<std::string, std::string>;
 %template(vectord) std::vector<double>;
 %template(vectorf) std::vector<float>;
 %template(vectori) std::vector<int16_t>;

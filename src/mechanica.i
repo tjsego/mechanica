@@ -36,7 +36,13 @@
 
 // Lie to SWIG; so long as these aren't passed to the C compiler, no problem
 #define __attribute__(x)
-#define aligned(x)
+#define MX_ALIGNED(RTYPE, VAL) RTYPE
+
+%begin %{
+#ifdef _MSC_VER
+#define SWIG_PYTHON_INTERPRETER_NO_DEBUG
+#endif
+%}
 
 %{
 
@@ -135,6 +141,10 @@
 
 //                                      Imports
 
+#ifdef MX_WITHCUDA
+%include "mx_cuda.i"
+#endif
+
 // Logger
 %include "MxLogger.i"
 
@@ -174,6 +184,13 @@
 //                                      Post-imports
 
 %pythoncode %{
+
+    has_cuda = mxHasCuda()
+    """
+    Flag signifying whether CUDA support is installed.
+
+    :meta hide-value:
+    """
     
 # From MxSimulator
 

@@ -167,7 +167,9 @@ MxForce& MxForce::operator+(const MxForce& rhs) {
 static void berendsen_force(Berendsen* t, MxParticle *p, int stateVectorIndex, FPTYPE*f) {
     MxParticleType *type = &engine::types[p->typeId];
 
-    float scale = type->kinetic_energy > 0 ? t->itau * ((type->target_energy / type->kinetic_energy) - 1.0) : 0;
+    if(type->kinetic_energy <= 0 || type->target_energy <= 0) return;
+
+    float scale = t->itau * ((type->target_energy / type->kinetic_energy) - 1.0);
     f[0] += scale * p->v[0];
     f[1] += scale * p->v[1];
     f[2] += scale * p->v[2];

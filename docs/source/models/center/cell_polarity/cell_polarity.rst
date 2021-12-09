@@ -192,3 +192,7 @@ on demand, ::
     mx.step()
     # Disable vector visualization
     CellPolarity.setDrawVectors(False)
+
+.. note::
+
+    The cell polarity model module currently does not support :ref:`GPU acceleration <cuda>`.

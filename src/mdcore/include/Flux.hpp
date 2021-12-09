@@ -10,6 +10,7 @@
 
 #include "platform.h"
 #include "mdcore_single_config.h"
+#include "space_cell.h"
 
 #include <string>
 
@@ -95,7 +96,9 @@ struct CAPI_EXPORT MxFluxes
      * where @f$ a.S @f$ is a chemical species located at object @f$ a @f$, and likewise 
      * for @f$ b @f$, @f$ k @f$ is the flux constant, @f$ r @f$ is the 
      * distance between the two objects, @f$ r_{cutoff} @f$ is the global cutoff 
-     * distance, and @f$ d @f$ is an optional decay term.
+     * distance, and @f$ d @f$ is an optional decay term. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param A first type
      * @param B second type
@@ -138,7 +141,9 @@ struct CAPI_EXPORT MxFluxes
      * where @f$ a.S @f$ is a chemical species located at object @f$ a @f$, and likewise 
      * for @f$ b @f$, @f$ k @f$ is the flux constant, @f$ r @f$ is the 
      * distance between the two objects, @f$ r_{cutoff} @f$ is the global cutoff 
-     * distance, and @f$ d @f$ is an optional decay term.
+     * distance, and @f$ d @f$ is an optional decay term. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param A first type
      * @param B second type
@@ -170,7 +175,9 @@ struct CAPI_EXPORT MxFluxes
      * where @f$ a.S @f$ is a chemical species located at object @f$ a @f$, and likewise 
      * for @f$ b @f$, @f$ k @f$ is the flux constant, @f$ r @f$ is the 
      * distance between the two objects, @f$ r_{cutoff} @f$ is the global cutoff 
-     * distance, and @f$ d @f$ is an optional decay term.
+     * distance, and @f$ d @f$ is an optional decay term. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param A first type
      * @param B second type
@@ -181,11 +188,16 @@ struct CAPI_EXPORT MxFluxes
      * @return MxFluxes* 
      */
     static MxFluxes *uptake(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay=0.0f);
-
-    /**
-     * integrate all of the fluxes for a space cell.
-     */
-    static HRESULT integrate(int cellId);
 };
+
+/**
+ * integrate all of the fluxes for a space cell.
+ */
+HRESULT MxFluxes_integrate(space_cell *cell, float dt=-1.0);
+
+/**
+ * integrate all of the fluxes for a space cell.
+ */
+HRESULT MxFluxes_integrate(int cellId);
 
 #endif /* SRC_MDCORE_SRC_FLUX_H_ */

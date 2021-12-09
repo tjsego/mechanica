@@ -76,8 +76,7 @@ std::string pyerror_str()
 PyObject* MxIPython_Get() {
     MxCHECKPYRET(0)
 
-    std::string moduleName = "IPython.core.getipython";
-    PyObject* moduleString = PyUnicode_FromString(moduleName.c_str());
+    PyObject* moduleString = PyUnicode_FromString("IPython.core.getipython");
     
     if(!moduleString) {
         return NULL;
@@ -94,8 +93,7 @@ PyObject* MxIPython_Get() {
     if(!module) {
         PyObject *err = PyErr_Occurred();
         
-        Log(LOG_DEBUG) << "could not import "
-            << moduleName
+        Log(LOG_DEBUG) << "could not import IPython.core.getipython"
             << ", "
             << pyerror_str()
             << ", returning NULL";
@@ -133,7 +131,7 @@ PyObject* MxIPython_Get() {
     Py_DECREF(module);
     Py_DECREF(get_ipython);
     
-    Log(LOG_TRACE) << "succeeded, returning " << mx::str(result);
+    Log(LOG_TRACE);
     return result;
 }
 

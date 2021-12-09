@@ -3,6 +3,8 @@
 
 %}
 
+%ignore MxFluxes_integrate;
+
 %include "Flux.hpp"
 
 %pythoncode %{

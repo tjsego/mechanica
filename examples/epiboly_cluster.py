@@ -68,7 +68,7 @@ pub = mx.Potential.soft_sphere(kappa=400, epsilon=0, r0=0.5, eta=2, tol=0.05, mi
 
 py = mx.Potential.soft_sphere(kappa=300, epsilon=25, r0=1, eta=2, tol=0.04, min=0.01, max=10, shift=True)
 
-rforce = mx.Force.random(0, 1)
+rforce = mx.Force.random(mean=0, std=1)
 
 mx.bind.force(rforce, B)
 mx.bind.types(pb, C, B, bound=True)

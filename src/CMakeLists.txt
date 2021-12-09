@@ -140,7 +140,6 @@ set(SRC
 
 
 set(HEADERS
-  ${MECHANICA_PUBLIC_HEADERS}
   MxDebug.h
   mechanica_llvm.h
   mechanica_private.h
@@ -257,8 +256,27 @@ set(HEADERS
   types/MxMatrix3.h
   types/MxMatrix4.h
   types/MxQuaternion.h
-  )
+)
 
+if(MX_WITHCUDA)
+  list(APPEND SRC 
+    cuda/MxAngleCUDAConfig.cpp 
+    cuda/MxBondCUDAConfig.cpp 
+    cuda/MxEngineCUDAConfig.cpp 
+    cuda/MxSimulatorCUDAConfig.cpp
+  )
+  list(APPEND HEADERS 
+    cuda/MxAngleCUDAConfig.h 
+    cuda/MxBondCUDAConfig.h 
+    cuda/MxEngineCUDAConfig.h 
+    cuda/MxSimulatorCUDAConfig.h
+  )
+endif()
+
+set(HEADERS_PRIVATE ${HEADERS})
+foreach(_PSHDR ${MECHANICA_PUBLIC_HEADERS_STATIC})
+  list(APPEND ${HEADERS} ${PROJECT_SOURCE_DIR}/include/${_PSHDR})
+endforeach()
 
 include(models/modeltree.cmake)
 add_subdirectory(models)
@@ -283,7 +301,10 @@ set(SRC ${SRC} ${MX_MODEL_SRCS_LOCAL})
 #target_include_directories(mechanica_OBJECTS PRIVATE "${PROJECT_SOURCE_DIR}/include")
 #target_include_directories(mechanica_OBJECTS PRIVATE ${NUMPY_INCLUDE_DIR})
 
-
+if(MX_WITHCUDA)
+  list(APPEND HEADERS mx_cuda.h)
+  list(APPEND SRC mx_cuda.cpp)
+endif()
 
 # this is the "object library" target: compiles the sources only once
 # need at least one src file in a project for xcode to build it, xcode
@@ -334,7 +355,15 @@ target_link_libraries(mechanica_obj
   #sundials_cvode_static
   ${OPENGL_LIBRARIES}
   mdcore_single
+)
+
+if(MX_WITHCUDA)
+  target_link_libraries(mechanica_obj
+    CUDA::cudart 
+    CUDA::cuda_driver 
+    CUDA::nvrtc
   )
+endif()
 
 if(MX_ASSIMP)
 	target_link_libraries(mechanica_obj   Assimp::Assimp)
@@ -387,6 +416,15 @@ target_include_directories(mechanica_shared PUBLIC
 )
 
 target_include_directories(mechanica_shared PRIVATE ${PYBIND11_INCLUDE_DIR})
+
+if(MX_WITHCUDA)
+  target_include_directories(mechanica_shared PUBLIC
+    ${CUDAToolkit_INCLUDE_DIRS}
+  )
+  set_target_properties(mechanica_shared PROPERTIES 
+    CUDA_SEPARABLE_COMPILATION ON
+  )
+endif()
 
 find_package(SWIG 4.0 REQUIRED COMPONENTS python)
 include(UseSWIG)
@@ -442,9 +480,18 @@ target_include_directories(mechanica_py PRIVATE
   $<INSTALL_INTERFACE:include/mechanica>
 )
 
+if(MX_WITHCUDA)
+  target_include_directories(mechanica_py PUBLIC
+    ${CUDAToolkit_INCLUDE_DIRS}
+  )
+  set_target_properties(mechanica_py PROPERTIES 
+    CUDA_SEPARABLE_COMPILATION ON
+  )
+endif()
+
 target_include_directories(mechanica_py PRIVATE ${PYBIND11_INCLUDE_DIR})
 
-swig_link_libraries(mechanica_py PRIVATE
+set(mechanica_py_LIBS
   mdcore_single
   glfw
   LibSBML::LibSBML 
@@ -460,7 +507,29 @@ swig_link_libraries(mechanica_py PRIVATE
   LibSBML::LibSBML
   JPEG::JPEG 
   TgaImageConverter
+)
+
+if(MX_WITHCUDA)
+  list(APPEND mechanica_py_LIBS 
+    CUDA::cudart 
+    CUDA::cuda_driver 
+    CUDA::nvrtc
   )
+endif()
+
+if(MX_ASSIMP)
+  swig_link_libraries(mechanica_py   Assimp::Assimp)
+endif()
+
+if(MX_APPLE)
+  list(APPEND mechanica_py_LIBS MagnumWindowlessCglApplication)
+elseif(MX_LINUX)
+  list(APPEND mechanica_py_LIBS MagnumWindowlessEglApplication)
+elseif(MX_WINDOWS)
+  list(APPEND mechanica_py_LIBS MagnumWindowlessWglApplication)
+endif()
+
+swig_link_libraries(mechanica_py PRIVATE ${mechanica_py_LIBS})
 
 if(WIN32 OR CYGWIN OR (UNIX AND NOT APPLE))
 
@@ -500,19 +569,6 @@ if(UNIX)
   file(RELATIVE_PATH _RPATH2MXLIBS ${MX_SITEPACKAGES}/mechanica ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
   set_target_properties(mechanica_py PROPERTIES INSTALL_RPATH "${RPATH_PREFIX};${RPATH_PREFIX}/${_RPATH2PYLIBS};${RPATH_PREFIX}/${_RPATH2MXLIBS}")
 endif()
-
-if(MX_ASSIMP)
-  swig_link_libraries(mechanica_py   Assimp::Assimp)
-endif()
-
-if(MX_APPLE)
-  swig_link_libraries(mechanica_py PRIVATE MagnumWindowlessCglApplication)
-elseif(MX_LINUX)
-  swig_link_libraries(mechanica_py PRIVATE MagnumWindowlessEglApplication)
-elseif(MX_WINDOWS)
-  swig_link_libraries(mechanica_py PRIVATE MagnumWindowlessWglApplication)
-endif()
-
 
 set_target_properties(mechanica_py PROPERTIES PREFIX "")
 set_target_properties(mechanica_py PROPERTIES OUTPUT_NAME "_mechanica")
@@ -591,6 +647,14 @@ if(APPLE)
   endif()
 endif()
 
+if(MX_WITHCUDA)
+  target_link_libraries(mechanica_shared PUBLIC 
+    CUDA::cudart 
+    CUDA::cuda_driver 
+    CUDA::nvrtc
+  )
+endif()
+
 if(MX_ASSIMP)
   target_link_libraries(mechanica_shared   PUBLIC Assimp::Assimp)
 endif()
@@ -651,3 +715,7 @@ install(FILES
         DESTINATION 
         ${MX_SITEPACKAGES_REL}/mechanica
 )
+foreach(_PRHDR ${HEADERS_PRIVATE})
+  cmake_path(GET _PRHDR PARENT_PATH _PRHDR_PARENT)
+  install(FILES ${_PRHDR} DESTINATION include/mechanica/private/${_PRHDR_PARENT})
+endforeach()

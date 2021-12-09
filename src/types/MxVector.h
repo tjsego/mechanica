@@ -28,7 +28,7 @@ class MxVector : public Vector<size, T> {
         static const MxVector<size, T>& from(const T* data) { return *reinterpret_cast<const MxVector<size, T>*>(&Vector<size, T>::from(data)); }
 
         template<std::size_t otherSize> constexpr static MxVector<size, T> pad(const MxVector<otherSize, T>& a, T value = T()) {
-            return (MxVector<size, T>)Vector<size, T>::pad<otherSize(a, value);
+            return (MxVector<size, T>)Vector<size, T>::pad<otherSize>(a, value);
         }
 
         MxVector() : Vector<size, T>() {}
@@ -130,7 +130,7 @@ class MxVector : public Vector<size, T> {
 
         operator Vector<size, T>*() { return static_cast<Vector<size, T>*>(this); }
 
-        operator Vector<size, T>&() const { return *static_cast<Vector<size, T>*>(this); }
+        operator Vector<size, T>&() { return *static_cast<Vector<size, T>*>(this); }
 
         #ifdef SWIGPYTHON
         T __getitem__(std::size_t i) { return this->operator[](i); }
@@ -285,7 +285,7 @@ class MxVector : public Vector<size, T> {
     operator const MagnumImplType<T>*() {                                               \
         return static_cast<const MagnumImplType<T>*>(this);                             \
     }                                                                                   \
-    operator MagnumImplType<T>&() const {                                               \
+    operator MagnumImplType<T>&() {                                                     \
         return *static_cast<MagnumImplType<T>*>(this);                                  \
     }                                                                                   \
     operator const MagnumImplType<T>&() const {                                         \
@@ -296,7 +296,7 @@ class MxVector : public Vector<size, T> {
         for(int i = 0; i < other.Size; ++i) this->_data[i] = other[i];                  \
     }                                                                                   \
     operator Vector<size, T>*() { return static_cast<Vector<size, T>*>(this); }         \
-    operator Vector<size, T>&() const { return *static_cast<Vector<size, T>*>(this); }  \
+    operator Vector<size, T>&() { return *static_cast<Vector<size, T>*>(this); }        \
     operator const Vector<size, T>*() {                                                 \
         return static_cast<const Vector<size, T>*>(this);                               \
     }                                                                                   \

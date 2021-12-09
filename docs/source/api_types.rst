@@ -7,7 +7,7 @@ tensor operations. Some of these types are completely native to
 Mechanica, and others constructed partially or completely from
 types distributed in various Mechanica dependencies (*e.g.*,
 :class:`MxVector3f` from :class:`Vector3`, from
-`GLFW <https://www.glfw.org/>`_.
+`Magnum <https://magnum.graphics/>`_.
 
 .. autoclass:: MxVector2d
 

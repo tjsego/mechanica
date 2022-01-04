@@ -10,6 +10,7 @@
 
 #include "mechanica_private.h"
 #include "mdcore_single.h"
+#include "io/mx_io.h"
 #include <unordered_map>
 #include <event/MxEventList.h>
 
@@ -190,6 +191,7 @@ struct CAPI_EXPORT MxUniverseConfig {
     uint32_t flags;
     uint32_t maxTypes;
     double dt;
+    long start_step;
     double temp;
     int nParticles;
     int threads;
@@ -274,5 +276,16 @@ CAPI_DATA(MxUniverse) Universe;
  * 
  */
 CAPI_FUNC(MxUniverse*) getUniverse();
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxUniverse *dataElement);
+
+}};
 
 #endif /* SRC_MXUNIVERSE_H_ */

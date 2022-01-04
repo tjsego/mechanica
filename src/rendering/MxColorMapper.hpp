@@ -61,4 +61,14 @@ struct MxColorMapper
     static std::vector<std::string> getNames();
 };
 
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxColorMapper &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxColorMapper *dataElement);
+
+}};
+
 #endif /* SRC_RENDERING_MXCOLORMAPPER_H_ */

@@ -23,6 +23,7 @@
 
 #include "platform.h"
 #include "fptype.h"
+#include "../../io/mx_io.h"
 
 #include <limits>
 #include <utility>
@@ -172,6 +173,12 @@ typedef struct MxPotential* (*MxPotentialCreate) (
     struct MxPotential *partial_potential,
     struct MxParticleType *a, struct MxParticleType *b );
 
+/**
+ * @brief Callback issues when potential is cleared. 
+ * 
+ */
+typedef void (*MxPotentialClear) (struct MxPotential* p);
+
 
 /**
  * @brief A Potential object is a compiled interpolation of a given function. The 
@@ -210,6 +217,7 @@ typedef struct MxPotential {
     int n;
 
     MxPotentialCreate create_func;
+    MxPotentialClear clear_func;
 
     MxPotentialEval_ByParticles eval_byparts;
     MxPotentialEval_ByParticles3 eval_byparts3;
@@ -788,5 +796,15 @@ CAPI_FUNC(double) potential_Coulomb_p ( double r );
 CAPI_FUNC(double) potential_Coulomb_6p ( double r );
 CAPI_FUNC(double) potential_switch ( double r , double A , double B );
 CAPI_FUNC(double) potential_switch_p ( double r , double A , double B );
+
+
+namespace mx { namespace io {
+
+HRESULT toFile(MxPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxPotential **dataElement);
+
+}};
 
 #endif // INCLUDE_POTENTIAL_H_

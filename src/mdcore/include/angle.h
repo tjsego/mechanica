@@ -229,4 +229,15 @@ CAPI_FUNC(bool) MxAngle_decays(MxAngle *a, std::uniform_real_distribution<double
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out );
 int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , double *epot_out );
 
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxAngle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxAngle *dataElement);
+
+}};
+
 #endif // INCLUDE_ANGLE_H

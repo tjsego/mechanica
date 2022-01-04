@@ -16,6 +16,7 @@
 #include <mx_error.h>
 #include <event/MxTimeEvent.h>
 #include <MxBind.hpp>
+#include <io/MxFIO.h>
 
 #include <unordered_set>
 #include <utility>
@@ -28,6 +29,15 @@ static std::string _PCPColor = "green";
 static float _polarityVectorScale = 0.5;
 static float _polarityVectorLength = 0.5;
 static bool _drawingPolarityVecs = true;
+
+struct MxCellPolarityFIOModule : MxFIOModule {
+
+    std::string moduleName() { return "CenterCellPolarity"; }
+
+    HRESULT toFile(const MxMetaData &metaData, MxIOElement *fileElement);
+
+    HRESULT fromFile(const MxMetaData &metaData, const MxIOElement &fileElement);
+};
 
 struct PolarityModelParams {
     std::string initMode = "value";
@@ -351,8 +361,42 @@ void eval_polarity_force_persistent(struct MxForce *force, struct MxParticle *p,
     for(int i = 0; i < 3; i++) f[i] += pf->sensAB * polAB[i] + pf->sensPCP * polPCP[i];
 }
 
+
+static std::vector<PolarityForcePersistent*> *storedPersistentForces = NULL;
+
+static void storePersistentForce(PolarityForcePersistent *f) {
+    if(f == NULL) 
+        return;
+
+    if(storedPersistentForces == NULL) 
+        storedPersistentForces = new std::vector<PolarityForcePersistent*>();
+
+    for(auto sf : *storedPersistentForces) 
+        if(sf == f) 
+            return;
+
+    storedPersistentForces->push_back(f);
+
+}
+
+static void unstorePersistentForce(PolarityForcePersistent *f) {
+    if(f == NULL || storedPersistentForces == NULL) 
+        return;
+
+    auto itr = std::find(storedPersistentForces->begin(), storedPersistentForces->end(), f);
+    if(itr != storedPersistentForces->end()) 
+        storedPersistentForces->erase(itr);
+}
+
+PolarityForcePersistent::~PolarityForcePersistent() {
+    unstorePersistentForce(this);
+}
+
 PolarityForcePersistent *MxCellPolarity_createForce_persistent(const float &sensAB, const float &sensPCP) {
     PolarityForcePersistent *pf = new PolarityForcePersistent();
+
+    storePersistentForce(pf);
+
     pf->func = (MxForce_OneBodyPtr)eval_polarity_force_persistent;
     pf->sensAB = sensAB;
     pf->sensPCP = sensPCP;
@@ -436,9 +480,16 @@ static bool _loaded = false;
 void MxCellPolarity_load() {
     if(_loaded) return;
 
+    // Instantiate i/o module and register for export
+    MxCellPolarityFIOModule *ioModule = new MxCellPolarityFIOModule();
+    ioModule->registerIOModule();
+
     // initialize all module variables
     _polarityParams = new PolarityParamsType();
     initPartPolPack();
+
+    // import data if available
+    if(MxFIO::hasImport()) ioModule->load();
     
     // load callback to execute model along with simulation
     MxTimeEventMethod *fcn = new MxTimeEventMethod(MxCellPolarity_run);
@@ -634,6 +685,44 @@ static std::unordered_map<std::string, PolarContactType> polarContactTypeMap {
     {"anisotropic", PolarContactType::ANISOTROPIC}
 };
 
+static std::vector<MxCellPolarityPotentialContact*> *storedContactPotentials = NULL;
+
+static void storeContactPotential(MxCellPolarityPotentialContact *p) {
+    if(p == NULL) 
+        return;
+
+    if(storedContactPotentials == NULL) 
+        storedContactPotentials = new std::vector<MxCellPolarityPotentialContact*>();
+
+    for(auto sp : *storedContactPotentials) 
+        if(sp == p) 
+            return;
+
+    storedContactPotentials->push_back(p);
+
+}
+
+static void unstoreContactPotential(MxCellPolarityPotentialContact *p) {
+    if(p == NULL || storedContactPotentials == NULL) 
+        return;
+
+    auto itr = std::find(storedContactPotentials->begin(), storedContactPotentials->end(), p);
+    if(itr != storedContactPotentials->end()) 
+        storedContactPotentials->erase(itr);
+}
+
+MxCellPolarityPotentialContact *_boundContactPotential = NULL;
+
+static void _boundUnstoreContactPotential(MxPotential *p) {
+    MxCellPolarityPotentialContact *pp = _boundContactPotential;
+    unstoreContactPotential(pp);
+}
+
+static MxPotentialClear bindUnstoreContactPotential(MxCellPolarityPotentialContact *p) {
+    _boundContactPotential = p;
+    return MxPotentialClear(_boundUnstoreContactPotential);
+}
+
 MxCellPolarityPotentialContact *potential_create_cellpolarity(const float &cutoff, 
                                                               const float &mag, 
                                                               const float &rate,
@@ -648,6 +737,9 @@ MxCellPolarityPotentialContact *potential_create_cellpolarity(const float &cutof
 
     auto tItr = polarContactTypeMap.find(contactType);
     if(tItr == polarContactTypeMap.end()) mx_exp(std::runtime_error("Invalid type"));
+
+    storeContactPotential(pot);
+    pot->clear_func = bindUnstoreContactPotential(pot);
 
     pot->mag = mag;
     pot->rate = rate;
@@ -666,6 +758,431 @@ MxCellPolarityPotentialContact *potential_create_cellpolarity(const float &cutof
 
     return pot;
 }
+
+
+namespace mx { namespace io {
+
+#define MXCENTERCELLPOLARITYIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(mx::io::toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXCENTERCELLPOLARITYIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || mx::io::fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const PolarityModelParams &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "initMode", dataElement.initMode);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "initPolarAB", dataElement.initPolarAB);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "initPolarPCP", dataElement.initPolarPCP);
+
+    fileElement->type = "PolarityParameters";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, PolarityModelParams *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "initMode", &dataElement->initMode);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "initPolarAB", &dataElement->initPolarAB);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "initPolarPCP", &dataElement->initPolarPCP);
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const PolarityVecsPack &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "v0", dataElement.v[0]);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "v1", dataElement.v[1]);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "v2", dataElement.v[2]);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "v3", dataElement.v[3]);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "v4", dataElement.v[4]);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "v5", dataElement.v[5]);
+
+    fileElement->type = "PolarityVecs";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, PolarityVecsPack *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "v0", &dataElement->v[0]);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "v1", &dataElement->v[1]);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "v2", &dataElement->v[2]);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "v3", &dataElement->v[3]);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "v4", &dataElement->v[4]);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "v5", &dataElement->v[5]);
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const ParticlePolarityPack &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "polarityVectors", dataElement.v);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "particleId", dataElement.pId);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "showing", dataElement.showing);
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, ParticlePolarityPack *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "polarityVectors", &dataElement->v);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "particleId", &dataElement->pId);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "showing", &dataElement->showing);
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const PolarityForcePersistent &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXCENTERCELLPOLARITYIOTOEASY(fileElement, "sensAB", dataElement.sensAB);
+    MXCENTERCELLPOLARITYIOTOEASY(fileElement, "sensPCP", dataElement.sensPCP);
+
+    fileElement->type = "PersistentForce";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, PolarityForcePersistent **dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    float sensAB, sensPCP;
+
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "sensAB", &sensAB);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "sensPCP", &sensPCP);
+
+    *dataElement = MxCellPolarity_createForce_persistent(sensAB, sensPCP);
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxCellPolarityPotentialContact &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "cutoff", dataElement.b);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "couplingFlat", dataElement.couplingFlat);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "couplingOrtho", dataElement.couplingOrtho);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "couplingLateral", dataElement.couplingLateral);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "distanceCoeff", dataElement.distanceCoeff);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "cType", (unsigned int)dataElement.cType);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "mag", dataElement.mag);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "rate", dataElement.rate);
+    MXCENTERCELLPOLARITYIOTOEASY(fe, "bendingCoeff", dataElement.bendingCoeff);
+
+    fileElement->type = "ContactPotential";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxCellPolarityPotentialContact **dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    float cutoff, couplingFlat, couplingOrtho, couplingLateral, distanceCoeff, mag, rate, bendingCoeff;
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "cutoff", &cutoff);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "couplingFlat", &couplingFlat);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "couplingOrtho", &couplingOrtho);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "couplingLateral", &couplingLateral);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "distanceCoeff", &distanceCoeff);
+    
+    unsigned int cTypeUI;
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "cType", &cTypeUI);
+    PolarContactType cType = (PolarContactType)cTypeUI;
+    std::string cTypeName = "regular";
+    for(auto &cTypePair : polarContactTypeMap) 
+        if(cTypePair.second == cType) 
+            cTypeName = cTypePair.first;
+
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "mag", &mag);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "rate", &rate);
+    MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "bendingCoeff", &bendingCoeff);
+
+    *dataElement = potential_create_cellpolarity(cutoff, mag, rate, distanceCoeff, couplingFlat, couplingOrtho, couplingLateral, cTypeName, bendingCoeff);
+
+    return S_OK;
+}
+
+}};
+
+static bool recursivePotentialCompare(MxCellPolarityPotentialContact *pp, MxPotential *p) {
+    if(!pp || !p) 
+        return false;
+
+    if(p->kind == POTENTIAL_KIND_COMBINATION && p->flags & POTENTIAL_SUM) {
+        if(recursivePotentialCompare(pp, p->pca)) return true;
+
+        if(recursivePotentialCompare(pp, p->pcb)) return true;
+
+        return false;
+    } 
+    else
+        return pp == p;
+
+}
+
+static bool recursiveForceCompare(PolarityForcePersistent *pf, MxForce *f) {
+    if(!pf || !f) 
+        return false;
+
+    if(f->type == FORCE_SUM) {
+        MxForceSum *sf = (MxForceSum*)f;
+        if(recursiveForceCompare(pf, sf->f1)) return true;
+
+        if(recursiveForceCompare(pf, sf->f2)) return true;
+
+        return false;
+    } 
+    else return pf == f;
+}
+
+HRESULT MxCellPolarityFIOModule::toFile(const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    // Store registered types
+
+    if(_polarityParams != NULL) {
+        std::vector<PolarityModelParams> polarityParams;
+        std::vector<int32_t> polarTypes;
+        for(auto &typePair : *_polarityParams) {
+            if(typePair.second != NULL) {
+                polarTypes.push_back(typePair.first);
+                polarityParams.push_back(*typePair.second);
+            }
+        }
+
+        if(polarityParams.size() > 0) {
+            MXCENTERCELLPOLARITYIOTOEASY(fe, "polarTypes", polarTypes);
+            MXCENTERCELLPOLARITYIOTOEASY(fe, "polarityParams", polarityParams);
+        }
+    }
+
+    // Store potentials
+    
+    if(storedContactPotentials != NULL && storedContactPotentials->size() > 0) {
+
+        std::vector<MxCellPolarityPotentialContact> potentials;
+        auto numPots = storedContactPotentials->size();
+        std::vector<std::vector<uint16_t> > potentialTypesA(numPots, std::vector<uint16_t>()), potentialTypesB(numPots, std::vector<uint16_t>());
+        std::vector<std::vector<uint16_t> > potentialTypesClusterA(numPots, std::vector<uint16_t>()), potentialTypesClusterB(numPots, std::vector<uint16_t>());
+
+        for(unsigned int pi = 0; pi < numPots; pi++) 
+            potentials.push_back(*(*storedContactPotentials)[pi]);
+
+        for(unsigned int i = 0; i < _Engine.nr_types; i++) {
+            for(unsigned int j = i; j < _Engine.nr_types; j++) {
+                unsigned int k = i * _Engine.max_type + j;
+
+                MxPotential *p = _Engine.p[k], *pc = _Engine.p_cluster[k];
+
+                for(unsigned int pi = 0; pi < numPots; pi++) {
+                    MxCellPolarityPotentialContact *pp = (*storedContactPotentials)[pi];
+                    if(recursivePotentialCompare(pp, p)) {
+                        potentialTypesA[pi].push_back(i);
+                        potentialTypesB[pi].push_back(j);
+                    }
+                    if(recursivePotentialCompare(pp, pc)) {
+                        potentialTypesClusterA[pi].push_back(i);
+                        potentialTypesClusterB[pi].push_back(j);
+                    }
+                }
+
+            }
+        }
+
+        MXCENTERCELLPOLARITYIOTOEASY(fe, "potentials", potentials);
+        MXCENTERCELLPOLARITYIOTOEASY(fe, "potentialTypesA", potentialTypesA);
+        MXCENTERCELLPOLARITYIOTOEASY(fe, "potentialTypesB", potentialTypesB);
+        MXCENTERCELLPOLARITYIOTOEASY(fe, "potentialTypesClusterA", potentialTypesClusterA);
+        MXCENTERCELLPOLARITYIOTOEASY(fe, "potentialTypesClusterB", potentialTypesClusterB);
+
+    }
+
+    // Store forces
+
+    if(storedPersistentForces != NULL && storedPersistentForces->size() > 0) {
+        std::vector<PolarityForcePersistent> forces;
+        std::vector<int16_t> forceTypes(storedPersistentForces->size(), -1);
+
+        for(unsigned int i = 0; i < storedPersistentForces->size(); i++) 
+            forces.push_back(*(*storedPersistentForces)[i]);
+
+        for(unsigned int i = 0; i < _Engine.nr_types; i++) 
+            for(unsigned int fi = 0; fi < storedPersistentForces->size(); fi++) 
+                if(recursiveForceCompare((*storedPersistentForces)[fi], _Engine.p_singlebody->force)) 
+                    forceTypes[fi] = i;
+
+        MXCENTERCELLPOLARITYIOTOEASY(fe, "forces", forces);
+        MXCENTERCELLPOLARITYIOTOEASY(fe, "forceTypes", forceTypes);
+    }
+    
+    // Store states of registered particles
+
+    if(_partPolPack != NULL && _partPolPack->size() > 0) {
+        std::vector<ParticlePolarityPack> particles;
+        for(auto &pp : *_partPolPack) 
+            if(pp) 
+                particles.push_back(*pp);
+
+        MXCENTERCELLPOLARITYIOTOEASY(fe, "particles", particles);
+    }
+
+    return S_OK;
+}
+
+HRESULT MxCellPolarityFIOModule::fromFile(const MxMetaData &metaData, const MxIOElement &fileElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    // Load registered types
+
+    if(fileElement.children.find("polarityParams") != fileElement.children.end()) {
+    
+        std::vector<PolarityModelParams> polarityParams;
+        std::vector<int32_t> polarTypes;
+
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "polarityParams", &polarityParams);
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "polarTypes", &polarTypes);
+
+        for(unsigned int i = 0; i < polarTypes.size(); i++) {
+            unsigned int pTypeId = MxFIO::importSummary->particleTypeIdMap[polarTypes[i]];
+            auto pmp = polarityParams[i];
+
+            MxParticleType *pType = &_Engine.types[pTypeId];
+            if(pType == NULL) {
+                mx_exp(std::runtime_error("Particle type not defined"));
+                return E_FAIL;
+            }
+            MxCellPolarity_registerType(pType, pmp.initMode, pmp.initPolarAB, pmp.initPolarPCP);
+        }
+
+    }
+
+    // Load potentials
+
+    if(fileElement.children.find("potentials") != fileElement.children.end()) {
+
+        std::vector<MxCellPolarityPotentialContact*> potentials;
+        std::vector<std::vector<unsigned int> > potentialTypesA, potentialTypesB, potentialTypesClusterA, potentialTypesClusterB;
+
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "potentials", &potentials);
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "potentialTypesA", &potentialTypesA);
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "potentialTypesB", &potentialTypesB);
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "potentialTypesClusterA", &potentialTypesClusterA);
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "potentialTypesClusterB", &potentialTypesClusterB);
+
+        for(unsigned int i = 0; i < potentials.size(); i++) {
+            auto p = potentials[i];
+            std::vector<unsigned int> pTypesIdA = potentialTypesA[i];
+            std::vector<unsigned int> pTypesIdB = potentialTypesB[i];
+            std::vector<unsigned int> pTypesIdClusterA = potentialTypesClusterA[i];
+            std::vector<unsigned int> pTypesIdClusterB = potentialTypesClusterB[i];
+
+            for(unsigned int j = 0; j < pTypesIdA.size(); j++) { 
+                MxParticleType *pTypeA = &_Engine.types[MxFIO::importSummary->particleTypeIdMap[pTypesIdA[j]]];
+                MxParticleType *pTypeB = &_Engine.types[MxFIO::importSummary->particleTypeIdMap[pTypesIdB[j]]];
+                if(!pTypeA || !pTypeB) {
+                    mx_exp(std::runtime_error("Particle type not defined"));
+                    return E_FAIL;
+                }
+                MxBind::types(p, pTypeA, pTypeB);
+            }
+
+            for(unsigned int j = 0; j < pTypesIdClusterA.size(); j++) { 
+                MxParticleType *pTypeA = &_Engine.types[MxFIO::importSummary->particleTypeIdMap[pTypesIdClusterA[j]]];
+                MxParticleType *pTypeB = &_Engine.types[MxFIO::importSummary->particleTypeIdMap[pTypesIdClusterB[j]]];
+                if(!pTypeA || !pTypeB) {
+                    mx_exp(std::runtime_error("Particle type not defined"));
+                    return E_FAIL;
+                }
+                MxBind::types(p, pTypeA, pTypeB, true);
+            }
+        }
+
+    }
+
+    // Load forces
+
+    if(fileElement.children.find("forces") != fileElement.children.end()) {
+
+        std::vector<PolarityForcePersistent*> forces;
+        std::vector<int16_t> forceTypes;
+
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "forces", &forces);
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "forceTypes", &forceTypes);
+
+        for(unsigned int i = 0; i < forces.size(); i++) {
+            auto pTypeIdImport = forceTypes[i];
+            if(pTypeIdImport < 0) 
+                continue;
+
+            auto pTypeId = MxFIO::importSummary->particleTypeIdMap[pTypeIdImport];
+
+            MxParticleType *pType = &_Engine.types[pTypeId];
+            if(pType == NULL) {
+                mx_exp(std::runtime_error("Particle type not defined"));
+                return E_FAIL;
+            }
+
+            MxBind::force(forces[i], pType);
+        }
+
+    }
+    
+    // Load states of registered particles
+
+    if(fileElement.children.find("particles") != fileElement.children.end()) {
+
+        std::vector<ParticlePolarityPack> particles;
+
+        MXCENTERCELLPOLARITYIOFROMEASY(feItr, fileElement.children, metaData, "particles", &particles);
+
+        for(unsigned int i = 0; i < particles.size(); i++) {
+            auto ppp = particles[i];
+            auto pId = MxFIO::importSummary->particleIdMap[ppp.pId];
+            MxCellPolarity_register(pId);
+            auto pppe = (*_partPolPack)[pId];
+            if(ppp.showing) 
+                pppe->addArrows();
+
+        }
+
+    }
+
+    return S_OK;
+}
+
 
 using namespace mx::models::center;
 

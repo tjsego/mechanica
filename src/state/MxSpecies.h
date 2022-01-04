@@ -10,6 +10,7 @@
 #define SRC_STATE_MXSPECIES_H_
 
 #include <mx_port.h>
+#include "../io/mx_io.h"
 #include <string>
 
 namespace libsbml{
@@ -102,5 +103,15 @@ struct MxSpecies {
 
 
 CAPI_FUNC(libsbml::SBMLNamespaces*) MxGetSBMLNamespaces();
+
+namespace mx { namespace io { 
+
+template <>
+HRESULT toFile(const MxSpecies &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxSpecies *dataElement);
+
+}};
 
 #endif /* SRC_STATE_MXSPECIES_H_ */

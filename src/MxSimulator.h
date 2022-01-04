@@ -13,6 +13,7 @@
 #include "MxPropagator.h"
 #include "MxController.h"
 #include "MxView.h"
+#include "io/MxFIO.h"
 #ifdef MX_WITHCUDA
 #include "cuda/MxSimulatorCUDAConfig.h"
 #endif
@@ -242,6 +243,8 @@ public:
 
     char** argv = NULL;
     
+    std::string *importDataFilePath = NULL;
+    /* Imported data file path during initialization, if any */
     
     std::vector<MxVector4f> clipPlanes;
 
@@ -747,5 +750,16 @@ CAPI_FUNC(PyObject *) MxSimulatorPy_init(PyObject *args, PyObject *kwargs);
 CAPI_FUNC(int) universe_init(const MxUniverseConfig &conf);
 
 CAPI_FUNC(HRESULT) modules_init();
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxSimulator &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxSimulator_Config *dataElement);
+
+}};
 
 #endif /* SRC_MXSIMULATOR_H_ */

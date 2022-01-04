@@ -299,4 +299,15 @@ std::vector<int32_t> MxBond_IdsForParticle(int32_t pid);
 int insert_bond(std::vector<MxBondHandle*> &bonds, int a, int b,
                 MxPotential *pot, MxParticleList *parts);
 
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxBond &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBond *dataElement);
+
+}};
+
 #endif // INCLUDE_BOND_H_

@@ -11,6 +11,7 @@
 #include "platform.h"
 #include "fptype.h"
 #include "../../types/mx_types.h"
+#include "../../io/mx_io.h"
 
 #include <limits>
 
@@ -199,6 +200,7 @@ struct MxConstantForce : MxForce {
 };
 
 struct MxConstantForcePy : MxConstantForce {
+    PyObject *callable;
 
     MxConstantForcePy();
     MxConstantForcePy(const MxVector3f &f, const float &period=std::numeric_limits<float>::max());
@@ -217,9 +219,6 @@ struct MxConstantForcePy : MxConstantForce {
 
     void setValue(PyObject *_userFunc=NULL);
 
-private:
-
-    PyObject *callable;
 };
 
 /**
@@ -282,6 +281,61 @@ struct Friction : MxForce {
      */
     unsigned durration_steps;
 };
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MXFORCE_TYPE &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MXFORCE_TYPE *dataElement);
+
+template <>
+HRESULT toFile(const MxConstantForce &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForce *dataElement);
+
+template <>
+HRESULT toFile(const MxConstantForcePy &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForcePy *dataElement);
+
+template <>
+HRESULT toFile(const MxForceSum &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxForceSum *dataElement);
+
+template <>
+HRESULT toFile(const Berendsen &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Berendsen *dataElement);
+
+template <>
+HRESULT toFile(const Gaussian &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Gaussian *dataElement);
+
+template <>
+HRESULT toFile(const Friction &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Friction *dataElement);
+
+HRESULT toFile(MxForce *dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxForce **dataElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, std::vector<MxForce*> *dataElement);
+
+}};
 
 #endif /* SRC_MDCORE_SRC_MXFORCE_H_ */
 

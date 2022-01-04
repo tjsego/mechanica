@@ -79,6 +79,22 @@ set(SRC
   mx_error.cpp
   mx_parse.cpp
 
+  io/Mx3DFVertexData.cpp
+  io/Mx3DFEdgeData.cpp
+  io/Mx3DFFaceData.cpp
+  io/Mx3DFMeshData.cpp
+  io/Mx3DFRenderData.cpp
+  io/Mx3DFStructure.cpp
+  io/generators/Mx3DFMeshGenerator.cpp
+  io/generators/Mx3DFAngleMeshGenerator.cpp
+  io/generators/Mx3DFBondMeshGenerator.cpp
+  io/generators/Mx3DFDihedralMeshGenerator.cpp
+  io/generators/Mx3DFPCloudMeshGenerator.cpp
+  io/Mx3DFIO.cpp
+  io/MxFIO.cpp
+  io/MxIO.cpp
+  io/mx_io.cpp
+
   event/MxEvent.cpp
   event/MxEventList.cpp
   event/MxEventPyExecutor.cpp
@@ -187,6 +203,22 @@ set(HEADERS
   MxUtil.h
   mx_error.h
   mx_parse.h
+
+  io/Mx3DFVertexData.h
+  io/Mx3DFEdgeData.h
+  io/Mx3DFFaceData.h
+  io/Mx3DFMeshData.h
+  io/Mx3DFRenderData.h
+  io/Mx3DFStructure.h
+  io/generators/Mx3DFMeshGenerator.h
+  io/generators/Mx3DFAngleMeshGenerator.h
+  io/generators/Mx3DFBondMeshGenerator.h
+  io/generators/Mx3DFDihedralMeshGenerator.h
+  io/generators/Mx3DFPCloudMeshGenerator.h
+  io/Mx3DFIO.h
+  io/MxFIO.h
+  io/MxIO.h
+  io/mx_io.h
 
   event/MxEvent.h
   event/MxEventList.h

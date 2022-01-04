@@ -12,6 +12,8 @@
 #include <Magnum/Magnum.h>
 #include <Magnum/Math/Color.h>
 
+#include "../io/mx_io.h"
+
 #include <string>
 
 typedef Magnum::Color4 (*ColorMapperFunc)(struct MxColorMapper *mapper, struct MxParticle *p);
@@ -27,7 +29,7 @@ struct CAPI_EXPORT NOMStyle
     /**
      * @brief Color mapper of this style
      */
-    struct MxColorMapper *mapper;
+    struct MxColorMapper *mapper = NULL;
     
     ColorMapperFunc mapper_func;
 
@@ -77,5 +79,15 @@ struct CAPI_EXPORT NOMStyle
                         const std::string &name="rainbow", 
                         float min=0.0f, float max=1.0f);
 };
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const NOMStyle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, NOMStyle *dataElement);
+
+}};
 
 #endif /* SRC_RENDERING_NOMSTYLE_HPP_ */

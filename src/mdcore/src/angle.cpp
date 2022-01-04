@@ -904,3 +904,56 @@ double MxAngleHandle::getAge() {
     if (a) return (_Engine.time - a->creation_time) * _Engine.dt;
     return 0;
 }
+
+
+namespace mx { namespace io {
+
+#define MXANGLEIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXANGLEIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const MxAngle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXANGLEIOTOEASY(fe, "flags", dataElement.flags);
+    MXANGLEIOTOEASY(fe, "i", dataElement.i);
+    MXANGLEIOTOEASY(fe, "j", dataElement.j);
+    MXANGLEIOTOEASY(fe, "k", dataElement.k);
+    MXANGLEIOTOEASY(fe, "creation_time", dataElement.creation_time);
+    MXANGLEIOTOEASY(fe, "half_life", dataElement.half_life);
+    MXANGLEIOTOEASY(fe, "dissociation_energy", dataElement.dissociation_energy);
+    MXANGLEIOTOEASY(fe, "potential_energy", dataElement.potential_energy);
+
+    fileElement->type = "Angle";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxAngle *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "flags", &dataElement->flags);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "i", &dataElement->i);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "j", &dataElement->j);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "k", &dataElement->k);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "creation_time", &dataElement->creation_time);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "half_life", &dataElement->half_life);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "dissociation_energy", &dataElement->dissociation_energy);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "potential_energy", &dataElement->potential_energy);
+
+    return S_OK;
+}
+
+}};

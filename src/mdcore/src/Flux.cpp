@@ -176,3 +176,160 @@ MxFluxes* MxFluxes::newFluxes(int32_t init_size) {
 
     return obj;
 }
+
+
+namespace mx { namespace io {
+
+#define MXFLUXIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXFLUXIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const TypeIdPair &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFLUXIOTOEASY(fe, "a", dataElement.a);
+    MXFLUXIOTOEASY(fe, "b", dataElement.b);
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, TypeIdPair *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "a", &dataElement->a);
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "b", &dataElement->b);
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxFlux &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXFLUXIOTOEASY(fe, "size", dataElement.size);
+    std::vector<int8_t> kinds;
+    std::vector<TypeIdPair> type_ids;
+    std::vector<int32_t> indices_a;
+    std::vector<int32_t> indices_b;
+    std::vector<float> coef;
+    std::vector<float> decay_coef;
+    std::vector<float> target;
+
+    for(unsigned int i = 0; i < MX_SIMD_SIZE; i++) {
+        kinds.push_back(dataElement.kinds[i]);
+        type_ids.push_back(dataElement.type_ids[i]);
+        indices_a.push_back(dataElement.indices_a[i]);
+        indices_b.push_back(dataElement.indices_b[i]);
+        coef.push_back(dataElement.coef[i]);
+        decay_coef.push_back(dataElement.decay_coef[i]);
+        target.push_back(dataElement.target[i]);
+    }
+
+    MXFLUXIOTOEASY(fe, "kinds", kinds);
+    MXFLUXIOTOEASY(fe, "type_ids", type_ids);
+    MXFLUXIOTOEASY(fe, "indices_a", indices_a);
+    MXFLUXIOTOEASY(fe, "indices_b", indices_b);
+    MXFLUXIOTOEASY(fe, "coef", coef);
+    MXFLUXIOTOEASY(fe, "decay_coef", decay_coef);
+    MXFLUXIOTOEASY(fe, "target", target);
+
+    fileElement->type = "Flux";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxFlux *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "size", &dataElement->size);
+    
+    std::vector<int8_t> kinds;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "kinds", &kinds);
+
+    std::vector<TypeIdPair> type_ids;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "type_ids", &type_ids);
+    
+    std::vector<int32_t> indices_a;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "indices_a", &indices_a);
+    
+    std::vector<int32_t> indices_b;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "indices_b", &indices_b);
+    
+    std::vector<float> coef;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "coef", &coef);
+    
+    std::vector<float> decay_coef;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "decay_coef", &decay_coef);
+    
+    std::vector<float> target;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "target", &target);
+
+    for(unsigned int i = 0; i < MX_SIMD_SIZE; i++) {
+        
+        dataElement->kinds[i] = kinds[i];
+        dataElement->type_ids[i] = type_ids[i];
+        dataElement->indices_a[i] = indices_a[i];
+        dataElement->indices_b[i] = indices_b[i];
+        dataElement->coef[i] = coef[i];
+        dataElement->decay_coef[i] = decay_coef[i];
+        dataElement->target[i] = target[i];
+
+    }
+    
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxFluxes &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFLUXIOTOEASY(fe, "fluxes_size", dataElement.fluxes_size);
+    
+    std::vector<MxFlux> fluxes;
+    for(unsigned int i = 0; i < dataElement.size; i++) 
+        fluxes.push_back(dataElement.fluxes[i]);
+    MXFLUXIOTOEASY(fe, "fluxes", fluxes);
+
+    fileElement->type = "Fluxes";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxFluxes *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "fluxes_size", &dataElement->fluxes_size);
+    
+    std::vector<MxFlux> fluxes;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "fluxes", &fluxes);
+    MxFlux flux = fluxes[0];
+    for(unsigned int i = 0; i < fluxes.size(); i++) { 
+        dataElement = MxFluxes::addFlux((FluxKind)flux.kinds[i], 
+                                        dataElement, 
+                                        flux.type_ids[i].a, flux.type_ids[i].b, 
+                                        flux.indices_a[i], flux.indices_b[i], 
+                                        flux.coef[i], flux.decay_coef[i], flux.target[i]);
+    }
+    
+    return S_OK;
+}
+
+}};

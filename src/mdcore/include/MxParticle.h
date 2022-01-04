@@ -706,4 +706,20 @@ CAPI_FUNC(HRESULT) MxParticleType_checkRegistered(MxParticleType *type);
  */
 HRESULT _MxParticle_init();
 
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxParticle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticle *dataElement);
+
+template <>
+HRESULT toFile(const MxParticleType &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticleType *dataElement);
+
+}};
+
 #endif // INCLUDE_PARTICLE_H_

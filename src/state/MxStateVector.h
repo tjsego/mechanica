@@ -10,6 +10,7 @@
 #define SRC_STATE_MXSTATEVECTOR_H_
 
 #include <mx_port.h>
+#include "../io/mx_io.h"
 #include <stdio.h>
 #include <string>
 
@@ -67,5 +68,15 @@ struct MxStateVector {
     MxStateVector(const MxStateVector &other);
     ~MxStateVector();
 };
+
+namespace mx { namespace io { 
+
+template <>
+HRESULT toFile(const MxStateVector &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxStateVector **dataElement);
+
+}};
 
 #endif /* SRC_STATE_MXSTATEVECTOR_H_ */

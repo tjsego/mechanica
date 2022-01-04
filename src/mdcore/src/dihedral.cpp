@@ -928,3 +928,56 @@ bool MxDihedral_decays(MxDihedral *d, std::uniform_real_distribution<double> *un
 
     return result;
 }
+
+
+namespace mx { namespace io {
+
+#define MXDIHEDIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXDIHEDIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const MxDihedral &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXDIHEDIOTOEASY(fe, "i", dataElement.i);
+    MXDIHEDIOTOEASY(fe, "j", dataElement.j);
+    MXDIHEDIOTOEASY(fe, "k", dataElement.k);
+    MXDIHEDIOTOEASY(fe, "l", dataElement.l);
+    MXDIHEDIOTOEASY(fe, "creation_time", dataElement.creation_time);
+    MXDIHEDIOTOEASY(fe, "half_life", dataElement.half_life);
+    MXDIHEDIOTOEASY(fe, "dissociation_energy", dataElement.dissociation_energy);
+    MXDIHEDIOTOEASY(fe, "potential_energy", dataElement.potential_energy);
+
+    fileElement->type = "Dihedral";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxDihedral *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "i", &dataElement->i);
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "j", &dataElement->j);
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "k", &dataElement->k);
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "l", &dataElement->l);
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "creation_time", &dataElement->creation_time);
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "half_life", &dataElement->half_life);
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "dissociation_energy", &dataElement->dissociation_energy);
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "potential_energy", &dataElement->potential_energy);
+
+    return S_OK;
+}
+
+}};

@@ -8,6 +8,7 @@
 #ifndef _MDCORE_MXPARTICLETYPELIST_H_
 #define _MDCORE_MXPARTICLETYPELIST_H_
 
+#include "../../io/mx_io.h"
 #include "MxParticleList.hpp"
 
 struct MxParticleType;
@@ -103,5 +104,15 @@ struct CAPI_EXPORT MxParticleTypeList {
     ~MxParticleTypeList();
     
 };
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxParticleTypeList &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticleTypeList *dataElement);
+
+}};
 
 #endif //_MDCORE_MXPARTICLETYPELIST_H_

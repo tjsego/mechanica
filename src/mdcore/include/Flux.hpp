@@ -10,6 +10,7 @@
 
 #include "platform.h"
 #include "mdcore_single_config.h"
+#include "../../io/mx_io.h"
 #include "space_cell.h"
 
 #include <string>
@@ -199,5 +200,28 @@ HRESULT MxFluxes_integrate(space_cell *cell, float dt=-1.0);
  * integrate all of the fluxes for a space cell.
  */
 HRESULT MxFluxes_integrate(int cellId);
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const TypeIdPair &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, TypeIdPair *dataElement);
+
+template <>
+HRESULT toFile(const MxFlux &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxFlux *dataElement);
+
+template <>
+HRESULT toFile(const MxFluxes &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxFluxes *dataElement);
+
+}};
 
 #endif /* SRC_MDCORE_SRC_FLUX_H_ */

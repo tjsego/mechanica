@@ -157,6 +157,8 @@ struct PolarityForcePersistent : MxForce {
     
     /** Proportionality of force to PCP vector */
     float sensPCP = 0.0;
+
+    ~PolarityForcePersistent();
 };
 
 /**

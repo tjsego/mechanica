@@ -721,3 +721,168 @@ void apply_boundary_particle_crossing(struct MxParticle *p, const int *delta,
 
     }
 }
+
+
+namespace mx { namespace io {
+
+#define MXBOUNDARYCONDIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXBOUNDARYCONDIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const MxBoundaryCondition &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXBOUNDARYCONDIOTOEASY(fe, "kind", (int)dataElement.kind);
+    MXBOUNDARYCONDIOTOEASY(fe, "id", dataElement.id);
+    if(dataElement.kind & BOUNDARY_VELOCITY) {
+        MXBOUNDARYCONDIOTOEASY(fe, "velocity", dataElement.velocity);
+    }
+    MXBOUNDARYCONDIOTOEASY(fe, "restore", dataElement.restore);
+    MXBOUNDARYCONDIOTOEASY(fe, "name", std::string(dataElement.name));
+    MXBOUNDARYCONDIOTOEASY(fe, "normal", dataElement.normal);
+
+    std::vector<unsigned int> potentialIndices;
+    std::vector<MxPotential*> potentials;
+    MxPotential *pot;
+    for(unsigned int i = 0; i < engine::max_type; i++) {
+        pot = dataElement.potenntials[i];
+        if(pot != NULL) {
+            potentialIndices.push_back(i);
+            potentials.push_back(pot);
+        }
+    }
+    if(potentialIndices.size() > 0) {
+        MXBOUNDARYCONDIOTOEASY(fe, "potentialIndices", potentialIndices);
+        MXBOUNDARYCONDIOTOEASY(fe, "potentials", potentials);
+    }
+
+    MXBOUNDARYCONDIOTOEASY(fe, "radius", dataElement.radius);
+
+    fileElement->type = "boundaryCondition";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBoundaryCondition *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    unsigned int kind;
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "kind", &kind);
+    dataElement->kind = (BoundaryConditionKind)kind;
+
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
+
+    if(fileElement.children.find("velocity") != fileElement.children.end())
+        MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "velocity", &dataElement->velocity);
+
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "restore", &dataElement->restore);
+
+    std::string name;
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "name", &name);
+    dataElement->name = name.c_str();
+
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "normal", &dataElement->normal);
+
+    if(fileElement.children.find("potentials") != fileElement.children.end()) {
+
+        std::vector<unsigned int> potentialIndices;
+        std::vector<MxPotential*> potentials;
+        MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "potentialIndices", &potentialIndices);
+        MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "potentials", &potentials);
+
+        if(potentials.size() > 0) 
+            for(unsigned int i = 0; i < potentials.size(); i++) 
+                dataElement->potenntials[potentialIndices[i]] = potentials[i];
+
+    }
+
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "radius", &dataElement->radius);
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxBoundaryConditions &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXBOUNDARYCONDIOTOEASY(fe, "top", dataElement.top);
+    MXBOUNDARYCONDIOTOEASY(fe, "bottom", dataElement.bottom);
+    MXBOUNDARYCONDIOTOEASY(fe, "left", dataElement.left);
+    MXBOUNDARYCONDIOTOEASY(fe, "right", dataElement.right);
+    MXBOUNDARYCONDIOTOEASY(fe, "front", dataElement.front);
+    MXBOUNDARYCONDIOTOEASY(fe, "back", dataElement.back);
+
+    fileElement->type = "boundaryConditions";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBoundaryConditions *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "top",    &dataElement->top);
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "bottom", &dataElement->bottom);
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "left",   &dataElement->left);
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "right",  &dataElement->right);
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "front",  &dataElement->front);
+    MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "back",   &dataElement->back);
+
+    return S_OK;
+}
+
+#define MXBOUNDARYCONDARGSIOFROMEASY(side) \
+    feItr = fileElement.children.find(side); \
+    if(feItr == fileElement.children.end())  \
+        return E_FAIL; \
+    fe = feItr->second; \
+    MXBOUNDARYCONDIOFROMEASY(feItr, fe->children, metaData, "kind", &kind); \
+    bcVals[side] = kind; \
+    MXBOUNDARYCONDIOFROMEASY(feItr, fe->children, metaData, "restore", &restore); \
+    bcRestores[side] = restore; \
+    if((BoundaryConditionKind)kind & BOUNDARY_VELOCITY) { \
+        MXBOUNDARYCONDIOFROMEASY(feItr, fe->children, metaData, "velocity", &velocity); \
+        bcVels["velocity"] = velocity; \
+    }
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBoundaryConditionsArgsContainer *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+    MxIOElement *fe;
+    unsigned int kind;
+    std::string side;
+    MxVector3f velocity;
+    float restore;
+
+    std::unordered_map<std::string, unsigned int> bcVals; 
+    std::unordered_map<std::string, MxVector3f> bcVels; 
+    std::unordered_map<std::string, float> bcRestores;
+
+    MXBOUNDARYCONDARGSIOFROMEASY("top");
+    MXBOUNDARYCONDARGSIOFROMEASY("bottom");
+    MXBOUNDARYCONDARGSIOFROMEASY("left");
+    MXBOUNDARYCONDARGSIOFROMEASY("right");
+    MXBOUNDARYCONDARGSIOFROMEASY("front");
+    MXBOUNDARYCONDARGSIOFROMEASY("back");
+
+    dataElement = new MxBoundaryConditionsArgsContainer(0, &bcVals, &bcVels, &bcRestores);
+
+    return S_OK;
+}
+
+}};

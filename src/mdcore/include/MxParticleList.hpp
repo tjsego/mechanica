@@ -9,6 +9,7 @@
 #define _MDCORE_MXPARTICLELIST_H_
 
 #include "mx_port.h"
+#include "../../io/mx_io.h"
 #include "../../types/mx_types.h"
 
 #include <vector>
@@ -109,5 +110,15 @@ struct CAPI_EXPORT MxParticleList {
     ~MxParticleList();
     
 };
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxParticleList &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticleList *dataElement);
+
+}};
 
 #endif /* SRC_MDCORE_SRC_MXPARTICLELIST_H_ */

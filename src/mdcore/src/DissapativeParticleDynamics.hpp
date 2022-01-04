@@ -27,4 +27,14 @@ struct DPDPotential : public MxPotential {
     DPDPotential(float alpha, float gamma, float sigma, float cutoff, bool shifted);
 };
 
+
+namespace mx { namespace io {
+
+HRESULT toFile(DPDPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, DPDPotential **dataElement);
+
+}};
+
 #endif /* _DISSAPATIVEPARTICLEDYNAMICS_HPP_ */

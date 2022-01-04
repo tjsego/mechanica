@@ -330,6 +330,8 @@ message("Shader Program Res: ${MxMeshShaderProgramRes}")
 target_include_directories(mechanica_obj PRIVATE
   ${PYBIND11_INCLUDE_DIR}
   ${JPEG_INCLUDE_DIRS}
+  ${ASSIMP_INCLUDE_DIRS}
+  ${JSON_INCLUDE_DIRS}
   )
 
 # set_target_properties(mechanica PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -353,6 +355,7 @@ target_link_libraries(mechanica_obj
   Magnum::Shaders
   #voro++
   #sundials_cvode_static
+  assimp::assimp
   ${OPENGL_LIBRARIES}
   mdcore_single
 )
@@ -363,10 +366,6 @@ if(MX_WITHCUDA)
     CUDA::cuda_driver 
     CUDA::nvrtc
   )
-endif()
-
-if(MX_ASSIMP)
-	target_link_libraries(mechanica_obj   Assimp::Assimp)
 endif()
 
 source_group("Public Header Files" FILES ${MECHANICA_PUBLIC_HEADERS})
@@ -412,6 +411,8 @@ target_include_directories(mechanica_shared PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
+  ${ASSIMP_INCLUDE_DIRS}
+  ${JSON_INCLUDE_DIRS}
   $<INSTALL_INTERFACE:include/mechanica>
 )
 
@@ -507,6 +508,7 @@ set(mechanica_py_LIBS
   LibSBML::LibSBML
   JPEG::JPEG 
   TgaImageConverter
+  assimp::assimp
 )
 
 if(MX_WITHCUDA)
@@ -515,10 +517,6 @@ if(MX_WITHCUDA)
     CUDA::cuda_driver 
     CUDA::nvrtc
   )
-endif()
-
-if(MX_ASSIMP)
-  swig_link_libraries(mechanica_py   Assimp::Assimp)
 endif()
 
 if(MX_APPLE)
@@ -630,6 +628,7 @@ target_link_libraries(mechanica_shared
   LibSBML::LibSBML
   JPEG::JPEG 
   TgaImageConverter
+  assimp::assimp
   )
 
 
@@ -655,10 +654,6 @@ if(MX_WITHCUDA)
   )
 endif()
 
-if(MX_ASSIMP)
-  target_link_libraries(mechanica_shared   PUBLIC Assimp::Assimp)
-endif()
-
 if(MX_APPLE)
   target_link_libraries(mechanica_shared PRIVATE MagnumWindowlessCglApplication)
 elseif(MX_LINUX)
@@ -675,7 +670,7 @@ endif()
 
 #target_link_libraries(mechanica_static
 #  glfw
-#  Assimp::Assimp
+#  assimp::assimp
 #  Magnum::Application
 #  Magnum::Magnum
 #  Magnum::Shaders

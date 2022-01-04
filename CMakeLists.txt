@@ -328,40 +328,20 @@ include_directories(${OPENGL_INCLUDE_DIR})
 #
 #endif()
 
-if (MX_ASSIMP)
+find_package(Assimp REQUIRED)
 
-	find_package(Assimp REQUIRED)
-	
-	if(Assimp_FOUND)
-	
-	  if(WIN32)
-	
-	    get_target_property(TMP Assimp::Assimp IMPORTED_LOCATION_DEBUG)
-	    message("ASSIMP IMPORTED_LOCATION_DEBUG: ${TMP}")
-	
-	    get_target_property(TMP Assimp::Assimp IMPORTED_LOCATION_RELEASE)
-	    message("ASSIMP IMPORTED_LOCATION_RELEASE: ${TMP}")
-	
-	  else()
-	
-	    get_target_property(TMP Assimp::Assimp IMPORTED_LOCATION)
-	    message("ASSIMP_LIBRARIES: ${TMP}")
-	  endif(WIN32)
-	
-	  get_target_property(TMP Assimp::Assimp INTERFACE_INCLUDE_DIRECTORIES)
-	
-	
-	  message("Assimp_INTERFACE_INCLUDE_DIRECTORIES: ${TMP}")
-	
-	
-	else()
-	  message("ASSIMP not found")
-	endif()
-
+if(Assimp_FOUND)
+  message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
+else()
+  message("ASSIMP not found")
 endif()
 
-
-
+if(DEFINED ENV{JSON_INCLUDE_DIRS})
+  set(JSON_INCLUDE_DIRS "$ENV{JSON_INCLUDE_DIRS}" CACHE STRING "")
+else()
+  set(JSON_INCLUDE_DIRS ${CMAKE_FIND_ROOT_PATH}/include)
+endif()
+message("JSON inlucde: ${JSON_INCLUDE_DIRS}")
 
 
 # finds: GLFW_FOUND GLFW_INCLUDE_DIR GLFW_LIBRARIES

@@ -101,7 +101,10 @@ enum PotentialFlags {
     POTENTIAL_SUM             = 1 << 14, 
 
     /** unbound potential with long-range periodicity */
-    POTENTIAL_PERIODIC        = 1 << 15
+    POTENTIAL_PERIODIC        = 1 << 15, 
+
+    /* Coulomb reciprocated */
+    POTENTIAL_COULOMBR        = 1 << 16
 };
 
 enum PotentialKind {

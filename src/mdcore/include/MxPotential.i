@@ -39,6 +39,7 @@
             bound = POTENTIAL_BOUND
             psum = POTENTIAL_SUM
             periodic = POTENTIAL_PERIODIC
+            coulombr = POTENTIAL_COULOMBR
 
         class Kind(EnumPy):
             potential = POTENTIAL_KIND_POTENTIAL

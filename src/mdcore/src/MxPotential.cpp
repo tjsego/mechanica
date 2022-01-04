@@ -2883,6 +2883,7 @@ struct MxCoulombRPotential : public MxPotential {
 	{
 		this->a = min;
 		this->b = max;
+		this->flags |= POTENTIAL_COULOMBR;
 		this->kind = POTENTIAL_KIND_BYPARTICLES;
 		this->name = "CoulombR";
 		this->eval_byparts = &coulombR_eval;

@@ -96,7 +96,7 @@ MxParticleList *MxParticleTypeList::particles() {
 }
 
 MxParticleTypeList* MxParticleTypeList::all() {
-    MxParticleTypeList* list = new MxParticleTypeList(_Engine.nr_types, (int32_t*)0);
+    MxParticleTypeList* list = new MxParticleTypeList();
     
     for(int tid = 0; tid < _Engine.nr_types; tid++) list->insert(tid);
     

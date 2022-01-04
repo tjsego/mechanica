@@ -19,6 +19,16 @@ enum MXFORCE_KIND {
     MXFORCE_PAIRWISE
 };
 
+enum MXFORCE_TYPE {
+    FORCE_FORCE         = 0, 
+    FORCE_BERENDSEN     = 1 << 0, 
+    FORCE_GAUSSIAN      = 1 << 1, 
+    FORCE_FRICTION      = 1 << 2, 
+    FORCE_SUM           = 1 << 3, 
+    FORCE_CONSTANT      = 1 << 4, 
+    FORCE_CONSTANTPY    = 1 << 5
+};
+
 /**
  * single body force function.
  */
@@ -36,6 +46,8 @@ struct Friction;
  * Forces are one of the fundamental processes in Mechanica that cause objects to move. 
  */
 struct MxForce {
+    MXFORCE_TYPE type = FORCE_FORCE;
+
     MxForce_OneBodyPtr func;
 
     /**

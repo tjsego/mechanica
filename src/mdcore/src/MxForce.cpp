@@ -68,16 +68,22 @@ MxVector3f pyConstantForceFunction(PyObject *callable) {
 
 MxConstantForcePy::MxConstantForcePy() : 
     MxConstantForce() 
-{}
+{
+    type = FORCE_CONSTANTPY;
+}
 
 MxConstantForcePy::MxConstantForcePy(const MxVector3f &f, const float &period) : 
     MxConstantForce(f, period)
-{}
+{
+    type = FORCE_CONSTANTPY;
+}
 
 MxConstantForcePy::MxConstantForcePy(PyObject *f, const float &period) : 
     MxConstantForce(), 
     callable(f)
 {
+    type = FORCE_CONSTANTPY;
+
     setPeriod(period);
     if(callable) {
         Py_IncRef(callable);
@@ -226,6 +232,7 @@ static void gaussian_force(Gaussian* t, MxParticle *p, int stateVectorIndex, FPT
 Berendsen *berenderson_create(float tau) {
     auto *obj = new Berendsen();
 
+    obj->type = FORCE_BERENDSEN;
     obj->func = (MxForce_OneBodyPtr)berendsen_force;
     obj->itau = 1/tau;
 
@@ -235,6 +242,7 @@ Berendsen *berenderson_create(float tau) {
 Gaussian *random_create(float mean, float std, float durration) {
     auto *obj = new Gaussian();
     
+    obj->type = FORCE_GAUSSIAN;
     obj->func = (MxForce_OneBodyPtr)gaussian_force;
     obj->std = std;
     obj->mean = mean;
@@ -246,6 +254,7 @@ Gaussian *random_create(float mean, float std, float durration) {
 Friction *friction_create(float coef, float mean, float std, float durration) {
     auto *obj = new Friction();
     
+    obj->type = FORCE_FRICTION;
     obj->func = (MxForce_OneBodyPtr)friction_force;
     obj->coef = coef;
     obj->std = std;
@@ -263,16 +272,19 @@ void MxConstantForce::onTime(double time)
     }
 }
 
-MxConstantForce::MxConstantForce() {
+MxConstantForce::MxConstantForce() { 
+    type = FORCE_CONSTANT;
     func = (MxForce_OneBodyPtr)constant_force;
 }
 
 MxConstantForce::MxConstantForce(const MxVector3f &f, const float &period) : MxConstantForce() {
+    type = FORCE_CONSTANT;
     updateInterval = period;
     setValue(f);
 }
 
 MxConstantForce::MxConstantForce(MxUserForceFuncType *f, const float &period) : MxConstantForce() {
+    type = FORCE_CONSTANT;
     updateInterval = period;
     setValue(f);
 }

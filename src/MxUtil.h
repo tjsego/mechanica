@@ -17,6 +17,7 @@
 #include <string>
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include <random>
 
 #ifdef _WIN32
@@ -499,6 +500,32 @@ struct Differentiator {
     double fnp(const double &x, const unsigned int &order=0);
     double operator() (const double &x);
 };
+
+
+/**
+ * @brief Get the unique elements of a vector
+ * 
+ * @tparam T element type
+ * @param vec vector of elements
+ * @return std::vector<T> unique elements
+ */
+template <typename T>
+std::vector<T> unique(const std::vector<T> &vec) {
+    std::vector<T> result_vec;
+    std::unordered_set<T> result_us;
+
+    result_vec.reserve(vec.size());
+    
+    for(auto f : vec) {
+        if(result_us.find(f) == result_us.end()) {
+            result_vec.push_back(f);
+            result_us.insert(f);
+        }
+    }
+
+    result_vec.shrink_to_fit();
+    return result_vec;
+}
 
 
 #endif /* SRC_MXUTIL_H_ */

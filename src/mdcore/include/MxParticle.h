@@ -540,6 +540,11 @@ struct MxParticleType {
     bool isCluster();
 
     /**
+     * Limits casting to cluster by type
+     */
+    operator MxClusterParticleType*();
+
+    /**
      * @brief Particle constructor. 
      * 
      * Automatically updates when running on a CUDA device. 

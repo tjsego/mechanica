@@ -69,9 +69,18 @@ struct MxClusterParticleHandle : MxParticleHandle {
     MxClusterParticleHandle(const int &id, const int &typeId);
 
     /**
+     * @brief Gets the actual cluster of this handle. 
+     * 
+     * @return MxParticle* 
+     */
+    MxCluster *cluster();
+
+    /**
      * @brief Constituent particle constructor. 
      * 
      * The created particle will belong to this cluster. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param partType type of particle to create
      * @param position position of new particle, optional

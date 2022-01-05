@@ -7,6 +7,7 @@
 //  so we'll handle them manually for now
 %rename(_call) MxParticleType::operator();
 %rename(to_cluster) MxParticleHandle::operator MxClusterParticleHandle*();
+%rename(to_cluster) MxParticleType::operator MxClusterParticleType*();
 
 %include "MxParticle.h"
 

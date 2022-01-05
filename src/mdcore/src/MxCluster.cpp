@@ -212,6 +212,10 @@ MxClusterParticleHandle::MxClusterParticleHandle(const int &id, const int &typeI
     MxParticleHandle(id, typeId) 
 {}
 
+MxCluster *MxClusterParticleHandle::cluster() {
+    return (MxCluster*)this->part();
+}
+
 MxParticleHandle *MxClusterParticleHandle::operator()(MxParticleType *partType, 
                                                       MxVector3f *position, 
                                                       MxVector3f *velocity) 

@@ -489,6 +489,11 @@ bool MxParticleType::isCluster() {
     return this->particle_flags & PARTICLE_CLUSTER;
 }
 
+MxParticleType::operator MxClusterParticleType*() {
+    if (!this->isCluster()) return NULL;
+    return static_cast<MxClusterParticleType*>(this);
+}
+
 MxParticleHandle *MxParticleType::operator()(MxVector3f *position,
                                              MxVector3f *velocity,
                                              int *clusterId) 

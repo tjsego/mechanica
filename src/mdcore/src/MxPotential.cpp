@@ -3621,7 +3621,7 @@ HRESULT toFile(MxPotential *dataElement, const MxMetaData &metaData, MxIOElement
 		return toFile((DPDPotential*)dataElement, metaData, fileElement);
 	} 
 
-	if(dataElement->kind = POTENTIAL_KIND_BYPARTICLES) {
+	if(dataElement->kind == POTENTIAL_KIND_BYPARTICLES) {
 		if(dataElement->flags | POTENTIAL_COULOMBR) {
 			return toFile((MxCoulombRPotential*)dataElement, metaData, fileElement);
 		}
@@ -3688,7 +3688,9 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxP
 
 	std::string name;
 	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "name", &name);
-	p->name = name.c_str();
+	char *cname = new char[name.size() + 1];
+	std::strcpy(cname, name.c_str());
+	p->name = cname;
 	
 	if(p->kind == POTENTIAL_KIND_COMBINATION) {
 		if(fileElement.children.find("PotentialA") != fileElement.children.end()) {

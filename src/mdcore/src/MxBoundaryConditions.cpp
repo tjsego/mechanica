@@ -784,14 +784,19 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxB
 
     MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
 
-    if(fileElement.children.find("velocity") != fileElement.children.end())
-        MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "velocity", &dataElement->velocity);
+    if(fileElement.children.find("velocity") != fileElement.children.end()) {
+        MxVector3f velocity;
+        MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "velocity", &velocity);
+        dataElement->velocity = velocity;
+    }
 
     MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "restore", &dataElement->restore);
 
     std::string name;
     MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "name", &name);
-    dataElement->name = name.c_str();
+    char *cname = new char[name.size() + 1];
+	std::strcpy(cname, name.c_str());
+	dataElement->name = cname;
 
     MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "normal", &dataElement->normal);
 
@@ -834,6 +839,19 @@ template <>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBoundaryConditions *dataElement) {
 
     MxIOChildMap::const_iterator feItr;
+
+    // Initialize potential arrays
+    // todo: implement automatic initialization of potential arrays in boundary conditions under all circumstances
+
+    dataElement->potenntials = (MxPotential**)malloc(6 * engine::max_type * sizeof(MxPotential*));
+    bzero(dataElement->potenntials, 6 * engine::max_type * sizeof(MxPotential*));
+
+    dataElement->left.potenntials =   &dataElement->potenntials[0 * engine::max_type];
+    dataElement->right.potenntials =  &dataElement->potenntials[1 * engine::max_type];
+    dataElement->front.potenntials =  &dataElement->potenntials[2 * engine::max_type];
+    dataElement->back.potenntials =   &dataElement->potenntials[3 * engine::max_type];
+    dataElement->top.potenntials =    &dataElement->potenntials[4 * engine::max_type];
+    dataElement->bottom.potenntials = &dataElement->potenntials[5 * engine::max_type];
 
     MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "top",    &dataElement->top);
     MXBOUNDARYCONDIOFROMEASY(feItr, fileElement.children, metaData, "bottom", &dataElement->bottom);

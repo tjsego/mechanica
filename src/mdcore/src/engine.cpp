@@ -2159,7 +2159,7 @@ double engine_kinetic_energy(struct engine *e)
 
 double engine_temperature(struct engine *e)
 {
-    return 0;
+    return e->temperature;
 }
 
 int engine_addpart(struct engine *e, struct MxParticle *p, double *x,

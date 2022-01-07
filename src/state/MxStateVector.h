@@ -10,6 +10,7 @@
 #define SRC_STATE_MXSTATEVECTOR_H_
 
 #include <mx_port.h>
+#include "../io/mx_io.h"
 #include <stdio.h>
 #include <string>
 
@@ -66,6 +67,31 @@ struct MxStateVector {
                   void *data=NULL);
     MxStateVector(const MxStateVector &other);
     ~MxStateVector();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return MxStateVector* 
+     */
+    static MxStateVector *fromString(const std::string &str);
 };
+
+namespace mx { namespace io { 
+
+template <>
+HRESULT toFile(const MxStateVector &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxStateVector **dataElement);
+
+}};
 
 #endif /* SRC_STATE_MXSTATEVECTOR_H_ */

@@ -77,6 +77,8 @@ This is the API Reference page for the module: :mod:`mechanica`
 
 .. include:: api_types.rst
 
+.. include:: api_io.rst
+
 .. include:: api_cuda.rst
 
 Mechanica C++ API Reference

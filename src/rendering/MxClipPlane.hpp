@@ -20,6 +20,8 @@ CAPI_FUNC(HRESULT) MxPlaneEquation(const MxVector3f &normal, const MxVector3f &p
 std::vector<MxVector4f> MxParsePlaneEquation(const std::vector<std::tuple<MxVector3f, MxVector3f> > &clipPlanes);
 CAPI_FUNC(HRESULT) MxParsePlaneEquation(const std::vector<std::tuple<MxVector3f, MxVector3f> > &clipPlanes, MxVector4f *result);
 
+std::tuple<MxVector3f, MxVector3f> MxPlaneEquation(const MxVector4f &planeEq);
+
 struct MxClipPlane
 {
     int index;

@@ -28,6 +28,7 @@
 #include "../../MxUtil.h"
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
+#include <../../io/MxFIO.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -66,6 +67,7 @@ MxPotential::MxPotential() :
 	offset{FPTYPE_ZERO, FPTYPE_ZERO, FPTYPE_ZERO}, 
     n(1), 
     create_func(NULL), 
+	clear_func(NULL), 
     eval_byparts(NULL), 
     eval_byparts3(NULL), 
     eval_byparts4(NULL), 
@@ -1479,6 +1481,10 @@ void potential_clear ( struct MxPotential *p ) {
 	if ( p == NULL )
 		return;
 
+	/* Issue callback */
+	if(p->clear_func) 
+		p->clear_func(p);
+	
 	/* Clear the flags. */
 	p->flags = POTENTIAL_NONE;
 
@@ -2753,8 +2759,26 @@ MxPotential& MxPotential::operator+(const MxPotential& rhs) {
 	p->pcb = const_cast<MxPotential*>(&rhs);
 	p->kind = POTENTIAL_KIND_COMBINATION;
 	p->flags = p->flags | POTENTIAL_SUM;
-	p->name = std::string(this->name + std::string(" PLUS ") + std::string(p->pcb->name)).c_str();
+
+	std::string pName = this->name;
+	pName += std::string(" PLUS ");
+	pName += p->pcb->name;
+	char *cname = new char[pName.size() + 1];
+	std::strcpy(cname, pName.c_str());
+	p->name = cname;
 	return *p;
+}
+
+std::string MxPotential::toString() {
+	MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+    if(mx::io::toFile(this, metaData, fe) != S_OK) 
+        return "";
+    return mx::io::toStr(fe, metaData);
+}
+
+MxPotential *MxPotential::fromString(const std::string &str) {
+    return mx::io::fromString<MxPotential*>(str);
 }
 
 MxPotential *MxPotential::lennard_jones_12_6(double min, double max, double A, double B, double *tol) {
@@ -2870,6 +2894,8 @@ static void coulombR_eval(struct MxPotential *p,
 
 struct MxCoulombRPotential : public MxPotential {
 	MxPotential *pc, *ps;
+	unsigned int modes;
+	double q, kappa;
 	std::vector<double> mode_cfs;
 	std::vector<MxVector3d> mode_rvecs;
 
@@ -2877,12 +2903,16 @@ struct MxCoulombRPotential : public MxPotential {
 						MxPotential* ps, 
 						double min, 
 						double max, 
+						double q, 
+						double kappa, 
+						unsigned int modes, 
 						std::vector<double> mode_cfs, 
 						std::vector<MxVector3d> mode_rvecs) : 
-		MxPotential(), pc(pc), ps(ps), mode_cfs(mode_cfs), mode_rvecs(mode_rvecs)
+		MxPotential(), pc(pc), ps(ps), q(q), kappa(kappa), modes(modes), mode_cfs(mode_cfs), mode_rvecs(mode_rvecs)
 	{
 		this->a = min;
 		this->b = max;
+		this->flags |= POTENTIAL_COULOMBR;
 		this->kind = POTENTIAL_KIND_BYPARTICLES;
 		this->name = "CoulombR";
 		this->eval_byparts = &coulombR_eval;
@@ -2972,7 +3002,7 @@ MxPotential* MxPotential::coulombR(double q, double kappa, double min, double ma
 	potential_init(pc, &_coulombR_cos_f, &_coulombR_cos_fp, &_coulombR_cos_f6p, 0, 2*M_PI, 1e-4);
 	potential_init(ps, &_coulombR_sin_f, &_coulombR_sin_fp, &_coulombR_sin_f6p, 0, 2*M_PI, 1e-4);
 
-	return new MxCoulombRPotential(pc, ps, min, max, mode_cfs, mode_rvecs);
+	return new MxCoulombRPotential(pc, ps, min, max, q, kappa, _modes, mode_cfs, mode_rvecs);
 }
 
 MxPotential *MxPotential::harmonic(double k, double r0, double *min, double *max, double *tol) {
@@ -3527,3 +3557,194 @@ MxPotential *potential_create_morse(double d, double a, double r0,
     /* return it */
     return p;
 }
+
+
+namespace mx { namespace io {
+
+
+#define MXPOTENTIALIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXPOTENTIALIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+HRESULT toFile(MxCoulombRPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+	MXPOTENTIALIOTOEASY(fe, "modes", dataElement->modes);
+	MXPOTENTIALIOTOEASY(fe, "q", dataElement->q);
+	MXPOTENTIALIOTOEASY(fe, "kappa", dataElement->kappa);
+
+	fileElement->type = "CoulombRPotential";
+	
+	return S_OK;
+}
+
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxCoulombRPotential **dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+	unsigned int modes;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "modes", &modes);
+	double q, kappa;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "q", &q);
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "kappa", &kappa);
+	float a, b;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "a", &a);
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "b", &b);
+
+	*dataElement = (MxCoulombRPotential*)MxPotential::coulombR(q, kappa, a, b, &modes);
+
+	return S_OK;
+}
+
+HRESULT toFile(MxPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+	fileElement->type = "Potential";
+
+	MXPOTENTIALIOTOEASY(fe, "kind", dataElement->kind);
+	MXPOTENTIALIOTOEASY(fe, "flags", dataElement->flags);
+
+	std::string name = dataElement->name;
+	MXPOTENTIALIOTOEASY(fe, "name", name);
+
+	// Handle kind
+	
+	if(dataElement->kind == POTENTIAL_KIND_COMBINATION) {
+		if(dataElement->pca != NULL) 
+			MXPOTENTIALIOTOEASY(fe, "PotentialA", dataElement->pca);
+		if(dataElement->pcb != NULL) 
+			MXPOTENTIALIOTOEASY(fe, "PotentialB", dataElement->pcb);
+		return S_OK;
+	}
+
+	MXPOTENTIALIOTOEASY(fe, "a", dataElement->a);
+	MXPOTENTIALIOTOEASY(fe, "b", dataElement->b);
+
+	if(dataElement->kind == POTENTIAL_KIND_DPD) {
+		return toFile((DPDPotential*)dataElement, metaData, fileElement);
+	} 
+
+	if(dataElement->kind == POTENTIAL_KIND_BYPARTICLES) {
+		if(dataElement->flags | POTENTIAL_COULOMBR) {
+			return toFile((MxCoulombRPotential*)dataElement, metaData, fileElement);
+		}
+	}
+	
+	// Regular kind
+
+	std::vector<FPTYPE> alpha;
+	for(unsigned int i = 0; i < 4; i++) 
+		alpha.push_back(dataElement->alpha[i]);
+	MXPOTENTIALIOTOEASY(fe, "alpha", alpha);
+
+	MXPOTENTIALIOTOEASY(fe, "n", dataElement->n);
+
+	std::vector<FPTYPE> c;
+	for(unsigned int i = 0; i < (dataElement->n + 1) * potential_chunk; i++) {
+		c.push_back(dataElement->c[i]);
+	}
+	MXPOTENTIALIOTOEASY(fe, "c", c);
+
+	MXPOTENTIALIOTOEASY(fe, "r0_plusone", dataElement->r0_plusone);
+	MXPOTENTIALIOTOEASY(fe, "mu", dataElement->mu);
+
+	std::vector<FPTYPE> offset;
+	for(unsigned int i = 0; i < 3; i++) 
+		offset.push_back(dataElement->offset[i]);
+	MXPOTENTIALIOTOEASY(fe, "offset", offset);
+
+	return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxPotential **dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+	uint32_t kind;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "kind", &kind);
+
+	uint32_t flags;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "flags", &flags);
+
+	if(kind == POTENTIAL_KIND_DPD) {
+		DPDPotential *dpdp = NULL;
+		if(fromFile(fileElement, metaData, &dpdp) != S_OK) 
+			return E_FAIL;
+		*dataElement = dpdp;
+		return S_OK;
+	}
+	else if(kind == POTENTIAL_KIND_BYPARTICLES) {
+		if(flags | POTENTIAL_COULOMBR) {
+			MxCoulombRPotential *pcr = NULL;
+			if(fromFile(fileElement, metaData, &pcr) != S_OK) 
+				return E_FAIL;
+			*dataElement = pcr;
+			return S_OK;
+		}
+	}
+
+	MxPotential *p = new MxPotential();
+
+	p->kind = kind;
+	p->flags = flags;
+
+	std::string name;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "name", &name);
+	char *cname = new char[name.size() + 1];
+	std::strcpy(cname, name.c_str());
+	p->name = cname;
+	
+	if(p->kind == POTENTIAL_KIND_COMBINATION) {
+		if(fileElement.children.find("PotentialA") != fileElement.children.end()) {
+			p->pca = NULL;
+			MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "PotentialA", &p->pca);
+		}
+		if(fileElement.children.find("PotentialB") != fileElement.children.end()) {
+			p->pcb = NULL;
+			MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "PotentialB", &p->pcb);
+		}
+		*dataElement = p;
+		return S_OK;
+	} 
+	
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "a", &p->a);
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "b", &p->b);
+
+	std::vector<FPTYPE> alpha;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "alpha", &alpha);
+	for(unsigned int i = 0; i < 4; i++) 
+		p->alpha[i] = alpha[i];
+
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "n", &p->n);
+	
+	std::vector<FPTYPE> c;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "c", &c);
+	p->c = (FPTYPE*)malloc(sizeof(FPTYPE) * (p->n + 1) * potential_chunk);
+	for(unsigned int i = 0; i < (p->n + 1) * potential_chunk; i++) 
+		p->c[i] = c[i];
+
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "r0_plusone", &p->r0_plusone);
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "mu", &p->mu);
+
+	std::vector<FPTYPE> offset;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "offset", &offset);
+	for(unsigned int i = 0; i < 3; i++) 
+		p->offset[i] = offset[i];
+
+	*dataElement = p;
+
+	return S_OK;
+}
+
+}};

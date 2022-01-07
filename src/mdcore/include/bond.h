@@ -104,6 +104,23 @@ typedef struct MxBond {
                                 double *dissociation_energy=NULL, 
                                 uint32_t flags=0);
 
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned bond is not automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxBond* 
+     */
+    static MxBond *fromString(const std::string &str);
+
 } MxBond;
 
 struct MxParticleType;
@@ -298,5 +315,16 @@ std::vector<int32_t> MxBond_IdsForParticle(int32_t pid);
 
 int insert_bond(std::vector<MxBondHandle*> &bonds, int a, int b,
                 MxPotential *pot, MxParticleList *parts);
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxBond &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBond *dataElement);
+
+}};
 
 #endif // INCLUDE_BOND_H_

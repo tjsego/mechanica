@@ -10,6 +10,7 @@
 #include "engine.h"
 #include <metrics.h>
 #include "../../mx_error.h"
+#include "../../io/MxFIO.h"
 #include <cstdarg>
 #include <iostream>
 
@@ -319,3 +320,53 @@ MxParticleList* MxParticleList::all() {
     
     return list;
 }
+
+std::string MxParticleList::toString() {
+    return mx::io::toString(*this);
+}
+
+MxParticleList *MxParticleList::fromString(const std::string &str) {
+    return new MxParticleList(mx::io::fromString<MxParticleList>(str));
+}
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxParticleList &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) { 
+
+    MxIOElement *fe;
+
+    std::vector<int32_t> parts;
+    for(unsigned int i = 0; i < dataElement.nr_parts; i++) 
+        parts.push_back(dataElement.parts[i]);
+    fe = new MxIOElement();
+    if(toFile(parts, metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["parts"] = fe;
+
+    fileElement->type = "ParticleList";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticleList *dataElement) { 
+
+    MxIOChildMap::const_iterator feItr;
+    std::vector<int32_t> parts;
+
+    feItr = fileElement.children.find("parts");
+    if(feItr == fileElement.children.end() || fromFile(*feItr->second, metaData, &parts) != S_OK) 
+        return E_FAIL;
+
+    for(unsigned int i = 0; i < parts.size(); i++) 
+        dataElement->insert(parts[i]);
+
+    dataElement->flags = PARTICLELIST_OWNDATA |PARTICLELIST_MUTABLE | PARTICLELIST_OWNSELF;
+
+    return S_OK;
+}
+
+}};

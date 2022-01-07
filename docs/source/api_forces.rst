@@ -11,6 +11,12 @@ Forces
 
     .. automethod:: friction
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
 .. autoclass:: ConstantForce
 
 .. autoclass:: MxConstantForce
@@ -20,13 +26,30 @@ Forces
 
     .. autoproperty:: period
 
+    .. automethod:: fromForce
+
 .. autoclass:: MxConstantForcePy
     :show-inheritance:
+
+    .. automethod:: fromForce
+
+.. autoclass:: ForceSum
+
+.. autoclass:: MxForceSum
+    :show-inheritance:
+
+    .. autoattribute:: f1
+
+    .. autoattribute:: f2
+
+    .. automethod:: fromForce
 
 .. autoclass:: Berendsen
     :show-inheritance:
 
     .. autoattribute:: itau
+
+    .. automethod:: fromForce
 
 .. autoclass:: Gaussian
     :show-inheritance:
@@ -36,6 +59,8 @@ Forces
     .. autoattribute:: mean
 
     .. autoattribute:: durration_steps
+
+    .. automethod:: fromForce
 
 .. autoclass:: Friction
     :show-inheritance:
@@ -47,3 +72,5 @@ Forces
     .. autoattribute:: mean
 
     .. autoattribute:: durration_steps
+
+    .. automethod:: fromForce

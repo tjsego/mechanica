@@ -8,6 +8,7 @@
 #ifndef _MDCORE_MXPARTICLETYPELIST_H_
 #define _MDCORE_MXPARTICLETYPELIST_H_
 
+#include "../../io/mx_io.h"
 #include "MxParticleList.hpp"
 
 struct MxParticleType;
@@ -101,7 +102,32 @@ struct CAPI_EXPORT MxParticleTypeList {
     MxParticleTypeList(uint16_t nr_parts, int32_t *ptypes);
     MxParticleTypeList(const MxParticleTypeList &other);
     ~MxParticleTypeList();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation
+     * 
+     * @param str 
+     * @return MxParticleTypeList* 
+     */
+    static MxParticleTypeList *fromString(const std::string &str);
     
 };
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxParticleTypeList &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticleTypeList *dataElement);
+
+}};
 
 #endif //_MDCORE_MXPARTICLETYPELIST_H_

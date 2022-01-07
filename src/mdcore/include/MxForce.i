@@ -5,6 +5,41 @@
 
 %include "MxForce.h"
 
+%extend MxForce {
+    %pythoncode %{
+        def __reduce__(self):
+            return MxForce.fromString, (self.toString(),)
+    %}
+}
+
+%extend MxForceSum {
+    %pythoncode %{
+        def __reduce__(self):
+            return MxForceSum_fromStr, (self.toString(),)
+    %}
+}
+
+%extend Berendsen {
+    %pythoncode %{
+        def __reduce__(self):
+            return Berendsen_fromStr, (self.toString(),)
+    %}
+}
+
+%extend Gaussian {
+    %pythoncode %{
+        def __reduce__(self):
+            return Gaussian_fromStr, (self.toString(),)
+    %}
+}
+
+%extend Friction {
+    %pythoncode %{
+        def __reduce__(self):
+            return Friction_fromStr, (self.toString(),)
+    %}
+}
+
 %extend MxConstantForce {
     %pythoncode %{
         @property

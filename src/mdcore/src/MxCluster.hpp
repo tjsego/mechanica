@@ -69,9 +69,18 @@ struct MxClusterParticleHandle : MxParticleHandle {
     MxClusterParticleHandle(const int &id, const int &typeId);
 
     /**
+     * @brief Gets the actual cluster of this handle. 
+     * 
+     * @return MxParticle* 
+     */
+    MxCluster *cluster();
+
+    /**
      * @brief Constituent particle constructor. 
      * 
      * The created particle will belong to this cluster. 
+     * 
+     * Automatically updates when running on a CUDA device. 
      * 
      * @param partType type of particle to create
      * @param position position of new particle, optional
@@ -81,6 +90,19 @@ struct MxClusterParticleHandle : MxParticleHandle {
     MxParticleHandle *operator()(MxParticleType *partType, 
                                  MxVector3f *position=NULL, 
                                  MxVector3f *velocity=NULL);
+    
+    /**
+     * @brief Constituent particle constructor. 
+     * 
+     * The created particle will belong to this cluster. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param partType type of particle to create
+     * @param str JSON string
+     * @return MxParticleHandle* 
+     */
+    MxParticleHandle *operator()(MxParticleType *partType, const std::string &str);
 
     MxParticleHandle* fission(MxVector3f *axis=NULL, 
                               bool *random=NULL, 
@@ -150,5 +172,21 @@ CAPI_FUNC(MxClusterParticleType*) MxClusterParticleType_FindFromName(const char*
  */
 HRESULT _MxCluster_init();
 
+
+/**
+ * @brief Create a cluster from a JSON string representation
+ * 
+ * @param str 
+ * @return MxCluster* 
+ */
+MxCluster *MxCluster_fromString(const std::string &str);
+
+/**
+ * @brief Create a cluster type from a JSON string representation
+ * 
+ * @param str 
+ * @return MxClusterParticleType* 
+ */
+MxClusterParticleType *MxClusterParticleType_fromString(const std::string &str);
 
 #endif /* SRC_MDCORE_SRC_MXCLUSTER_H_ */

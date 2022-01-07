@@ -7,6 +7,12 @@ Reactions and Species
 
     .. automethod:: __str__
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
     .. autoproperty:: id
 
     .. autoproperty:: name
@@ -71,6 +77,12 @@ Reactions and Species
 
     .. automethod:: insert
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
 
 .. autoclass:: StateVector
 
@@ -87,5 +99,11 @@ Reactions and Species
     .. automethod:: __getitem__
 
     .. automethod:: __setitem__
+
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
 
     .. autoattribute:: species

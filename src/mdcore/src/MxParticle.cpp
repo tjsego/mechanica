@@ -34,6 +34,7 @@
 #include "../../MxUtil.h"
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
+#include "../../io/MxFIO.h"
 
 #include <../../state/MxSpeciesList.h>
 #include <../../state/MxStateVector.h>
@@ -488,11 +489,46 @@ bool MxParticleType::isCluster() {
     return this->particle_flags & PARTICLE_CLUSTER;
 }
 
+MxParticleType::operator MxClusterParticleType*() {
+    if (!this->isCluster()) return NULL;
+    return static_cast<MxClusterParticleType*>(this);
+}
+
 MxParticleHandle *MxParticleType::operator()(MxVector3f *position,
                                              MxVector3f *velocity,
                                              int *clusterId) 
 {
     return MxParticle_New(this, position, velocity, clusterId);
+}
+
+MxParticleHandle *MxParticleType::operator()(const std::string &str, int *clusterId) {
+    MxParticle *dummy = MxParticle::fromString(str);
+
+    MxParticleHandle *ph = (*this)(&dummy->position, &dummy->velocity, clusterId);
+    auto p = ph->part();
+
+    // copy reamining valid imported data
+
+    p->force = dummy->force;
+    p->inv_number_density = dummy->inv_number_density;
+    p->creation_time = dummy->creation_time;
+    p->persistent_force = dummy->persistent_force;
+    p->radius = dummy->radius;
+    p->mass = dummy->mass;
+    p->imass = dummy->imass;
+    p->q = dummy->q;
+    p->p0 = dummy->p0;
+    p->v0 = dummy->v0;
+    for(unsigned int i = 0; i < 4; i++) {
+        p->xk[i] = dummy->xk[i];
+        p->vk[i] = dummy->vk[i];
+    }
+    p->vid = dummy->vid;
+    p->flags = dummy->flags;
+
+    delete dummy;
+
+    return ph;
 }
 
 MxParticleType* MxParticleType::newType(const char *_name) {
@@ -1091,4 +1127,237 @@ HRESULT MxParticle_Verify() {
     }
 
     return result ? S_OK : E_FAIL;
+}
+
+
+namespace mx { namespace io {
+
+#define MXPARTICLEIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXPARTICLEIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const MxParticle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) { 
+
+    MxIOElement *fe;
+
+    MXPARTICLEIOTOEASY(fe, "force", dataElement.force);
+    MXPARTICLEIOTOEASY(fe, "number_density", dataElement.number_density);
+    MXPARTICLEIOTOEASY(fe, "velocity", dataElement.velocity);
+    MXPARTICLEIOTOEASY(fe, "position", MxParticleHandle(dataElement.id, dataElement.typeId).getPosition());
+    MXPARTICLEIOTOEASY(fe, "creation_time", dataElement.creation_time);
+    MXPARTICLEIOTOEASY(fe, "persistent_force", dataElement.persistent_force);
+    MXPARTICLEIOTOEASY(fe, "radius", dataElement.radius);
+    MXPARTICLEIOTOEASY(fe, "mass", dataElement.mass);
+    MXPARTICLEIOTOEASY(fe, "q", dataElement.q);
+    MXPARTICLEIOTOEASY(fe, "p0", dataElement.p0);
+    MXPARTICLEIOTOEASY(fe, "v0", dataElement.v0);
+    MXPARTICLEIOTOEASY(fe, "xk0", dataElement.xk[0]);
+    MXPARTICLEIOTOEASY(fe, "xk1", dataElement.xk[1]);
+    MXPARTICLEIOTOEASY(fe, "xk2", dataElement.xk[2]);
+    MXPARTICLEIOTOEASY(fe, "xk3", dataElement.xk[3]);
+    MXPARTICLEIOTOEASY(fe, "vk0", dataElement.vk[0]);
+    MXPARTICLEIOTOEASY(fe, "vk1", dataElement.vk[1]);
+    MXPARTICLEIOTOEASY(fe, "vk2", dataElement.vk[2]);
+    MXPARTICLEIOTOEASY(fe, "vk3", dataElement.vk[3]);
+    MXPARTICLEIOTOEASY(fe, "id", dataElement.id);
+    MXPARTICLEIOTOEASY(fe, "vid", dataElement.vid);
+    MXPARTICLEIOTOEASY(fe, "typeId", dataElement.typeId);
+    MXPARTICLEIOTOEASY(fe, "clusterId", dataElement.clusterId);
+    MXPARTICLEIOTOEASY(fe, "flags", dataElement.flags);
+    
+    if(dataElement.nr_parts > 0) {
+        std::vector<int32_t> parts;
+        for(unsigned int i = 0; i < dataElement.nr_parts; i++) 
+            parts.push_back(dataElement.parts[i]);
+        MXPARTICLEIOTOEASY(fe, "parts", parts);
+    }
+    
+    if(dataElement.style != NULL) {
+        MXPARTICLEIOTOEASY(fe, "style", *dataElement.style);
+    }
+    if(dataElement.state_vector != NULL) {
+        MXPARTICLEIOTOEASY(fe, "state_vector", *dataElement.state_vector);
+    }
+
+    fileElement->type = "Particle";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticle *dataElement) { 
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "force", &dataElement->force);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "velocity", &dataElement->velocity);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "number_density", &dataElement->number_density);
+    dataElement->inv_number_density = 1.f / dataElement->number_density;
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "position", &dataElement->position);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "creation_time", &dataElement->creation_time);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "persistent_force", &dataElement->persistent_force);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "radius", &dataElement->radius);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "mass", &dataElement->mass);
+    dataElement->imass = 1.f / dataElement->mass;
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "q", &dataElement->q);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "p0", &dataElement->p0);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "v0", &dataElement->v0);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "xk0", &dataElement->xk[0]);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "xk1", &dataElement->xk[1]);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "xk2", &dataElement->xk[2]);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "xk3", &dataElement->xk[3]);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "vk0", &dataElement->vk[0]);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "vk1", &dataElement->vk[1]);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "vk2", &dataElement->vk[2]);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "vk3", &dataElement->vk[3]);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "vid", &dataElement->vid);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "typeId", &dataElement->typeId);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "clusterId", &dataElement->clusterId);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "flags", &dataElement->flags);
+    
+    // Skipping importing constituent particles; deduced from clusterId during import
+    
+    feItr = fileElement.children.find("style");
+    if(feItr != fileElement.children.end()) {
+        dataElement->style = new NOMStyle();
+        if(fromFile(*feItr->second, metaData, dataElement->style) != S_OK) 
+            return E_FAIL;
+    } 
+    else dataElement->style = NULL;
+    
+    feItr = fileElement.children.find("state_vector");
+    if(feItr != fileElement.children.end()) {
+        dataElement->state_vector = NULL;
+        if(fromFile(*feItr->second, metaData, &dataElement->state_vector) != S_OK) 
+            return E_FAIL;
+        dataElement->state_vector->owner = dataElement;
+    }
+    else dataElement->state_vector = NULL;
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxParticleType &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) { 
+
+    MxIOElement *fe;
+
+    MXPARTICLEIOTOEASY(fe, "id", dataElement.id);
+    MXPARTICLEIOTOEASY(fe, "type_flags", dataElement.type_flags);
+    MXPARTICLEIOTOEASY(fe, "particle_flags", dataElement.particle_flags);
+    MXPARTICLEIOTOEASY(fe, "mass", dataElement.mass);
+    MXPARTICLEIOTOEASY(fe, "charge", dataElement.charge);
+    MXPARTICLEIOTOEASY(fe, "radius", dataElement.radius);
+    MXPARTICLEIOTOEASY(fe, "kinetic_energy", dataElement.kinetic_energy);
+    MXPARTICLEIOTOEASY(fe, "potential_energy", dataElement.potential_energy);
+    MXPARTICLEIOTOEASY(fe, "target_energy", dataElement.target_energy);
+    MXPARTICLEIOTOEASY(fe, "minimum_radius", dataElement.minimum_radius);
+    MXPARTICLEIOTOEASY(fe, "eps", dataElement.eps);
+    MXPARTICLEIOTOEASY(fe, "rmin", dataElement.rmin);
+    MXPARTICLEIOTOEASY(fe, "dynamics", (unsigned int)dataElement.dynamics);
+    MXPARTICLEIOTOEASY(fe, "name", std::string(dataElement.name));
+    MXPARTICLEIOTOEASY(fe, "name2", std::string(dataElement.name2));
+    if(dataElement.parts.nr_parts > 0) 
+        MXPARTICLEIOTOEASY(fe, "parts", dataElement.parts);
+    if(dataElement.types.nr_parts > 0) 
+        MXPARTICLEIOTOEASY(fe, "types", dataElement.types);
+    if(dataElement.style != NULL) {
+        MXPARTICLEIOTOEASY(fe, "style", *dataElement.style);
+    }
+    if(dataElement.species != NULL) {
+        MXPARTICLEIOTOEASY(fe, "species", *dataElement.species);
+    }
+
+    fileElement->type = "ParticleType";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticleType *dataElement) { 
+
+    MxIOChildMap::const_iterator feItr;
+
+    // Id set during registration: type ids are not preserved during import
+    // MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
+
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "type_flags", &dataElement->type_flags);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "particle_flags", &dataElement->particle_flags);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "mass", &dataElement->mass);
+    dataElement->imass = 1.f / dataElement->mass;
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "charge", &dataElement->charge);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "radius", &dataElement->radius);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "kinetic_energy", &dataElement->kinetic_energy);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "potential_energy", &dataElement->potential_energy);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "target_energy", &dataElement->target_energy);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "minimum_radius", &dataElement->minimum_radius);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "eps", &dataElement->eps);
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "rmin", &dataElement->rmin);
+    
+    unsigned int dynamics;
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "dynamics", &dynamics);
+    dataElement->dynamics = dynamics;
+    
+    std::string name;
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "name", &name);
+    std::strncpy(dataElement->name, std::string(name).c_str(), MxParticleType::MAX_NAME);
+    
+    std::string name2;
+    MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "name2", &name2);
+    std::strncpy(dataElement->name2, std::string(name2).c_str(), MxParticleType::MAX_NAME);
+    
+    // Parts must be manually added, since part ids are not preserved during import
+    // MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "parts", &dataElement->parts);
+    
+    if(fileElement.children.find("types") != fileElement.children.end()) 
+        MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "types", &dataElement->types);
+    
+    feItr = fileElement.children.find("style");
+    if(feItr != fileElement.children.end()) { 
+        dataElement->style = new NOMStyle();
+        if(fromFile(*feItr->second, metaData, dataElement->style) != S_OK) 
+            return E_FAIL;
+    } 
+    else {
+        auto c = Magnum::Color3::fromSrgb(colors[(dataElement->id - 1) % (sizeof(colors)/sizeof(unsigned))]);
+        dataElement->style = new NOMStyle(&c);
+    }
+    
+    feItr = fileElement.children.find("species");
+    if(feItr != fileElement.children.end()) {
+        dataElement->species = new MxSpeciesList();
+        if(fromFile(*feItr->second, metaData, dataElement->species) != S_OK) 
+            return E_FAIL;
+    } 
+    else dataElement->species = NULL;
+
+    return S_OK;
+}
+
+}};
+
+std::string MxParticle::toString() {
+    return mx::io::toString(*this);
+}
+
+MxParticle *MxParticle::fromString(const std::string &str) {
+    return new MxParticle(mx::io::fromString<MxParticle>(str));
+}
+
+std::string MxParticleType::toString() {
+    return mx::io::toString(*this);
+}
+
+MxParticleType *MxParticleType::fromString(const std::string &str) {
+    return new MxParticleType(mx::io::fromString<MxParticleType>(str));
 }

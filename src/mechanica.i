@@ -151,6 +151,9 @@
 // submodule: types
 %include "types/types.i"
 
+// submodule: mx_io
+%include "io/io.i"
+
 // submodule: state
 %include "state/state.i"
 

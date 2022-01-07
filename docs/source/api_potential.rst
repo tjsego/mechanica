@@ -33,6 +33,12 @@ Potentials
 
     .. automethod:: plot
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
     .. automethod:: lennard_jones_12_6
 
     .. automethod:: lennard_jones_12_6_coulomb
@@ -68,3 +74,20 @@ Potentials
     .. automethod:: dpd
 
     .. automethod:: custom
+
+.. autoclass:: DPDPotential
+    :show-inheritance:
+
+    .. autoattribute:: alpha
+
+    .. autoattribute:: gamma
+
+    .. autoattribute:: sigma
+
+    .. automethod:: fromPot
+
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__

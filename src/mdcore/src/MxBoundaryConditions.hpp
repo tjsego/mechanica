@@ -11,6 +11,7 @@
 #include <platform.h>
 #include <MxPy.h>
 #include "../../types/mx_types.h"
+#include "../../io/mx_io.h"
 
 #include <unordered_map>
 
@@ -154,6 +155,21 @@ struct MxBoundaryConditions {
 
     std::string str();
 
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return MxBoundaryConditions* 
+     */
+    static MxBoundaryConditions *fromString(const std::string &str);
+
 private:
 
     HRESULT _initIni();
@@ -197,5 +213,27 @@ private:
  */
 void apply_boundary_particle_crossing(struct MxParticle *p, const int *delta,
                                      const struct space_cell *source_cell, const struct space_cell *dest_cell);
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxBoundaryCondition &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBoundaryCondition *dataElement);
+
+template <>
+HRESULT toFile(const MxBoundaryConditions &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+// Requires returned value to already be initialized with cells
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBoundaryConditions *dataElement);
+
+// Takes a file element generated from MxBoundaryConditions
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBoundaryConditionsArgsContainer *dataElement);
+
+}};
 
 #endif /* SRC_MDCORE_SRC_BOUNDARYCONDITIONS_H_ */

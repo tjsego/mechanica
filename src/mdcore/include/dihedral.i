@@ -9,6 +9,13 @@
 
 %template(vectorDihedralHandle_p) std::vector<MxDihedralHandle*>;
 
+%extend MxDihedral {
+    %pythoncode %{
+        def __reduce__(self):
+            return MxDihedral.fromString, (self.toString(),)
+    %}
+}
+
 %extend MxDihedralHandle {
     %pythoncode %{
         def __getitem__(self, index: int):

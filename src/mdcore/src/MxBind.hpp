@@ -61,7 +61,9 @@ struct CAPI_EXPORT MxBind {
      */
     static HRESULT boundaryCondition(MxPotential *p, MxBoundaryCondition *bc, MxParticleType *t);
 
-    static HRESULT force(MxForce *force, MxParticleType *a_type, const std::string* coupling_symbol=NULL);
+    static HRESULT force(MxForce *force, MxParticleType *a_type);
+
+    static HRESULT force(MxForce *force, MxParticleType *a_type, const std::string& coupling_symbol);
 
     static HRESULT bonds(MxPotential* potential,
                          MxParticleList *particles, 

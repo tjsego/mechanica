@@ -24,6 +24,7 @@
 #include <MxLogger.h>
 #include <mx_error.h>
 #include <mx_parse.h>
+#include <io/MxFIO.h>
 #include <MxPy.h>
 
 // mdcore errs.h
@@ -161,6 +162,38 @@ struct ArgumentsWrapper  {
     int argsSeriouslyTakesAFuckingIntReference;
 };
 
+static HRESULT initSimConfigFromFile(const std::string &loadFilePath, MxSimulator_Config &conf) {
+
+    if(MxFIO::currentRootElement != NULL) {
+        mx_error(E_FAIL, "Cannot load from multiple files");
+        return E_FAIL;
+    }
+
+    MxIOElement *fe = MxFIO::fromFile(loadFilePath);
+    if(fe == NULL) {
+        mx_error(E_FAIL, "Error loading file");
+        return E_FAIL;
+    }
+
+    MxMetaData metaData, metaDataFile;
+
+    auto feItr = fe->children.find(MxFIO::KEY_METADATA);
+    if(feItr == fe->children.end() || mx::io::fromFile(*feItr->second, metaData, &metaDataFile) != S_OK) {
+        mx_error(E_FAIL, "Error loading metadata");
+        return E_FAIL;
+    }
+
+    feItr = fe->children.find(MxFIO::KEY_SIMULATOR);
+    if(feItr == fe->children.end() || mx::io::fromFile(*feItr->second, metaDataFile, &conf) != S_OK) {
+        mx_error(E_FAIL, "Error loading simulator");
+        return E_FAIL;
+    }
+
+    conf.importDataFilePath = new std::string(loadFilePath);
+
+    return S_OK;
+}
+
 static void parse_kwargs(MxSimulator_Config &conf, 
                          MxVector3f *dim=NULL, 
                          double *cutoff=NULL, 
@@ -219,6 +252,15 @@ static void parse_kwargs(const std::vector<std::string> &kwargs, MxSimulator_Con
     Log(LOG_INFORMATION) << "parsing vector string input";
 
     std::string s;
+
+    if(mx::parse::has_kwarg(kwargs, "load_file")) {
+        s = mx::parse::kwargVal(kwargs, "load_file");
+
+        Log(LOG_INFORMATION) << "got load file: " << s;
+        
+        if(initSimConfigFromFile(s, conf) != S_OK) 
+            return;
+    }
 
     MxVector3f *dim;
     if(mx::parse::has_kwarg(kwargs, "dim")) {
@@ -437,6 +479,16 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
     Log(LOG_INFORMATION) << "parsing python dictionary input";
 
     PyObject *o;
+
+    std::string loadPath;
+    if((o = PyDict_GetItemString(kwargs, "load_file"))) {
+        loadPath = mx::cast<PyObject, std::string>(o);
+
+        Log(LOG_INFORMATION) << "got load file: " << loadPath;
+        
+        if(initSimConfigFromFile(loadPath, conf) != S_OK) 
+            return;
+    }
 
     MxVector3f *dim;
     if((o = PyDict_GetItemString(kwargs, "dim"))) {
@@ -695,6 +747,7 @@ int universe_init(const MxUniverseConfig &conf ) {
     }
 
     _Engine.dt = conf.dt;
+    _Engine.time = conf.start_step;
     _Engine.temperature = conf.temp;
     _Engine.integrator = conf.integrator;
 
@@ -739,6 +792,28 @@ int universe_init(const MxUniverseConfig &conf ) {
     if ( modules_init() != S_OK ) {
         Log(LOG_ERROR) << errs_getstring(0);
         mx_exp(std::runtime_error(errs_getstring(0)));
+    }
+
+    // if loading from file, populate universe if data is available
+    
+    if(MxFIO::currentRootElement != NULL) {
+        Log(LOG_INFORMATION) << "Populating universe from file";
+
+        MxMetaData metaData, metaDataFile;
+
+        auto feItr = MxFIO::currentRootElement->children.find(MxFIO::KEY_METADATA);
+        if(feItr == MxFIO::currentRootElement->children.end() || mx::io::fromFile(*feItr->second, metaData, &metaDataFile) != S_OK) {
+            mx_error(E_FAIL, "Error loading metadata");
+            return E_FAIL;
+        }
+
+        feItr = MxFIO::currentRootElement->children.find(MxFIO::KEY_UNIVERSE);
+        if(feItr != MxFIO::currentRootElement->children.end()) {
+            if(mx::io::fromFile(*feItr->second, metaDataFile, MxUniverse::get()) != S_OK) {
+                mx_error(E_FAIL, "Error loading universe");
+                return E_FAIL;
+            }
+        }
     }
 
     fflush(stdout);
@@ -1318,3 +1393,111 @@ PyObject *MxSimulatorPy::_run(PyObject *args, PyObject *kwargs) {
 struct MxUniverseRenderer *MxSimulator::getRenderer() {
     return app->getRenderer();
 }
+
+
+namespace mx { namespace io {
+
+#define MXSIMULATORIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXSIMULATORIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const MxSimulator &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXSIMULATORIOTOEASY(fe, "origin", MxVector3d::from(_Engine.s.origin));
+    MXSIMULATORIOTOEASY(fe, "dim", MxVector3d::from(_Engine.s.dim));
+    MXSIMULATORIOTOEASY(fe, "cutoff", _Engine.s.cutoff);
+    MXSIMULATORIOTOEASY(fe, "cells", MxVector3i::from(_Engine.s.cdim));
+    MXSIMULATORIOTOEASY(fe, "integrator", (int)_Engine.integrator);
+    MXSIMULATORIOTOEASY(fe, "dt", _Engine.dt);
+    MXSIMULATORIOTOEASY(fe, "time", _Engine.time);
+    MXSIMULATORIOTOEASY(fe, "boundary_conditions", _Engine.boundary_conditions);
+    MXSIMULATORIOTOEASY(fe, "max_distance", _Engine.particle_max_dist_fraction * _Engine.s.h[0]);
+    
+    if(dataElement.app != NULL) {
+        auto renderer = dataElement.app->getRenderer();
+
+        if(renderer != NULL && renderer->clipPlaneCount() > 0) {
+
+            MxVector4f clipPlaneEq;
+            MxVector3f normal, point;
+            std::vector<MxVector3f> normals, points;
+
+            for(unsigned int i = 0; i < renderer->clipPlaneCount(); i++) {
+                std::tie(normal, point) = MxPlaneEquation(renderer->getClipPlaneEquation(i));
+                normals.push_back(normal);
+                points.push_back(point);
+            }
+
+            MXSIMULATORIOTOEASY(fe, "clipPlaneNormals", normals);
+            MXSIMULATORIOTOEASY(fe, "clipPlanePoints", points);
+
+        }
+
+    }
+
+    fileElement->type = "Simulator";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxSimulator_Config *dataElement) { 
+
+    MxIOChildMap::const_iterator feItr;
+
+    // Do sim setup
+    
+    MxVector3d origin(0.);
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "origin", &origin);
+    dataElement->universeConfig.origin = MxVector3f(origin);
+
+    MxVector3d dim(0.);
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "dim", &dim);
+    dataElement->universeConfig.dim = MxVector3f(dim);
+
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "cutoff", &dataElement->universeConfig.cutoff);
+
+    MxVector3i cells(0);
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "cells", &cells);
+    dataElement->universeConfig.spaceGridSize = cells;
+    
+    int integrator;
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "integrator", &integrator); 
+    dataElement->universeConfig.integrator = (EngineIntegrator)integrator;
+    
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "dt", &dataElement->universeConfig.dt);
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "time", &dataElement->universeConfig.start_step);
+    
+    MxBoundaryConditionsArgsContainer *bcArgs = new MxBoundaryConditionsArgsContainer();
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "boundary_conditions", bcArgs);
+    dataElement->universeConfig.setBoundaryConditions(bcArgs);
+    
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "max_distance", &dataElement->universeConfig.max_distance);
+    
+    if(fileElement.children.find("clipPlaneNormals") != fileElement.children.end()) {
+        std::vector<MxVector3f> normals, points;
+        std::vector<std::tuple<MxVector3f, MxVector3f> > clipPlanes;
+        MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "clipPlaneNormals", &normals);
+        MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "clipPlanePoints", &points);
+        if(normals.size() > 0) {
+            for(unsigned int i = 0; i < normals.size(); i++) 
+                clipPlanes.push_back(std::make_tuple(normals[i], points[i]));
+            dataElement->clipPlanes = MxParsePlaneEquation(clipPlanes);
+        }
+    }
+
+    return S_OK;
+}
+
+}};

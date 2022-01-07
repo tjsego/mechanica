@@ -104,6 +104,23 @@ typedef struct MxAngle {
                                  MxParticleHandle *p3, 
                                  uint32_t flags=0);
 
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned angle is not automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxAngle* 
+     */
+    static MxAngle *fromString(const std::string &str);
+
 } MxAngle;
 
 /**
@@ -228,5 +245,16 @@ CAPI_FUNC(bool) MxAngle_decays(MxAngle *a, std::uniform_real_distribution<double
 /* associated functions */
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out );
 int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , double *epot_out );
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxAngle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxAngle *dataElement);
+
+}};
 
 #endif // INCLUDE_ANGLE_H

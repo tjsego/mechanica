@@ -16,6 +16,8 @@ dependencies:
   - bzip2
   - libxml2
   - matplotlib
+  - assimp
+  - nlohmann_json
   - xorg-libxrandr
   - xorg-libxcursor
   - xorg-libxinerama

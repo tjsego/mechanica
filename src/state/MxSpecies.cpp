@@ -9,6 +9,7 @@
 #include "MxSpecies.h"
 #include <MxLogger.h>
 #include <mx_error.h>
+#include <io/MxFIO.h>
 
 #include <sbml/Species.h>
 #include <sbml/SBMLNamespaces.h>
@@ -480,3 +481,219 @@ MxSpecies::~MxSpecies() {
         species = 0;
     }
 }
+
+std::string MxSpecies::toString() {
+    return mx::io::toString(*this);
+}
+
+MxSpecies *MxSpecies::fromString(const std::string &str) {
+    return new MxSpecies(mx::io::fromString<MxSpecies>(str));
+}
+
+
+namespace mx{ namespace io { 
+
+template <>
+HRESULT toFile(const MxSpecies &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    MxIOElement *fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getId(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["id"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getName(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["name"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getSpeciesType(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["speciesType"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getCompartment(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["compartment"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getInitialAmount(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["initialAmount"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getInitialConcentration(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["initialConcentration"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getSubstanceUnits(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["substanceUnits"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getSpatialSizeUnits(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["spatialSizeUnits"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.getUnits(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["units"] = fe;
+    
+    fe = new MxIOElement();
+    if(toFile(dataElement.getHasOnlySubstanceUnits(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["hasOnlySubstanceUnits"] = fe;
+    
+    fe = new MxIOElement();
+    if(toFile(dataElement.getBoundaryCondition(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["boundaryCondition"] = fe;
+    
+    fe = new MxIOElement();
+    if(toFile(dataElement.getCharge(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["charge"] = fe;
+    
+    fe = new MxIOElement();
+    if(toFile(dataElement.getConstant(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["constant"] = fe;
+    
+    fe = new MxIOElement();
+    if(toFile(dataElement.getConversionFactor(), metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["conversionFactor"] = fe;
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxSpecies *dataElement) {
+    std::unordered_map<std::string, MxIOElement*>::const_iterator feItr;
+    auto &c = fileElement.children;
+    
+    std::string s;
+    double d;
+    int i;
+
+    dataElement->species = new libsbml::Species(MxGetSBMLNamespaces());
+
+    feItr = c.find("id");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &s) != S_OK) 
+        return E_FAIL;
+    dataElement->setId(s.c_str());
+
+    feItr = c.find("name");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &s) != S_OK) 
+        return E_FAIL;
+    dataElement->setName(s.c_str());
+
+    feItr = c.find("speciesType");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &s) != S_OK) 
+        return E_FAIL;
+    dataElement->setSpeciesType(s.c_str());
+
+    feItr = c.find("compartment");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &s) != S_OK) 
+        return E_FAIL;
+    dataElement->setCompartment(s.c_str());
+
+    feItr = c.find("initialAmount");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &d) != S_OK) 
+        return E_FAIL;
+    dataElement->setInitialAmount(d);
+
+    feItr = c.find("initialConcentration");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &d) != S_OK) 
+        return E_FAIL;
+    dataElement->setInitialConcentration(d);
+
+    feItr = c.find("substanceUnits");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &s) != S_OK) 
+        return E_FAIL;
+    dataElement->setSubstanceUnits(s.c_str());
+
+    feItr = c.find("spatialSizeUnits");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &s) != S_OK) 
+        return E_FAIL;
+    dataElement->setSpatialSizeUnits(s.c_str());
+
+    feItr = c.find("units");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &s) != S_OK) 
+        return E_FAIL;
+    dataElement->setUnits(s.c_str());
+
+    feItr = c.find("hasOnlySubstanceUnits");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &i) != S_OK) 
+        return E_FAIL;
+    dataElement->setHasOnlySubstanceUnits(i);
+
+    feItr = c.find("boundaryCondition");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &i) != S_OK) 
+        return E_FAIL;
+    dataElement->setBoundaryCondition(i);
+
+    feItr = c.find("charge");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &i) != S_OK) 
+        return E_FAIL;
+    dataElement->setCharge(i);
+
+    feItr = c.find("constant");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &i) != S_OK) 
+        return E_FAIL;
+    dataElement->setConstant(i);
+
+    feItr = c.find("conversionFactor");
+    if(feItr == c.end()) 
+        return E_FAIL;
+    if(fromFile(*feItr->second, metaData, &s) != S_OK) 
+        return E_FAIL;
+    dataElement->setConversionFactor(s.c_str());
+
+    return S_OK;
+}
+
+}};

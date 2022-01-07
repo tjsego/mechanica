@@ -140,8 +140,12 @@ HRESULT MxBind::boundaryCondition(MxPotential *p, MxBoundaryCondition *bc, MxPar
     return universe_bind_potential(p, bc, t);
 }
 
-HRESULT MxBind::force(MxForce *force, MxParticleType *a_type, const std::string* coupling_symbol) {
-    return universe_bind_force(force, a_type, coupling_symbol);
+HRESULT MxBind::force(MxForce *force, MxParticleType *a_type) {
+    return universe_bind_force(force, a_type, 0);
+}
+
+HRESULT MxBind::force(MxForce *force, MxParticleType *a_type, const std::string& coupling_symbol) {
+    return universe_bind_force(force, a_type, &coupling_symbol);
 }
 
 HRESULT MxBind::bonds(MxPotential* potential,

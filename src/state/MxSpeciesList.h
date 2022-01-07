@@ -10,6 +10,7 @@
 #define SRC_STATE_MXSPECIESLIST_H_
 
 #include "MxSpecies.h"
+#include "../io/mx_io.h"
 #include <mx_port.h>
 #include <string>
 #include <map>
@@ -47,11 +48,36 @@ struct MxSpeciesList
     MxSpeciesList() {};
 
     ~MxSpeciesList();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return MxSpeciesList* 
+     */
+    static MxSpeciesList *fromString(const std::string &str);
     
 private:
     
     typedef std::map<std::string, MxSpecies*> Map;
     Map species_map;
 };
+
+namespace mx { namespace io { 
+
+template <>
+HRESULT toFile(const MxSpeciesList &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxSpeciesList *dataElement);
+
+}};
 
 #endif /* SRC_STATE_MXSPECIESLIST_H_ */

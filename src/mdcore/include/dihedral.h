@@ -83,6 +83,23 @@ typedef struct MxDihedral {
                                  	MxParticleHandle *p3, 
                                  	MxParticleHandle *p4);
 
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned dihedral is not automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxDihedral* 
+     */
+    static MxDihedral *fromString(const std::string &str);
+
 } MxDihedral;
 
 struct MxDihedralHandle {
@@ -168,5 +185,16 @@ bool MxDihedral_decays(MxDihedral *d, std::uniform_real_distribution<double> *un
 /* associated functions */
 int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *epot_out );
 int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f , double *epot_out );
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxDihedral &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxDihedral *dataElement);
+
+}};
 
 #endif // INCLUDE_DIHEDRAL_H_

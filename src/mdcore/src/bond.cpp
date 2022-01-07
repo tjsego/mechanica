@@ -56,6 +56,7 @@
 #include <../../MxLogger.h>
 #include <../../MxUtil.h>
 #include <../../mx_error.h>
+#include <../../io/MxFIO.h>
 #include <../../rendering/NOMStyle.hpp>
 
 #ifdef HAVE_CUDA
@@ -667,6 +668,14 @@ MxBondHandle *MxBond::create(struct MxPotential *potential,
     return new MxBondHandle(potential, i->id, j->id, _half_life, _bond_energy, flags);
 }
 
+std::string MxBond::toString() {
+    return mx::io::toString(*this);
+}
+
+MxBond *MxBond::fromString(const std::string &str) {
+    return new MxBond(mx::io::fromString<MxBond>(str));
+}
+
 MxBond *MxBondHandle::get() {
 #ifdef INCLUDE_ENGINE_H_
     return &_Engine.bonds[this->id];
@@ -1113,3 +1122,56 @@ int insert_bond(std::vector<MxBondHandle*> &bonds, int a, int b,
     }
     return 0;
 }
+
+
+namespace mx { namespace io {
+
+#define MXBONDIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXBONDIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const MxBond &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXBONDIOTOEASY(fe, "flags", dataElement.flags);
+    MXBONDIOTOEASY(fe, "i", dataElement.i);
+    MXBONDIOTOEASY(fe, "j", dataElement.j);
+    MXBONDIOTOEASY(fe, "id", dataElement.id);
+    MXBONDIOTOEASY(fe, "creation_time", dataElement.creation_time);
+    MXBONDIOTOEASY(fe, "half_life", dataElement.half_life);
+    MXBONDIOTOEASY(fe, "dissociation_energy", dataElement.dissociation_energy);
+    MXBONDIOTOEASY(fe, "potential_energy", dataElement.potential_energy);
+
+    fileElement->type = "Bond";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBond *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "flags", &dataElement->flags);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "i", &dataElement->i);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "j", &dataElement->j);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "creation_time", &dataElement->creation_time);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "half_life", &dataElement->half_life);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "dissociation_energy", &dataElement->dissociation_energy);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "potential_energy", &dataElement->potential_energy);
+
+    return S_OK;
+}
+
+}};

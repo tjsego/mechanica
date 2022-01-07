@@ -28,6 +28,23 @@ HRESULT MxPlaneEquation(const MxVector3f &normal, const MxVector3f &point, float
     return S_OK;
 }
 
+std::tuple<MxVector3f, MxVector3f> MxPlaneEquation(const MxVector4f &planeEq) {
+    MxVector3f normal = planeEq.xyz();
+    MxVector3f point;
+    MxVector2f n2, p2(1.f);
+    float i, j, k;
+
+    if(normal[0] != 0.f) {      i = 1; j = 2; k = 0;}
+    else if(normal[1] != 0.f) { i = 0; j = 2; k = 1;}
+    else {                      i = 0; j = 1; k = 2;}
+
+    point[i] = point[j] = 1.f;
+    n2 = {normal[i], normal[j]};
+    point[k] = (n2.dot(p2) - planeEq.w()) / normal[k];
+
+    return std::make_tuple(normal, point);
+}
+
 std::vector<MxVector4f> MxParsePlaneEquation(const std::vector<std::tuple<MxVector3f, MxVector3f> > &clipPlanes) {
     std::vector<MxVector4f> result(clipPlanes.size());
     MxVector3f point;

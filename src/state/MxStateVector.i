@@ -42,6 +42,9 @@
         def __setitem__(self, item: int, value: float) -> None:
             if item < len(self):
                 self.setItem(item, value)
+
+        def __reduce__(self):
+            return MxStateVector.fromString, (self.toString(),)
             
     %}
 }

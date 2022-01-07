@@ -241,6 +241,26 @@ struct MxParticle  {
     operator MxCluster*();
     
     MxParticle();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned particle is not automatically registered with the engine. 
+     * 
+     * To properly register a particle from a string, pass the string to the 
+     * particle constructor of the appropriate particle type or cluster. 
+     * 
+     * @param str 
+     * @return MxParticle* 
+     */
+    static MxParticle *fromString(const std::string &str);
 };
 
 /**
@@ -540,6 +560,11 @@ struct MxParticleType {
     bool isCluster();
 
     /**
+     * Limits casting to cluster by type
+     */
+    operator MxClusterParticleType*();
+
+    /**
      * @brief Particle constructor. 
      * 
      * Automatically updates when running on a CUDA device. 
@@ -552,6 +577,17 @@ struct MxParticleType {
     MxParticleHandle *operator()(MxVector3f *position=NULL,
                                  MxVector3f *velocity=NULL,
                                  int *clusterId=NULL);
+    
+    /**
+     * @brief Particle constructor. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param str JSON string
+     * @param clusterId id of parent cluster, optional
+     * @return MxParticleHandle* 
+     */
+    MxParticleHandle *operator()(const std::string &str, int *clusterId=NULL);
 
     /**
      * @brief Particle type constructor. 
@@ -613,6 +649,23 @@ struct MxParticleType {
      * @return MxParticleList* 
      */
     MxParticleList *items();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned type is automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxParticleType* 
+     */
+    static MxParticleType *fromString(const std::string &str);
 };
 
 CAPI_FUNC(MxParticleType*) MxParticle_GetType();
@@ -705,5 +758,21 @@ CAPI_FUNC(HRESULT) MxParticleType_checkRegistered(MxParticleType *type);
  * The engine.types array is assumed to be allocated, but not initialized.
  */
 HRESULT _MxParticle_init();
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxParticle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticle *dataElement);
+
+template <>
+HRESULT toFile(const MxParticleType &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticleType *dataElement);
+
+}};
 
 #endif // INCLUDE_PARTICLE_H_

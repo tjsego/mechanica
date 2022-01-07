@@ -10,6 +10,7 @@
 #include <MxParticle.h>
 #include <../../mx_error.h>
 #include <../../MxLogger.h>
+#include <../../io/MxFIO.h>
 #include <iostream>
 #include <random>
 #include <../../state/MxStateVector.h>
@@ -68,16 +69,22 @@ MxVector3f pyConstantForceFunction(PyObject *callable) {
 
 MxConstantForcePy::MxConstantForcePy() : 
     MxConstantForce() 
-{}
+{
+    type = FORCE_CONSTANTPY;
+}
 
 MxConstantForcePy::MxConstantForcePy(const MxVector3f &f, const float &period) : 
     MxConstantForce(f, period)
-{}
+{
+    type = FORCE_CONSTANTPY;
+}
 
 MxConstantForcePy::MxConstantForcePy(PyObject *f, const float &period) : 
     MxConstantForce(), 
     callable(f)
 {
+    type = FORCE_CONSTANTPY;
+
     setPeriod(period);
     if(callable) {
         Py_IncRef(callable);
@@ -159,6 +166,20 @@ MxForce& MxForce::operator+(const MxForce& rhs) {
     return *MxForce_add(this, const_cast<MxForce*>(&rhs));
 }
 
+std::string MxForce::toString() {
+    MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+
+    if(mx::io::toFile(this, metaData, fe) != S_OK) 
+        return "";
+
+    return mx::io::toStr(fe, metaData);
+}
+
+MxForce *MxForce::fromString(const std::string &str) {
+    return mx::io::fromString<MxForce*>(str);
+}
+
 /**
  * Implements a force:
  *
@@ -226,6 +247,7 @@ static void gaussian_force(Gaussian* t, MxParticle *p, int stateVectorIndex, FPT
 Berendsen *berenderson_create(float tau) {
     auto *obj = new Berendsen();
 
+    obj->type = FORCE_BERENDSEN;
     obj->func = (MxForce_OneBodyPtr)berendsen_force;
     obj->itau = 1/tau;
 
@@ -235,6 +257,7 @@ Berendsen *berenderson_create(float tau) {
 Gaussian *random_create(float mean, float std, float durration) {
     auto *obj = new Gaussian();
     
+    obj->type = FORCE_GAUSSIAN;
     obj->func = (MxForce_OneBodyPtr)gaussian_force;
     obj->std = std;
     obj->mean = mean;
@@ -246,6 +269,7 @@ Gaussian *random_create(float mean, float std, float durration) {
 Friction *friction_create(float coef, float mean, float std, float durration) {
     auto *obj = new Friction();
     
+    obj->type = FORCE_FRICTION;
     obj->func = (MxForce_OneBodyPtr)friction_force;
     obj->coef = coef;
     obj->std = std;
@@ -263,16 +287,390 @@ void MxConstantForce::onTime(double time)
     }
 }
 
-MxConstantForce::MxConstantForce() {
+MxConstantForce::MxConstantForce() { 
+    type = FORCE_CONSTANT;
     func = (MxForce_OneBodyPtr)constant_force;
 }
 
 MxConstantForce::MxConstantForce(const MxVector3f &f, const float &period) : MxConstantForce() {
+    type = FORCE_CONSTANT;
     updateInterval = period;
     setValue(f);
 }
 
 MxConstantForce::MxConstantForce(MxUserForceFuncType *f, const float &period) : MxConstantForce() {
+    type = FORCE_CONSTANT;
     updateInterval = period;
     setValue(f);
+}
+
+
+MxForceSum *MxForceSum::fromForce(MxForce *f) {
+    if(f->type != FORCE_SUM) 
+        return 0;
+    return (MxForceSum*)f;
+}
+
+MxConstantForce *MxConstantForce::fromForce(MxForce *f) {
+    if(f->type != FORCE_CONSTANT) 
+        return 0;
+    return (MxConstantForce*)f;
+}
+
+MxConstantForcePy *MxConstantForcePy::fromForce(MxForce *f) {
+    if(f->type != FORCE_CONSTANTPY) 
+        return 0;
+    return (MxConstantForcePy*)f;
+}
+
+Berendsen *Berendsen::fromForce(MxForce *f) {
+    if(f->type != FORCE_BERENDSEN) 
+        return 0;
+    return (Berendsen*)f;
+}
+
+Gaussian *Gaussian::fromForce(MxForce *f) {
+    if(f->type != FORCE_GAUSSIAN) 
+        return 0;
+    return (Gaussian*)f;
+}
+
+Friction *Friction::fromForce(MxForce *f) {
+    if(f->type != FORCE_FRICTION) 
+        return 0;
+    return (Friction*)f;
+}
+
+
+namespace mx { namespace io {
+
+#define MXFORCEIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXFORCEIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const MXFORCE_TYPE &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    fileElement->type = "FORCE_TYPE";
+    fileElement->value = std::to_string((unsigned int)dataElement);
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MXFORCE_TYPE *dataElement) {
+
+    unsigned int ui;
+    if(fromFile(fileElement, metaData, &ui) != S_OK) 
+        return E_FAIL;
+
+    *dataElement = (MXFORCE_TYPE)ui;
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxConstantForce &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "updateInterval", dataElement.updateInterval);
+    MXFORCEIOTOEASY(fe, "lastUpdate", dataElement.lastUpdate);
+    MXFORCEIOTOEASY(fe, "force", dataElement.force);
+
+    fileElement->type = "ConstantForce";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForce *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "updateInterval", &dataElement->updateInterval);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "lastUpdate", &dataElement->lastUpdate);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "force", &dataElement->force);
+    dataElement->userFunc = NULL;
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxConstantForcePy &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "updateInterval", dataElement.updateInterval);
+    MXFORCEIOTOEASY(fe, "lastUpdate", dataElement.lastUpdate);
+    MXFORCEIOTOEASY(fe, "force", dataElement.force);
+
+    fileElement->type = "ConstantPyForce";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForcePy *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "updateInterval", &dataElement->updateInterval);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "lastUpdate", &dataElement->lastUpdate);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "force", &dataElement->force);
+    dataElement->userFunc = NULL;
+    dataElement->callable = NULL;
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxForceSum &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFORCEIOTOEASY(fe, "type", dataElement.type);
+
+    if(dataElement.f1 != NULL) 
+        MXFORCEIOTOEASY(fe, "Force1", dataElement.f1);
+    if(dataElement.f2 != NULL) 
+        MXFORCEIOTOEASY(fe, "Force2", dataElement.f2);
+
+    fileElement->type = "SumForce";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxForceSum *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    
+    feItr = fileElement.children.find("Force1");
+    if(feItr != fileElement.children.end()) {
+        dataElement->f1 = NULL;
+        if(fromFile(*feItr->second, metaData, &dataElement->f1) != S_OK) 
+            return E_FAIL;
+    }
+
+    feItr = fileElement.children.find("Force2");
+    if(feItr != fileElement.children.end()) {
+        dataElement->f2 = NULL;
+        if(fromFile(*feItr->second, metaData, &dataElement->f2) != S_OK) 
+            return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const Berendsen &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "itau", dataElement.itau);
+
+    fileElement->type = "BerendsenForce";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Berendsen *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "itau", &dataElement->itau);
+    dataElement->func = (MxForce_OneBodyPtr)berendsen_force;
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const Gaussian &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "std", dataElement.std);
+    MXFORCEIOTOEASY(fe, "mean", dataElement.mean);
+    MXFORCEIOTOEASY(fe, "durration_steps", dataElement.durration_steps);
+    
+    fileElement->type = "GaussianForce";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Gaussian *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "std", &dataElement->std);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "mean", &dataElement->mean);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "durration_steps", &dataElement->durration_steps);
+    dataElement->func = (MxForce_OneBodyPtr)gaussian_force;
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const Friction &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "coef", dataElement.coef);
+    MXFORCEIOTOEASY(fe, "std", dataElement.std);
+    MXFORCEIOTOEASY(fe, "mean", dataElement.mean);
+    MXFORCEIOTOEASY(fe, "durration_steps", dataElement.durration_steps);
+
+    fileElement->type = "FrictionForce";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Friction *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "coef", &dataElement->coef);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "std", &dataElement->std);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "mean", &dataElement->mean);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "durration_steps", &dataElement->durration_steps);
+    dataElement->func = (MxForce_OneBodyPtr)friction_force;
+
+    return S_OK;
+}
+
+HRESULT toFile(MxForce *dataElement, const MxMetaData &metaData, MxIOElement *fileElement) { 
+
+    if(dataElement->type & FORCE_BERENDSEN) 
+        return toFile(*(Berendsen*)dataElement, metaData, fileElement);
+    else if(dataElement->type & FORCE_CONSTANT) 
+        return toFile(*(MxConstantForce*)dataElement, metaData, fileElement);
+    else if(dataElement->type & FORCE_CONSTANTPY) 
+        return toFile(*(MxConstantForcePy*)dataElement, metaData, fileElement);
+    else if(dataElement->type & FORCE_FRICTION) 
+        return toFile(*(Friction*)dataElement, metaData, fileElement);
+    else if(dataElement->type & FORCE_GAUSSIAN) 
+        return toFile(*(Gaussian*)dataElement, metaData, fileElement);
+    else if(dataElement->type & FORCE_SUM) 
+        return toFile(*(MxForceSum*)dataElement, metaData, fileElement);
+    
+    MxIOElement *fe;
+
+    MXFORCEIOTOEASY(fe, "type", dataElement->type);
+    
+    fileElement->type = "Force";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxForce **dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    // MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &(*dataElement)->type);
+    MXFORCE_TYPE fType;
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &fType);
+
+    if(fType & FORCE_BERENDSEN) {
+        Berendsen *f = new Berendsen();
+        if(fromFile(fileElement, metaData, f) != S_OK) 
+            return E_FAIL;
+        *dataElement = f;
+        return S_OK;
+    }
+    else if(fType & FORCE_CONSTANT) {
+        MxConstantForce *f = new MxConstantForce();
+        if(fromFile(fileElement, metaData, f) != S_OK) 
+            return E_FAIL;
+        *dataElement = f;
+        return S_OK;
+    }
+    else if(fType & FORCE_CONSTANTPY) {
+        MxConstantForcePy *f = new MxConstantForcePy();
+        if(fromFile(fileElement, metaData, f) != S_OK) 
+            return E_FAIL;
+        *dataElement = f;
+        return S_OK;
+    }
+    else if(fType & FORCE_FRICTION) {
+        Friction *f = new Friction();
+        if(fromFile(fileElement, metaData, f) != S_OK) 
+            return E_FAIL;
+        *dataElement = f;
+        return S_OK;
+    }
+    else if(fType & FORCE_GAUSSIAN) {
+        Gaussian *f = new Gaussian();
+        if(fromFile(fileElement, metaData, f) != S_OK) 
+            return E_FAIL;
+        *dataElement = f;
+        return S_OK;
+    }
+    else if(fType & FORCE_SUM) {
+        MxForceSum *f = new MxForceSum();
+        if(fromFile(fileElement, metaData, f) != S_OK) 
+            return E_FAIL;
+        *dataElement = f;
+        return S_OK;
+    }
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, std::vector<MxForce*> *dataElement) {
+    unsigned int numEls = fileElement.children.size();
+    dataElement->reserve(numEls);
+    for(unsigned int i = 0; i < numEls; i++) {
+        MxForce *de = NULL;
+        auto itr = fileElement.children.find(std::to_string(i));
+        if(itr == fileElement.children.end()) 
+            return E_FAIL;
+        if(fromFile(*itr->second, metaData, &de) != S_OK) 
+            return E_FAIL;
+        dataElement->push_back(de);
+    }
+    return S_OK;
+}
+
+}};
+
+MxForceSum *MxForceSum_fromStr(const std::string &str) {
+    return (MxForceSum*)MxForce::fromString(str);
+}
+
+Berendsen *Berendsen_fromStr(const std::string &str)  {
+    return (Berendsen*)MxForce::fromString(str);
+}
+
+Gaussian *Gaussian_fromStr(const std::string &str) {
+    return (Gaussian*)MxForce::fromString(str);
+}
+
+Friction *Friction_fromStr(const std::string &str) {
+    return (Friction*)MxForce::fromString(str);
 }

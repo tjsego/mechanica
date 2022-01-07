@@ -195,4 +195,11 @@ on demand, ::
 
 .. note::
 
+    All cell polarity model data is automatically imported and exported during file operations,
+    with the exception of rendering data. When importing a simulation state that includes the
+    cell polarity model, all commands associated with rendering state vectors must be reissued
+    after import and load to regenerate the same visualization.
+
+.. note::
+
     The cell polarity model module currently does not support :ref:`GPU acceleration <cuda>`.

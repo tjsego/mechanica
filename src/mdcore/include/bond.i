@@ -9,6 +9,13 @@
 
 %template(vectorBondHandle_p) std::vector<MxBondHandle*>;
 
+%extend MxBond {
+    %pythoncode %{
+        def __reduce__(self):
+            return MxBond.fromString, (self.toString(),)
+    %}
+}
+
 %extend MxBondHandle {
     %pythoncode %{
         def __getitem__(self, index: int):

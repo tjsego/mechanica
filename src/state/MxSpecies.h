@@ -10,6 +10,7 @@
 #define SRC_STATE_MXSPECIES_H_
 
 #include <mx_port.h>
+#include "../io/mx_io.h"
 #include <string>
 
 namespace libsbml{
@@ -98,9 +99,34 @@ struct MxSpecies {
     MxSpecies(const std::string &s);
     MxSpecies(const MxSpecies &other);
     ~MxSpecies();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return MxSpecies* 
+     */
+    static MxSpecies *fromString(const std::string &str);
 };
 
 
 CAPI_FUNC(libsbml::SBMLNamespaces*) MxGetSBMLNamespaces();
+
+namespace mx { namespace io { 
+
+template <>
+HRESULT toFile(const MxSpecies &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxSpecies *dataElement);
+
+}};
 
 #endif /* SRC_STATE_MXSPECIES_H_ */

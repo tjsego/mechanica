@@ -202,3 +202,84 @@ std::vector<std::string> MxColorMapper::getNames() {
     for (auto c : colormap_items) result.push_back(c.name);
     return result;
 }
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxColorMapper &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.species_index, metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["species_index"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.min_val, metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["min_val"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.max_val, metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["max_val"] = fe;
+    
+    const int numMaps = sizeof(colormap_items) / sizeof(ColormapItem);
+    
+    std::string cMapName = "";
+    for(unsigned int i = 0; i < numMaps; i++) {
+        auto cMap = colormap_items[i];
+        if(dataElement.map == cMap.func) {
+            cMapName = std::string(cMap.name);
+            break;
+        }
+    }
+
+    if(cMapName.size() > 0) {
+        fe = new MxIOElement();
+        if(toFile(cMapName, metaData, fe) != S_OK) 
+            return E_FAIL;
+        fe->parent = fileElement;
+        fileElement->children["colorMap"] = fe;
+    }
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxColorMapper *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    feItr = fileElement.children.find("species_index");
+    if(feItr == fileElement.children.end() || fromFile(*feItr->second, metaData, &dataElement->species_index) != S_OK) 
+        return E_FAIL;
+    
+    feItr = fileElement.children.find("min_val");
+    if(feItr == fileElement.children.end() || fromFile(*feItr->second, metaData, &dataElement->min_val) != S_OK) 
+        return E_FAIL;
+
+    feItr = fileElement.children.find("max_val");
+    if(feItr == fileElement.children.end() || fromFile(*feItr->second, metaData, &dataElement->max_val) != S_OK) 
+        return E_FAIL;
+
+    feItr = fileElement.children.find("colorMap");
+    if(feItr != fileElement.children.end()) {
+        std::string cMapName;
+        if(fromFile(*feItr->second, metaData, &cMapName) != S_OK) 
+            return E_FAIL;
+
+        auto idx = colormap_index_of_name(cMapName.c_str());
+        if(idx >= 0) 
+            dataElement->map = colormap_items[idx].func;
+    }
+
+    return S_OK;
+}
+
+}};

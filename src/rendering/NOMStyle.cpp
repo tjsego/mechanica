@@ -10,6 +10,7 @@
 #include <space.h>
 #include <MxUtil.h>
 #include <mx_error.h>
+#include <io/MxFIO.h>
 #include "MxColorMapper.hpp"
 
 
@@ -96,3 +97,71 @@ int NOMStyle::init(const Magnum::Color3 *color, const bool &visible, uint32_t fl
 
     return S_OK;
 }
+
+std::string NOMStyle::toString() {
+    return mx::io::toString(*this);
+}
+
+NOMStyle *NOMStyle::fromString(const std::string &str) {
+    return new NOMStyle(mx::io::fromString<NOMStyle>(str));
+}
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const NOMStyle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) { 
+    
+    MxIOElement *fe;
+
+    fe = new MxIOElement();
+    MxVector3f color = {dataElement.color.r(), dataElement.color.g(), dataElement.color.b()};
+    if(toFile(color, metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["color"] = fe;
+
+    fe = new MxIOElement();
+    if(toFile(dataElement.flags, metaData, fe) != S_OK) 
+        return E_FAIL;
+    fe->parent = fileElement;
+    fileElement->children["flags"] = fe;
+
+    if(dataElement.mapper != NULL) {
+        fe = new MxIOElement();
+        if(toFile(*dataElement.mapper, metaData, fe) != S_OK) 
+            return E_FAIL;
+        fe->parent = fileElement;
+        fileElement->children["mapper"] = fe;
+    }
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, NOMStyle *dataElement) { 
+
+    MxIOChildMap::const_iterator feItr;
+
+    MxVector3f color;
+    feItr = fileElement.children.find("color");
+    if(feItr != fileElement.children.end() && fromFile(*feItr->second, metaData, &color) != S_OK)
+        return E_FAIL;
+    dataElement->color = {color.x(), color.y(), color.z()};
+
+    feItr = fileElement.children.find("flags");
+    if(feItr != fileElement.children.end() && fromFile(*feItr->second, metaData, &dataElement->flags) != S_OK)
+        return E_FAIL;
+
+    feItr = fileElement.children.find("mapper");
+    if(feItr != fileElement.children.end()) {
+        MxColorMapper *mapper = new MxColorMapper();
+        if(fromFile(*feItr->second, metaData, mapper) != S_OK) 
+            return E_FAIL;
+        dataElement->setColorMapper(mapper);
+    }
+
+    return S_OK;
+}
+
+}};

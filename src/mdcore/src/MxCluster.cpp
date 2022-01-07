@@ -212,12 +212,23 @@ MxClusterParticleHandle::MxClusterParticleHandle(const int &id, const int &typeI
     MxParticleHandle(id, typeId) 
 {}
 
+MxCluster *MxClusterParticleHandle::cluster() {
+    return (MxCluster*)this->part();
+}
+
 MxParticleHandle *MxClusterParticleHandle::operator()(MxParticleType *partType, 
                                                       MxVector3f *position, 
                                                       MxVector3f *velocity) 
 {
     auto p = MxCluster_CreateParticle((MxCluster*)part(), partType, position, velocity);
     return new MxParticleHandle(p->id, p->typeId);
+}
+
+MxParticleHandle *MxClusterParticleHandle::operator()(MxParticleType *partType, const std::string &str) {
+    MxCluster *dummy = MxCluster_fromString(str);
+    MxParticleHandle *p = (*this)(partType, &dummy->position, &dummy->velocity);
+    delete dummy;
+    return p;
 }
 
 /**
@@ -388,4 +399,12 @@ HRESULT _MxCluster_init() {
 
     auto type = new MxClusterParticleType();
     return S_OK;
+}
+
+MxCluster *MxCluster_fromString(const std::string &str) {
+    return (MxCluster*)MxParticle::fromString(str);
+}
+
+MxClusterParticleType *MxClusterParticleType_fromString(const std::string &str) {
+    return (MxClusterParticleType*)MxParticleType::fromString(str);
 }

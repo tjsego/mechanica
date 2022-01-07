@@ -310,14 +310,36 @@ typedef struct engine {
 	/** List of angles. */
 	struct MxAngle *angles;
 
-	/** Nr. of angles. */
-	int nr_angles, angles_size;
+	/**
+     * total number of angles, active or not.
+     */
+	int nr_angles;
+
+	/** 
+	 * number of active angles. 
+	 * note, active angles are not necessarily in contiguous order
+	 */
+	int nr_active_angles;
+
+	/** Allocated size of angles array */
+	int angles_size;
 
 	/** List of dihedrals. */
 	struct MxDihedral *dihedrals;
 
-	/** Nr. of dihedrals. */
-	int nr_dihedrals, dihedrals_size;
+	/**
+     * total number of dihedrals, active or not.
+     */
+	int nr_dihedrals;
+
+	/** 
+	 * number of active dihedrals. 
+	 * note, active dihedrals are not necessarily in contiguous order
+	 */
+	int nr_active_dihedrals;
+
+	/** Allocated size of dihedrals array */
+	int dihedrals_size;
 
 	/** The Comm object for mpi. */
 #ifdef WITH_MPI
@@ -469,7 +491,7 @@ CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e ,
 /**
  * allocates a new angle, returns its id.
  */
-CAPI_FUNC(int) engine_angle_alloc(struct engine *e);
+CAPI_FUNC(int) engine_angle_alloc(struct engine *e, MxAngle **out);
 
 /**
  * @brief Add a angle potential.
@@ -505,7 +527,7 @@ CAPI_FUNC(int) engine_bond_eval ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_eval ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_eval_sets ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_sets ( struct engine *e , int max_sets );
-CAPI_FUNC(int) engine_dihedral_alloc(struct engine *e);
+CAPI_FUNC(int) engine_dihedral_alloc(struct engine *e, MxDihedral **out);
 CAPI_FUNC(int) engine_dihedral_eval ( struct engine *e );
 CAPI_FUNC(int) engine_dump_PSF ( struct engine *e , FILE *psf , FILE *pdb , char *excl[] , int nr_excl );
 CAPI_FUNC(int) engine_exclusion_add ( struct engine *e , int i , int j );

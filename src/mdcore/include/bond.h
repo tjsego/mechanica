@@ -193,7 +193,20 @@ struct MxBondHandle {
              const double &half_life=std::numeric_limits<double>::max(), 
              const double &bond_energy=std::numeric_limits<double>::max(), 
              uint32_t flags=0);
+    
+    /**
+     * @brief Get a summary string of the bond
+     * 
+     * @return std::string 
+     */
     std::string str();
+
+    /**
+     * @brief Check the validity of the handle
+     * 
+     * @return true if ok
+     * @return false 
+     */
     bool check();
     
     /**

@@ -36,8 +36,8 @@ C = CType.get()
 c1 = C(position=mx.Universe.center - (3, 0, 0))
 c2 = C(position=mx.Universe.center + (7, 0, 0))
 
-[A(cluster_id=c1.id) for _ in range(2000)]
-[B(cluster_id=c2.id) for _ in range(2000)]
+[A(clusterId=c1.id) for _ in range(2000)]
+[B(clusterId=c2.id) for _ in range(2000)]
 
 p1 = mx.Potential.morse(d=0.5, a=5, max=3)
 p2 = mx.Potential.morse(d=0.5, a=2.5, max=3)

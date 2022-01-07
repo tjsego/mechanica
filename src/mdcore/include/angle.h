@@ -42,8 +42,7 @@ typedef enum MxAngleFlags {
     // none type angles are initial state, and can be
     // re-assigned if ref count is 1 (only owned by engine).
     ANGLE_NONE                   = 0,
-    ANGLE_ACTIVE                 = 1 << 0,
-    ANGLE_FOO   = 1 << 1,
+    ANGLE_ACTIVE                 = 1 << 0
 } MxAngleFlags;
 
 struct MxAngleHandle;
@@ -61,6 +60,8 @@ typedef struct MxAngle {
 
 	/* ids of particles involved */
 	int i, j, k;
+    
+    uint32_t id;
 
     uint64_t creation_time;
 
@@ -136,9 +137,22 @@ struct MxAngleHandle {
      * 
      * @return MxAngle* 
      */
-    MxAngle *angle();
+    MxAngle *get();
 
+    /**
+     * @brief Get a summary string of the angle
+     * 
+     * @return std::string 
+     */
     std::string str();
+
+    /**
+     * @brief Check the validity of the handle
+     * 
+     * @return true if ok
+     * @return false 
+     */
+    bool check();
 
     /**
      * @brief Destroy the angle. 

@@ -1485,7 +1485,7 @@ void engine_cuda_set_angle_device(MxAngleCUDA a, unsigned int aid) {
 }
 
 int engine_cuda_add_angle(MxAngleHandle *ah) {
-    MxAngleCUDA ac(ah->angle());
+    MxAngleCUDA ac(ah->get());
     auto aid = ah->id;
 
     if(aid >= cuda_angles_size) 
@@ -1552,7 +1552,7 @@ int engine_cuda_add_angles(MxAngleHandle *angles, int nr_angles) {
     for(int i = 0; i < nr_angles; i++) {
         a = &angles[i];
         aidmax = std::max(aidmax, (uint32_t)a->id);
-        acs[i] = MxAngleCUDA(a->angle());
+        acs[i] = MxAngleCUDA(a->get());
         aids[i] = a->id;
     }
 

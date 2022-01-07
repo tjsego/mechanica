@@ -2039,12 +2039,14 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
     if ( ( e->angles = (struct MxAngle *)malloc( sizeof( struct MxAngle ) * e->angles_size ) ) == NULL )
         return error(engine_err_malloc);
     e->nr_angles = 0;
+	e->nr_active_angles = 0;
 
     /* Init the dihedrals array.		 */
     e->dihedrals_size = 100;
     if ( ( e->dihedrals = (struct MxDihedral *)malloc( sizeof( struct MxDihedral ) * e->dihedrals_size ) ) == NULL )
         return error(engine_err_malloc);
     e->nr_dihedrals = 0;
+	e->nr_active_dihedrals = 0;
 
 
     /* Init the sets. */

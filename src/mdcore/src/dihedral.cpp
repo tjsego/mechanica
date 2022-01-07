@@ -794,12 +794,22 @@ MxDihedralHandle *MxDihedral::create(MxPotential *potential,
                                  	 MxParticleHandle *p3, 
                                  	 MxParticleHandle *p4) 
 {
-    auto id = engine_dihedral_alloc(&_Engine);
-    MxDihedralHandle *handle = new MxDihedralHandle(id);
-    auto *d = handle->dihedral();
-    if(!d) return NULL;
+    MxDihedral *dihedral = NULL;
 
-    d->init(potential, p1, p2, p3, p4);
+    int id = engine_dihedral_alloc(&_Engine, &dihedral);
+
+    if(id < 0) {
+        throw std::runtime_error("could not allocate dihedral");
+        return NULL;
+    }
+
+    dihedral->init(potential, p1, p2, p3, p4);
+    if(dihedral->i >= 0 && dihedral->j >= 0 && dihedral->k >= 0 && dihedral->l >= 0) {
+        dihedral->flags |= DIHEDRAL_ACTIVE;
+        _Engine.nr_active_dihedrals++;
+    }
+
+    MxDihedralHandle *handle = new MxDihedralHandle(id);
 
     return handle;
 }
@@ -812,7 +822,7 @@ MxDihedral *MxDihedral::fromString(const std::string &str) {
     return new MxDihedral(mx::io::fromString<MxDihedral>(str));
 }
 
-MxDihedral *MxDihedralHandle::dihedral() {
+MxDihedral *MxDihedralHandle::get() {
     if(id >= _Engine.dihedrals_size) throw std::range_error("Dihedral id invalid");
     if (id < 0) return NULL;
     return &_Engine.dihedrals[this->id];
@@ -820,15 +830,19 @@ MxDihedral *MxDihedralHandle::dihedral() {
 
 std::string MxDihedralHandle::str() {
     std::stringstream ss;
-    auto *d = this->dihedral();
+    auto *d = this->get();
     
     ss << "Bond(i=" << d->i << ", j=" << d->j << ", k=" << d->k << ", l=" << d->l << ")";
     
     return ss.str();
 }
 
+bool MxDihedralHandle::check() {
+    return (bool)this->get();
+}
+
 HRESULT MxDihedralHandle::destroy() {
-    MxDihedral_Destroy(this->dihedral());
+    MxDihedral_Destroy(this->get());
 }
 
 std::vector<MxDihedralHandle*> MxDihedralHandle::items() {
@@ -841,11 +855,11 @@ std::vector<MxDihedralHandle*> MxDihedralHandle::items() {
 }
 
 bool MxDihedralHandle::decays() {
-    return MxDihedral_decays(this->dihedral());
+    return MxDihedral_decays(this->get());
 }
 
 MxParticleHandle *MxDihedralHandle::operator[](unsigned int index) {
-    auto *d = this->dihedral();
+    auto *d = this->get();
     if(!d) {
         Log(LOG_ERROR) << "Invalid dihedral handle";
         return NULL;
@@ -862,7 +876,7 @@ MxParticleHandle *MxDihedralHandle::operator[](unsigned int index) {
 
 double MxDihedralHandle::getEnergy() {
 
-    MxDihedral dihedrals[] = {*this->dihedral()};
+    MxDihedral dihedrals[] = {*this->get()};
     FPTYPE f[] = {0.0, 0.0, 0.0};
     double epot_out = 0.0;
     dihedral_evalf(dihedrals, 1, &_Engine, f, &epot_out);
@@ -871,50 +885,52 @@ double MxDihedralHandle::getEnergy() {
 
 std::vector<int32_t> MxDihedralHandle::getParts() {
     std::vector<int32_t> result;
-    MxDihedral *d = this->dihedral();
+    MxDihedral *d = this->get();
     return std::vector<int32_t>{d->i, d->j, d->k};
 }
 
 MxPotential *MxDihedralHandle::getPotential() {
-    return this->dihedral()->potential;
+    return this->get()->potential;
 }
 
 float MxDihedralHandle::getDissociationEnergy() {
-    return this->dihedral()->dissociation_energy;
+    return this->get()->dissociation_energy;
 }
 
 void MxDihedralHandle::setDissociationEnergy(const float &dissociation_energy) {
-    auto *d = this->dihedral();
+    auto *d = this->get();
     d->dissociation_energy = dissociation_energy;
 }
 
 float MxDihedralHandle::getHalfLife() {
-    return this->dihedral()->half_life;
+    return this->get()->half_life;
 }
 
 void MxDihedralHandle::setHalfLife(const float &half_life) {
-    auto *d = this->dihedral();
+    auto *d = this->get();
     d->half_life = half_life;
 }
 
 NOMStyle *MxDihedralHandle::getStyle() {
-    return this->dihedral()->style;
+    return this->get()->style;
 }
 
 void MxDihedralHandle::setStyle(NOMStyle *style) {
-    auto *d = this->dihedral();
+    auto *d = this->get();
     d->style = style;
 }
 
 double MxDihedralHandle::getAge() {
-    return (_Engine.time - this->dihedral()->creation_time) * _Engine.dt;
+    return (_Engine.time - this->get()->creation_time) * _Engine.dt;
 }
 
 HRESULT MxDihedral_Destroy(MxDihedral *d) {
     if(!d) return E_FAIL;
 
-    bzero(d, sizeof(MxDihedral));
-    _Engine.nr_dihedrals -= 1;
+    if(d->flags & DIHEDRAL_ACTIVE) {
+        bzero(d, sizeof(MxDihedral));
+        _Engine.nr_active_dihedrals -= 1;
+    }
 
     return S_OK;
 }
@@ -958,10 +974,12 @@ HRESULT toFile(const MxDihedral &dataElement, const MxMetaData &metaData, MxIOEl
 
     MxIOElement *fe;
 
+    MXDIHEDIOTOEASY(fe, "flags", dataElement.flags);
     MXDIHEDIOTOEASY(fe, "i", dataElement.i);
     MXDIHEDIOTOEASY(fe, "j", dataElement.j);
     MXDIHEDIOTOEASY(fe, "k", dataElement.k);
     MXDIHEDIOTOEASY(fe, "l", dataElement.l);
+    MXDIHEDIOTOEASY(fe, "id", dataElement.id);
     MXDIHEDIOTOEASY(fe, "creation_time", dataElement.creation_time);
     MXDIHEDIOTOEASY(fe, "half_life", dataElement.half_life);
     MXDIHEDIOTOEASY(fe, "dissociation_energy", dataElement.dissociation_energy);
@@ -977,10 +995,12 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxD
 
     MxIOChildMap::const_iterator feItr;
 
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "flags", &dataElement->flags);
     MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "i", &dataElement->i);
     MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "j", &dataElement->j);
     MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "k", &dataElement->k);
     MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "l", &dataElement->l);
+    MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
     MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "creation_time", &dataElement->creation_time);
     MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "half_life", &dataElement->half_life);
     MXDIHEDIOFROMEASY(feItr, fileElement.children, metaData, "dissociation_energy", &dataElement->dissociation_energy);

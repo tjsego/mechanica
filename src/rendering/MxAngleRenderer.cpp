@@ -32,59 +32,59 @@ HRESULT MxAngleRenderer::start(const std::vector<MxVector4f> &clipPlanes) {
 }
 
 static inline int render_angle(BondsInstanceData* angleData, int i, MxAngle *angle) {
-    if(angle->flags & ANGLE_ACTIVE) {
-        Magnum::Vector3 *color = &angle->style->color;
-        MxParticle *pi = _Engine.s.partlist[angle->i];
-        MxParticle *pj = _Engine.s.partlist[angle->j];
-        MxParticle *pk = _Engine.s.partlist[angle->k];
-        
-        double *oj = _Engine.s.celllist[pj->id]->origin;
-        Magnum::Vector3 pj_origin = {static_cast<float>(oj[0]), static_cast<float>(oj[1]), static_cast<float>(oj[2])};
-        
-        int shiftij[3], shiftkj[3];
-        Magnum::Vector3 pixij, pixkj;
-        
-        int *loci = _Engine.s.celllist[angle->i]->loc;
-        int *locj = _Engine.s.celllist[angle->j]->loc;
-        int *lock = _Engine.s.celllist[angle->k]->loc;
-        
-        for ( int k = 0 ; k < 3 ; k++ ) {
-            int locjk = locj[k];
-            shiftij[k] = loci[k] - locjk;
-            shiftkj[k] = lock[k] - locjk;
-            
-            if(shiftij[k] > 1) shiftij[k] = -1;
-            else if (shiftij[k] < -1) shiftij[k] = 1;
-            
-            if(shiftkj[k] > 1) shiftkj[k] = -1;
-            else if (shiftkj[k] < -1) shiftkj[k] = 1;
 
-            double h = _Engine.s.h[k];
-            pixij[k] = pi->x[k] + h * shiftij[k];
-            pixkj[k] = pk->x[k] + h * shiftkj[k];
-        }
+    if(!(angle->flags & ANGLE_ACTIVE)) 
+        return 0;
 
-        Magnum::Vector3 posi = pixij + pj_origin;
-        Magnum::Vector3 posj = pj->position + pj_origin;
-        Magnum::Vector3 posk = pixkj + pj_origin;
-        
-        angleData[i].position = posi;
-        angleData[i].color = *color;
-        angleData[i+1].position = posj;
-        angleData[i+1].color = *color;
-        
-        angleData[i+2].position = posk;
-        angleData[i+2].color = *color;
-        angleData[i+3] = angleData[i+1];
-
-        angleData[i+4].position = 0.5 * (posi + posj);
-        angleData[i+4].color = *color;
-        angleData[i+5].position = 0.5 * (posk + posj);
-        angleData[i+5].color = *color;
-        return 6;
-    }
+    Magnum::Vector3 *color = &angle->style->color;
+    MxParticle *pi = _Engine.s.partlist[angle->i];
+    MxParticle *pj = _Engine.s.partlist[angle->j];
+    MxParticle *pk = _Engine.s.partlist[angle->k];
     
-    return 0;
+    double *oj = _Engine.s.celllist[pj->id]->origin;
+    Magnum::Vector3 pj_origin = {static_cast<float>(oj[0]), static_cast<float>(oj[1]), static_cast<float>(oj[2])};
+    
+    int shiftij[3], shiftkj[3];
+    Magnum::Vector3 pixij, pixkj;
+    
+    int *loci = _Engine.s.celllist[angle->i]->loc;
+    int *locj = _Engine.s.celllist[angle->j]->loc;
+    int *lock = _Engine.s.celllist[angle->k]->loc;
+    
+    for ( int k = 0 ; k < 3 ; k++ ) {
+        int locjk = locj[k];
+        shiftij[k] = loci[k] - locjk;
+        shiftkj[k] = lock[k] - locjk;
+        
+        if(shiftij[k] > 1) shiftij[k] = -1;
+        else if (shiftij[k] < -1) shiftij[k] = 1;
+        
+        if(shiftkj[k] > 1) shiftkj[k] = -1;
+        else if (shiftkj[k] < -1) shiftkj[k] = 1;
+
+        double h = _Engine.s.h[k];
+        pixij[k] = pi->x[k] + h * shiftij[k];
+        pixkj[k] = pk->x[k] + h * shiftkj[k];
+    }
+
+    Magnum::Vector3 posi = pixij + pj_origin;
+    Magnum::Vector3 posj = pj->position + pj_origin;
+    Magnum::Vector3 posk = pixkj + pj_origin;
+    
+    angleData[i].position = posi;
+    angleData[i].color = *color;
+    angleData[i+1].position = posj;
+    angleData[i+1].color = *color;
+    
+    angleData[i+2].position = posk;
+    angleData[i+2].color = *color;
+    angleData[i+3] = angleData[i+1];
+
+    angleData[i+4].position = 0.5 * (posi + posj);
+    angleData[i+4].color = *color;
+    angleData[i+5].position = 0.5 * (posk + posj);
+    angleData[i+5].color = *color;
+    return 6;
 }
 
 HRESULT MxAngleRenderer::draw(Magnum::Mechanica::ArcBallCamera *camera, const MxVector2i &viewportSize, const MxMatrix4f &modelViewMat) {

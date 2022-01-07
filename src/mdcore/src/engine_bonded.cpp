@@ -1035,29 +1035,46 @@ int engine_bonded_sets ( struct engine *e , int max_sets ) {
 /**
  * allocates a new dihedral, returns its id.
  */
-int engine_dihedral_alloc(struct engine *e) {
+int engine_dihedral_alloc(struct engine *e, MxDihedral **out) {
     
     struct MxDihedral *dummy;
+	int dihedral_id = -1;
     
     /* Check inputs. */
     if (e == NULL) 
 		return error(engine_err_null);
     
-    /* Do we need to grow the dihedral array? */
-    if (e->nr_dihedrals == e->dihedrals_size) {
-        e->dihedrals_size *= 1.414;
-        if ((dummy = (struct MxDihedral *)malloc( sizeof(struct MxDihedral) * e->dihedrals_size)) == NULL)
-        	return error(engine_err_malloc);
-        memcpy(dummy , e->dihedrals , sizeof(struct MxDihedral) * e->nr_dihedrals);
-        free(e->dihedrals);
-        e->dihedrals = dummy;
-    }
+    // first check if we have any deleted dihedrals we can re-use
+	if(e->nr_active_dihedrals < e->nr_dihedrals) {
+        for(int i = 0; i < e->nr_dihedrals; ++i) {
+            if(!(e->dihedrals[i].flags & DIHEDRAL_ACTIVE)) {
+                dihedral_id = i;
+                break;
+            }
+        }
+        assert(dihedral_id > 0 && dihedral_id < e->dihedrals_size);
+	}
+	else {
+		/* Do we need to grow the dihedral array? */
+		if (e->nr_dihedrals == e->dihedrals_size) {
+			e->dihedrals_size *= 1.414;
+			if ((dummy = (struct MxDihedral *)malloc( sizeof(struct MxDihedral) * e->dihedrals_size)) == NULL)
+				return error(engine_err_malloc);
+			memcpy(dummy , e->dihedrals , sizeof(struct MxDihedral) * e->nr_dihedrals);
+			free(e->dihedrals);
+			e->dihedrals = dummy;
+		}
+		dihedral_id = e->nr_dihedrals;
+		e->nr_dihedrals += 1;
+	}
+
+	bzero(&e->dihedrals[dihedral_id], sizeof(MxDihedral));
     
-    ::memset(&e->dihedrals[e->nr_dihedrals], 0, sizeof(MxDihedral));
-    
-    auto result = e->nr_dihedrals;
-    
-    e->nr_dihedrals += 1;
+    int result = e->dihedrals[dihedral_id].id = dihedral_id;
+
+	*out = &e->dihedrals[dihedral_id];
+
+	Log(LOG_TRACE) << "Allocated dihedral: " << dihedral_id;
     
     return result;
 }
@@ -1065,33 +1082,46 @@ int engine_dihedral_alloc(struct engine *e) {
 /**
  * allocates a new angle, returns its id.
  */
-int engine_angle_alloc (struct engine *e) {
+int engine_angle_alloc (struct engine *e, MxAngle **out) {
     
     struct MxAngle *dummy;
+	int angle_id = -1;
     
     /* Check inputs. */
     if ( e == NULL )
-    return error(engine_err_null);
-    /* if ( i > e->s.nr_parts || j > e->s.nr_parts )
-     return error(engine_err_range);
-     if ( pid > e->nr_anglepots )
-     return error(engine_err_range); */
+    	return error(engine_err_null);
     
-    /* Do we need to grow the angles array? */
-    if ( e->nr_angles == e->angles_size ) {
-        e->angles_size *= 1.414;
-        if ( ( dummy = (struct MxAngle *)malloc( sizeof(struct MxAngle) * e->angles_size ) ) == NULL )
-        return error(engine_err_malloc);
-        memcpy( dummy , e->angles , sizeof(struct MxAngle) * e->nr_angles );
-        free( e->angles );
-        e->angles = dummy;
+	// first check if we have any deleted angles we can re-use
+    if(e->nr_active_angles < e->nr_angles) {
+        for(int i = 0; i < e->nr_angles; ++i) {
+            if(!(e->angles[i].flags & ANGLE_ACTIVE)) {
+                angle_id = i;
+                break;
+            }
+        }
+        assert(angle_id > 0 && angle_id < e->angles_size);
     }
+    else {
+		/* Do we need to grow the angles array? */
+		if ( e->nr_angles == e->angles_size ) {
+			e->angles_size *= 1.414;
+			if ( ( dummy = (struct MxAngle *)malloc( sizeof(struct MxAngle) * e->angles_size ) ) == NULL )
+			return error(engine_err_malloc);
+			memcpy( dummy , e->angles , sizeof(struct MxAngle) * e->nr_angles );
+			free( e->angles );
+			e->angles = dummy;
+		}
+		angle_id = e->nr_angles;
+		e->nr_angles += 1;
+	}
+
+	bzero(&e->angles[angle_id], sizeof(MxAngle));
     
-    ::memset(&e->angles[e->nr_angles], 0, sizeof(MxAngle));
-    
-    auto result = e->nr_angles;
-    
-    e->nr_angles += 1;
+    int result = e->angles[angle_id].id = angle_id;
+
+	*out = &e->angles[angle_id];
+	
+	Log(LOG_TRACE) << "Allocated angle: " << angle_id;
     
     /* It's the end of the world as we know it. */
     return result;

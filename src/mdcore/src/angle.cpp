@@ -146,6 +146,9 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
             toDestroy.insert(angle);
             continue;
         }
+
+        if(!(a->flags & ANGLE_ACTIVE))
+            continue;
     
         /* Get the particles involved. */
         pid = angle->i; pjd = angle->j; pkd = angle->k;
@@ -705,18 +708,24 @@ MxAngle* MxAngle_NewFromIdsAndPotential(int i, int j, int k,
 }
 #endif
 
+static bool MxAngle_destroyingAll = false;
+
 HRESULT MxAngle_Destroy(MxAngle *a) {
     if(!a) return E_FAIL;
 
     if(a->flags & ANGLE_ACTIVE) {
+        #ifdef HAVE_CUDA
+        if(_Engine.angles_cuda && !MxAngle_destroyingAll) 
+            if(engine_cuda_finalize_angle(a->id) < 0) 
+                return E_FAIL;
+        #endif
+
         bzero(a, sizeof(MxAngle));
-        _Engine.nr_angles -= 1;
+        _Engine.nr_active_angles -= 1;
     }
 
     return S_OK;
 };
-
-static bool MxAngle_destroyingAll = false;
 
 HRESULT MxAngle_DestroyAll() {
     MxAngle_destroyingAll = true;
@@ -748,19 +757,26 @@ void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandl
 }
 
 MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3, uint32_t flags) {
-    auto id = engine_angle_alloc(&_Engine);
-    MxAngleHandle *handle = new MxAngleHandle(id);
-    auto *angle = handle->angle();
+    MxAngle *angle = NULL;
+
+    auto id = engine_angle_alloc(&_Engine, &angle);
+    
     if(!angle) return NULL;
 
     angle->init(potential, p1, p2, p3, flags);
-    if(angle->i >=0 && angle->j >=0 && angle->k >=0)
+    if(angle->i >=0 && angle->j >=0 && angle->k >=0) {
         angle->flags = angle->flags | ANGLE_ACTIVE;
+        _Engine.nr_active_angles++;
+    }
+    
+    MxAngleHandle *handle = new MxAngleHandle(id);
 
     #ifdef HAVE_CUDA
     if(_Engine.angles_cuda) 
         engine_cuda_add_angle(handle);
     #endif
+
+    Log(LOG_TRACE) << "Created angle: " << angle->id  << ", i: " << angle->i << ", j: " << angle->j << ", k: " << angle->k;
 
     return handle;
 }
@@ -773,7 +789,7 @@ MxAngle *MxAngle::fromString(const std::string &str) {
     return new MxAngle(mx::io::fromString<MxAngle>(str));
 }
 
-MxAngle *MxAngleHandle::angle() {
+MxAngle *MxAngleHandle::get() {
     if(id >= _Engine.angles_size) throw std::range_error("Angle id invalid");
     if (id < 0) return NULL;
     return &_Engine.angles[this->id];
@@ -781,11 +797,15 @@ MxAngle *MxAngleHandle::angle() {
 
 std::string MxAngleHandle::str() {
     std::stringstream ss;
-    auto *a = this->angle();
+    auto *a = this->get();
     
     ss << "Bond(i=" << a->i << ", j=" << a->j << ", k=" << a->k << ")";
     
     return ss.str();
+}
+
+bool MxAngleHandle::check() {
+    return (bool)this->get();
 }
 
 HRESULT MxAngleHandle::destroy() {
@@ -794,7 +814,7 @@ HRESULT MxAngleHandle::destroy() {
         engine_cuda_finalize_angle(this->id);
     #endif
 
-    return MxAngle_Destroy(this->angle());
+    return MxAngle_Destroy(this->get());
 }
 
 std::vector<MxAngleHandle*> MxAngleHandle::items() {
@@ -825,7 +845,7 @@ bool MxAngleHandle::decays() {
 }
 
 MxParticleHandle *MxAngleHandle::operator[](unsigned int index) {
-    auto *a = angle();
+    auto *a = get();
     if(!a) {
         Log(LOG_ERROR) << "Invalid angle handle";
         return NULL;
@@ -841,7 +861,7 @@ MxParticleHandle *MxAngleHandle::operator[](unsigned int index) {
 
 double MxAngleHandle::getEnergy() {
 
-    MxAngle angles[] = {*this->angle()};
+    MxAngle angles[] = {*this->get()};
     FPTYPE f[] = {0.0, 0.0, 0.0};
     double epot_out = 0.0;
     angle_evalf(angles, 1, &_Engine, f, &epot_out);
@@ -850,7 +870,7 @@ double MxAngleHandle::getEnergy() {
 
 std::vector<int32_t> MxAngleHandle::getParts() {
     std::vector<int32_t> result;
-    MxAngle *a = this->angle();
+    MxAngle *a = this->get();
     if(a && a->flags & ANGLE_ACTIVE) {
         result = std::vector<int32_t>{a->i, a->j, a->k};
     }
@@ -858,7 +878,7 @@ std::vector<int32_t> MxAngleHandle::getParts() {
 }
 
 MxPotential *MxAngleHandle::getPotential() {
-    MxAngle *a = this->angle();
+    MxAngle *a = this->get();
     if(a && a->flags & ANGLE_ACTIVE) {
         return a->potential;
     }
@@ -870,46 +890,46 @@ uint32_t MxAngleHandle::getId() {
 }
 
 float MxAngleHandle::getDissociationEnergy() {
-    auto *a = this->angle();
+    auto *a = this->get();
     if (a) return a->dissociation_energy;
     return NULL;
 }
 
 void MxAngleHandle::setDissociationEnergy(const float &dissociation_energy) {
-    auto *a = this->angle();
+    auto *a = this->get();
     if (a) a->dissociation_energy = dissociation_energy;
 }
 
 float MxAngleHandle::getHalfLife() {
-    auto *a = this->angle();
+    auto *a = this->get();
     if (a) return a->half_life;
     return NULL;
 }
 
 void MxAngleHandle::setHalfLife(const float &half_life) {
-    auto *a = this->angle();
+    auto *a = this->get();
     if (a) a->half_life = half_life;
 }
 
 bool MxAngleHandle::getActive() {
-    auto *a = this->angle();
+    auto *a = this->get();
     if (a) return (bool)(a->flags & ANGLE_ACTIVE);
     return false;
 }
 
 NOMStyle *MxAngleHandle::getStyle() {
-    auto *a = this->angle();
+    auto *a = this->get();
     if (a) return a->style;
     return NULL;
 }
 
 void MxAngleHandle::setStyle(NOMStyle *style) {
-    auto *a = this->angle();
+    auto *a = this->get();
     if (a) a->style = style;
 }
 
 double MxAngleHandle::getAge() {
-    auto *a = this->angle();
+    auto *a = this->get();
     if (a) return (_Engine.time - a->creation_time) * _Engine.dt;
     return 0;
 }
@@ -938,6 +958,7 @@ HRESULT toFile(const MxAngle &dataElement, const MxMetaData &metaData, MxIOEleme
     MXANGLEIOTOEASY(fe, "i", dataElement.i);
     MXANGLEIOTOEASY(fe, "j", dataElement.j);
     MXANGLEIOTOEASY(fe, "k", dataElement.k);
+    MXANGLEIOTOEASY(fe, "id", dataElement.id);
     MXANGLEIOTOEASY(fe, "creation_time", dataElement.creation_time);
     MXANGLEIOTOEASY(fe, "half_life", dataElement.half_life);
     MXANGLEIOTOEASY(fe, "dissociation_energy", dataElement.dissociation_energy);
@@ -957,6 +978,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxA
     MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "i", &dataElement->i);
     MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "j", &dataElement->j);
     MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "k", &dataElement->k);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
     MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "creation_time", &dataElement->creation_time);
     MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "half_life", &dataElement->half_life);
     MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "dissociation_energy", &dataElement->dissociation_energy);

@@ -88,7 +88,7 @@ Bonds
 
     .. automethod:: __getitem__
 
-    .. automethod:: angle
+    .. automethod:: get
 
     .. automethod:: destroy
 
@@ -119,6 +119,8 @@ Bonds
 
     .. autoproperty:: potential
 
+    .. autoproperty:: id
+
     .. autoproperty:: dissociation_energy
 
     .. autoproperty:: half_life
@@ -127,7 +129,7 @@ Bonds
 
     .. autoproperty:: age
 
-    .. automethod:: dihedral
+    .. automethod:: get
 
     .. automethod:: __str__
 

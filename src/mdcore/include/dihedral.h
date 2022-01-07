@@ -34,14 +34,27 @@
 /** ID of the last error */
 CAPI_DATA(int) dihedral_err;
 
+
+typedef enum MxDihedralFlags {
+
+    // none type dihedral are initial state, and can be
+    // re-assigned if ref count is 1 (only owned by engine).
+    DIHEDRAL_NONE                   = 0,
+    DIHEDRAL_ACTIVE                 = 1 << 0
+} MxDihedralFlags;
+
 struct MxDihedralHandle;
 struct MxParticleHandle;
 
 /** The dihedral structure */
 typedef struct MxDihedral {
 
+    uint32_t flags;
+
 	/* ids of particles involved */
 	int i, j, k, l;
+    
+    uint32_t id;
 
     uint64_t creation_time;
 
@@ -102,6 +115,11 @@ typedef struct MxDihedral {
 
 } MxDihedral;
 
+/**
+ * @brief A handle to a dihedral bond
+ * 
+ * This is a safe way to work with a dihedral bond. 
+ */
 struct MxDihedralHandle {
 	int id;
 
@@ -110,9 +128,22 @@ struct MxDihedralHandle {
      * 
      * @return MxDihedral* 
      */
-    MxDihedral *dihedral();
+    MxDihedral *get();
 
+    /**
+     * @brief Get a summary string of the dihedral
+     * 
+     * @return std::string 
+     */
     std::string str();
+
+    /**
+     * @brief Check the validity of the handle
+     * 
+     * @return true if ok
+     * @return false 
+     */
+    bool check();
 
     /**
      * @brief Destroy the dihedral

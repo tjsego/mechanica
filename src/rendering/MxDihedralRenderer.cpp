@@ -32,6 +32,9 @@ HRESULT MxDihedralRenderer::start(const std::vector<MxVector4f> &clipPlanes) {
 }
 
 static inline int render_dihedral(BondsInstanceData* dihedralData, int i, MxDihedral *dihedral) {
+
+    if(!(dihedral->flags & DIHEDRAL_ACTIVE)) 
+        return 0;
     
     Magnum::Vector3 *color = &dihedral->style->color;
     MxParticle *pi = _Engine.s.partlist[dihedral->i];

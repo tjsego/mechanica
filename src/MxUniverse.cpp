@@ -458,7 +458,7 @@ HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOEl
         std::vector<MxAngle> al;
         al.reserve(ahl.size());
         for(auto ah : ahl) {
-            auto a = ah->angle();
+            auto a = ah->get();
             if(a->flags & ANGLE_ACTIVE) {
                 if(a->potential != NULL) {
                     int idx = -1;
@@ -516,7 +516,7 @@ HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOEl
         std::vector<MxDihedral> dl;
         dl.reserve(dhl.size());
         for(auto dh : dhl) {
-            auto d = dh->dihedral();
+            auto d = dh->get();
             if(d != NULL) {
                 if(d->potential != NULL) {
                     int idx = -1;
@@ -835,7 +835,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
                 pj = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[a.j]];
                 pk = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[a.k]];
                 auto ah = MxAngle::create(p, pi->py_particle(), pj->py_particle(), pk->py_particle(), a.flags);
-                auto ae = ah->angle();
+                auto ae = ah->get();
 
                 ae->half_life = a.half_life;
                 ae->dissociation_energy = a.dissociation_energy;
@@ -850,7 +850,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
             for(auto aIdx : aIndices) {
                 auto a = anglesCreated[aIdx];
                 if(a != NULL) 
-                    a->angle()->style = s;
+                    a->get()->style = s;
             }
         }
     }
@@ -881,7 +881,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
                 pk = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[d.k]];
                 pl = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[d.l]];
                 auto dh = MxDihedral::create(p, pi->py_particle(), pj->py_particle(), pk->py_particle(), pl->py_particle());
-                auto de = dh->dihedral();
+                auto de = dh->get();
 
                 de->half_life = d.half_life;
                 de->dissociation_energy = d.dissociation_energy;
@@ -896,7 +896,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
             for(auto dIdx : dIndices) {
                 auto d = dihedralsCreated[dIdx];
                 if(d != NULL) 
-                    d->dihedral()->style = s;
+                    d->get()->style = s;
             }
         }
     }

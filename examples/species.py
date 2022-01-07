@@ -20,7 +20,7 @@ class AType(mx.ParticleType):
 
     species = ['S1', 'S2', 'S3']
 
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow"}}
 
     @staticmethod
     def on_register(ptype):

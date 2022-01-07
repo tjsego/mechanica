@@ -1,36 +1,36 @@
 import mechanica as mx
 
 mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL)
-
-
+import os
+pid = os.getpid()
 class AType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 5)}}
 
 
 class ProducerType(mx.ParticleType):
     radius = 0.1
     species = ['S1=200', 'S2', 'S3']
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 5)}}
 
 
 class ConsumerType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 5)}}
 
 
 class SourceType(mx.ParticleType):
     radius = 0.1
     species = ['$S1=5', 'S2', 'S3']  # make S1 a boundary species here.
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 5)}}
 
 
 class SinkType(mx.ParticleType):
     radius = 0.1
     species = ['$S1', 'S2', 'S3']  # make S1 a boundary species here.
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 5)}}
 
 
 A = AType.get()

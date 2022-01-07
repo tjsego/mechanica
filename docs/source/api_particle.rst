@@ -79,6 +79,37 @@ Particles and Clusters
     .. automethod:: to_cluster
 
 
+.. autoclass:: ParticleType
+
+    .. autoattribute:: mass
+
+    .. autoattribute:: charge
+
+    .. autoattribute:: radius
+
+    .. autoattribute:: target_energy
+
+    .. autoattribute:: minimum_radius
+
+    .. autoattribute:: eps
+
+    .. autoattribute:: rmin
+
+    .. autoattribute:: dynamics
+
+    .. autoattribute:: frozen
+
+    .. autoattribute:: name
+
+    .. autoattribute:: name2
+
+    .. autoattribute:: style
+
+    .. autoattribute:: species
+
+    .. automethod:: get
+
+
 .. autoclass:: MxParticleType
 
     .. autoproperty:: frozen
@@ -181,6 +212,11 @@ Particles and Clusters
 
     .. automethod:: split
 
+
+.. autoclass:: ClusterType
+    :show-inheritance:
+
+    .. autoattribute:: types
 
 .. autoclass:: MxClusterParticleType
     :show-inheritance:

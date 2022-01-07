@@ -6,19 +6,19 @@ mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL)
 class AType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
 
 
 class ProducerType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
 
 
 class ConsumerType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap": {"species": "S1", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
 
 
 A, Producer, Consumer = AType.get(), ProducerType.get(), ConsumerType.get()

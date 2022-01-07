@@ -9,6 +9,12 @@ Particles and Clusters
 
     .. automethod:: py_particle
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
 
 .. autoclass:: MxParticleHandle
 
@@ -111,6 +117,8 @@ Particles and Clusters
 
     .. autoattribute:: species
 
+    .. autoattribute:: parts
+
     .. automethod:: particle
 
     .. automethod:: particleTypeIds
@@ -133,6 +141,14 @@ Particles and Clusters
 
     .. automethod:: items
 
+    .. automethod:: to_cluster
+
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
 
 .. autoclass:: Cluster
 .. autoclass:: ClusterHandle
@@ -153,17 +169,23 @@ Particles and Clusters
 
     .. autoproperty:: moment_of_inertia
 
+    .. autoattribute:: parts
+
     .. automethod:: __call__
 
         Alias of :meth:`_call`
 
     .. automethod:: _call
 
+    .. automethod:: cluster
+
     .. automethod:: split
 
 
 .. autoclass:: MxClusterParticleType
     :show-inheritance:
+
+    .. autoattribute:: types
 
     .. automethod:: hasType
 

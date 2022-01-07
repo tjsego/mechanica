@@ -15,6 +15,12 @@ Style
 
     .. automethod:: newColorMapper
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
 
 .. autoclass:: ColorMapper
 

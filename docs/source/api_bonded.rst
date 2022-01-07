@@ -7,6 +7,12 @@ Bonds
 
     .. automethod:: create
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
 .. autoclass:: BondHandle
 
 .. autoclass:: MxBondHandle
@@ -50,6 +56,12 @@ Bonds
 
     .. automethod:: create
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
 .. autoclass:: AngleHandle
 
 .. autoclass:: MxAngleHandle
@@ -77,6 +89,49 @@ Bonds
     .. automethod:: __getitem__
 
     .. automethod:: angle
+
+    .. automethod:: destroy
+
+    .. automethod:: items
+
+    .. automethod:: decays
+
+
+.. autoclass:: Dihedral
+
+.. autoclass:: MxDihedral
+
+    .. automethod:: create
+
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
+.. autoclass:: DihedralHandle
+
+.. autoclass:: MxDihedralHandle
+
+    .. autoproperty:: energy
+
+    .. autoproperty:: parts
+
+    .. autoproperty:: potential
+
+    .. autoproperty:: dissociation_energy
+
+    .. autoproperty:: half_life
+
+    .. autoproperty:: style
+
+    .. autoproperty:: age
+
+    .. automethod:: dihedral
+
+    .. automethod:: __str__
+
+    .. automethod:: __getitem__
 
     .. automethod:: destroy
 

@@ -31,3 +31,9 @@ Boundary Conditions
    .. autoattribute:: bottom
 
    .. autoattribute:: top
+
+   .. automethod:: toString
+
+   .. automethod:: fromString
+
+    .. automethod:: __reduce__

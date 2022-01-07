@@ -37,6 +37,12 @@ ParticleList and ParticleTypeList
 
     .. automethod:: sphericalPositions
 
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__
+
 
 .. autoclass:: ParticleTypeList
 
@@ -73,3 +79,9 @@ ParticleList and ParticleTypeList
     .. automethod:: all
 
     .. automethod:: sphericalPositions
+
+    .. automethod:: toString
+
+    .. automethod:: fromString
+
+    .. automethod:: __reduce__

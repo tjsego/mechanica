@@ -48,6 +48,21 @@ struct MxSpeciesList
     MxSpeciesList() {};
 
     ~MxSpeciesList();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return MxSpeciesList* 
+     */
+    static MxSpeciesList *fromString(const std::string &str);
     
 private:
     

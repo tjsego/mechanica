@@ -10,6 +10,7 @@
 #include "MxSpeciesList.h"
 #include <MxLogger.h>
 #include <mx_error.h>
+#include <io/MxFIO.h>
 
 #include <sbml/Species.h>
 
@@ -124,6 +125,15 @@ MxStateVector::~MxStateVector() {
         free(fvec);
     }
 }
+
+std::string MxStateVector::toString() {
+    return mx::io::toString(*this);
+}
+
+MxStateVector *MxStateVector::fromString(const std::string &str) {
+    return mx::io::fromString<MxStateVector*>(str);
+}
+
 
 namespace mx { namespace io { 
 

@@ -56,6 +56,7 @@
 #include <../../MxLogger.h>
 #include <../../MxUtil.h>
 #include <../../mx_error.h>
+#include <../../io/MxFIO.h>
 #include <../../rendering/NOMStyle.hpp>
 
 #ifdef HAVE_CUDA
@@ -665,6 +666,14 @@ MxBondHandle *MxBond::create(struct MxPotential *potential,
     auto _half_life = half_life ? *half_life : std::numeric_limits<double>::max();
     auto _bond_energy = bond_energy ? *bond_energy : std::numeric_limits<double>::max();
     return new MxBondHandle(potential, i->id, j->id, _half_life, _bond_energy, flags);
+}
+
+std::string MxBond::toString() {
+    return mx::io::toString(*this);
+}
+
+MxBond *MxBond::fromString(const std::string &str) {
+    return new MxBond(mx::io::fromString<MxBond>(str));
 }
 
 MxBond *MxBondHandle::get() {

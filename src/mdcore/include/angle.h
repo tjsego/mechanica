@@ -104,6 +104,23 @@ typedef struct MxAngle {
                                  MxParticleHandle *p3, 
                                  uint32_t flags=0);
 
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned angle is not automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxAngle* 
+     */
+    static MxAngle *fromString(const std::string &str);
+
 } MxAngle;
 
 /**

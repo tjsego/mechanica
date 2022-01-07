@@ -83,6 +83,23 @@ typedef struct MxDihedral {
                                  	MxParticleHandle *p3, 
                                  	MxParticleHandle *p4);
 
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned dihedral is not automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxDihedral* 
+     */
+    static MxDihedral *fromString(const std::string &str);
+
 } MxDihedral;
 
 struct MxDihedralHandle {

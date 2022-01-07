@@ -8,6 +8,7 @@
 #include "MxParticleTypeList.h"
 
 #include "engine.h"
+#include "../../io/MxFIO.h"
 
 void MxParticleTypeList::free() {}
 
@@ -219,6 +220,14 @@ MxParticleTypeList::~MxParticleTypeList() {
     if(this->flags & PARTICLELIST_OWNDATA && size_parts > 0) {
         ::free(this->parts);
     }
+}
+
+std::string MxParticleTypeList::toString() {
+    return mx::io::toString(*this);
+}
+
+MxParticleTypeList *MxParticleTypeList::fromString(const std::string &str) {
+    return new MxParticleTypeList(mx::io::fromString<MxParticleTypeList>(str));
 }
 
 

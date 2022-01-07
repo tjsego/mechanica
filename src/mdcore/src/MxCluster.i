@@ -12,6 +12,13 @@
 
 %template(list_ParticleType) std::list<MxParticleType*>;
 
+%extend MxCluster {
+    %pythoncode %{
+        def __reduce__(self):
+            return MxCluster_fromString, (self.toString(),)
+    %}
+}
+
 %extend MxClusterParticleHandle {
     %pythoncode %{
         def __call__(self, particle_type, position=None, velocity=None):
@@ -51,6 +58,9 @@
         def __call__(self, position=None, velocity=None, cluster_id=None):
             ph = MxParticleType.__call__(self, position, velocity, cluster_id)
             return MxClusterParticleHandle(ph.id, ph.type_id)
+
+        def __reduce__(self):
+            return MxClusterParticleType_fromString, (self.toString(),)
     %}
 }
 

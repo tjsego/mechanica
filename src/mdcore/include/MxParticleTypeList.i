@@ -54,6 +54,9 @@
         def forces(self):
             """Total net force acting on each particle corresponding to all types in list"""
             return self.getForces()
+
+        def __reduce__(self):
+            return MxParticleTypeList.fromString, (self.toString(),)
     %}
 }
 

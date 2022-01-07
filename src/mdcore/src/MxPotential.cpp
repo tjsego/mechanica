@@ -28,6 +28,7 @@
 #include "../../MxUtil.h"
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
+#include <../../io/MxFIO.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -2766,6 +2767,18 @@ MxPotential& MxPotential::operator+(const MxPotential& rhs) {
 	std::strcpy(cname, pName.c_str());
 	p->name = cname;
 	return *p;
+}
+
+std::string MxPotential::toString() {
+	MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+    if(mx::io::toFile(this, metaData, fe) != S_OK) 
+        return "";
+    return mx::io::toStr(fe, metaData);
+}
+
+MxPotential *MxPotential::fromString(const std::string &str) {
+    return mx::io::fromString<MxPotential*>(str);
 }
 
 MxPotential *MxPotential::lennard_jones_12_6(double min, double max, double A, double B, double *tol) {

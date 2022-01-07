@@ -160,4 +160,20 @@ CAPI_FUNC(MxClusterParticleType*) MxClusterParticleType_FindFromName(const char*
 HRESULT _MxCluster_init();
 
 
+/**
+ * @brief Create a cluster from a JSON string representation
+ * 
+ * @param str 
+ * @return MxCluster* 
+ */
+MxCluster *MxCluster_fromString(const std::string &str);
+
+/**
+ * @brief Create a cluster type from a JSON string representation
+ * 
+ * @param str 
+ * @return MxClusterParticleType* 
+ */
+MxClusterParticleType *MxClusterParticleType_fromString(const std::string &str);
+
 #endif /* SRC_MDCORE_SRC_MXCLUSTER_H_ */

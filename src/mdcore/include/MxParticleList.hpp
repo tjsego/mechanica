@@ -108,6 +108,21 @@ struct CAPI_EXPORT MxParticleList {
     MxParticleList(uint16_t nr_parts, int32_t *parts);
     MxParticleList(const MxParticleList &other);
     ~MxParticleList();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation
+     * 
+     * @param str 
+     * @return MxParticleList* 
+     */
+    static MxParticleList *fromString(const std::string &str);
     
 };
 

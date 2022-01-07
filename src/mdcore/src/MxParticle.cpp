@@ -1315,3 +1315,19 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxP
 }
 
 }};
+
+std::string MxParticle::toString() {
+    return mx::io::toString(*this);
+}
+
+MxParticle *MxParticle::fromString(const std::string &str) {
+    return new MxParticle(mx::io::fromString<MxParticle>(str));
+}
+
+std::string MxParticleType::toString() {
+    return mx::io::toString(*this);
+}
+
+MxParticleType *MxParticleType::fromString(const std::string &str) {
+    return new MxParticleType(mx::io::fromString<MxParticleType>(str));
+}

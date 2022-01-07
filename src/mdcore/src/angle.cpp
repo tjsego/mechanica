@@ -53,6 +53,7 @@
 #include <space_cell.h>
 #include "space.h"
 #include "engine.h"
+#include <../../io/MxFIO.h>
 #include <../../rendering/NOMStyle.hpp>
 
 #ifdef HAVE_CUDA
@@ -762,6 +763,14 @@ MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxP
     #endif
 
     return handle;
+}
+
+std::string MxAngle::toString() {
+    return mx::io::toString(*this);
+}
+
+MxAngle *MxAngle::fromString(const std::string &str) {
+    return new MxAngle(mx::io::fromString<MxAngle>(str));
 }
 
 MxAngle *MxAngleHandle::angle() {

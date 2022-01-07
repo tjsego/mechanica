@@ -393,3 +393,11 @@ HRESULT _MxCluster_init() {
     auto type = new MxClusterParticleType();
     return S_OK;
 }
+
+MxCluster *MxCluster_fromString(const std::string &str) {
+    return (MxCluster*)MxParticle::fromString(str);
+}
+
+MxClusterParticleType *MxClusterParticleType_fromString(const std::string &str) {
+    return (MxClusterParticleType*)MxParticleType::fromString(str);
+}

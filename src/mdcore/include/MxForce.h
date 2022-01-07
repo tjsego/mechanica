@@ -127,10 +127,35 @@ struct MxForce {
     static Friction* friction(const float &coef, const float &std=0.0, const float &mean=0.0, const float &duration=0.1);
 
     MxForce& operator+(const MxForce& rhs);
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    virtual std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation
+     * 
+     * @param str 
+     * @return MxForce* 
+     */
+    static MxForce *fromString(const std::string &str);
 };
 
 struct MxForceSum : MxForce {
     MxForce *f1, *f2;
+
+    /**
+     * @brief Convert basic force to force sum. 
+     * 
+     * If the basic force is not a force sum, then NULL is returned. 
+     * 
+     * @param f 
+     * @return MxForceSum* 
+     */
+    static MxForceSum *fromForce(MxForce *f);
 };
 
 MxForce *MxForce_add(MxForce *f1, MxForce *f2);
@@ -197,6 +222,16 @@ struct MxConstantForce : MxForce {
     MxConstantForce(const MxVector3f &f, const float &period=std::numeric_limits<float>::max());
     MxConstantForce(MxUserForceFuncType *f, const float &period=std::numeric_limits<float>::max());
     virtual ~MxConstantForce(){}
+
+    /**
+     * @brief Convert basic force to MxConstantForce. 
+     * 
+     * If the basic force is not a MxConstantForce, then NULL is returned. 
+     * 
+     * @param f 
+     * @return MxConstantForce* 
+     */
+    static MxConstantForce *fromForce(MxForce *f);
 };
 
 struct MxConstantForcePy : MxConstantForce {
@@ -219,6 +254,16 @@ struct MxConstantForcePy : MxConstantForce {
 
     void setValue(PyObject *_userFunc=NULL);
 
+    /**
+     * @brief Convert basic force to MxConstantForcePy. 
+     * 
+     * If the basic force is not a MxConstantForcePy, then NULL is returned. 
+     * 
+     * @param f 
+     * @return MxConstantForcePy* 
+     */
+    static MxConstantForcePy *fromForce(MxForce *f);
+
 };
 
 /**
@@ -231,6 +276,16 @@ struct Berendsen : MxForce {
      * @brief time constant
      */
     float itau;
+
+    /**
+     * @brief Convert basic force to Berendsen. 
+     * 
+     * If the basic force is not a Berendsen, then NULL is returned. 
+     * 
+     * @param f 
+     * @return Berendsen* 
+     */
+    static Berendsen *fromForce(MxForce *f);
 };
 
 /**
@@ -253,6 +308,16 @@ struct Gaussian : MxForce {
      * @brief duration of force.
      */
     unsigned durration_steps;
+
+    /**
+     * @brief Convert basic force to Gaussian. 
+     * 
+     * If the basic force is not a Gaussian, then NULL is returned. 
+     * 
+     * @param f 
+     * @return Gaussian* 
+     */
+    static Gaussian *fromForce(MxForce *f);
 };
 
 /**
@@ -280,6 +345,16 @@ struct Friction : MxForce {
      * @brief duration of force, in time steps
      */
     unsigned durration_steps;
+
+    /**
+     * @brief Convert basic force to Friction. 
+     * 
+     * If the basic force is not a Friction, then NULL is returned. 
+     * 
+     * @param f 
+     * @return Friction* 
+     */
+    static Friction *fromForce(MxForce *f);
 };
 
 
@@ -336,6 +411,13 @@ template <>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, std::vector<MxForce*> *dataElement);
 
 }};
+
+
+MxForceSum *MxForceSum_fromStr(const std::string &str);
+Berendsen *Berendsen_fromStr(const std::string &str);
+Gaussian *Gaussian_fromStr(const std::string &str);
+Friction *Friction_fromStr(const std::string &str);
+
 
 #endif /* SRC_MDCORE_SRC_MXFORCE_H_ */
 

@@ -10,6 +10,7 @@
 #include "engine.h"
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
+#include "../../io/MxFIO.h"
 #include "../../state/MxStateVector.h"
 
 #include <algorithm>
@@ -720,6 +721,14 @@ void apply_boundary_particle_crossing(struct MxParticle *p, const int *delta,
         }
 
     }
+}
+
+std::string MxBoundaryConditions::toString() {
+    return mx::io::toString(*this);
+}
+
+MxBoundaryConditions *MxBoundaryConditions::fromString(const std::string &str) {
+    return new MxBoundaryConditions(mx::io::fromString<MxBoundaryConditions>(str));
 }
 
 

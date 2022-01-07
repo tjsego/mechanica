@@ -24,6 +24,9 @@
     %pythoncode %{
         def __str__(self) -> str:
             return self.str()
+
+        def __reduce__(self):
+            return MxBoundaryConditions.fromString, (self.toString(),)
     %}
 }
 

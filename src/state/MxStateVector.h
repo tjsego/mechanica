@@ -67,6 +67,21 @@ struct MxStateVector {
                   void *data=NULL);
     MxStateVector(const MxStateVector &other);
     ~MxStateVector();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return MxStateVector* 
+     */
+    static MxStateVector *fromString(const std::string &str);
 };
 
 namespace mx { namespace io { 

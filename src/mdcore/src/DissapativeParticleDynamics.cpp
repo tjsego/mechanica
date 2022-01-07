@@ -7,6 +7,8 @@
 
 #include <DissapativeParticleDynamics.hpp>
 
+#include <../../io/MxFIO.h>
+
 #include <cmath>
 #include <limits>
 
@@ -25,6 +27,24 @@ DPDPotential::DPDPotential(float alpha, float gamma, float sigma, float cutoff, 
     if(shifted) {
         this->flags |= POTENTIAL_SHIFTED;
     }
+}
+
+DPDPotential *DPDPotential::fromPot(MxPotential *pot) {
+    if(pot->kind != POTENTIAL_KIND_DPD) 
+        return NULL;
+    return (DPDPotential*)pot;
+}
+
+std::string DPDPotential::toString() {
+    MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+    if(mx::io::toFile(this, metaData, fe) != S_OK) 
+        return "";
+    return mx::io::toStr(fe, metaData);
+}
+
+DPDPotential *DPDPotential::fromString(const std::string &str) {
+    return mx::io::fromString<DPDPotential*>(str);
 }
 
 
@@ -81,3 +101,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, DPD
 }
 
 }};
+
+DPDPotential *DPDPotential_fromStr(const std::string &str) {
+    return DPDPotential::fromString(str);
+}

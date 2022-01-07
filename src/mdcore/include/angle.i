@@ -9,6 +9,13 @@
 
 %template(vectorAngleHandle_p) std::vector<MxAngleHandle*>;
 
+%extend MxAngle {
+    %pythoncode %{
+        def __reduce__(self):
+            return MxAngle.fromString, (self.toString(),)
+    %}
+}
+
 %extend MxAngleHandle {
     %pythoncode %{
         def __getitem__(self, index: int):

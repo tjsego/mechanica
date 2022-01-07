@@ -189,6 +189,21 @@ struct CAPI_EXPORT MxFluxes
      * @return MxFluxes* 
      */
     static MxFluxes *uptake(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay=0.0f);
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation
+     * 
+     * @param str 
+     * @return MxFluxes* 
+     */
+    static MxFluxes *fromString(const std::string &str);
 };
 
 /**

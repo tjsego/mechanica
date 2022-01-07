@@ -51,6 +51,9 @@
                 if not isinstance(value, MxSpecies):
                     raise TypeError("Not a species")
                 self.insert(value)
+
+        def __reduce__(self):
+            return MxSpeciesList.fromString, (self.toString(),)
     %}
 }
 

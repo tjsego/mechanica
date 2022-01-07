@@ -15,6 +15,13 @@
 %template(vectorParticleHandle) std::vector<MxParticleHandle>;
 %template(vectorParticleType) std::vector<MxParticleType>;
 
+%extend MxParticle {
+    %pythoncode %{
+        def __reduce__(self):
+            return MxParticle.fromString, (self.toString(),)
+    %}
+}
+
 %extend MxParticleHandle {
     %pythoncode %{
         @property
@@ -227,6 +234,9 @@
         @target_temperature.setter
         def target_temperature(self, temperature):
             self.setTargetTemperature(temperature)
+
+        def __reduce__(self):
+            return MxParticleType.fromString, (self.toString(),)
     %}
 }
 

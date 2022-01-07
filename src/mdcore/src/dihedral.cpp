@@ -53,6 +53,7 @@
 #include "space.h"
 #include "engine.h"
 #include "dihedral.h"
+#include <../../io/MxFIO.h>
 #include <../../rendering/NOMStyle.hpp>
 
 NOMStyle *MxDihedral_StylePtr = new NOMStyle("gold");
@@ -801,6 +802,14 @@ MxDihedralHandle *MxDihedral::create(MxPotential *potential,
     d->init(potential, p1, p2, p3, p4);
 
     return handle;
+}
+
+std::string MxDihedral::toString() {
+    return mx::io::toString(*this);
+}
+
+MxDihedral *MxDihedral::fromString(const std::string &str) {
+    return new MxDihedral(mx::io::fromString<MxDihedral>(str));
 }
 
 MxDihedral *MxDihedralHandle::dihedral() {

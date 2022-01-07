@@ -99,6 +99,21 @@ struct MxSpecies {
     MxSpecies(const std::string &s);
     MxSpecies(const MxSpecies &other);
     ~MxSpecies();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return MxSpecies* 
+     */
+    static MxSpecies *fromString(const std::string &str);
 };
 
 

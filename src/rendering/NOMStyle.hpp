@@ -78,6 +78,21 @@ struct CAPI_EXPORT NOMStyle
                         const std::string &speciesName, 
                         const std::string &name="rainbow", 
                         float min=0.0f, float max=1.0f);
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return NOMStyle* 
+     */
+    static NOMStyle *fromString(const std::string &str);
 };
 
 namespace mx { namespace io {

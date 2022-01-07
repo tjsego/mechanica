@@ -84,6 +84,66 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, jso
     return S_OK;
 }
 
+std::string toStr(MxIOElement *fileElement, const MxMetaData &metaData) {
+
+    json jroot;
+
+    json jmetadata;
+    MxIOElement femetadata;
+    mx::io::toFile(metaData, MxMetaData(), &femetadata);
+
+    if(mx::io::fromFile(femetadata, metaData, &jmetadata) != S_OK) 
+        mx_exp(std::runtime_error("Could not translate meta data"));
+
+    jroot[MxFIO::KEY_METADATA] = jmetadata;
+
+    json jvalue;
+    
+    if(mx::io::fromFile(*fileElement, metaData, &jvalue) != S_OK) 
+        mx_exp(std::runtime_error("Could not translate data"));
+
+    jroot[MxFIO::KEY_VALUE] = jvalue;
+
+    return jroot.dump(4);
+}
+
+std::string toStr(MxIOElement *fileElement) {
+
+    return toStr(fileElement, MxMetaData());
+
+}
+
+MxIOElement *fromStr(const std::string &str, const MxMetaData &metaData) {
+
+    json jroot = json::parse(str);
+
+    MxIOElement *fe = new MxIOElement();
+
+    if(mx::io::toFile(jroot[MxFIO::KEY_VALUE], metaData, fe) != S_OK) 
+        mx_exp(std::runtime_error("Could not translate data"));
+
+    return fe;
+}
+
+MxIOElement *fromStr(const std::string &str) {
+
+    json jroot = json::parse(str);
+
+    MxIOElement *fevalue = new MxIOElement(), femetadata;
+    MxMetaData strMetaData, metaData;
+
+    if(mx::io::toFile(jroot[MxFIO::KEY_METADATA], metaData, &femetadata) != S_OK) 
+        mx_exp(std::runtime_error("Could not parse meta data"));
+    
+    if(mx::io::fromFile(femetadata, metaData, &strMetaData) != S_OK) 
+        mx_exp(std::runtime_error("Could not translate meta data"));
+
+    if(mx::io::toFile(jroot[MxFIO::KEY_VALUE], strMetaData, fevalue) != S_OK) 
+        mx_exp(std::runtime_error("Could not translate data"));
+
+    return fevalue;
+}
+
 }}
 
 

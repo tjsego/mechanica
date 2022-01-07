@@ -10,6 +10,7 @@
 #include <MxParticle.h>
 #include <../../mx_error.h>
 #include <../../MxLogger.h>
+#include <../../io/MxFIO.h>
 #include <iostream>
 #include <random>
 #include <../../state/MxStateVector.h>
@@ -165,6 +166,20 @@ MxForce& MxForce::operator+(const MxForce& rhs) {
     return *MxForce_add(this, const_cast<MxForce*>(&rhs));
 }
 
+std::string MxForce::toString() {
+    MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+
+    if(mx::io::toFile(this, metaData, fe) != S_OK) 
+        return "";
+
+    return mx::io::toStr(fe, metaData);
+}
+
+MxForce *MxForce::fromString(const std::string &str) {
+    return mx::io::fromString<MxForce*>(str);
+}
+
 /**
  * Implements a force:
  *
@@ -287,6 +302,43 @@ MxConstantForce::MxConstantForce(MxUserForceFuncType *f, const float &period) : 
     type = FORCE_CONSTANT;
     updateInterval = period;
     setValue(f);
+}
+
+
+MxForceSum *MxForceSum::fromForce(MxForce *f) {
+    if(f->type != FORCE_SUM) 
+        return 0;
+    return (MxForceSum*)f;
+}
+
+MxConstantForce *MxConstantForce::fromForce(MxForce *f) {
+    if(f->type != FORCE_CONSTANT) 
+        return 0;
+    return (MxConstantForce*)f;
+}
+
+MxConstantForcePy *MxConstantForcePy::fromForce(MxForce *f) {
+    if(f->type != FORCE_CONSTANTPY) 
+        return 0;
+    return (MxConstantForcePy*)f;
+}
+
+Berendsen *Berendsen::fromForce(MxForce *f) {
+    if(f->type != FORCE_BERENDSEN) 
+        return 0;
+    return (Berendsen*)f;
+}
+
+Gaussian *Gaussian::fromForce(MxForce *f) {
+    if(f->type != FORCE_GAUSSIAN) 
+        return 0;
+    return (Gaussian*)f;
+}
+
+Friction *Friction::fromForce(MxForce *f) {
+    if(f->type != FORCE_FRICTION) 
+        return 0;
+    return (Friction*)f;
 }
 
 
@@ -606,3 +658,19 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, std
 }
 
 }};
+
+MxForceSum *MxForceSum_fromStr(const std::string &str) {
+    return (MxForceSum*)MxForce::fromString(str);
+}
+
+Berendsen *Berendsen_fromStr(const std::string &str)  {
+    return (Berendsen*)MxForce::fromString(str);
+}
+
+Gaussian *Gaussian_fromStr(const std::string &str) {
+    return (Gaussian*)MxForce::fromString(str);
+}
+
+Friction *Friction_fromStr(const std::string &str) {
+    return (Friction*)MxForce::fromString(str);
+}

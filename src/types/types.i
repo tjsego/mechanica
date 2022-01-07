@@ -226,6 +226,9 @@ vector_template_prep_float(mx::type::MxVector2, dataType, wrappedName)
         def distance(self, line_start_pt, line_end_pt):
             """distance from a line defined by two points"""
             return self._distance(line_start_pt, line_end_pt)
+
+        def __reduce__(self):
+            return self.__class__, (self.x(), self.y())
     %}
 }
 
@@ -254,6 +257,9 @@ vector_template_prep_float(mx::type::MxVector3, dataType, wrappedName)
         def relative_to(self, origin, dim, periodic_x, periodic_y, periodic_z):
             """position relative to an origin in a space with some periodic boundary conditions"""
             return self._relativeTo(origin, dim, periodic_x, periodic_y, periodic_z)
+
+        def __reduce__(self):
+            return self.__class__, (self.x(), self.y(), self.z())
     %}
 }
 %enddef
@@ -292,6 +298,9 @@ vector_template_prep_float(mx::type::MxVector4, dataType, wrappedName)
         def planeEquation(cls, *args):
             """get a plane equation"""
             return cls._planeEquation(*args)
+
+        def __reduce__(self):
+            return self.__class__, (self.x(), self.y(), self.z(), self.w())
     %}
 }
 %enddef
@@ -414,6 +423,9 @@ vector_list_cast_add(mx::type::MxQuaternion, float, vectorMxQuaternionf)
         def as_lists(self) -> list:
             """convert to a list of python lists"""
             return [list(v) for v in self.asVectors()]
+
+        def __reduce__(self):
+            return self.__class__, tuple([v for v in self.asVectors()])
     %}
 }
 

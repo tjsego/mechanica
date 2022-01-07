@@ -204,6 +204,9 @@
                 plt.show()
 
             return lines
+
+        def __reduce__(self):
+            return MxPotential.fromString, (self.toString(),)
     %}
 }
 

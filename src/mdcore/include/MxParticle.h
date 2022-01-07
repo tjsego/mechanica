@@ -241,6 +241,26 @@ struct MxParticle  {
     operator MxCluster*();
     
     MxParticle();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned particle is not automatically registered with the engine. 
+     * 
+     * To properly register a particle from a string, pass the string to the 
+     * particle constructor of the appropriate particle type or cluster. 
+     * 
+     * @param str 
+     * @return MxParticle* 
+     */
+    static MxParticle *fromString(const std::string &str);
 };
 
 /**
@@ -618,6 +638,23 @@ struct MxParticleType {
      * @return MxParticleList* 
      */
     MxParticleList *items();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned type is automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxParticleType* 
+     */
+    static MxParticleType *fromString(const std::string &str);
 };
 
 CAPI_FUNC(MxParticleType*) MxParticle_GetType();

@@ -10,6 +10,7 @@
 #include "engine.h"
 #include <metrics.h>
 #include "../../mx_error.h"
+#include "../../io/MxFIO.h"
 #include <cstdarg>
 #include <iostream>
 
@@ -318,6 +319,14 @@ MxParticleList* MxParticleList::all() {
     }
     
     return list;
+}
+
+std::string MxParticleList::toString() {
+    return mx::io::toString(*this);
+}
+
+MxParticleList *MxParticleList::fromString(const std::string &str) {
+    return new MxParticleList(mx::io::fromString<MxParticleList>(str));
 }
 
 

@@ -10,6 +10,7 @@
 #include "MxSpeciesList.h"
 
 #include <MxLogger.h>
+#include <io/MxFIO.h>
 
 // #include <sbml/Species.h>
 #include <sstream>
@@ -93,6 +94,15 @@ MxSpeciesList::~MxSpeciesList() {
     species_map.clear();
 
 }
+
+std::string MxSpeciesList::toString() {
+    return mx::io::toString(*this);
+}
+
+MxSpeciesList *MxSpeciesList::fromString(const std::string &str) {
+    return new MxSpeciesList(mx::io::fromString<MxSpeciesList>(str));
+}
+
 
 namespace mx { namespace io { 
 

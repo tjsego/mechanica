@@ -24,6 +24,9 @@
         @colormap.setter
         def colormap(self, colormap: str):
             return self.setColorMap(colormap)
+
+        def __reduce__(self):
+            return NOMStyle.fromString, (self.toString(),)
     %}
 }
 

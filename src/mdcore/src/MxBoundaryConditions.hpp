@@ -155,6 +155,21 @@ struct MxBoundaryConditions {
 
     std::string str();
 
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * @param str 
+     * @return MxBoundaryConditions* 
+     */
+    static MxBoundaryConditions *fromString(const std::string &str);
+
 private:
 
     HRESULT _initIni();

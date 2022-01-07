@@ -15,6 +15,7 @@
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
 #include "../../MxUtil.h"
+#include <../../io/MxFIO.h>
 
 MxFluxes *MxFluxes::create(FluxKind kind, MxParticleType *a, MxParticleType *b,
                            const std::string& name, float k, float decay, float target) 
@@ -91,6 +92,21 @@ MxFluxes *MxFluxes::uptake(MxParticleType *A, MxParticleType *B, const std::stri
     catch(const std::exception &e) {
         MX_RETURN_EXP(e);
     }
+}
+
+std::string MxFluxes::toString() {
+    
+    // todo: fix type deduction for mx::io::toString<MxFluxes>
+
+    MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+    if(mx::io::toFile(*this, metaData, fe) != S_OK) 
+        return "";
+    return mx::io::toStr(fe, metaData);
+}
+
+MxFluxes *MxFluxes::fromString(const std::string &str) {
+    return new MxFluxes(mx::io::fromString<MxFluxes>(str));
 }
 
 static void integrate_statevector(MxStateVector *s, float dt=-1.0) {

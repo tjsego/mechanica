@@ -10,6 +10,9 @@
         def __str__(self) -> str:
             return self.str()
 
+        def __reduce__(self):
+            return MxSpecies.fromString, (self.toString(),)
+
         @property
         def id(self) -> str:
             return self.getId()

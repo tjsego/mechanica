@@ -248,6 +248,21 @@ typedef struct MxPotential {
     MxPotential& operator+(const MxPotential& rhs);
 
     /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    virtual std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation
+     * 
+     * @param str 
+     * @return MxPotential* 
+     */
+    static MxPotential *fromString(const std::string &str);
+
+    /**
      * @brief Creates a 12-6 Lennard-Jones potential. 
      * 
      * The Lennard Jones potential has the form:

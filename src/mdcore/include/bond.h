@@ -104,6 +104,23 @@ typedef struct MxBond {
                                 double *dissociation_energy=NULL, 
                                 uint32_t flags=0);
 
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned bond is not automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxBond* 
+     */
+    static MxBond *fromString(const std::string &str);
+
 } MxBond;
 
 struct MxParticleType;

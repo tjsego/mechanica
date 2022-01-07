@@ -13,6 +13,108 @@
 #include "mx_io.h"
 
 
+namespace mx { namespace io {
+
+/**
+ * @brief Generate a JSON string representation of an intermediate I/O object. 
+ * 
+ * @param fileElement object to convert
+ * @param metaData meta data of target installation
+ * @return std::string 
+ */
+std::string toStr(MxIOElement *fileElement, const MxMetaData &metaData);
+
+/**
+ * @brief Generate a JSON string representation of an intermediate I/O object. 
+ * 
+ * Current installation is target installation.
+ * 
+ * @param fileElement object to convert
+ * @return std::string 
+ */
+std::string toStr(MxIOElement *fileElement);
+
+/**
+ * @brief Generate an intermediate I/O object from a JSON string. 
+ * 
+ * @param str JSON string
+ * @param metaData meta data of target installation
+ * @return MxIOElement* 
+ */
+MxIOElement *fromStr(const std::string &str, const MxMetaData &metaData);
+
+/**
+ * @brief Generate an intermediate I/O object from a JSON string. 
+ * 
+ * Installation during string export is target installation.
+ * 
+ * @param str JSON string
+ * @return MxIOElement* 
+ */
+MxIOElement *fromStr(const std::string &str);
+
+/**
+ * @brief Generate a JSON string representation of an object. 
+ * 
+ * @tparam T type of source object
+ * @param dataElement source object
+ * @param metaData meta data of target installation
+ * @return std::string 
+ */
+template <typename T>
+std::string toString(const T &dataElement, const MxMetaData &metaData) {
+    MxIOElement *fe = new MxIOElement();
+    if(toFile<T>(dataElement, metaData, fe) != S_OK) 
+        return "";
+    return toStr(fe, metaData);
+}
+
+/**
+ * @brief Generate a JSON string representation of an object. 
+ * 
+ * Current installation is target installation. 
+ * 
+ * @tparam T type of source object
+ * @param dataElement source object
+ * @return std::string 
+ */
+template <typename T>
+std::string toString(const T &dataElement) {
+    return toString(dataElement, MxMetaData());
+}
+
+/**
+ * @brief Generate an object from a JSON string. 
+ * 
+ * @tparam T type of object
+ * @param str JSON string
+ * @param metaData meta data of target installation
+ * @return T 
+ */
+template <typename T>
+T fromString(const std::string &str, const MxMetaData &metaData) { 
+    MxIOElement *fe = fromStr(str, metaData);
+    T de;
+    fromFile<T>(*fe, metaData, &de);
+    return de;
+}
+
+/**
+ * @brief Generate an object from a JSON string. 
+ * 
+ * Current installation is target installation. 
+ * 
+ * @tparam T type of object
+ * @param str JSON string
+ * @return T 
+ */
+template <typename T>
+T fromString(const std::string &str) {
+    return fromString<T>(str, MxMetaData());
+}
+
+}};
+
 /**
  * @brief Mechanica data import summary. 
  * 

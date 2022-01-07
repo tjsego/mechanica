@@ -9,6 +9,7 @@
 #include "MxSpecies.h"
 #include <MxLogger.h>
 #include <mx_error.h>
+#include <io/MxFIO.h>
 
 #include <sbml/Species.h>
 #include <sbml/SBMLNamespaces.h>
@@ -480,6 +481,15 @@ MxSpecies::~MxSpecies() {
         species = 0;
     }
 }
+
+std::string MxSpecies::toString() {
+    return mx::io::toString(*this);
+}
+
+MxSpecies *MxSpecies::fromString(const std::string &str) {
+    return new MxSpecies(mx::io::fromString<MxSpecies>(str));
+}
+
 
 namespace mx{ namespace io { 
 

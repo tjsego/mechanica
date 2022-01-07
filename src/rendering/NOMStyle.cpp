@@ -10,6 +10,7 @@
 #include <space.h>
 #include <MxUtil.h>
 #include <mx_error.h>
+#include <io/MxFIO.h>
 #include "MxColorMapper.hpp"
 
 
@@ -95,6 +96,14 @@ int NOMStyle::init(const Magnum::Color3 *color, const bool &visible, uint32_t fl
     setColorMapper(cmap);
 
     return S_OK;
+}
+
+std::string NOMStyle::toString() {
+    return mx::io::toString(*this);
+}
+
+NOMStyle *NOMStyle::fromString(const std::string &str) {
+    return new NOMStyle(mx::io::fromString<NOMStyle>(str));
 }
 
 

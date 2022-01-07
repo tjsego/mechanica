@@ -69,6 +69,10 @@ class ParticleType:
                           'speciesName': cls.style['colormap']['species']}
                 if 'map' in cls.style['colormap'].keys():
                     kwargs['name'] = cls.style['colormap']['map']
+                if 'range' in cls.style['colormap'].keys():
+                    r = cls.style['colormap']['range']
+                    kwargs['min'] = r[0]
+                    kwargs['max'] = r[1]
                 type_instance.style.newColorMapper(**kwargs)
 
         type_instance.registerType()
@@ -124,6 +128,10 @@ class ClusterType(ParticleType):
                           'speciesName': cls.style['colormap']['species']}
                 if 'map' in cls.style['colormap'].keys():
                     kwargs['name'] = cls.style['colormap']['map']
+                if 'range' in cls.style['colormap'].keys():
+                    r = cls.style['colormap']['range']
+                    kwargs['min'] = r[0]
+                    kwargs['max'] = r[1]
                 type_instance.style.newColorMapper(**kwargs)
 
         type_instance.registerType()

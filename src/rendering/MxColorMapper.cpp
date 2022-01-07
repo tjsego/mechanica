@@ -19,10 +19,12 @@ struct ColormapItem {
     ColorMapperFunc func;
 };
 
+#define COLORMAP_REGULARIZE(cm, part) \
+    (part->state_vector->fvec[cm->species_index] - cm->min_val) / (cm->max_val - cm->min_val)
 
 #define COLORMAP_FUNCTION(CMAP) \
 static Magnum::Color4 CMAP (MxColorMapper *cm, struct MxParticle *part) { \
-    float s = part->state_vector->fvec[cm->species_index];                \
+    float s = COLORMAP_REGULARIZE(cm, part);                              \
     return Magnum::Color4{colormaps::all:: CMAP (s), 1};                  \
 }\
 

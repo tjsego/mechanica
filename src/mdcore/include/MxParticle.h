@@ -577,6 +577,17 @@ struct MxParticleType {
     MxParticleHandle *operator()(MxVector3f *position=NULL,
                                  MxVector3f *velocity=NULL,
                                  int *clusterId=NULL);
+    
+    /**
+     * @brief Particle constructor. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param str JSON string
+     * @param clusterId id of parent cluster, optional
+     * @return MxParticleHandle* 
+     */
+    MxParticleHandle *operator()(const std::string &str, int *clusterId=NULL);
 
     /**
      * @brief Particle type constructor. 

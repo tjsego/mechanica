@@ -175,7 +175,33 @@
 
 %extend MxParticleType {
     %pythoncode %{
-        def __call__(self, position=None, velocity=None, cluster_id=None):
+        def __call__(self, *args, **kwargs):
+            position = kwargs.get('position')
+            velocity = kwargs.get('velocity')
+            part_str = kwargs.get('part_str')
+            cluster_id = kwargs.get('cluster_id')
+            
+            n_args = len(args)
+            if n_args > 0:
+                if isinstance(args[0], str):
+                    part_str = args[0]
+                    if n_args > 1:
+                        if isinstance(args[1], int):
+                            cluster_id = args[1]
+                        else:
+                            raise TypeError
+                elif isinstance(args[0], int):
+                    cluster_id = args[0]
+                else:
+                    position = args[0]
+                    if n_args > 1:
+                        if isinstance(args[1], int):
+                            cluster_id = args[1]
+                        else:
+                            velocity = args[1]
+                            if n_args > 2:
+                                cluster_id = args[2]
+
             pos, vel = None, None
             if position is not None:
                 pos = MxVector3f(list(position))
@@ -183,7 +209,22 @@
             if velocity is not None:
                 vel = MxVector3f(list(velocity))
 
-            return self._call(pos, vel, cluster_id)
+            args = []
+            if pos is not None:
+                args.append(pos)
+            if vel is not None:
+                args.append(vel)
+            if args:
+                if cluster_id is not None:
+                    args.append(cluster_id)
+                return self._call(*args)
+
+            if part_str is not None:
+                args.append(part_str)
+            if cluster_id is not None:
+                args.append(cluster_id)
+            
+            return self._call(*args)
 
         @property
         def frozen(self):

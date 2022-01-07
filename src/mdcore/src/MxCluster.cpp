@@ -224,6 +224,13 @@ MxParticleHandle *MxClusterParticleHandle::operator()(MxParticleType *partType,
     return new MxParticleHandle(p->id, p->typeId);
 }
 
+MxParticleHandle *MxClusterParticleHandle::operator()(MxParticleType *partType, const std::string &str) {
+    MxCluster *dummy = MxCluster_fromString(str);
+    MxParticleHandle *p = (*this)(partType, &dummy->position, &dummy->velocity);
+    delete dummy;
+    return p;
+}
+
 /**
  # split the cell with a cleavage plane, in normal/point form.
  split(normal=[x, y, z], point=[px, py, pz])

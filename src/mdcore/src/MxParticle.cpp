@@ -501,6 +501,36 @@ MxParticleHandle *MxParticleType::operator()(MxVector3f *position,
     return MxParticle_New(this, position, velocity, clusterId);
 }
 
+MxParticleHandle *MxParticleType::operator()(const std::string &str, int *clusterId) {
+    MxParticle *dummy = MxParticle::fromString(str);
+
+    MxParticleHandle *ph = (*this)(&dummy->position, &dummy->velocity, clusterId);
+    auto p = ph->part();
+
+    // copy reamining valid imported data
+
+    p->force = dummy->force;
+    p->inv_number_density = dummy->inv_number_density;
+    p->creation_time = dummy->creation_time;
+    p->persistent_force = dummy->persistent_force;
+    p->radius = dummy->radius;
+    p->mass = dummy->mass;
+    p->imass = dummy->imass;
+    p->q = dummy->q;
+    p->p0 = dummy->p0;
+    p->v0 = dummy->v0;
+    for(unsigned int i = 0; i < 4; i++) {
+        p->xk[i] = dummy->xk[i];
+        p->vk[i] = dummy->vk[i];
+    }
+    p->vid = dummy->vid;
+    p->flags = dummy->flags;
+
+    delete dummy;
+
+    return ph;
+}
+
 MxParticleType* MxParticleType::newType(const char *_name) {
     auto type = new MxParticleType(*this);
     std::strncpy(type->name, std::string(_name).c_str(), MxParticleType::MAX_NAME);

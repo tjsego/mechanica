@@ -9,7 +9,7 @@ class AType(mx.ParticleType):
 
     species = ['S1', 'S2', 'S3']
 
-    style = {"colormap": {"species": "S2", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S2", "map": "rainbow", "range": (0, 1)}}
 
 
 A = AType.get()
@@ -21,7 +21,7 @@ class BType(mx.ParticleType):
 
     species = ['S2', 'S3', 'S4']
 
-    style = {"colormap": {"species": "S2", "map": "rainbow", "range": "auto"}}
+    style = {"colormap": {"species": "S2", "map": "rainbow", "range": (0, 1)}}
 
 
 B = BType.get()

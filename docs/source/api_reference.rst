@@ -67,6 +67,8 @@ This is the API Reference page for the module: :mod:`mechanica`
 
 .. include:: api_flux.rst
 
+.. include:: api_bind.rst
+
 .. include:: api_bonded.rst
 
 .. include:: api_events.rst

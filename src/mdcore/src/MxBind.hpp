@@ -21,6 +21,14 @@
 
 struct CAPI_EXPORT MxBind {
 
+    /**
+     * @brief Bind a potential to a pair of particles
+     * 
+     * @param p The potential
+     * @param a The first particle
+     * @param b The second particle
+     * @return HRESULT 
+     */
     static HRESULT particles(MxPotential *p, MxParticle *a, MxParticle *b);
 
     /**
@@ -61,10 +69,38 @@ struct CAPI_EXPORT MxBind {
      */
     static HRESULT boundaryCondition(MxPotential *p, MxBoundaryCondition *bc, MxParticleType *t);
 
+    /**
+     * @brief Bind a force to a particle type
+     * 
+     * @param force The force
+     * @param a_type The particle type
+     * @return HRESULT 
+     */
     static HRESULT force(MxForce *force, MxParticleType *a_type);
 
+    /**
+     * @brief Bind a force to a particle type with magnitude proportional to a species amount
+     * 
+     * @param force The force
+     * @param a_type The particle type
+     * @param coupling_symbol The symbol of the species
+     * @return HRESULT 
+     */
     static HRESULT force(MxForce *force, MxParticleType *a_type, const std::string& coupling_symbol);
 
+    /**
+     * @brief Create bonds for a set of pairs of particles
+     * 
+     * @param potential The bond potential
+     * @param particles The list of particles
+     * @param cutoff Interaction cutoff
+     * @param pairs Pairs to bind
+     * @param half_life Bond half life
+     * @param bond_energy Bond dissociation energy
+     * @param flags Bond flags
+     * @param out List of created bonds
+     * @return HRESULT 
+     */
     static HRESULT bonds(MxPotential* potential,
                          MxParticleList *particles, 
                          const double &cutoff, 
@@ -83,6 +119,18 @@ struct CAPI_EXPORT MxBind {
                           std::pair<MxParticleList*, std::vector<MxBondHandle*>*> **out=NULL);
 
     #ifdef SWIGPYTHON
+    /**
+     * @brief Create bonds for a set of pairs of particles
+     * 
+     * @param potential The bond potential
+     * @param particles The list of particles
+     * @param cutoff Interaction cutoff
+     * @param pairs Pairs to bind
+     * @param half_life Bond half life
+     * @param bond_energy Bond dissociation energy
+     * @param flags Bond flags
+     * @return std::vector<MxBondHandle*> 
+     */
     static std::vector<MxBondHandle*> _bondsPy(MxPotential* potential,
                                                MxParticleList *particles, 
                                                const double &cutoff, 

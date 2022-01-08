@@ -27,7 +27,7 @@
 #include "space.h"
 #include "mx_runtime.h"
 
-#include "../../rendering/NOMStyle.hpp"
+#include "../../rendering/MxStyle.hpp"
 #include "MxCluster.hpp"
 #include "metrics.h"
 #include "MxParticleList.hpp"
@@ -216,11 +216,11 @@ void MxParticleHandle::setFrozenZ(const bool frozen) {
     else part()->flags &= ~PARTICLE_FROZEN_Z;
 }
 
-NOMStyle *MxParticleHandle::getStyle() {
+MxStyle *MxParticleHandle::getStyle() {
     return part()->style;
 }
 
-void MxParticleHandle::setStyle(NOMStyle *style) {
+void MxParticleHandle::setStyle(MxStyle *style) {
     part()->style = style;
 }
 
@@ -393,7 +393,7 @@ MxParticleType::MxParticleType(const bool &noReg) {
     particle_flags = PARTICLE_NONE;
     
     auto c = Magnum::Color3::fromSrgb(colors[(_Engine.nr_types - 1) % (sizeof(colors)/sizeof(unsigned))]);
-    style = new NOMStyle(&c);
+    style = new MxStyle(&c);
 
     ::strncpy(name, "Particle", MxParticleType::MAX_NAME);
     ::strncpy(name2, "Particle", MxParticleType::MAX_NAME);
@@ -1229,7 +1229,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxP
     
     feItr = fileElement.children.find("style");
     if(feItr != fileElement.children.end()) {
-        dataElement->style = new NOMStyle();
+        dataElement->style = new MxStyle();
         if(fromFile(*feItr->second, metaData, dataElement->style) != S_OK) 
             return E_FAIL;
     } 
@@ -1324,13 +1324,13 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxP
     
     feItr = fileElement.children.find("style");
     if(feItr != fileElement.children.end()) { 
-        dataElement->style = new NOMStyle();
+        dataElement->style = new MxStyle();
         if(fromFile(*feItr->second, metaData, dataElement->style) != S_OK) 
             return E_FAIL;
     } 
     else {
         auto c = Magnum::Color3::fromSrgb(colors[(dataElement->id - 1) % (sizeof(colors)/sizeof(unsigned))]);
-        dataElement->style = new NOMStyle(&c);
+        dataElement->style = new MxStyle(&c);
     }
     
     feItr = fileElement.children.find("species");

@@ -43,7 +43,7 @@
 #include "task.h"
 #include "space.h"
 #include "engine.h"
-#include "../../rendering/NOMStyle.hpp"
+#include "../../rendering/MxStyle.hpp"
 #include <iostream>
 #include "smoothing_kernel.hpp"
 #include "MxBoundaryConditions.hpp"
@@ -468,7 +468,7 @@ int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct M
     }
     
     MxParticleType *type = &_Engine.types[p->typeId];
-    NOMStyle *style = p->style ? p->style : type->style;
+    MxStyle *style = p->style ? p->style : type->style;
     
     if(style->flags & STYLE_VISIBLE) {
         if(p->flags & PARTICLE_LARGE) {
@@ -1538,7 +1538,7 @@ CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
     s->nr_parts -= 1;
     
     MxParticleType *type = &_Engine.types[p->typeId];
-    NOMStyle *style = p->style ? p->style : type->style;
+    MxStyle *style = p->style ? p->style : type->style;
     
     if(style->flags & STYLE_VISIBLE) {
         if(p->flags & PARTICLE_LARGE) {
@@ -1584,7 +1584,7 @@ HRESULT space_update_style( struct space *s ) {
     for(int i = 0; i < s->nr_parts; ++i) {
         MxParticle *p = s->partlist[i];
         MxParticleType *type = &_Engine.types[p->typeId];
-        NOMStyle *style = p->style ? p->style : type->style;
+        MxStyle *style = p->style ? p->style : type->style;
         
         if(style->flags & STYLE_VISIBLE) {
             if(p->flags & PARTICLE_LARGE) {

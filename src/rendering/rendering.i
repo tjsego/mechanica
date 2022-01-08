@@ -2,7 +2,7 @@
 
 %include "MxColorMapper.i"
 
-%include "NOMStyle.i"
+%include "MxStyle.i"
 
 %include "MxGlfwWindow.i"
 

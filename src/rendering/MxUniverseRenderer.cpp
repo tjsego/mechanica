@@ -53,7 +53,7 @@
 
 
 #include <rendering/WireframeObjects.h>
-#include <rendering/NOMStyle.hpp>
+#include <rendering/MxStyle.hpp>
 
 #include <MxUtil.h>
 #include <MxLogger.h>
@@ -236,7 +236,7 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
 static inline int render_particle(SphereInstanceData* pData, int i, MxParticle *p, space_cell *c) {
 
     MxParticleType *type = &_Engine.types[p->typeId];
-    NOMStyle *style = p->style ? p->style : type->style;
+    MxStyle *style = p->style ? p->style : type->style;
     
     if(style->flags & STYLE_VISIBLE) {
     

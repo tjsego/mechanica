@@ -1,11 +1,11 @@
 %{
-    #include "rendering/NOMStyle.hpp"
+    #include "rendering/MxStyle.hpp"
 
 %}
 
-%include "NOMStyle.hpp"
+%include "MxStyle.hpp"
 
-%extend NOMStyle {
+%extend MxStyle {
     %pythoncode %{
         @property
         def visible(self) -> bool:
@@ -26,10 +26,10 @@
             return self.setColorMap(colormap)
 
         def __reduce__(self):
-            return NOMStyle.fromString, (self.toString(),)
+            return MxStyle.fromString, (self.toString(),)
     %}
 }
 
 %pythoncode %{
-    Style = NOMStyle
+    Style = MxStyle
 %}

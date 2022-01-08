@@ -83,7 +83,7 @@ typedef struct MxBond {
 
 	struct MxPotential *potential;
     
-    struct NOMStyle *style;
+    struct MxStyle *style;
 
     /**
      * @brief Construct a new bond handle and underlying bond. 
@@ -266,8 +266,8 @@ struct MxBondHandle {
     float getHalfLife();
     void setHalfLife(const float &half_life);
     bool getActive();
-    NOMStyle *getStyle();
-    void setStyle(NOMStyle *style);
+    MxStyle *getStyle();
+    void setStyle(MxStyle *style);
     double getAge();
 
 private:
@@ -285,7 +285,7 @@ bool contains_bond(const std::vector<MxBondHandle*> &bonds, int a, int b);
 /**
  * shared global bond style
  */
-CAPI_DATA(NOMStyle*) MxBond_StylePtr;
+CAPI_DATA(MxStyle*) MxBond_StylePtr;
 
 /**
  * deletes, marks a bond ready for deleteion, removes the potential,

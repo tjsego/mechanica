@@ -32,7 +32,7 @@
 #include <set>
 
 
-CAPI_STRUCT(NOMStyle);
+CAPI_STRUCT(MxStyle);
 
 
 /* error codes */
@@ -216,7 +216,7 @@ struct MxParticle  {
     // style pointer, set at object construction time.
     // may be re-set by users later.
     // the base particle type has a default style.
-    NOMStyle *style;
+    MxStyle *style;
 
     /**
      * pointer to state vector (optional)
@@ -407,8 +407,8 @@ struct MxParticleHandle {
     void setFrozenY(const bool frozen);
     bool getFrozenZ();
     void setFrozenZ(const bool frozen);
-    NOMStyle *getStyle();
-    void setStyle(NOMStyle *style);
+    MxStyle *getStyle();
+    void setStyle(MxStyle *style);
     double getAge();
     double getRadius();
     void setRadius(const double &radius);
@@ -524,7 +524,7 @@ struct MxParticleType {
     /**
      * @brief style pointer, optional.
      */
-    NOMStyle *style;
+    MxStyle *style;
 
     /**
      * @brief optional pointer to species list. This is the metadata for the species

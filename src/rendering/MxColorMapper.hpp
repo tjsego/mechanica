@@ -8,7 +8,7 @@
 #ifndef SRC_RENDERING_MXCOLORMAPPER_H_
 #define SRC_RENDERING_MXCOLORMAPPER_H_
 
-#include <rendering/NOMStyle.hpp>
+#include <rendering/MxStyle.hpp>
 #include <Magnum/Magnum.h>
 #include <Magnum/Math/Color.h>
 

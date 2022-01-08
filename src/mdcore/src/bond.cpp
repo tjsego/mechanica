@@ -57,13 +57,13 @@
 #include <../../MxUtil.h>
 #include <../../mx_error.h>
 #include <../../io/MxFIO.h>
-#include <../../rendering/NOMStyle.hpp>
+#include <../../rendering/MxStyle.hpp>
 
 #ifdef HAVE_CUDA
 #include "bond_cuda.h"
 #endif
 
-NOMStyle *MxBond_StylePtr = new NOMStyle("lime");
+MxStyle *MxBond_StylePtr = new MxStyle("lime");
 
 /* Global variables. */
 /** The ID of the last error. */
@@ -796,13 +796,13 @@ bool MxBondHandle::getActive() {
     return false;
 }
 
-NOMStyle *MxBondHandle::getStyle() {
+MxStyle *MxBondHandle::getStyle() {
     MxBond *bond = get();
     if (bond) return bond->style;
     return NULL;
 }
 
-void MxBondHandle::setStyle(NOMStyle *style) {
+void MxBondHandle::setStyle(MxStyle *style) {
     MxBond *bond = get();
     if (bond) bond->style = style;
 }

@@ -1,14 +1,14 @@
 /*
- * NOMStyle.hpp
+ * MxStyle.hpp
  *
  *  Created on: Jul 29, 2020
  *      Author: andy
  */
 
-#ifndef SRC_RENDERING_NOMSTYLE_HPP_
-#define SRC_RENDERING_NOMSTYLE_HPP_
+#ifndef SRC_RENDERING_MXSTYLE_HPP_
+#define SRC_RENDERING_MXSTYLE_HPP_
 
-#include <NOMStyle.h>
+#include <MxStyle.h>
 #include <Magnum/Magnum.h>
 #include <Magnum/Math/Color.h>
 
@@ -21,7 +21,7 @@ typedef Magnum::Color4 (*ColorMapperFunc)(struct MxColorMapper *mapper, struct M
 /**
  * @brief The Mechanica style type
  */
-struct CAPI_EXPORT NOMStyle
+struct CAPI_EXPORT MxStyle
 {
     Magnum::Color3 color;
     uint32_t flags;
@@ -33,7 +33,7 @@ struct CAPI_EXPORT NOMStyle
     
     ColorMapperFunc mapper_func;
 
-    NOMStyle(const Magnum::Color3 *color=NULL, const bool &visible=true, uint32_t flags=STYLE_VISIBLE, MxColorMapper *cmap=NULL);
+    MxStyle(const Magnum::Color3 *color=NULL, const bool &visible=true, uint32_t flags=STYLE_VISIBLE, MxColorMapper *cmap=NULL);
 
     /**
      * @brief Construct a new style
@@ -43,8 +43,8 @@ struct CAPI_EXPORT NOMStyle
      * @param flags style flags
      * @param cmap color mapper
      */
-    NOMStyle(const std::string &color, const bool &visible=true, uint32_t flags=STYLE_VISIBLE, MxColorMapper *cmap=NULL);
-    NOMStyle(const NOMStyle &other);
+    MxStyle(const std::string &color, const bool &visible=true, uint32_t flags=STYLE_VISIBLE, MxColorMapper *cmap=NULL);
+    MxStyle(const MxStyle &other);
 
     int init(const Magnum::Color3 *color=NULL, const bool &visible=true, uint32_t flags=STYLE_VISIBLE, MxColorMapper *cmap=NULL);
 
@@ -90,19 +90,19 @@ struct CAPI_EXPORT NOMStyle
      * @brief Create from a JSON string representation. 
      * 
      * @param str 
-     * @return NOMStyle* 
+     * @return MxStyle* 
      */
-    static NOMStyle *fromString(const std::string &str);
+    static MxStyle *fromString(const std::string &str);
 };
 
 namespace mx { namespace io {
 
 template <>
-HRESULT toFile(const NOMStyle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+HRESULT toFile(const MxStyle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
 
 template <>
-HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, NOMStyle *dataElement);
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxStyle *dataElement);
 
 }};
 
-#endif /* SRC_RENDERING_NOMSTYLE_HPP_ */
+#endif /* SRC_RENDERING_MXSTYLE_HPP_ */

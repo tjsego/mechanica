@@ -260,7 +260,7 @@ int MxArrowRenderer::addArrow(MxArrowData *arrow) {
 
 std::pair<int, MxArrowData*> MxArrowRenderer::addArrow(const MxVector3f &position, 
                                                        const MxVector3f &components, 
-                                                       const NOMStyle &style, 
+                                                       const MxStyle &style, 
                                                        const float &scale) 
 {
     MxArrowData *arrow = new MxArrowData();

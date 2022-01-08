@@ -7,7 +7,7 @@
  */
 
 #include <MxParticle.h>
-#include <rendering/NOMStyle.hpp>
+#include <rendering/MxStyle.hpp>
 
 #include <io/Mx3DFRenderData.h>
 

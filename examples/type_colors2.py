@@ -29,7 +29,7 @@ for x in np.arange(0., 20., 2.):
         # instantiate that type
         PP = PP.get()
         # set a new style, since the current style is the same as PType
-        PP.style = mx.NOMStyle(color3_names[mx.Universe.num_types])
+        PP.style = mx.MxStyle(color3_names[mx.Universe.num_types])
         PP([x+1.5, y+1.5, 10.])
 
 # run the simulator interactive

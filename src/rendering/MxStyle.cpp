@@ -1,11 +1,11 @@
 /*
- * NOMStyle.cpp
+ * MxStyle.cpp
  *
  *  Created on: Jul 29, 2020
  *      Author: andy
  */
 
-#include <rendering/NOMStyle.hpp>
+#include <rendering/MxStyle.hpp>
 #include <engine.h>
 #include <space.h>
 #include <MxUtil.h>
@@ -14,12 +14,12 @@
 #include "MxColorMapper.hpp"
 
 
-HRESULT NOMStyle::setColor(const std::string &colorName) {
+HRESULT MxStyle::setColor(const std::string &colorName) {
     color = Color3_Parse(colorName);
     return S_OK;
 }
 
-HRESULT NOMStyle::setFlag(StyleFlags flag, bool value) {
+HRESULT MxStyle::setFlag(StyleFlags flag, bool value) {
     if(flag == STYLE_VISIBLE) {
         if(value) this->flags |= STYLE_VISIBLE;
         else this->flags &= ~STYLE_VISIBLE;
@@ -28,41 +28,41 @@ HRESULT NOMStyle::setFlag(StyleFlags flag, bool value) {
     return mx_error(E_FAIL, "invalid flag id");
 }
 
-Magnum::Color4 NOMStyle::map_color(struct MxParticle *p) {
+Magnum::Color4 MxStyle::map_color(struct MxParticle *p) {
     if(mapper_func) {
         return mapper_func(mapper, p);
     }
     return Magnum::Color4{color, 1};
 };
 
-NOMStyle::NOMStyle(const Magnum::Color3 *color, const bool &visible, uint32_t flags, MxColorMapper *cmap) : mapper_func(NULL) {
+MxStyle::MxStyle(const Magnum::Color3 *color, const bool &visible, uint32_t flags, MxColorMapper *cmap) : mapper_func(NULL) {
     init(color, visible, flags, cmap);
 }
 
-NOMStyle::NOMStyle(const std::string &color, const bool &visible, uint32_t flags, MxColorMapper *cmap) : 
-    NOMStyle()
+MxStyle::MxStyle(const std::string &color, const bool &visible, uint32_t flags, MxColorMapper *cmap) : 
+    MxStyle()
 {
     auto c = Color3_Parse(color);
     init(&c, visible, flags, cmap);
 }
 
-NOMStyle::NOMStyle(const NOMStyle &other) {
+MxStyle::MxStyle(const MxStyle &other) {
     init(&other.color, true, other.flags, other.mapper);
 }
 
-const bool NOMStyle::getVisible() const {
+const bool MxStyle::getVisible() const {
     return flags & STYLE_VISIBLE;
 }
 
-void NOMStyle::setVisible(const bool &visible) {
+void MxStyle::setVisible(const bool &visible) {
     setFlag(STYLE_VISIBLE, visible);
 }
 
-MxColorMapper *NOMStyle::getColorMap() const {
+MxColorMapper *MxStyle::getColorMap() const {
     return mapper;
 }
 
-void NOMStyle::setColorMap(const std::string &colorMap) {
+void MxStyle::setColorMap(const std::string &colorMap) {
     try {
         mapper->set_colormap(colorMap);
         mapper_func = mapper->map;
@@ -72,14 +72,14 @@ void NOMStyle::setColorMap(const std::string &colorMap) {
     }
 }
 
-void NOMStyle::setColorMapper(MxColorMapper *cmap) {
+void MxStyle::setColorMapper(MxColorMapper *cmap) {
     if(cmap) {
         this->mapper = cmap;
         this->mapper_func = this->mapper->map;
     }
 }
 
-void NOMStyle::newColorMapper(struct MxParticleType *partType,
+void MxStyle::newColorMapper(struct MxParticleType *partType,
                               const std::string &speciesName, 
                               const std::string &name, 
                               float min, float max) 
@@ -87,7 +87,7 @@ void NOMStyle::newColorMapper(struct MxParticleType *partType,
     setColorMapper(new MxColorMapper(partType, speciesName, name, min, max));
 }
 
-int NOMStyle::init(const Magnum::Color3 *color, const bool &visible, uint32_t flags, MxColorMapper *cmap) {
+int MxStyle::init(const Magnum::Color3 *color, const bool &visible, uint32_t flags, MxColorMapper *cmap) {
     this->flags = flags;
 
     this->color = color ? *color : Color3_Parse("steelblue");
@@ -98,19 +98,19 @@ int NOMStyle::init(const Magnum::Color3 *color, const bool &visible, uint32_t fl
     return S_OK;
 }
 
-std::string NOMStyle::toString() {
+std::string MxStyle::toString() {
     return mx::io::toString(*this);
 }
 
-NOMStyle *NOMStyle::fromString(const std::string &str) {
-    return new NOMStyle(mx::io::fromString<NOMStyle>(str));
+MxStyle *MxStyle::fromString(const std::string &str) {
+    return new MxStyle(mx::io::fromString<MxStyle>(str));
 }
 
 
 namespace mx { namespace io {
 
 template <>
-HRESULT toFile(const NOMStyle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) { 
+HRESULT toFile(const MxStyle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) { 
     
     MxIOElement *fe;
 
@@ -139,7 +139,7 @@ HRESULT toFile(const NOMStyle &dataElement, const MxMetaData &metaData, MxIOElem
 }
 
 template <>
-HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, NOMStyle *dataElement) { 
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxStyle *dataElement) { 
 
     MxIOChildMap::const_iterator feItr;
 

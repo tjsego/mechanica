@@ -25,7 +25,7 @@
 #include <state/MxSpeciesList.h>
 #include <MxSystem.h>
 #include <mx_error.h>
-#include <rendering/NOMStyle.hpp>
+#include <rendering/MxStyle.hpp>
 #include <io/MxFIO.h>
 
 MxUniverse Universe = {
@@ -393,8 +393,8 @@ HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOEl
     std::vector<MxBondHandle*> bhl = *u->bonds();
     std::vector<MxPotential*> bondPotentials;
     std::vector<std::vector<unsigned int> > bondPotentialIdx;
-    std::vector<NOMStyle> bondStyles;
-    std::vector<NOMStyle*> bondStylesP;
+    std::vector<MxStyle> bondStyles;
+    std::vector<MxStyle*> bondStylesP;
     std::vector<std::vector<unsigned int> > bondStyleIdx;
     if(bhl.size() > 0) {
         std::vector<MxBond> bl;
@@ -451,8 +451,8 @@ HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOEl
     std::vector<MxAngleHandle*> ahl = *u->angles();
     std::vector<MxPotential*> anglePotentials;
     std::vector<std::vector<unsigned int> > anglePotentialIdx;
-    std::vector<NOMStyle> angleStyles;
-    std::vector<NOMStyle*> angleStylesP;
+    std::vector<MxStyle> angleStyles;
+    std::vector<MxStyle*> angleStylesP;
     std::vector<std::vector<unsigned int> > angleStyleIdx;
     if(ahl.size() > 0) {
         std::vector<MxAngle> al;
@@ -509,8 +509,8 @@ HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOEl
     std::vector<MxDihedralHandle*> dhl = *u->dihedrals();
     std::vector<MxPotential*> dihedralPotentials;
     std::vector<std::vector<unsigned int> > dihedralPotentialIdx;
-    std::vector<NOMStyle> dihedralStyles;
-    std::vector<NOMStyle*> dihedralStylesP;
+    std::vector<MxStyle> dihedralStyles;
+    std::vector<MxStyle*> dihedralStylesP;
     std::vector<std::vector<unsigned int> > dihedralStyleIdx;
     if(dhl.size() > 0) {
         std::vector<MxDihedral> dl;
@@ -761,7 +761,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
                 }
             }
             if(p.style) 
-                part->style = new NOMStyle(*p.style);
+                part->style = new MxStyle(*p.style);
         }
 
     }
@@ -772,7 +772,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
         std::vector<MxBond> bonds;
         std::vector<MxPotential*> bondPotentials;
         std::vector<std::vector<unsigned int> > bondPotentialIdx;
-        std::vector<NOMStyle> bondStyles;
+        std::vector<MxStyle> bondStyles;
         std::vector<std::vector<unsigned int> > bondStyleIdx;
         MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "bonds", &bonds);
         MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "bondPotentials", &bondPotentials);
@@ -801,7 +801,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
 
         for(unsigned int i = 0; i < bondStyleIdx.size(); i++) {
             auto bIndices = bondStyleIdx[i];
-            NOMStyle *s = new NOMStyle(bondStyles[i]);
+            MxStyle *s = new MxStyle(bondStyles[i]);
             for(auto bIdx : bIndices) {
                 auto bh = bondsCreated[bIdx];
                 if(bh.id >= 0) 
@@ -816,7 +816,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
         std::vector<MxAngle> angles;
         std::vector<MxPotential*> anglePotentials;
         std::vector<std::vector<unsigned int> > anglePotentialIdx;
-        std::vector<NOMStyle> angleStyles;
+        std::vector<MxStyle> angleStyles;
         std::vector<std::vector<unsigned int> > angleStyleIdx;
         MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "angles", &angles);
         MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "anglePotentials", &anglePotentials);
@@ -846,7 +846,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
 
         for(unsigned int i = 0; i < angleStyleIdx.size(); i++) {
             auto aIndices = angleStyleIdx[i];
-            NOMStyle *s = new NOMStyle(angleStyles[i]);
+            MxStyle *s = new MxStyle(angleStyles[i]);
             for(auto aIdx : aIndices) {
                 auto a = anglesCreated[aIdx];
                 if(a != NULL) 
@@ -861,7 +861,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
         std::vector<MxDihedral> dihedrals;
         std::vector<MxPotential*> dihedralPotentials;
         std::vector<std::vector<unsigned int> > dihedralPotentialIdx;
-        std::vector<NOMStyle> dihedralStyles;
+        std::vector<MxStyle> dihedralStyles;
         std::vector<std::vector<unsigned int> > dihedralStyleIdx;
         MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "dihedrals", &dihedrals);
         MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "dihedralPotentials", &dihedralPotentials);
@@ -892,7 +892,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
 
         for(unsigned int i = 0; i < dihedralStyleIdx.size(); i++) {
             auto dIndices = dihedralStyleIdx[i];
-            NOMStyle *s = new NOMStyle(dihedralStyles[i]);
+            MxStyle *s = new MxStyle(dihedralStyles[i]);
             for(auto dIdx : dIndices) {
                 auto d = dihedralsCreated[dIdx];
                 if(d != NULL) 

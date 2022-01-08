@@ -128,7 +128,7 @@ set(SRC
   rendering/MxImageConverters.cpp
 
   rendering/ArcBall.cpp
-  rendering/NOMStyle.cpp
+  rendering/MxStyle.cpp
   rendering/MxKeyEvent.cpp
 
   rendering/MxColorMapper.cpp
@@ -256,7 +256,7 @@ set(HEADERS
 
   rendering/ArcBallCamera.h
   rendering/ArcBall.h
-  rendering/NOMStyle.hpp
+  rendering/MxStyle.hpp
   rendering/MxKeyEvent.hpp
 
   rendering/MxColorMapper.hpp

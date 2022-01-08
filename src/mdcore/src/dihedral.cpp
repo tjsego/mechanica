@@ -54,9 +54,9 @@
 #include "engine.h"
 #include "dihedral.h"
 #include <../../io/MxFIO.h>
-#include <../../rendering/NOMStyle.hpp>
+#include <../../rendering/MxStyle.hpp>
 
-NOMStyle *MxDihedral_StylePtr = new NOMStyle("gold");
+MxStyle *MxDihedral_StylePtr = new MxStyle("gold");
 
 /* Global variables. */
 /** The ID of the last error. */
@@ -911,11 +911,11 @@ void MxDihedralHandle::setHalfLife(const float &half_life) {
     d->half_life = half_life;
 }
 
-NOMStyle *MxDihedralHandle::getStyle() {
+MxStyle *MxDihedralHandle::getStyle() {
     return this->get()->style;
 }
 
-void MxDihedralHandle::setStyle(NOMStyle *style) {
+void MxDihedralHandle::setStyle(MxStyle *style) {
     auto *d = this->get();
     d->style = style;
 }

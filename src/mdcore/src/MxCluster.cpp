@@ -25,7 +25,7 @@
 #include "mx_runtime.h"
 #include "space_cell.h"
 
-#include "../../rendering/NOMStyle.hpp"
+#include "../../rendering/MxStyle.hpp"
 
 #include <metrics.h>
 

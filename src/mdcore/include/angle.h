@@ -79,7 +79,7 @@ typedef struct MxAngle {
 	/* id of the potential. */
 	struct MxPotential *potential;
 
-    struct NOMStyle *style;
+    struct MxStyle *style;
 
     void init(MxPotential *potential, 
               MxParticleHandle *p1, 
@@ -188,8 +188,8 @@ struct MxAngleHandle {
     float getHalfLife();
     void setHalfLife(const float &half_life);
     bool getActive();
-    NOMStyle *getStyle();
-    void setStyle(NOMStyle *style);
+    MxStyle *getStyle();
+    void setStyle(MxStyle *style);
     double getAge();
 
     MxAngleHandle() : id(-1) {}
@@ -228,7 +228,7 @@ CAPI_FUNC(MxAngle*) MxAngle_NewFromIdsAndPotential(int i , int j , int k , struc
  * @brief Shared global angle style
  * 
  */
-CAPI_DATA(NOMStyle*) MxAngle_StylePtr;
+CAPI_DATA(MxStyle*) MxAngle_StylePtr;
 
 /**
  * @brief Destroys an angle

@@ -9,7 +9,7 @@
 #include <assimp/postprocess.h>
 
 #include <engine.h>
-#include <rendering/NOMStyle.hpp>
+#include <rendering/MxStyle.hpp>
 #include <MxParticleList.hpp>
 #include <io/generators/Mx3DFAngleMeshGenerator.h>
 #include <io/generators/Mx3DFBondMeshGenerator.h>

@@ -11,7 +11,7 @@
 #include "MxSubRenderer.h"
 
 #include <Magnum/Shaders/Flat.h>
-#include <rendering/NOMStyle.hpp>
+#include <rendering/MxStyle.hpp>
 
 #include <Magnum/GL/Mesh.h>
 #include <Magnum/Math/Color.h>

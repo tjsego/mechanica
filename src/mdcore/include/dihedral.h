@@ -72,7 +72,7 @@ typedef struct MxDihedral {
 	/* dihedral potential. */
 	struct MxPotential *potential;
 
-    struct NOMStyle *style;
+    struct MxStyle *style;
 
 	void init(MxPotential *potential, 
               MxParticleHandle *p1, 
@@ -175,8 +175,8 @@ struct MxDihedralHandle {
     void setDissociationEnergy(const float &dissociation_energy);
     float getHalfLife();
     void setHalfLife(const float &half_life);
-    NOMStyle *getStyle();
-    void setStyle(NOMStyle *style);
+    MxStyle *getStyle();
+    void setStyle(MxStyle *style);
     double getAge();
 
     MxDihedralHandle() : id(-1) {}
@@ -187,7 +187,7 @@ struct MxDihedralHandle {
  * @brief Shared global dihedral style
  * 
  */
-CAPI_DATA(NOMStyle*) MxDihedral_StylePtr;
+CAPI_DATA(MxStyle*) MxDihedral_StylePtr;
 
 /**
  * @brief Destroys a dihedral

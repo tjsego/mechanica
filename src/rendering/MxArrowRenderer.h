@@ -11,7 +11,7 @@
 #include "MxSubRenderer.h"
 
 #include <shaders/MxPhong.h>
-#include <rendering/NOMStyle.hpp>
+#include <rendering/MxStyle.hpp>
 
 #include <Magnum/GL/Mesh.h>
 #include <Magnum/Math/Color.h>
@@ -35,7 +35,7 @@ struct MxArrowData{
     MxVector3f components;
 
     // Mechanica style
-    NOMStyle style;
+    MxStyle style;
 
     // Scaling applied to arrow
     float scale = 1.0;
@@ -107,7 +107,7 @@ struct MxArrowRenderer : MxSubRenderer{
      */
     std::pair<int, MxArrowData*> addArrow(const MxVector3f &position, 
                                           const MxVector3f &components, 
-                                          const NOMStyle &style, 
+                                          const MxStyle &style, 
                                           const float &scale=1.0);
 
     /**

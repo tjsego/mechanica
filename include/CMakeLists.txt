@@ -31,7 +31,7 @@ set (_PUBLIC_HEADERS_STATIC
   Mechanica.h
   mx_port.h
   mx_runtime.h
-  NOMStyle.h
+  MxStyle.h
 )
 
 set (_PUBLIC_HEADERS

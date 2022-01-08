@@ -3,7 +3,7 @@ Style
 
 .. autoclass:: Style
 
-.. autoclass:: NOMStyle
+.. autoclass:: MxStyle
 
     .. autoproperty:: visible
 

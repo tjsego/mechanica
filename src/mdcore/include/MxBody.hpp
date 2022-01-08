@@ -111,7 +111,7 @@ struct MxBody
     // style pointer, set at object construction time.
     // may be re-set by users later.
     // the base particle type has a default style.
-    NOMStyle *style;
+    MxStyle *style;
 
     /**
      * pointer to state vector (optional)

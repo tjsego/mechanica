@@ -54,7 +54,7 @@
 #include "space.h"
 #include "engine.h"
 #include <../../io/MxFIO.h>
-#include <../../rendering/NOMStyle.hpp>
+#include <../../rendering/MxStyle.hpp>
 
 #ifdef HAVE_CUDA
 #include "angle_cuda.h"
@@ -62,7 +62,7 @@
 
 #include <iostream>
 
-NOMStyle *MxAngle_StylePtr = new NOMStyle("aqua");
+MxStyle *MxAngle_StylePtr = new MxStyle("aqua");
 
 
 /* Global variables. */
@@ -917,13 +917,13 @@ bool MxAngleHandle::getActive() {
     return false;
 }
 
-NOMStyle *MxAngleHandle::getStyle() {
+MxStyle *MxAngleHandle::getStyle() {
     auto *a = this->get();
     if (a) return a->style;
     return NULL;
 }
 
-void MxAngleHandle::setStyle(NOMStyle *style) {
+void MxAngleHandle::setStyle(MxStyle *style) {
     auto *a = this->get();
     if (a) a->style = style;
 }

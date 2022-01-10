@@ -17,14 +17,27 @@
 
 struct MxSpeciesList
 {
-    // get the index of a species name, arg should be
-    // a py_unicode object.
-    // returns >= 0 on success, -1 on failure,
-    // does not set any error.
+    /**
+     * @brief Get the index of a species name
+     * 
+     * @param s species name
+     * @return int32_t >= 0 on sucess, -1 on failure
+     */
     int32_t index_of(const std::string &s);
     
+    /**
+     * @brief Get the size of the species
+     * 
+     * @return int32_t 
+     */
     int32_t size();
     
+    /**
+     * @brief Get a species by index
+     * 
+     * @param index index of the species
+     * @return MxSpecies* 
+     */
     MxSpecies *item(int32_t index);
     
     /**
@@ -36,13 +49,25 @@ struct MxSpeciesList
     MxSpecies *item(const std::string &s);
     
     /**
-     * @brief Inserts a species
+     * @brief Insert a species
      * 
      * @return HRESULT 
      */
-    HRESULT insert(MxSpecies*);
+    HRESULT insert(MxSpecies *s);
+
+    /**
+     * @brief Insert a species by name
+     * 
+     * @param s name of the species
+     * @return HRESULT 
+     */
     HRESULT insert(const std::string &s);
 
+    /**
+     * @brief Get a string representation
+     * 
+     * @return std::string 
+     */
     std::string str();
 
     MxSpeciesList() {};

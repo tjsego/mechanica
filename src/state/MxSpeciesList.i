@@ -5,9 +5,6 @@
 
 %template(vectorSpecies) std::vector<MxSpecies*>;
 
-// MxSpecies instances currently get garbage collected in python, which deallocates the pointer inserted here
-%ignore MxSpeciesList::insert(MxSpecies*);
-
 %include "MxSpeciesList.h"
 
 %extend MxSpeciesList {

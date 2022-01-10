@@ -232,7 +232,7 @@ static HRESULT virial_pair (float cutoff,
                 
                 /* evaluate the interaction */
                 /* update the forces if part in range */
-                if (potential_eval_super_ex(cell_i, pot, part_i, part_j, dx.data(), r2, W(r2, cutoff), &e)) {
+                if (potential_eval_super_ex(cell_i, pot, part_i, part_j, dx.data(), r2, &e)) {
                     for ( k = 0 ; k < 3 ; k++ ) {
                         // divide by two because potential_eval gives double the force
                         // to split beteen a pair of particles.
@@ -296,7 +296,7 @@ static HRESULT virial_pair (float cutoff,
                 
                 /* evaluate the interaction */
                 /* update the forces if part in range */
-                if (potential_eval_super_ex(cell_i, pot, part_i, part_j, dx.data(), r2, W(r2, cutoff), &e)) {
+                if (potential_eval_super_ex(cell_i, pot, part_i, part_j, dx.data(), r2, &e)) {
                     for ( k = 0 ; k < 3 ; k++ ) {
                         w = (f * dx[k]) / 2;
                         force[k] += w;
@@ -518,7 +518,7 @@ CAPI_FUNC(HRESULT) MxParticles_Virial(int32_t *parts,
             /* update the forces if part in range */
             
             space_cell *cell_i = _Engine.s.celllist[part_i->id];
-            if (potential_eval_super_ex(cell_i, pot, part_i, part_j, dx.data(), r2, W(r2, pot->b), &e)) {
+            if (potential_eval_super_ex(cell_i, pot, part_i, part_j, dx.data(), r2, &e)) {
                 for ( k = 0 ; k < 3 ; k++ ) {
                     // divide by two because potential_eval gives double the force
                     // to split beteen a pair of particles.

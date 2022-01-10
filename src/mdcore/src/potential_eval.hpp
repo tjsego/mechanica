@@ -211,20 +211,17 @@ MX_ALWAYS_INLINE void potential_eval_r (struct MxPotential *p , FPTYPE r , FPTYP
 
 MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
                             MxPotential *pot, MxParticle *part_i, MxParticle *part_j,
-                            float *dx, float r2, float number_density, float *epot) {
+                            float *dx, float r2, float *epot) {
     
     float e;
     bool result = false;
-    float num_dens, _dx[3], _r2;
+    float _dx[3], _r2;
     
     if(pot->flags & POTENTIAL_PERIODIC) {
-        // Images don't contribute to density
-        num_dens = 0.0;
         // Assuming elsewhere there's a corresponding potential in the opposite direction
         _r2 = fptype_r2(dx, pot->offset, _dx);
     }
     else {
-        num_dens = number_density;
         _r2 = r2;
         for (int k = 0; k < 3; k++) _dx[k] = dx[k];
     }
@@ -246,10 +243,6 @@ MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
         /* update the forces if part in range */
         if (dpd_eval((DPDPotential*)pot, space_cell_gaussian(cell->id), part_i, part_j, _dx, _r2 , &e)) {
             
-            // the number density is a union after the force 3-vector.
-            part_i->f[3] += num_dens;
-            part_j->f[3] += num_dens;
-            
             /* tabulate the energy */
             *epot += e;
             result = true;
@@ -265,18 +258,14 @@ MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
             part_j->f[k] -= fv[k];
         }
         
-        // the number density is a union after the force 3-vector.
-        part_i->f[3] += num_dens;
-        part_j->f[3] += num_dens;
-        
         /* tabulate the energy */
         *epot += e;
         result = true;
     }
     else if(pot->kind == POTENTIAL_KIND_COMBINATION) {
         if(pot->flags & POTENTIAL_SUM) {
-            potential_eval_super_ex(cell, pot->pca, part_i, part_j, _dx, _r2, num_dens, epot);
-            potential_eval_super_ex(cell, pot->pcb, part_i, part_j, _dx, _r2, num_dens, epot);
+            potential_eval_super_ex(cell, pot->pca, part_i, part_j, _dx, _r2, epot);
+            potential_eval_super_ex(cell, pot->pcb, part_i, part_j, _dx, _r2, epot);
             result = true;
         }
     }
@@ -291,10 +280,6 @@ MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
                 part_i->f[k] -= w;
                 part_j->f[k] += w;
             }
-            
-            // the number density is a union after the force 3-vector.
-            part_i->f[3] += num_dens;
-            part_j->f[3] += num_dens;
             
             /* tabulate the energy */
             *epot += e;

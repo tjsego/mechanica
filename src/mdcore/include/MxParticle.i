@@ -85,6 +85,8 @@
 
         @style.setter
         def style(self, style):
+            if style.thisown:
+                style.thisown = False
             self.setStyle(style)
 
         @property

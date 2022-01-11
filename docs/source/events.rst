@@ -175,6 +175,8 @@ arguments. ::
     mx.on_particletime(splitting_type, period=10.0,
                        invoke_method=split_selected_later, start_time=20.0)
 
+.. _events_input_driven:
+
 Input-Driven Events
 ^^^^^^^^^^^^^^^^^^^^
 

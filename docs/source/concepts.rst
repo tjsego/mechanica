@@ -22,5 +22,6 @@ Concepts
     metrics
     style
     controls
+    rendering
     file_io
     cuda

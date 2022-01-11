@@ -126,17 +126,6 @@
 
         :meta hide-value:
         """
-
-        @staticmethod
-        def cpuinfo():
-            """Dictionary of CPU info"""
-            return {k: v for k, v in getFeaturesMap().items()}
-
-        @staticmethod
-        def compile_flags():
-            """Dictionary of compiler flags"""
-            cf = MxCompileFlags()
-            return {k: cf.getFlag(k) for k in cf.getFlags()}
 %}
 
 //                                      Imports
@@ -278,6 +267,4 @@
     """Alias of :meth:`mechanica.mechanica.MxPoints`"""
 
     primes = MxMath_FindPrimes
-    cpuinfo = MxSystem.cpu_info()  #: :meta hide-value:
-    compile_flags = MxSystem.compile_flags()  #: :meta hide-value:
 %}

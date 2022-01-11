@@ -134,6 +134,24 @@ public:
         viewBack(viewDistance);
         rotateByEulerAngles({0, 0, M_PI});
     }
+
+    MxVector3f cposition() {
+        return _currentPosition;
+    }
+
+    MxQuaternionf crotation() {
+        return _currentQRotation;
+    }
+
+    float czoom() {
+        return _currentZooming;
+    }
+
+    void setViewParameters(const MxVector3f &position, const MxQuaternionf &rotation, const float &zoom) {
+        _targetPosition = position;
+        _targetQRotation = rotation;
+        _targetZooming = zoom;
+    }
     
 private:
     //SceneGraph::AbstractTranslationRotation3D* _cameraObject{};

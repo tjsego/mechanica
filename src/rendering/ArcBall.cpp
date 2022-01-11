@@ -224,7 +224,7 @@ void ArcBall::rotateByEulerAngles(const Vector3& eulerAngles) {
     Magnum::Quaternion qx = Magnum::Quaternion::rotation(Magnum::Rad(eulerAngles[0]), Magnum::Vector3::xAxis());
     Magnum::Quaternion qy = Magnum::Quaternion::rotation(Magnum::Rad(eulerAngles[1]), Magnum::Vector3::yAxis());
     Magnum::Quaternion qz = Magnum::Quaternion::rotation(Magnum::Rad(eulerAngles[2]), Magnum::Vector3::zAxis());
-    _targetQRotation = _targetQRotation * qx * qy * qz;
+    _targetQRotation = (_targetQRotation * qx * qy * qz).normalized();
     
 }
 
@@ -232,7 +232,7 @@ void ArcBall::rotateToEulerAngles(const Vector3& eulerAngles) {
     Magnum::Quaternion qx = Magnum::Quaternion::rotation(Magnum::Rad(eulerAngles[0]), Magnum::Vector3::xAxis());
     Magnum::Quaternion qy = Magnum::Quaternion::rotation(Magnum::Rad(eulerAngles[1]), Magnum::Vector3::yAxis());
     Magnum::Quaternion qz = Magnum::Quaternion::rotation(Magnum::Rad(eulerAngles[2]), Magnum::Vector3::zAxis());
-    _targetQRotation =  qx * qy * qz;
+    _targetQRotation =  (qx * qy * qz).normalized();
     
 }
  

@@ -17,15 +17,9 @@
 #include <mx_error.h>
 #include <sstream>
 
-static MxSystem System;
-
 static double ms(ticks tks)
 {
     return (double)tks / (_Engine.time * CLOCKS_PER_SEC);
-}
-
-MxSystem* getSystem() {
-    return &System;
 }
 
 std::tuple<char*, size_t> MxSystem::testImage() {
@@ -59,10 +53,11 @@ HRESULT MxSystem::contextMakeCurrent() {
         MxSimulator *sim = MxSimulator::get();
         sim->app->contextMakeCurrent();
 
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -74,20 +69,17 @@ HRESULT MxSystem::contextRelease() {
         MxSimulator *sim = MxSimulator::get();
         sim->app->contextRelease();
         
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
-HRESULT MxSystem::cameraMoveTo(const MxVector3f *eye, const MxVector3f *center, const MxVector3f *up) {
+HRESULT MxSystem::cameraMoveTo(const MxVector3f &eye, const MxVector3f &center, const MxVector3f &up) {
     try {
         MxUniverseRenderer *rend = MxSimulator::get()->app->getRenderer();
-        
-        Magnum::Vector3 _eye = eye ? *eye : &rend->defaultEye();
-        Magnum::Vector3 _center = center ? *center : &rend->defaultCenter();
-        Magnum::Vector3 _up = up ? *up : &rend->defaultUp();
 
         MxSimulator *sim = MxSimulator::get();
         
@@ -95,12 +87,31 @@ HRESULT MxSystem::cameraMoveTo(const MxVector3f *eye, const MxVector3f *center, 
         
         Magnum::Mechanica::ArcBall *ab = renderer->_arcball;
         
-        ab->setViewParameters(_eye, _center, _up);
+        ab->setViewParameters(eye, center, up);
 
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraMoveTo(const MxVector3f &center, const MxQuaternionf &rotation, const float &zoom) {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        ab->setViewParameters(center, rotation, zoom);
+
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -114,10 +125,11 @@ HRESULT MxSystem::cameraReset() {
             
         ab->reset();
 
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -135,10 +147,11 @@ HRESULT MxSystem::cameraRotateMouse(const MxVector2i &mousePos) {
         
         ab->updateTransformation();
 
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -156,10 +169,11 @@ HRESULT MxSystem::cameraTranslateMouse(const MxVector2i &mousePos) {
         
         ab->updateTransformation();
         
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -175,10 +189,11 @@ HRESULT MxSystem::cameraInitMouse(const MxVector2i &mousePos) {
         
         MxSimulator::get()->redraw();
 
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -192,10 +207,11 @@ HRESULT MxSystem::cameraTranslateBy(const MxVector2f &trans) {
         
         ab->translateDelta(trans);
 
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -211,10 +227,11 @@ HRESULT MxSystem::cameraZoomBy(const float &delta) {
         
         ab->updateTransformation();
 
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -228,10 +245,11 @@ HRESULT MxSystem::cameraZoomTo(const float &distance) {
         
         ab->zoomTo(distance);
 
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -245,10 +263,11 @@ HRESULT MxSystem::cameraRotateToAxis(const MxVector3f &axis, const float &distan
         
         ab->rotateToAxis(axis, distance);
         
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -262,10 +281,11 @@ HRESULT MxSystem::cameraRotateToEulerAngle(const MxVector3f &angles) {
         
         ab->rotateToEulerAngles(angles);
         
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -281,7 +301,53 @@ HRESULT MxSystem::cameraRotateByEulerAngle(const MxVector3f &angles) {
         
         MxSimulator::get()->redraw();
 
-        return 1;
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+MxVector3f MxSystem::cameraCenter() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        return ab->cposition();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+MxQuaternionf MxSystem::cameraRotation() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        return ab->crotation();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+float MxSystem::cameraZoom() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        return ab->czoom();
     }
     catch(const std::exception &e) {
         MX_RETURN_EXP(e);
@@ -298,10 +364,11 @@ HRESULT MxSystem::viewReshape(const MxVector2i &windowSize) {
         
         ab->reshape(windowSize);
         
-        return 1;
+        return S_OK;
     }
     catch(const std::exception &e) {
-        MX_RETURN_EXP(e);
+        mx_exp(e);
+        return E_FAIL;
     }
 }
 
@@ -457,10 +524,6 @@ PyObject *MxSystemPy::jwidget_run(PyObject *args, PyObject *kwargs) {
     return result;
     
 }
-
-CAPI_FUNC(MxSystemPy*) getSystemPy() {
-    return (MxSystemPy*)&System;
-};
 
 void MxPrintPerformanceCounters() {
     MxLoggingBuffer log(LOG_NOTICE, NULL, NULL, -1);

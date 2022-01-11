@@ -61,6 +61,48 @@ struct CAPI_EXPORT MxSystem {
    static HRESULT cameraMoveTo(const MxVector3f &center, const MxQuaternionf &rotation, const float &zoom);
 
    /**
+    * @brief Move the camera to view the domain from the bottm
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraViewBottom();
+
+   /**
+    * @brief Move the camera to view the domain from the top
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraViewTop();
+   
+   /**
+    * @brief Move the camera to view the domain from the left
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraViewLeft();
+
+   /**
+    * @brief Move the camera to view the domain from the right
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraViewRight();
+
+   /**
+    * @brief Move the camera to view the domain from the back
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraViewBack();
+
+   /**
+    * @brief Move the camera to view the domain from the front
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraViewFront();
+
+   /**
     * @brief Reset the camera
     * 
     * @return HRESULT 

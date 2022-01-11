@@ -207,6 +207,7 @@ struct MxUniverseRenderer : MxRenderer {
      * 
      * @details When a key is pressed, actions are as follows by key and modifier: 
      * 
+     * - D: toggle scene decorations
      * - L: toggle lagging
      * - R: reset camera
      * - Arrow down: translate camera down
@@ -252,6 +253,7 @@ struct MxUniverseRenderer : MxRenderer {
 
 
     bool _dirty = false;
+    bool _decorateScene = true;
     ParticleSphereShader::ColorMode _colorMode = ParticleSphereShader::ColorMode::ConsistentRandom;
     Color3 _ambientColor{0.1f};
     Color3 _diffuseColor{0.0f, 0.5f, 0.9f};
@@ -325,6 +327,21 @@ struct MxUniverseRenderer : MxRenderer {
     MxVector3f center;
 
     MxWindow *window;
+
+    /**
+     * @brief Set flag to draw/not draw scene decorators (e.g., grid)
+     * 
+     * @param decorate flag; true says to decorate
+     */
+    void decorateScene(const bool &decorate);
+
+    /**
+     * @brief Get scene decorator flag value
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool sceneDecorated() const;
 
     MxVector3f unproject(const MxVector2i& windowPosition, float depth) const;
 

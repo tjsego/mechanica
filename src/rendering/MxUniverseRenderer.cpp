@@ -424,16 +424,18 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
         .draw(bondsMesh);
     }
     
-    wireframeShader.setColor(Magnum::Color3{1., 1., 1.})
-        .setTransformationProjectionMatrix(
-             camera->projectionMatrix() *
-             camera->cameraMatrix() *
-             gridModelView)
-        .draw(gridMesh);
-    
-    wireframeShader.setColor(Magnum::Color3::yellow())
-        .draw(sceneBox);
-    
+    if(_decorateScene) {
+        wireframeShader.setColor(Magnum::Color3{1., 1., 1.})
+            .setTransformationProjectionMatrix(
+                camera->projectionMatrix() *
+                camera->cameraMatrix() *
+                gridModelView)
+            .draw(gridMesh);
+        
+        wireframeShader.setColor(Magnum::Color3::yellow())
+            .draw(sceneBox);
+    }
+
     sphereShader
         .setProjectionMatrix(camera->projectionMatrix())
         .setTransformationMatrix(camera->cameraMatrix() * modelViewMat)
@@ -483,6 +485,14 @@ void MxUniverseRenderer::onCursorMove(double xpos, double ypos)
 */
 
 
+}
+
+void MxUniverseRenderer::decorateScene(const bool &decorate) {
+    _decorateScene = decorate;
+}
+
+bool MxUniverseRenderer::sceneDecorated() const {
+    return _decorateScene;
 }
 
 MxVector3f MxUniverseRenderer::unproject(const MxVector2i& windowPosition, float depth) const {
@@ -583,6 +593,12 @@ void MxUniverseRenderer::keyPressEvent(Platform::GlfwApplication::KeyEvent& even
                 _arcball->viewBottom(2 * sideLength);
                 _arcball->translateToOrigin();
             }
+
+            }
+            break;
+
+        case Platform::GlfwApplication::KeyEvent::Key::D: {
+            decorateScene(!sceneDecorated());
 
             }
             break;

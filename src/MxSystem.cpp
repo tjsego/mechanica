@@ -115,6 +115,114 @@ HRESULT MxSystem::cameraMoveTo(const MxVector3f &center, const MxQuaternionf &ro
     }
 }
 
+HRESULT MxSystem::cameraViewBottom() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        ab->viewBottom(2.0 * renderer->sideLength);
+
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraViewTop() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        ab->viewTop(2.0 * renderer->sideLength);
+
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraViewLeft() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        ab->viewLeft(2.0 * renderer->sideLength);
+
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraViewRight() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        ab->viewRight(2.0 * renderer->sideLength);
+
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraViewBack() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        ab->viewBack(2.0 * renderer->sideLength);
+
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraViewFront() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
+        
+        ab->viewFront(2.0 * renderer->sideLength);
+
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
 HRESULT MxSystem::cameraReset() {
     try {
         MxSimulator *sim = MxSimulator::get();

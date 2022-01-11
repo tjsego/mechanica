@@ -7,6 +7,18 @@ System
 
     .. automethod:: cameraMoveTo
 
+    .. automethod:: cameraViewBottom
+
+    .. automethod:: cameraViewTop
+
+    .. automethod:: cameraViewLeft
+
+    .. automethod:: cameraViewRight
+
+    .. automethod:: cameraViewBack
+
+    .. automethod:: cameraViewFront
+
     .. automethod:: cameraReset
 
     .. automethod:: cameraZoomBy

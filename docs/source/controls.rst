@@ -22,6 +22,7 @@ Keyboard Controls
 .. csv-table::
     :header: "Button",              "Function"
 
+     "D",                           "Toggle scene decorations"
      "L",                           "Toggle lagging"
      "R",                           "Reset camera"
      "Arrow down",                  "Translate camera down"

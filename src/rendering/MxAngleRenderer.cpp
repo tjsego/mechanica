@@ -15,8 +15,12 @@
 
 
 HRESULT MxAngleRenderer::start(const std::vector<MxVector4f> &clipPlanes) {
+    
     // create the shader
-    _shader = Magnum::Shaders::Flat3D{Magnum::Shaders::Flat3D::Flag::VertexColor};
+    _shader = Magnum::Shaders::MxFlat3D{
+        Magnum::Shaders::MxFlat3D::Flag::VertexColor, 
+        (unsigned int)MxUniverseRenderer::maxClipPlaneCount()
+    };
     
     // create the buffer
     _buffer = Magnum::GL::Buffer{};
@@ -25,8 +29,8 @@ HRESULT MxAngleRenderer::start(const std::vector<MxVector4f> &clipPlanes) {
     _mesh = Magnum::GL::Mesh{};
     _mesh.setPrimitive(Magnum::MeshPrimitive::Lines);
     _mesh.addVertexBuffer(_buffer, 0,
-                          Shaders::Flat3D::Position{}, 
-                          Shaders::Flat3D::Color3{});
+                          Shaders::MxFlat3D::Position{}, 
+                          Shaders::MxFlat3D::Color3{});
 
     return S_OK;
 }
@@ -90,8 +94,8 @@ static inline int render_angle(BondsInstanceData* angleData, int i, MxAngle *ang
 HRESULT MxAngleRenderer::draw(Magnum::Mechanica::ArcBallCamera *camera, const MxVector2i &viewportSize, const MxMatrix4f &modelViewMat) {
     Log(LOG_DEBUG) << "";
 
-    if(_Engine.nr_angles > 0) {
-        int vertexCount = _Engine.nr_angles * 6;
+    if(_Engine.nr_active_angles > 0) {
+        int vertexCount = _Engine.nr_active_angles * 6;
         _mesh.setCount(vertexCount);
         
         _buffer.setData(

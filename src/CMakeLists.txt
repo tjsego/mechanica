@@ -141,6 +141,7 @@ set(SRC
 
   shaders/ParticleSphereShader.cpp
 
+  shaders/MxFlat3D.cpp
   shaders/MxPhong.cpp
 
   state/MxSpecies.cpp
@@ -271,6 +272,7 @@ set(HEADERS
 
   shaders/ParticleSphereShader.h
 
+  shaders/MxFlat3D.h
   shaders/MxPhong.h
 
   state/MxSpecies.h

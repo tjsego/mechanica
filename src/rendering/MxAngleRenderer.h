@@ -10,7 +10,7 @@
 
 #include "MxSubRenderer.h"
 
-#include <Magnum/Shaders/Flat.h>
+#include <shaders/MxFlat3D.h>
 #include <rendering/MxStyle.hpp>
 
 #include <Magnum/GL/Mesh.h>
@@ -23,8 +23,10 @@ struct MxAngleRenderer : MxSubRenderer {
     void setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe);
 
 private:
+    
+    std::vector<Magnum::Vector4> _clipPlanes;
 
-    Magnum::Shaders::Flat3D _shader{Corrade::Containers::NoCreate};
+    Magnum::Shaders::MxFlat3D _shader{Corrade::Containers::NoCreate};
     Magnum::GL::Buffer _buffer{Corrade::Containers::NoCreate};
     Magnum::GL::Mesh _mesh{Corrade::Containers::NoCreate};
 };

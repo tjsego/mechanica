@@ -42,5 +42,22 @@ for pos in positions:
     # the particle to the universe
     Argon(pos)
 
+# Create a clip plane on demand
+cp = mx.ClipPlanes.create(mx.Universe.center, mx.MxVector3f(0., 1., 0.))
+
+# Animate the clip plane
+
+
+def rotate_clip(e):
+    """Rotates the clip plane about the x-axis"""
+    cf = 2 * np.pi * mx.Universe.time / 20.0
+    cp.setEquation(mx.Universe.center, mx.MxVector3f(0., np.cos(cf), np.sin(cf)))
+
+
+mx.on_time(period=mx.Universe.dt, invoke_method=rotate_clip)
+
+# Orient the camera to verify animation
+mx.system.cameraViewRight()
+
 # run the simulator interactive
 mx.run()

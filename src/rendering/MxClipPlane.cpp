@@ -7,7 +7,7 @@
 
 #include "MxClipPlane.hpp"
 #include <Magnum/Math/Distance.h>
-#include <MxSimulator.h>
+#include <MxSystem.h>
 #include <rendering/MxUniverseRenderer.h>
 #include <mx_error.h>
 #include <MxLogger.h>
@@ -31,16 +31,14 @@ HRESULT MxPlaneEquation(const MxVector3f &normal, const MxVector3f &point, float
 std::tuple<MxVector3f, MxVector3f> MxPlaneEquation(const MxVector4f &planeEq) {
     MxVector3f normal = planeEq.xyz();
     MxVector3f point;
-    MxVector2f n2, p2(1.f);
-    float i, j, k;
+    int i, j, k;
 
     if(normal[0] != 0.f) {      i = 1; j = 2; k = 0;}
     else if(normal[1] != 0.f) { i = 0; j = 2; k = 1;}
     else {                      i = 0; j = 1; k = 2;}
 
-    point[i] = point[j] = 1.f;
-    n2 = {normal[i], normal[j]};
-    point[k] = (n2.dot(p2) - planeEq.w()) / normal[k];
+    point[i] = point[j] = 0.f;
+    point[k] = - planeEq.w() / normal[k];
 
     return std::make_tuple(normal, point);
 }
@@ -66,13 +64,47 @@ HRESULT MxParsePlaneEquation(const std::vector<std::tuple<MxVector3f, MxVector3f
     return S_OK;
 }
 
+MxVector3f MxClipPlane::getPoint() {
+    auto eq = MxSystem::getRenderer()->getClipPlaneEquation(this->index);
+    return std::get<1>(MxPlaneEquation(eq));
+}
+
+MxVector3f MxClipPlane::getNormal() {
+    auto eq = MxSystem::getRenderer()->getClipPlaneEquation(this->index);
+    return std::get<0>(MxPlaneEquation(eq));
+}
+
+MxVector4f MxClipPlane::getEquation() {
+    return MxSystem::getRenderer()->getClipPlaneEquation(this->index);
+}
+
+HRESULT MxClipPlane::setEquation(const MxVector4f &pe) {
+    MxSystem::getRenderer()->setClipPlaneEquation(this->index, pe);
+    return S_OK;
+}
+
+HRESULT MxClipPlane::setEquation(const MxVector3f &point, const MxVector3f &normal) {
+    return this->setEquation(MxPlaneEquation(normal, point));
+}
+
+HRESULT MxClipPlane::destroy() {
+    if(this->index < 0) {
+        Log(LOG_CRITICAL) << "Clip plane no longer valid";
+        return E_FAIL;
+    }
+
+    MxSystem::getRenderer()->removeClipPlaneEquation(this->index);
+    this->index = -1;
+    return S_OK;
+}
+
 int MxClipPlanes::len() {
-    return MxSimulator::get()->getRenderer()->clipPlaneCount();
+    return MxSystem::getRenderer()->clipPlaneCount();
 }
 
 const MxVector4f &MxClipPlanes::getClipPlaneEquation(const unsigned int &index) {
     try {
-        MxUniverseRenderer *renderer = MxSimulator::get()->getRenderer();
+        MxUniverseRenderer *renderer = MxSystem::getRenderer();
         
         if(index > renderer->clipPlaneCount()) mx_exp(std::range_error("index out of bounds"));
         return renderer->getClipPlaneEquation(index);
@@ -86,7 +118,7 @@ const MxVector4f &MxClipPlanes::getClipPlaneEquation(const unsigned int &index) 
 
 HRESULT MxClipPlanes::setClipPlaneEquation(const unsigned int &index, const MxVector4f &pe) {
     try {
-        MxUniverseRenderer *renderer = MxSimulator::get()->getRenderer();
+        MxUniverseRenderer *renderer = MxSystem::getRenderer();
         if(index > renderer->clipPlaneCount()) mx_exp(std::range_error("index out of bounds"));
         renderer->setClipPlaneEquation(index, pe);
         return S_OK;
@@ -95,6 +127,20 @@ HRESULT MxClipPlanes::setClipPlaneEquation(const unsigned int &index, const MxVe
         mx_error(E_FAIL, e.what());
         return -1;
     }
+}
+
+MxClipPlane MxClipPlanes::item(const unsigned int &index) {
+    return MxClipPlane(index);
+}
+
+MxClipPlane MxClipPlanes::create(const MxVector4f &pe) {
+    MxClipPlane result(MxClipPlanes::len());
+    MxSystem::getRenderer()->addClipPlaneEquation(pe);
+    return result;
+}
+
+MxClipPlane MxClipPlanes::create(const MxVector3f &point, const MxVector3f &normal) {
+    return MxClipPlanes::create(MxPlaneEquation(normal, point));
 }
 
 MxClipPlanes *getClipPlanes() {

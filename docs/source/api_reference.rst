@@ -77,6 +77,8 @@ This is the API Reference page for the module: :mod:`mechanica`
 
 .. include:: api_system.rst
 
+.. include:: api_rendering.rst
+
 .. include:: api_logger.rst
 
 .. include:: api_types.rst

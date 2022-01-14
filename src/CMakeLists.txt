@@ -118,6 +118,7 @@ set(SRC
 
   rendering/MxAngleRenderer.cpp
   rendering/MxArrowRenderer.cpp
+  rendering/MxBondRenderer.cpp
   rendering/MxMeshRenderer.cpp
   rendering/MxDihedralRenderer.cpp
   rendering/MxMeshShaderProgram.cpp
@@ -246,6 +247,7 @@ set(HEADERS
   rendering/FlatShadeObject.h
   rendering/MxAngleRenderer.h
   rendering/MxArrowRenderer.h
+  rendering/MxBondRenderer.h
   rendering/MxMeshRenderer.h
   rendering/MxDihedralRenderer.h
   rendering/MxMeshShaderProgram.h

@@ -38,6 +38,22 @@ struct MxSubRenderer{
     virtual HRESULT draw(Magnum::Mechanica::ArcBallCamera *camera, const MxVector2i &viewportSize, const MxMatrix4f &modelViewMat) = 0;
 
     /**
+     * @brief Adds a clip plane equation
+     * 
+     * @param pe clip plane equation
+     * @return const unsigned 
+     */
+    virtual const unsigned addClipPlaneEquation(const Magnum::Vector4& pe) { return E_NOTIMPL; }
+    
+    /**
+     * @brief Removes a clip plane equation
+     * 
+     * @param id id of clip plane equation
+     * @return const unsigned 
+     */
+    virtual const unsigned removeClipPlaneEquation(const unsigned int &id) { return E_NOTIMPL; }
+
+    /**
      * @brief Sets a clip plane equation
      * 
      * @param id id of clip plane equation

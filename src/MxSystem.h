@@ -194,6 +194,13 @@ struct CAPI_EXPORT MxSystem {
     * @return float 
     */
    static float cameraZoom();
+    
+   /**
+    * @brief Get the universe renderer
+    * 
+    * @return struct MxUniverseRenderer* 
+    */
+   static struct MxUniverseRenderer *getRenderer();
    
    /* Update screen size after the window has been resized */
    static HRESULT viewReshape(const MxVector2i &windowSize);

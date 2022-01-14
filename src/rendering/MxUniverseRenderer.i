@@ -13,11 +13,10 @@
 %ignore MxUniverseRenderer::largeSphereInstanceBuffer;
 %ignore MxUniverseRenderer::sphereMesh;
 %ignore MxUniverseRenderer::largeSphereMesh;
-%ignore MxUniverseRenderer::bondsMesh;
 %ignore MxUniverseRenderer::cuboidMesh;
 %ignore MxUniverseRenderer::cuboidInstanceBuffer;
-%ignore MxUniverseRenderer::bondsVertexBuffer;
 %ignore MxUniverseRenderer::angleRenderer;
+%ignore MxUniverseRenderer::bondRenderer;
 %ignore MxUniverseRenderer::dihedralRenderer;
 %ignore MxUniverseRenderer::arrowRenderer;
 

@@ -67,6 +67,18 @@
 
 using namespace Magnum::Math::Literals;
 
+static GL::Renderer::Feature clipDistanceGLLabels[] = {
+    GL::Renderer::Feature::ClipDistance0, 
+    GL::Renderer::Feature::ClipDistance1, 
+    GL::Renderer::Feature::ClipDistance2, 
+    GL::Renderer::Feature::ClipDistance3, 
+    GL::Renderer::Feature::ClipDistance4, 
+    GL::Renderer::Feature::ClipDistance5, 
+    GL::Renderer::Feature::ClipDistance6, 
+    GL::Renderer::Feature::ClipDistance7
+};
+static const unsigned int numClipDistanceGLLabels = 8;
+
 MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow *win):
     window{win}, 
     _zoomRate(0.05), 
@@ -162,7 +174,7 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
         Shaders::MxPhong::Flag::VertexColor |
         Shaders::MxPhong::Flag::InstancedTransformation,
         1,                                                // light count
-        (unsigned)conf.clipPlanes.size()                  // clip plane count
+        numClipDistanceGLLabels                           // clip plane count
     };
     
     sphereInstanceBuffer = GL::Buffer{};
@@ -173,20 +185,7 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
     
     cuboidMesh = MeshTools::compile(Primitives::cubeSolid());
     
-    // setup bonds mesh, shader and vertex buffer.
-    bondsMesh = GL::Mesh{};
-    bondsVertexBuffer = GL::Buffer{};
-    bondsMesh.setPrimitive(MeshPrimitive::Lines);
-    
-    // vertex colors for bonds shader
-    flatShader = Shaders::Flat3D{Shaders::Flat3D::Flag::VertexColor };
-    
     wireframeShader = Shaders::Flat3D{};
-    
-    bondsMesh.addVertexBuffer(bondsVertexBuffer, 0,
-                              Shaders::Flat3D::Position{},
-                              Shaders::Flat3D::Color3{});
-    
     
     sphereMesh = MeshTools::compile(Primitives::icosphereSolid(2));
 
@@ -216,21 +215,20 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
         .setDiffuseColor({1, 1, 1, 0})
         .setSpecularColor({0.2, 0.2, 0.2, 0});
     
-    _clipPlanes = std::vector<Magnum::Vector4>(conf.clipPlanes.size());
-    for(int i = 0; i < conf.clipPlanes.size(); ++i) {
-        Log(LOG_DEBUG) << "clip plane " << i << ": " << conf.clipPlanes[i];
-        _clipPlanes[i] = conf.clipPlanes[i];
-        sphereShader.setclipPlaneEquation(i, _clipPlanes[i]);
-    }
-    
     // we resize instances all the time.
     sphereMesh.setInstanceCount(0);
     largeSphereMesh.setInstanceCount(0);
     cuboidMesh.setInstanceCount(0);
 
     angleRenderer.start(conf.clipPlanes);
+    bondRenderer.start(conf.clipPlanes);
     dihedralRenderer.start(conf.clipPlanes);
     arrowRenderer.start(conf.clipPlanes);
+    
+    for(int i = 0; i < conf.clipPlanes.size(); ++i) {
+        Log(LOG_DEBUG) << "clip plane " << i << ": " << conf.clipPlanes[i];
+        addClipPlaneEquation(conf.clipPlanes[i]);
+    }
 }
 
 static inline int render_particle(SphereInstanceData* pData, int i, MxParticle *p, space_cell *c) {
@@ -393,37 +391,6 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     assert(i == _Engine.s.nr_visible_cuboids);
     cuboidInstanceBuffer.unmap();
     
-    
-    if(_Engine.nr_active_bonds > 0) {
-        int vertexCount = _Engine.nr_active_bonds * 2;
-        bondsMesh.setCount(vertexCount);
-        
-        bondsVertexBuffer.setData(
-            {NULL, vertexCount * sizeof(BondsInstanceData)},
-            GL::BufferUsage::DynamicDraw
-        );
-        
-        // get pointer to data, give me the damned bytes
-        BondsInstanceData* bondData = (BondsInstanceData*)(void*)bondsVertexBuffer.map(
-           0,
-           vertexCount * sizeof(BondsInstanceData),
-           GL::Buffer::MapFlag::Write|GL::Buffer::MapFlag::InvalidateBuffer
-        );
-        
-        int i = 0;
-        Magnum::Vector3 *color;
-        for(int j = 0; j < _Engine.nr_bonds; ++j) {
-            MxBond *bond = &_Engine.bonds[j];
-            i += render_bond(bondData, i, bond);
-        }
-        assert(i == 2 * _Engine.nr_active_bonds);
-        bondsVertexBuffer.unmap();
-        
-        flatShader
-        .setTransformationProjectionMatrix(camera->projectionMatrix() * camera->cameraMatrix() * modelViewMat)
-        .draw(bondsMesh);
-    }
-    
     if(_decorateScene) {
         wireframeShader.setColor(Magnum::Color3{1., 1., 1.})
             .setTransformationProjectionMatrix(
@@ -446,6 +413,7 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     sphereShader.draw(cuboidMesh);
 
     angleRenderer.draw(camera, viewportSize, modelViewMat);
+    bondRenderer.draw(camera, viewportSize, modelViewMat);
     dihedralRenderer.draw(camera, viewportSize, modelViewMat);
     arrowRenderer.draw(camera, viewportSize, modelViewMat);
     
@@ -776,7 +744,53 @@ void MxUniverseRenderer::mouseScrollEvent(Platform::GlfwApplication::MouseScroll
 
 
 int MxUniverseRenderer::clipPlaneCount() const {
-    return sphereShader.clipPlaneCount();
+    return _clipPlanes.size();
+}
+
+int MxUniverseRenderer::maxClipPlaneCount() {
+    return numClipDistanceGLLabels;
+}
+
+const unsigned MxUniverseRenderer::addClipPlaneEquation(const Magnum::Vector4& pe) {
+    if(_clipPlanes.size() == numClipDistanceGLLabels) {
+        mx_exp(std::invalid_argument("only up to 8 clip planes supported"));
+    }
+
+    GL::Renderer::enable(clipDistanceGLLabels[_clipPlanes.size()]);
+
+    unsigned int id = _clipPlanes.size();
+
+    _clipPlanes.push_back(pe);
+
+    sphereShader.setclipPlaneEquation(id, pe);
+
+    angleRenderer.addClipPlaneEquation(pe);
+    bondRenderer.addClipPlaneEquation(pe);
+    dihedralRenderer.addClipPlaneEquation(pe);
+    arrowRenderer.addClipPlaneEquation(pe);
+
+    return id;
+}
+
+const unsigned MxUniverseRenderer::removeClipPlaneEquation(const unsigned int &id) {
+    if(id >= _clipPlanes.size()) {
+        mx_exp(std::invalid_argument("invalid id for clip plane"));
+    }
+
+    _clipPlanes.erase(_clipPlanes.begin() + id);
+
+    GL::Renderer::disable(clipDistanceGLLabels[_clipPlanes.size()]);
+
+    for(unsigned int i = id; i < _clipPlanes.size(); i++) {
+        sphereShader.setclipPlaneEquation(i, _clipPlanes[i]);
+    }
+
+    angleRenderer.removeClipPlaneEquation(id);
+    bondRenderer.removeClipPlaneEquation(id);
+    dihedralRenderer.removeClipPlaneEquation(id);
+    arrowRenderer.removeClipPlaneEquation(id);
+
+    return _clipPlanes.size();
 }
 
 void MxUniverseRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe) {
@@ -786,6 +800,7 @@ void MxUniverseRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4
     
     sphereShader.setclipPlaneEquation(id, pe);
     angleRenderer.setClipPlaneEquation(id, pe);
+    bondRenderer.setClipPlaneEquation(id, pe);
     dihedralRenderer.setClipPlaneEquation(id, pe);
     arrowRenderer.setClipPlaneEquation(id, pe);
     _clipPlanes[id] = pe;

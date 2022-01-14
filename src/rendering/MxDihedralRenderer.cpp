@@ -126,4 +126,28 @@ HRESULT MxDihedralRenderer::draw(Magnum::Mechanica::ArcBallCamera *camera, const
     return S_OK;
 }
 
-void MxDihedralRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe) {}
+const unsigned MxDihedralRenderer::addClipPlaneEquation(const Magnum::Vector4& pe) {
+    unsigned int id = _clipPlanes.size();
+    _clipPlanes.push_back(pe);
+    _shader.setclipPlaneEquation(id, pe);
+    return id;
+}
+
+const unsigned MxDihedralRenderer::removeClipPlaneEquation(const unsigned int &id) {
+    _clipPlanes.erase(_clipPlanes.begin() + id);
+
+    for(unsigned int i = id; i < _clipPlanes.size(); i++) {
+        _shader.setclipPlaneEquation(i, _clipPlanes[i]);
+    }
+
+    return _clipPlanes.size();
+}
+
+void MxDihedralRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe) {
+    if(id > _shader.clipPlaneCount()) {
+        mx_exp(std::invalid_argument("invalid id for clip plane"));
+    }
+
+    _shader.setclipPlaneEquation(id, pe);
+    _clipPlanes[id] = pe;
+}

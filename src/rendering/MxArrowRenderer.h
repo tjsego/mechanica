@@ -74,6 +74,8 @@ struct MxArrowRenderer : MxSubRenderer{
 
     HRESULT start(const std::vector<MxVector4f> &clipPlanes);
     HRESULT draw(Magnum::Mechanica::ArcBallCamera *camera, const MxVector2i &viewportSize, const MxMatrix4f &modelViewMat);
+    const unsigned addClipPlaneEquation(const Magnum::Vector4& pe);
+    const unsigned removeClipPlaneEquation(const unsigned int &id);
     void setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe);
 
     /**
@@ -141,6 +143,8 @@ struct MxArrowRenderer : MxSubRenderer{
 private:
 
     int _arrowDetail = 10;
+    
+    std::vector<Magnum::Vector4> _clipPlanes;
 
     Magnum::GL::Buffer _bufferHead{Corrade::Containers::NoCreate};
     Magnum::GL::Buffer _bufferCylinder{Corrade::Containers::NoCreate};

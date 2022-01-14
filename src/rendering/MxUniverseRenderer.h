@@ -56,6 +56,7 @@
 #include <rendering/ArcBallCamera.h>
 
 #include <rendering/MxAngleRenderer.h>
+#include <rendering/MxBondRenderer.h>
 #include <rendering/MxDihedralRenderer.h>
 #include <rendering/MxArrowRenderer.h>
 
@@ -183,6 +184,12 @@ struct MxUniverseRenderer : MxRenderer {
     void draw();
     
     int clipPlaneCount() const;
+
+    static int maxClipPlaneCount();
+    
+    const unsigned addClipPlaneEquation(const Magnum::Vector4& pe);
+    
+    const unsigned removeClipPlaneEquation(const unsigned int &id);
     
     void setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe);
     
@@ -298,8 +305,6 @@ struct MxUniverseRenderer : MxRenderer {
     
     Shaders::MxPhong sphereShader{NoCreate};
     
-    Shaders::Flat3D flatShader{NoCreate};
-    
     Shaders::Flat3D wireframeShader{NoCreate};
     
     GL::Buffer sphereInstanceBuffer{NoCreate};
@@ -310,15 +315,13 @@ struct MxUniverseRenderer : MxRenderer {
 
     GL::Mesh largeSphereMesh{NoCreate};
     
-    GL::Mesh bondsMesh{NoCreate};
-    
     GL::Mesh cuboidMesh{NoCreate};
     
     GL::Buffer cuboidInstanceBuffer{NoCreate};
-    
-    GL::Buffer bondsVertexBuffer{NoCreate};
 
     MxAngleRenderer angleRenderer;
+
+    MxBondRenderer bondRenderer;
 
     MxDihedralRenderer dihedralRenderer;
     

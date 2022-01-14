@@ -9,7 +9,7 @@
 
 #include <engine.h>
 #include <MxLogger.h>
-#include <MxSimulator.h>
+#include <MxSystem.h>
 #include <rendering/MxUniverseRenderer.h>
 
 #include <Magnum/MeshTools/Compile.h>
@@ -126,12 +126,11 @@ MxArrowRenderer::~MxArrowRenderer() {
 HRESULT MxArrowRenderer::start(const std::vector<MxVector4f> &clipPlanes) {
 
     // create the shaders
-    unsigned int clipPlaneCount = clipPlanes.size();
     _shader = Magnum::Shaders::MxPhong {
         Magnum::Shaders::MxPhong::Flag::VertexColor | 
         Magnum::Shaders::MxPhong::Flag::InstancedTransformation, 
         1, 
-        clipPlaneCount
+        (unsigned int)MxUniverseRenderer::maxClipPlaneCount()
     };
     _shader.setShininess(2000.0f)
         .setLightPositions({{-20, 40, 20, 0.f}})
@@ -140,8 +139,6 @@ HRESULT MxArrowRenderer::start(const std::vector<MxVector4f> &clipPlanes) {
         .setAmbientColor({0.4, 0.4, 0.4, 1})
         .setDiffuseColor({1, 1, 1, 0})
         .setSpecularColor({0.2, 0.2, 0.2, 0});
-    for(int i = 0; i < clipPlaneCount; ++i)
-        _shader.setclipPlaneEquation(i, clipPlanes[i]);
     
     // create the buffers
     _bufferHead = Magnum::GL::Buffer();
@@ -227,10 +224,28 @@ HRESULT MxArrowRenderer::draw(Magnum::Mechanica::ArcBallCamera *camera, const Mx
     return S_OK;
 }
 
+const unsigned MxArrowRenderer::addClipPlaneEquation(const Magnum::Vector4& pe) {
+    unsigned int id = _clipPlanes.size();
+    _clipPlanes.push_back(pe);
+    _shader.setclipPlaneEquation(id, pe);
+    return id;
+}
+
+const unsigned MxArrowRenderer::removeClipPlaneEquation(const unsigned int &id) {
+    _clipPlanes.erase(_clipPlanes.begin() + id);
+
+    for(unsigned int i = id; i < _clipPlanes.size(); i++) {
+        _shader.setclipPlaneEquation(i, _clipPlanes[i]);
+    }
+
+    return _clipPlanes.size();
+}
+
 void MxArrowRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe) {
     if(id > _shader.clipPlaneCount()) mx_exp(std::invalid_argument("invalid id for clip plane"));
 
     _shader.setclipPlaneEquation(id, pe);
+    _clipPlanes[id] = pe;
 }
 
 int MxArrowRenderer::nextDataId() {
@@ -284,7 +299,6 @@ MxArrowData *MxArrowRenderer::getArrow(const int &arrowId) {
 }
 
 MxArrowRenderer *MxArrowRenderer::get() {
-    auto *sim = MxSimulator::get();
-    auto *renderer = sim->getRenderer();
+    auto *renderer = MxSystem::getRenderer();
     return &renderer->arrowRenderer;
 }

@@ -1,12 +1,12 @@
 /**
- * @file MxAngleRenderer.h
+ * @file MxBondRenderer.h
  * @author T.J. Sego, Ph.D.
- * @brief Defines renderer for visualizing MxAngles. 
- * @date 2021-09-13
+ * @brief Defines renderer for visualizing MxBonds. 
+ * @date 2022-01-14
  * 
  */
-#ifndef SRC_RENDERING_MXANGLERENDERER_H_
-#define SRC_RENDERING_MXANGLERENDERER_H_
+#ifndef SRC_RENDERING_MXBONDRENDERER_H_
+#define SRC_RENDERING_MXBONDRENDERER_H_
 
 #include "MxSubRenderer.h"
 
@@ -17,7 +17,7 @@
 #include <Magnum/Math/Color.h>
 #include <Magnum/Mesh.h>
 
-struct MxAngleRenderer : MxSubRenderer {
+struct MxBondRenderer : MxSubRenderer {
     HRESULT start(const std::vector<MxVector4f> &clipPlanes);
     HRESULT draw(Magnum::Mechanica::ArcBallCamera *camera, const MxVector2i &viewportSize, const MxMatrix4f &modelViewMat);
     const unsigned addClipPlaneEquation(const Magnum::Vector4& pe);
@@ -33,4 +33,4 @@ private:
     Magnum::GL::Mesh _mesh{Corrade::Containers::NoCreate};
 };
 
-#endif // SRC_RENDERING_MXANGLERENDERER_H_
+#endif // SRC_RENDERING_MXBONDRENDERER_H_

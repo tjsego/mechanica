@@ -1390,10 +1390,6 @@ PyObject *MxSimulatorPy::_run(PyObject *args, PyObject *kwargs) {
     SIM_FINALLY(NULL);
 }
 
-struct MxUniverseRenderer *MxSimulator::getRenderer() {
-    return app->getRenderer();
-}
-
 
 namespace mx { namespace io {
 

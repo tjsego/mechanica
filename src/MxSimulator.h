@@ -334,8 +334,6 @@ struct CAPI_EXPORT MxSimulator {
         Contextless = 1 << 9
 
     };
-    
-    struct MxUniverseRenderer *getRenderer();
 
 
     int32_t kind;

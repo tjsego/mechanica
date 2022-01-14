@@ -124,6 +124,7 @@ HRESULT MxSystem::cameraViewBottom() {
         Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
         
         ab->viewBottom(2.0 * renderer->sideLength);
+        ab->translateToOrigin();
 
         return S_OK;
     }
@@ -142,6 +143,7 @@ HRESULT MxSystem::cameraViewTop() {
         Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
         
         ab->viewTop(2.0 * renderer->sideLength);
+        ab->translateToOrigin();
 
         return S_OK;
     }
@@ -160,6 +162,7 @@ HRESULT MxSystem::cameraViewLeft() {
         Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
         
         ab->viewLeft(2.0 * renderer->sideLength);
+        ab->translateToOrigin();
 
         return S_OK;
     }
@@ -178,6 +181,7 @@ HRESULT MxSystem::cameraViewRight() {
         Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
         
         ab->viewRight(2.0 * renderer->sideLength);
+        ab->translateToOrigin();
 
         return S_OK;
     }
@@ -196,6 +200,7 @@ HRESULT MxSystem::cameraViewBack() {
         Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
         
         ab->viewBack(2.0 * renderer->sideLength);
+        ab->translateToOrigin();
 
         return S_OK;
     }
@@ -214,6 +219,7 @@ HRESULT MxSystem::cameraViewFront() {
         Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
         
         ab->viewFront(2.0 * renderer->sideLength);
+        ab->translateToOrigin();
 
         return S_OK;
     }
@@ -456,6 +462,17 @@ float MxSystem::cameraZoom() {
         Magnum::Mechanica::ArcBallCamera *ab = renderer->_arcball;
         
         return ab->czoom();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+struct MxUniverseRenderer *MxSystem::getRenderer() {
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        return sim->app->getRenderer();
     }
     catch(const std::exception &e) {
         MX_RETURN_EXP(e);

@@ -77,6 +77,7 @@ MxConstantForcePy::MxConstantForcePy(const MxVector3f &f, const float &period) :
     MxConstantForce(f, period)
 {
     type = FORCE_CONSTANTPY;
+    callable = NULL;
 }
 
 MxConstantForcePy::MxConstantForcePy(PyObject *f, const float &period) : 
@@ -86,7 +87,12 @@ MxConstantForcePy::MxConstantForcePy(PyObject *f, const float &period) :
     type = FORCE_CONSTANTPY;
 
     setPeriod(period);
-    if(callable) {
+    if(PyList_Check(f)) {
+        MxVector3f fv = mx::cast<PyObject, MxVector3f>(f);
+        callable = NULL;
+        MxConstantForce::setValue(fv);
+    }
+    else if(callable) {
         Py_IncRef(callable);
     }
 }

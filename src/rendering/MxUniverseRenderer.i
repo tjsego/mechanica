@@ -15,13 +15,24 @@
 %ignore MxUniverseRenderer::largeSphereMesh;
 %ignore MxUniverseRenderer::cuboidMesh;
 %ignore MxUniverseRenderer::cuboidInstanceBuffer;
-%ignore MxUniverseRenderer::angleRenderer;
-%ignore MxUniverseRenderer::bondRenderer;
-%ignore MxUniverseRenderer::dihedralRenderer;
-%ignore MxUniverseRenderer::arrowRenderer;
+%ignore MxUniverseRenderer::subRenderers;
 
 %include "MxUniverseRenderer.h"
 
 %pythoncode %{
     UniverseRenderer = MxUniverseRenderer
+
+    from enum import Enum as EnumPy
+
+    class SubRendererFlags(EnumPy):
+        """Flags for referencing subrenderers in select methods"""
+
+        angle = SUBRENDERER_ANGLE
+        """Angle subrenderer"""
+        arrow = SUBRENDERER_ARROW
+        """Arrow subrenderer"""
+        bond = SUBRENDERER_BOND
+        """Bond subrenderer"""
+        dihedral = SUBRENDERER_DIHEDRAL
+        """Dihedral subrenderer"""
 %}

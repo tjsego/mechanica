@@ -77,6 +77,12 @@ struct MxArrowRenderer : MxSubRenderer{
     const unsigned addClipPlaneEquation(const Magnum::Vector4& pe);
     const unsigned removeClipPlaneEquation(const unsigned int &id);
     void setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe);
+    void setAmbientColor(const Magnum::Color3& color);
+    void setDiffuseColor(const Magnum::Color3& color);
+    void setSpecularColor(const Magnum::Color3& color);
+    void setShininess(float shininess);
+    void setLightDirection(const MxVector3f& lightDir);
+    void setLightColor(const Magnum::Color3 &color);
 
     /**
      * @brief Adds a vector visualization specification. 

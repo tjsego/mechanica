@@ -32,3 +32,13 @@ Rendering
 .. automethod:: plane_equation
 
 .. automethod:: MxPlaneEquation
+
+.. autoclass:: SubRendererFlags
+
+    .. autoattribute:: angle
+
+    .. autoattribute:: arrow
+
+    .. autoattribute:: bond
+
+    .. autoattribute:: dihedral

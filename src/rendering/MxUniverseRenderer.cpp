@@ -54,6 +54,10 @@
 
 #include <rendering/WireframeObjects.h>
 #include <rendering/MxStyle.hpp>
+#include <rendering/MxAngleRenderer.h>
+#include <rendering/MxArrowRenderer.h>
+#include <rendering/MxBondRenderer.h>
+#include <rendering/MxDihedralRenderer.h>
 
 #include <MxUtil.h>
 #include <MxLogger.h>
@@ -205,30 +209,32 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
         Shaders::Phong::TransformationMatrix{},
         Shaders::Phong::NormalMatrix{},
         Shaders::Phong::Color4{});
-
-    // setup up lighting properties. TODO: move these to style
-    sphereShader.setShininess(2000.0f)
-        .setLightPositions({{-20, 40, 20, 0.f}})
-        .setLightColors({Magnum::Color3{0.9, 0.9, 0.9}})
-        .setShininess(100)
-        .setAmbientColor({0.4, 0.4, 0.4, 1})
-        .setDiffuseColor({1, 1, 1, 0})
-        .setSpecularColor({0.2, 0.2, 0.2, 0});
     
     // we resize instances all the time.
     sphereMesh.setInstanceCount(0);
     largeSphereMesh.setInstanceCount(0);
     cuboidMesh.setInstanceCount(0);
 
-    angleRenderer.start(conf.clipPlanes);
-    bondRenderer.start(conf.clipPlanes);
-    dihedralRenderer.start(conf.clipPlanes);
-    arrowRenderer.start(conf.clipPlanes);
+    subRenderers = {
+        new MxAngleRenderer(), 
+        new MxArrowRenderer(), 
+        new MxBondRenderer(), 
+        new MxDihedralRenderer()
+    };
+    for(auto &s : subRenderers) 
+        s->start(conf.clipPlanes);
     
     for(int i = 0; i < conf.clipPlanes.size(); ++i) {
         Log(LOG_DEBUG) << "clip plane " << i << ": " << conf.clipPlanes[i];
         addClipPlaneEquation(conf.clipPlanes[i]);
     }
+
+    this->setLightDirection(lightDirection())
+        .setLightColor(lightColor())
+        .setShininess(shininess())
+        .setAmbientColor(ambientColor())
+        .setDiffuseColor(diffuseColor())
+        .setSpecularColor(specularColor());
 }
 
 static inline int render_particle(SphereInstanceData* pData, int i, MxParticle *p, space_cell *c) {
@@ -392,14 +398,14 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     cuboidInstanceBuffer.unmap();
     
     if(_decorateScene) {
-        wireframeShader.setColor(Magnum::Color3{1., 1., 1.})
+        wireframeShader.setColor(_gridColor)
             .setTransformationProjectionMatrix(
                 camera->projectionMatrix() *
                 camera->cameraMatrix() *
                 gridModelView)
             .draw(gridMesh);
         
-        wireframeShader.setColor(Magnum::Color3::yellow())
+        wireframeShader.setColor(_sceneBoxColor)
             .draw(sceneBox);
     }
 
@@ -412,11 +418,69 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     sphereShader.draw(largeSphereMesh);
     sphereShader.draw(cuboidMesh);
 
-    angleRenderer.draw(camera, viewportSize, modelViewMat);
-    bondRenderer.draw(camera, viewportSize, modelViewMat);
-    dihedralRenderer.draw(camera, viewportSize, modelViewMat);
-    arrowRenderer.draw(camera, viewportSize, modelViewMat);
+    for(auto &s : subRenderers) 
+        s->draw(camera, viewportSize, modelViewMat);
     
+    return *this;
+}
+
+MxUniverseRenderer& MxUniverseRenderer::setAmbientColor(const Color3& color) {
+    sphereShader.setAmbientColor(color);
+
+    for(auto &s : subRenderers) 
+        s->setAmbientColor(color);
+    
+    _ambientColor = color;
+    return *this;
+}
+
+MxUniverseRenderer& MxUniverseRenderer::setDiffuseColor(const Color3& color) {
+    sphereShader.setDiffuseColor(color);
+
+    for(auto &s : subRenderers) 
+        s->setDiffuseColor(color);
+
+    _diffuseColor = color;
+    return *this;
+}
+
+MxUniverseRenderer& MxUniverseRenderer::setSpecularColor(const Color3& color) {
+    sphereShader.setSpecularColor(color);
+
+    for(auto &s : subRenderers) 
+        s->setSpecularColor(color);
+
+    _specularColor = color;
+    return *this;
+}
+
+MxUniverseRenderer& MxUniverseRenderer::setShininess(float shininess) {
+    sphereShader.setShininess(shininess);
+
+    for(auto &s : subRenderers) 
+        s->setShininess(shininess);
+
+    _shininess = shininess;
+    return *this;
+}
+
+MxUniverseRenderer& MxUniverseRenderer::setLightDirection(const MxVector3f& lightDir) {
+    sphereShader.setLightPosition(lightDir);
+
+    for(auto &s : subRenderers) 
+        s->setLightDirection(lightDir);
+
+    _lightDir = lightDir;
+    return *this;
+}
+
+MxUniverseRenderer& MxUniverseRenderer::setLightColor(const Color3 &color) {
+    sphereShader.setLightColor(color);
+
+    for(auto &s : subRenderers) 
+        s->setLightColor(color);
+
+    _lightColor = color;
     return *this;
 }
 
@@ -742,6 +806,33 @@ void MxUniverseRenderer::mouseScrollEvent(Platform::GlfwApplication::MouseScroll
     window->redraw(); /* camera has changed, redraw! */
 }
 
+MxSubRenderer *MxUniverseRenderer::getSubRenderer(const MxSubRendererFlag &flag) {
+    if(subRenderers.size() == 0) return 0;
+
+    switch(flag) {
+        case SUBRENDERER_ANGLE: {
+            return subRenderers[0];
+            }
+            break;
+        case SUBRENDERER_ARROW: {
+            return subRenderers[1];
+            }
+            break;
+        case SUBRENDERER_BOND: {
+            return subRenderers[2];
+            }
+            break;
+        case SUBRENDERER_DIHEDRAL: {
+            return subRenderers[3];
+            }
+            break;
+        default: {
+            Log(LOG_DEBUG) << "No renderer for flag " << (unsigned int)flag;
+            return 0;
+        }
+    }
+}
+
 
 int MxUniverseRenderer::clipPlaneCount() const {
     return _clipPlanes.size();
@@ -764,10 +855,8 @@ const unsigned MxUniverseRenderer::addClipPlaneEquation(const Magnum::Vector4& p
 
     sphereShader.setclipPlaneEquation(id, pe);
 
-    angleRenderer.addClipPlaneEquation(pe);
-    bondRenderer.addClipPlaneEquation(pe);
-    dihedralRenderer.addClipPlaneEquation(pe);
-    arrowRenderer.addClipPlaneEquation(pe);
+    for(auto &s : subRenderers) 
+        s->addClipPlaneEquation(pe);
 
     return id;
 }
@@ -785,10 +874,8 @@ const unsigned MxUniverseRenderer::removeClipPlaneEquation(const unsigned int &i
         sphereShader.setclipPlaneEquation(i, _clipPlanes[i]);
     }
 
-    angleRenderer.removeClipPlaneEquation(id);
-    bondRenderer.removeClipPlaneEquation(id);
-    dihedralRenderer.removeClipPlaneEquation(id);
-    arrowRenderer.removeClipPlaneEquation(id);
+    for(auto &s : subRenderers) 
+        s->removeClipPlaneEquation(id);
 
     return _clipPlanes.size();
 }
@@ -799,10 +886,10 @@ void MxUniverseRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4
     }
     
     sphereShader.setclipPlaneEquation(id, pe);
-    angleRenderer.setClipPlaneEquation(id, pe);
-    bondRenderer.setClipPlaneEquation(id, pe);
-    dihedralRenderer.setClipPlaneEquation(id, pe);
-    arrowRenderer.setClipPlaneEquation(id, pe);
+
+    for(auto &s : subRenderers) 
+        s->setClipPlaneEquation(id, pe);
+
     _clipPlanes[id] = pe;
 }
 

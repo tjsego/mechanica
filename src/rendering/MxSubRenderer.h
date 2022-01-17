@@ -61,6 +61,48 @@ struct MxSubRenderer{
      */
     virtual void setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe) {}
 
+    /**
+     * @brief Sets the ambient color
+     * 
+     * @param color 
+     */
+    virtual void setAmbientColor(const Magnum::Color3& color) {}
+
+    /**
+     * @brief Set the diffuse color
+     * 
+     * @param color 
+     */
+    virtual void setDiffuseColor(const Magnum::Color3& color) {}
+
+    /**
+     * @brief Set the specular color
+     * 
+     * @param color 
+     */
+    virtual void setSpecularColor(const Magnum::Color3& color) {}
+
+    /**
+     * @brief Sets the shininess
+     * 
+     * @param shininess 
+     */
+    virtual void setShininess(float shininess) {}
+
+    /**
+     * @brief Sets the light direction
+     * 
+     * @param lightDir 
+     */
+    virtual void setLightDirection(const MxVector3f& lightDir) {}
+
+    /**
+     * @brief Sets the light color
+     * 
+     * @param color 
+     */
+    virtual void setLightColor(const Magnum::Color3 &color) {}
+
 };
 
 #endif // SRC_RENDERING_MXSUBRENDERER_H_

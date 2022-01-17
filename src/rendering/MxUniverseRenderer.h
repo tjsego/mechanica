@@ -55,10 +55,7 @@
 #include <rendering/MxWindow.h>
 #include <rendering/ArcBallCamera.h>
 
-#include <rendering/MxAngleRenderer.h>
-#include <rendering/MxBondRenderer.h>
-#include <rendering/MxDihedralRenderer.h>
-#include <rendering/MxArrowRenderer.h>
+#include <rendering/MxSubRenderer.h>
 
 struct MxSimulator_Config;
 
@@ -81,6 +78,15 @@ struct CuboidInstanceData {
     Magnum::Matrix3x3 normalMatrix;
     Magnum::Color4 color;
 };
+
+
+typedef enum MxSubRendererFlag {
+    SUBRENDERER_ANGLE = 1 << 0,
+    SUBRENDERER_ARROW = 1 << 1,
+    SUBRENDERER_BOND = 1 << 2,
+    SUBRENDERER_DIHEDRAL = 1 << 3
+} MxSubRendererFlag;
+
 
 struct MxUniverseRenderer : MxRenderer {
 
@@ -107,38 +113,41 @@ struct MxUniverseRenderer : MxRenderer {
 
     Color3& ambientColor() { return _ambientColor; }
 
-    MxUniverseRenderer& setAmbientColor(const Color3& color) {
-        _ambientColor = color;
-        return *this;
-    }
+    MxUniverseRenderer& setAmbientColor(const Color3& color);
 
     Color3& diffuseColor() { return _diffuseColor; }
 
-    MxUniverseRenderer& setDiffuseColor(const Color3& color) {
-        _diffuseColor = color;
-        return *this;
-    }
+    MxUniverseRenderer& setDiffuseColor(const Color3& color);
 
     Color3& specularColor() { return _specularColor; }
 
-    MxUniverseRenderer& setSpecularColor(const Color3& color) {
-        _specularColor = color;
-        return *this;
-    }
+    MxUniverseRenderer& setSpecularColor(const Color3& color);
 
     Float& shininess() { return _shininess; }
 
-    MxUniverseRenderer& setShininess(float shininess) {
-        _shininess = shininess;
+    MxUniverseRenderer& setShininess(float shininess);
+
+    Color3& gridColor() { return _gridColor; }
+
+    MxUniverseRenderer& setGridColor(const Color3 &color) {
+        _gridColor = color;
+        return *this;
+    }
+
+    Color3& sceneBoxColor() { return _sceneBoxColor; }
+
+    MxUniverseRenderer& setSceneBoxColor(const Color3 &color) {
+        _sceneBoxColor = color;
         return *this;
     }
 
     MxVector3f& lightDirection() { return _lightDir; }
 
-    MxUniverseRenderer& setLightDirection(const MxVector3f& lightDir) {
-        _lightDir = lightDir;
-        return *this;
-    }
+    MxUniverseRenderer& setLightDirection(const MxVector3f& lightDir);
+
+    Color3& lightColor() { return _lightColor; }
+
+    MxUniverseRenderer& setLightColor(const Color3 &color);
 
     MxUniverseRenderer& setModelViewTransform(const Magnum::Matrix4& mat) {
         modelViewMat = mat;
@@ -258,15 +267,20 @@ struct MxUniverseRenderer : MxRenderer {
     void mouseMoveEvent(Platform::GlfwApplication::MouseMoveEvent& event);
     void mouseScrollEvent(Platform::GlfwApplication::MouseScrollEvent& event);
 
+    MxSubRenderer *getSubRenderer(const MxSubRendererFlag &flag);
+
 
     bool _dirty = false;
     bool _decorateScene = true;
     ParticleSphereShader::ColorMode _colorMode = ParticleSphereShader::ColorMode::ConsistentRandom;
-    Color3 _ambientColor{0.1f};
-    Color3 _diffuseColor{0.0f, 0.5f, 0.9f};
-    Color3 _specularColor{ 1.0f};
-    Float _shininess = 150.0f;
+    Color3 _ambientColor{0.4f};
+    Color3 _diffuseColor{1.f};
+    Color3 _specularColor{0.2f};
+    Color3 _gridColor = {1.f, 1.f, 1.f};
+    Color3 _sceneBoxColor = {1.f, 1.f, 0.f};
+    Float _shininess = 100.0f;
     MxVector3f _lightDir{1.0f, 1.0f, 2.0f};
+    Color3 _lightColor = {0.9, 0.9, 0.9};
     
     MxVector3f _eye, _center, _up;
     
@@ -319,13 +333,7 @@ struct MxUniverseRenderer : MxRenderer {
     
     GL::Buffer cuboidInstanceBuffer{NoCreate};
 
-    MxAngleRenderer angleRenderer;
-
-    MxBondRenderer bondRenderer;
-
-    MxDihedralRenderer dihedralRenderer;
-    
-    MxArrowRenderer arrowRenderer;
+    std::vector<MxSubRenderer*> subRenderers;
 
     MxVector3f center;
 

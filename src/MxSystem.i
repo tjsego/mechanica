@@ -16,6 +16,9 @@
 %extend MxSystem {
     %pythoncode %{
 
+        subrenderer = SubRendererFlags
+        """Subrenderer flags"""
+
         @staticmethod
         def cpu_info() -> dict:
             """Dictionary of CPU info"""

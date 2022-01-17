@@ -479,6 +479,258 @@ struct MxUniverseRenderer *MxSystem::getRenderer() {
     }
 }
 
+MxVector3f MxSystem::getAmbientColor() {
+    try {
+        return MxSystem::getRenderer()->ambientColor();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setAmbientColor(const MxVector3f &color) {
+    try {
+        MxSystem::getRenderer()->setAmbientColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::setAmbientColor(const MxVector3f &color, const unsigned int &srFlag) {
+    try {
+        MxSystem::getRenderer()->getSubRenderer((MxSubRendererFlag)srFlag)->setAmbientColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+MxVector3f MxSystem::getDiffuseColor() {
+    try {
+        return MxSystem::getRenderer()->diffuseColor();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setDiffuseColor(const MxVector3f &color) {
+    try {
+        MxSystem::getRenderer()->setDiffuseColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::setDiffuseColor(const MxVector3f &color, const unsigned int &srFlag) {
+    try {
+        MxSystem::getRenderer()->getSubRenderer((MxSubRendererFlag)srFlag)->setDiffuseColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+MxVector3f MxSystem::getSpecularColor() {
+    try {
+        return MxSystem::getRenderer()->specularColor();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setSpecularColor(const MxVector3f &color) {
+    try {
+        MxSystem::getRenderer()->setSpecularColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::setSpecularColor(const MxVector3f &color, const unsigned int &srFlag) {
+    try {
+        MxSystem::getRenderer()->getSubRenderer((MxSubRendererFlag)srFlag)->setSpecularColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+float MxSystem::getShininess() {
+    try {
+        return MxSystem::getRenderer()->shininess();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setShininess(const float &shininess) {
+    try {
+        MxSystem::getRenderer()->setShininess(shininess);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::setShininess(const float &shininess, const unsigned int &srFlag) {
+    try {
+        MxSystem::getRenderer()->getSubRenderer((MxSubRendererFlag)srFlag)->setShininess(shininess);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+MxVector3f MxSystem::getGridColor() {
+    try {
+        return MxSystem::getRenderer()->gridColor();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setGridColor(const MxVector3f &color) {
+    try {
+        MxSystem::getRenderer()->setGridColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+MxVector3f MxSystem::getSceneBoxColor() {
+    try {
+        return MxSystem::getRenderer()->sceneBoxColor();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setSceneBoxColor(const MxVector3f &color) {
+    try {
+        MxSystem::getRenderer()->setSceneBoxColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+MxVector3f MxSystem::getLightDirection() {
+    try {
+        return MxSystem::getRenderer()->lightDirection();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setLightDirection(const MxVector3f& lightDir) {
+    try {
+        MxSystem::getRenderer()->setLightDirection(lightDir);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::setLightDirection(const MxVector3f& lightDir, const unsigned int &srFlag) {
+    try {
+        MxSystem::getRenderer()->getSubRenderer((MxSubRendererFlag)srFlag)->setLightDirection(lightDir);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+MxVector3f MxSystem::getLightColor() {
+    try {
+        return MxSystem::getRenderer()->lightColor();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setLightColor(const MxVector3f &color) {
+    try {
+        MxSystem::getRenderer()->setLightColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::setLightColor(const MxVector3f &color, const unsigned int &srFlag) {
+    try {
+        MxSystem::getRenderer()->getSubRenderer((MxSubRendererFlag)srFlag)->setLightColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::decorateScene(const bool &decorate) {
+    try {
+        MxSystem::getRenderer()->decorateScene(decorate);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
 HRESULT MxSystem::viewReshape(const MxVector2i &windowSize) {
     try {
         MxSimulator *sim = MxSimulator::get();

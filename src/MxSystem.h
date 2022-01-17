@@ -201,6 +201,188 @@ struct CAPI_EXPORT MxSystem {
     * @return struct MxUniverseRenderer* 
     */
    static struct MxUniverseRenderer *getRenderer();
+
+   /**
+    * @brief Get the ambient color
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getAmbientColor();
+
+   /**
+    * @brief Set the ambient color
+    * 
+    * @param color 
+    * @return HRESULT 
+    */
+   static HRESULT setAmbientColor(const MxVector3f &color);
+
+   /**
+    * @brief Set the ambient color of a subrenderer
+    * 
+    * @param color 
+    * @param srFlag 
+    * @return HRESULT 
+    */
+   static HRESULT setAmbientColor(const MxVector3f &color, const unsigned int &srFlag);
+
+   /**
+    * @brief Get the diffuse color
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getDiffuseColor();
+
+   /**
+    * @brief Set the diffuse color
+    * 
+    * @param color 
+    * @return HRESULT 
+    */
+   static HRESULT setDiffuseColor(const MxVector3f &color);
+
+   /**
+    * @brief Set the diffuse color of a subrenderer
+    * 
+    * @param color 
+    * @param srFlag 
+    * @return HRESULT 
+    */
+   static HRESULT setDiffuseColor(const MxVector3f &color, const unsigned int &srFlag);
+
+   /**
+    * @brief Get specular color
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getSpecularColor();
+
+   /**
+    * @brief Set the specular color
+    * 
+    * @param color 
+    * @return HRESULT 
+    */
+   static HRESULT setSpecularColor(const MxVector3f &color);
+
+   /**
+    * @brief Set the specular color of a subrenderer
+    * 
+    * @param color 
+    * @param srFlag 
+    * @return HRESULT 
+    */
+   static HRESULT setSpecularColor(const MxVector3f &color, const unsigned int &srFlag);
+
+   /**
+    * @brief Get the shininess
+    * 
+    * @return float 
+    */
+   static float getShininess();
+
+   /**
+    * @brief Set the shininess
+    * 
+    * @param shininess 
+    * @return HRESULT 
+    */
+   static HRESULT setShininess(const float &shininess);
+
+   /**
+    * @brief Set the shininess of a subrenderer
+    * 
+    * @param shininess 
+    * @param srFlag 
+    * @return HRESULT 
+    */
+   static HRESULT setShininess(const float &shininess, const unsigned int &srFlag);
+
+   /**
+    * @brief Get the grid color
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getGridColor();
+
+   /**
+    * @brief Set the grid color
+    * 
+    * @param color 
+    * @return HRESULT 
+    */
+   static HRESULT setGridColor(const MxVector3f &color);
+
+   /**
+    * @brief Get the scene box color
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getSceneBoxColor();
+
+   /**
+    * @brief Set the scene box color
+    * 
+    * @param color 
+    * @return HRESULT 
+    */
+   static HRESULT setSceneBoxColor(const MxVector3f &color);
+
+   /**
+    * @brief Get the light direction
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getLightDirection();
+
+   /**
+    * @brief Set the light direction
+    * 
+    * @param lightDir 
+    * @return HRESULT 
+    */
+   static HRESULT setLightDirection(const MxVector3f& lightDir);
+
+   /**
+    * @brief Set the light direction of a subrenderer
+    * 
+    * @param lightDir 
+    * @param srFlag 
+    * @return HRESULT 
+    */
+   static HRESULT setLightDirection(const MxVector3f& lightDir, const unsigned int &srFlag);
+
+   /**
+    * @brief Get the light color
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getLightColor();
+
+   /**
+    * @brief Set the light color
+    * 
+    * @param color 
+    * @return HRESULT 
+    */
+   static HRESULT setLightColor(const MxVector3f &color);
+
+   /**
+    * @brief Set the light color of a subrenderer
+    * 
+    * @param color 
+    * @param srFlag 
+    * @return HRESULT 
+    */
+   static HRESULT setLightColor(const MxVector3f &color, const unsigned int &srFlag);
+
+   /**
+    * @brief Set flag to draw/not draw scene decorators (e.g., grid)
+    * 
+    * @param decorate flag; true says to decorate
+    * @return HRESULT 
+    */
+   static HRESULT decorateScene(const bool &decorate);
    
    /* Update screen size after the window has been resized */
    static HRESULT viewReshape(const MxVector2i &windowSize);

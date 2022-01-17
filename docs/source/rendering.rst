@@ -9,18 +9,29 @@ Basic information about a Mechanica installation can be retrieved on demand,
 including information about the CPU, software compilation and available graphics
 hardware, ::
 
+    import mechanica as mx
+    mx.init()
+
     print('CPU info:', mx.system.cpu_info())
     print('Compilation info:', mx.system.compile_flags())
     print('OpenGL info:', mx.system.gl_info())
+
+The ``system`` module provides rendering methods for customizing basic
+visualization during simulation. Basic visualization customization combines
+with specifications made using :ref:`Style <style>` objects, ::
+
+    # Disable scene decorations
+    mx.system.decorateScene(False)
+    # Reduce shininess by 50%
+    mx.system.setShininess(0.5 * mx.system.getShininess())
+    # Move camera location
+    mx.system.setLightDirection(mx.MxVector3f(1, 1, 1))
 
 Controlling the Camera
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The view of a simulation can be retrieved or set at any time during simulation,
 including in :ref:`custom keyboard commands <events_input_driven>`, ::
-
-    import mechanica as mx
-    mx.init()
 
     # camera view parameters for storing and reloading
     view_center, view_rotation, view_zoom = None, None, None

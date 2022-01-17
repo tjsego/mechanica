@@ -248,6 +248,30 @@ void MxArrowRenderer::setClipPlaneEquation(unsigned id, const Magnum::Vector4& p
     _clipPlanes[id] = pe;
 }
 
+void MxArrowRenderer::setAmbientColor(const Magnum::Color3& color) {
+    _shader.setAmbientColor(color);
+}
+
+void MxArrowRenderer::setDiffuseColor(const Magnum::Color3& color) {
+    _shader.setDiffuseColor(color);
+}
+
+void MxArrowRenderer::setSpecularColor(const Magnum::Color3& color) {
+    _shader.setSpecularColor(color);
+}
+
+void MxArrowRenderer::setShininess(float shininess) {
+    _shader.setShininess(shininess);
+}
+
+void MxArrowRenderer::setLightDirection(const MxVector3f& lightDir) {
+    _shader.setLightPosition(lightDir);
+}
+
+void MxArrowRenderer::setLightColor(const Magnum::Color3 &color) {
+    _shader.setLightColor(color);
+}
+
 int MxArrowRenderer::nextDataId() {
     if(this->nr_arrows == this->arrows.size()) return this->nr_arrows;
 
@@ -300,5 +324,5 @@ MxArrowData *MxArrowRenderer::getArrow(const int &arrowId) {
 
 MxArrowRenderer *MxArrowRenderer::get() {
     auto *renderer = MxSystem::getRenderer();
-    return &renderer->arrowRenderer;
+    return (MxArrowRenderer*)renderer->getSubRenderer(MxSubRendererFlag::SUBRENDERER_ARROW);
 }

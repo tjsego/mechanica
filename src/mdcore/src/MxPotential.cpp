@@ -2457,6 +2457,35 @@ float MxPotential::operator()(const std::vector<float> &r) {
 	}
 }
 
+float MxPotential::operator()(MxParticleHandle* pi, const MxVector3f &pt) {
+	try{
+		float e = 0;
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				e += (*c)(pi, pt);
+			}
+
+			return e;
+		}
+
+		auto part_i = pi->part();
+		MxVector3f rv = pi->relativePosition(pt);
+
+		auto rvl = rv.length();
+		float f[3] = {0.0, 0.0, 0.0};
+		this->eval_bypart(this, part_i, rv.data(), rvl * rvl, &e, f);
+		
+        Log(LOG_DEBUG) << "potential_eval(" << rv << ")";
+
+		return e;
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return 0.0;
+	}
+}
+
 float MxPotential::operator()(MxParticleHandle* pi, MxParticleHandle* pj) {
 	try{
 		float e = 0;
@@ -2620,6 +2649,35 @@ std::vector<float> MxPotential::force(const std::vector<float>& r) {
 	catch (const std::exception& e) {
 		mx_exp(e);
 		return std::vector<float>(3, 0.0);
+	}
+}
+
+std::vector<float> MxPotential::force(MxParticleHandle* pi, const MxVector3f &pt) {
+	try{
+		MxVector3f f(0.0);
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				f += c->force(pi, pt);
+			}
+
+			return std::vector<float>(f);
+		}
+
+		auto part_i = pi->part();
+		MxVector3f rv = pi->relativePosition(pt);
+
+		auto rvl = rv.length();
+		float e = 0;
+		this->eval_bypart(this, part_i, rv.data(), rvl * rvl, &e, f.data());
+		
+        Log(LOG_DEBUG) << "force_eval(" << rv << ")";
+
+		return std::vector<float>(f);
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return {0.0, 0.0, 0.0};
 	}
 }
 

@@ -127,6 +127,21 @@ enum PotentialKind {
 CAPI_DATA(int) potential_err;
 
 /**
+ * @brief Potential function on a particle. 
+ * 
+ * Includes pre-computed relative position and distance of an arbitrary point w.r.t. ith particle. 
+ * 
+ * Computes the potential and force in global frame on the ith particle. 
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticle) (struct MxPotential *p, 
+                                            struct MxParticle *part_i, 
+                                            FPTYPE *dx, 
+                                            FPTYPE r2, 
+                                            FPTYPE *e, 
+                                            FPTYPE *f);
+
+/**
  * @brief Pair potential function. 
  * 
  * Includes pre-computed relative position and distance of jth particle w.r.t. ith particle. 
@@ -219,6 +234,7 @@ typedef struct MxPotential {
     MxPotentialCreate create_func;
     MxPotentialClear clear_func;
 
+    MxPotentialEval_ByParticle eval_bypart;
     MxPotentialEval_ByParticles eval_byparts;
     MxPotentialEval_ByParticles3 eval_byparts3;
     MxPotentialEval_ByParticles4 eval_byparts4;
@@ -234,11 +250,13 @@ typedef struct MxPotential {
 
     float operator()(const float &r, const float &r0=-1.0);
     float operator()(const std::vector<float>& r);
+    float operator()(struct MxParticleHandle* pi, const MxVector3f &pt);
     float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj);
     float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk);
     float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk, struct MxParticleHandle* pl);
     float force(double r, double ri=-1.0, double rj=-1.0);
     std::vector<float> force(const std::vector<float>& r);
+    std::vector<float> force(struct MxParticleHandle* pi, const MxVector3f &pt);
     std::vector<float> force(struct MxParticleHandle* pi, struct MxParticleHandle* pj);
     std::pair<std::vector<float>, std::vector<float> > force(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk);
     std::pair<std::vector<float>, std::vector<float> > force(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk, struct MxParticleHandle* pl);

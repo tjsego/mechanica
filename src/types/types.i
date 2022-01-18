@@ -240,6 +240,7 @@ vector_template_prep_float(mx::type::MxVector3, dataType, wrappedName)
 
 %rename(_ ## wrappedName ## _distance) mx::type::MxVector3::distance<dataType>;
 %rename(_ ## wrappedName ## _relativeTo) mx::type::MxVector3::relativeTo<dataType>;
+%rename(_ ## wrappedName ## _xy) mx::type::MxVector3::xy<dataType>;
 
 %extend mx::type::MxVector3<dataType> {
     dataType _distance(const mx::type::MxVector3<dataType> &lineStartPt, const mx::type::MxVector3<dataType> &lineEndPt) { 
@@ -247,6 +248,10 @@ vector_template_prep_float(mx::type::MxVector3, dataType, wrappedName)
     }
     mx::type::MxVector3<dataType> _relativeTo(const MxVector3<dataType> &origin, const MxVector3<dataType> &dim, const bool &periodic_x, const bool &periodic_y, const bool &periodic_z) {
         return $self->relativeTo(origin, dim, periodic_x, periodic_y, periodic_z);
+    }
+    // Fixes allocation error under certain conditions (e.g., MxUniverse.center.xy() returns nonsense)
+    mx::type::MxVector2<dataType> _xy() {
+        return mx::type::MxVector2<dataType>::from($self->data());
     }
 
     %pythoncode %{
@@ -257,6 +262,9 @@ vector_template_prep_float(mx::type::MxVector3, dataType, wrappedName)
         def relative_to(self, origin, dim, periodic_x, periodic_y, periodic_z):
             """position relative to an origin in a space with some periodic boundary conditions"""
             return self._relativeTo(origin, dim, periodic_x, periodic_y, periodic_z)
+
+        def xy(self):
+            return self._xy()
 
         def __reduce__(self):
             return self.__class__, (self.x(), self.y(), self.z())
@@ -271,6 +279,7 @@ vector_template_prep_float(mx::type::MxVector4, dataType, wrappedName)
 %rename(_ ## wrappedName ## _distance) mx::type::MxVector4::distance<dataType>;
 %rename(_ ## wrappedName ## _distanceScaled) mx::type::MxVector4::distanceScaled<dataType>;
 %rename(_ ## wrappedName ## _planeEquation) mx::type::MxVector4::planeEquation<dataType>;
+%rename(_ ## wrappedName ## _xyz) mx::type::MxVector4::xyz<dataType>;
 
 %extend mx::type::MxVector4<dataType> {
     dataType _distance(const mx::type::MxVector3<dataType> &point) { return $self->distance(point); }
@@ -283,6 +292,10 @@ vector_template_prep_float(mx::type::MxVector4, dataType, wrappedName)
                                                         const mx::type::MxVector3<dataType>& p2) 
     {
         return mx::type::MxVector4<dataType>::planeEquation(p0, p1, p2);
+    }
+    // Fixes allocation error under certain conditions
+    mx::type::MxVector3<dataType> _xyz() {
+        return mx::type::MxVector3<dataType>::from($self->data());
     }
 
     %pythoncode %{
@@ -298,6 +311,9 @@ vector_template_prep_float(mx::type::MxVector4, dataType, wrappedName)
         def planeEquation(cls, *args):
             """get a plane equation"""
             return cls._planeEquation(*args)
+
+        def xyz(self):
+            return self._xyz()
 
         def __reduce__(self):
             return self.__class__, (self.x(), self.y(), self.z(), self.w())

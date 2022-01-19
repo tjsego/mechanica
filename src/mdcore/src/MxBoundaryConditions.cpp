@@ -619,6 +619,21 @@ MxBoundaryConditionsArgsContainer::MxBoundaryConditionsArgsContainer(PyObject *o
 
                 setValue(name, bc_kind_from_string(s));
             }
+            else if(PySequence_Check(value)) {
+                std::vector<std::string> kinds;
+                PyObject *valueItem;
+                for(unsigned int j = 0; j < PySequence_Size(value); j++) {
+                    valueItem = PySequence_GetItem(value, j);
+                    if(mx::check<std::string>(valueItem)) {
+                        std::string s = mx::cast<PyObject, std::string>(valueItem);
+
+                        Log(LOG_DEBUG) << name << ": " << s;
+
+                        kinds.push_back(s);
+                    }
+                }
+                setValue(name, bc_kind_from_strings(kinds));
+            }
             else if(PyDict_Check(value)) {
                 PyObject *vel = PyDict_GetItemString(value, "velocity");
                 if(!vel) {
@@ -680,46 +695,53 @@ void apply_boundary_particle_crossing(struct MxParticle *p, const int *delta,
                                      const struct space_cell *src_cell, const struct space_cell *dest_cell) {
     
     const MxBoundaryConditions &bc = _Engine.boundary_conditions;
-        
-    if(bc.periodic & space_periodic_x &&
-       src_cell->flags & cell_periodic_x &&
-       dest_cell->flags & cell_periodic_x) {
-        if(dest_cell->flags &  cell_periodic_left && bc.left.kind & BOUNDARY_RESETTING ) {
-            if(p->state_vector) {
+
+    if(!p->state_vector) 
+        return;
+
+    if(src_cell->loc[0] != dest_cell->loc[0]) {
+        if(bc.periodic & space_periodic_x &&
+            src_cell->flags & cell_periodic_x && dest_cell->flags & cell_periodic_x) 
+        {
+            
+            if((dest_cell->flags  & cell_periodic_left  && bc.left.kind  & BOUNDARY_RESETTING) || 
+                (dest_cell->flags & cell_periodic_right && bc.right.kind & BOUNDARY_RESETTING)) 
+            {
                 p->state_vector->reset();
+                
             }
             
         }
-        
-        if(dest_cell->flags &  cell_periodic_right && bc.right.kind & BOUNDARY_RESETTING ) {
-            
-        }
     }
-    
-    else if(_Engine.boundary_conditions.periodic & space_periodic_y &&
-            src_cell->flags & cell_periodic_y &&
-            dest_cell->flags & cell_periodic_y) {
-        if(dest_cell->flags &  cell_periodic_front && bc.front.kind & BOUNDARY_RESETTING ) {
-            
-        }
-        
-        if(dest_cell->flags &  cell_periodic_back && bc.back.kind & BOUNDARY_RESETTING ) {
-            
-        }
 
-    }
-    
-    else if(_Engine.boundary_conditions.periodic & space_periodic_z &&
-            src_cell->flags & cell_periodic_z &&
-            dest_cell->flags & cell_periodic_z) {
-        if(dest_cell->flags &  cell_periodic_top && bc.top.kind & BOUNDARY_RESETTING ) {
+    else if(src_cell->loc[1] != dest_cell->loc[1]) {
+        if(bc.periodic & space_periodic_y &&
+            src_cell->flags & cell_periodic_y && dest_cell->flags & cell_periodic_y) 
+        {
             
-        }
-        
-        if(dest_cell->flags &  cell_periodic_bottom && bc.bottom.kind & BOUNDARY_RESETTING ) {
-            
-        }
+            if((dest_cell->flags  & cell_periodic_front && bc.front.kind & BOUNDARY_RESETTING) || 
+                (dest_cell->flags & cell_periodic_back  && bc.back.kind  & BOUNDARY_RESETTING)) 
+            {
+                p->state_vector->reset();
+                
+            }
 
+        }
+    } 
+    
+    else if(src_cell->loc[2] != dest_cell->loc[2]) {
+        if(bc.periodic & space_periodic_z &&
+            src_cell->flags & cell_periodic_z && dest_cell->flags & cell_periodic_z) 
+        {
+            
+            if((dest_cell->flags  & cell_periodic_top    && bc.top.kind    & BOUNDARY_RESETTING) ||
+                (dest_cell->flags & cell_periodic_bottom && bc.bottom.kind & BOUNDARY_RESETTING)) 
+            {
+                p->state_vector->reset();
+                
+            }
+
+        }
     }
 }
 

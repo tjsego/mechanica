@@ -104,7 +104,15 @@ MxStateVector::MxStateVector(MxSpeciesList *_species,
         this->species_flags = (uint32_t*)((uint8_t*)this->data + flags_offset);
     }
 
+    // Copy from other state if provided; otherwise initialize from any available initial conditions
     if(existingStateVector) statevector_copy_values(this, existingStateVector);
+    else {
+        for(int i = 0; i < _species->size(); ++i) {
+            auto _s = _species->item(i);
+            if(_s->isSetInitialConcentration()) 
+                this->fvec[i] = (float)_s->getInitialConcentration();
+        }
+    }
     
     for(int i = 0; i < _species->size(); ++i) {
         this->species_flags[i] = _species->item(i)->flags();

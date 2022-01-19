@@ -88,3 +88,19 @@ and constant ``BOUNDARY_POTENTIAL``. ::
 
     mx.init(bc={'top': 'potential', 'bottom': mx.BOUNDARY_POTENTIAL})
     # Bind potentials later for the top and bottom boundaries!
+
+Reset
+^^^^^^
+
+A *reset boundary condition* is an additional condition that can be added to periodic
+boundary conditions for modeling convection through a domain. When a particle crosses
+a periodic boundary that has a reset condition, all :ref:`species <species-label>`
+attached to the particle are reset to their initial concentration. Applications that
+employ the reset boundary condition to model convection generate simulations that have
+no total change in bulk material, but can have significant total chemical flux into and
+out of the domain, depending on the sources, sinks and reactions in the simulation domain.
+The reset boundary condition can be employed with the name ``"reset"``. ::
+
+    # Initialize a domain like a section of a tunnel, with flow along the x-direction
+    mx.init(dim=[10, 5, 5],
+            bc={'x': ('periodic', 'reset'), 'y': 'no_slip', 'z': 'no_slip'})

@@ -81,18 +81,30 @@ supports other kinds of species such as *boundary* species, as well as additiona
 information about the species like its initial values.
 
 The Mechanica :any:`Species` class is *essentially* a wrap around the
-libSBML Species class, but provides some conveniences in generated languages.
-For example, in Python Mechanica uses convential Python `snake_case` sytax,
-and all SBML Species properties are avialable via simple properties on a
-Mechanica :class:`Species` object. Many SBML concepts such as `initial_amount`,
-`constant`, etc. are optional features in Mechanica that may or may not be set.
-For example, to set an initial amount on a :class:`Species` instance ``s``, ::
+`libSBML <https://sbml.org/software/libsbml/>`_ ``Species`` class, but
+provides some conveniences in generated languages. For example, in Python Mechanica
+uses convential Python `snake_case` sytax, and all SBML Species properties are
+avialable via simple properties on a Mechanica :class:`Species` object. Many SBML
+concepts such as `initial_amount`, `constant`, etc. are optional features in
+Mechanica that may or may not be set. For example, to set an initial concentration
+on a :class:`Species` instance ``s``, ::
 
-    s.initial_amount = 5.0
+    s.initial_concentration = 5.0
 
 Such operations internally update the libSBML Species instance contained within
 the Mechanica :class:`Species` instance, and Mechanica will use the information
-accordingly.
+accordingly. In the case of ``initial_concentration``, the value determines the
+initial concentration of created particles when the :class:`Species` belongs to a
+particular particle type. Likewise, setting the attribute ``constant`` of a
+:class:`Species` belonging to a particle type to ``True`` makes all created
+particles of that type maintaing a constant concentration (and for a particular
+particle when the :class:`Species` instance belongs to a particle), ::
+
+    # Make all particles of type 'a' have constant concentration...
+    a.species.S1.constant = True
+    # ... except let this one vary
+    a_part = a()
+    a_part.species.species.S1.constant = False
 
 In the simplest case, a Mechanica :class:`Species` instance can be created by
 constructing with only the name of the species. ::

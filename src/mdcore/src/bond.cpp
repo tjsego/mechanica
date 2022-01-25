@@ -940,6 +940,7 @@ bool MxBond_decays(MxBond *b, std::uniform_real_distribution<double> *uniform01)
     if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);
 
     double pr = 1.0 - std::pow(2.0, -_Engine.dt / b->half_life);
+    auto MxRandom = MxRandomEngine();
     bool result = (*uniform01)(MxRandom) < pr;
 
     if(created) delete uniform01;

@@ -89,3 +89,19 @@ Execution of a simulation occurs through the module method ``step`` (rather than
     num_steps = int(1E6)  # Number of steps to execute
     for step_num in range(num_steps):
         mx.step()
+
+Reproducible Simulations
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some features of Mechanica are stochastic (*e.g.*, random :ref:`forces <forces>`).
+Mechanica uses a pseudo-random number generator to implement stochasticity.
+By default, Mechanica generates a different stream of random numbers on each
+execution of a simulation. However, in cases where results from a simulation with
+stochasticity need to be reproduced (*e.g.*, when :ref:`sharing results <file_io>`),
+Mechanica can use the same stream of random numbers when given the seed of the
+pseudo-random number generator. Mechanica accepts specification of the seed during
+initialization with the keyword argument ``seed``, as well as at any time during
+simulation, ::
+
+    mx.init(seed=1)               # Set the seed during initialization...
+    mx.setSeed(mx.getSeed() + 1)  # ... or after initialization.

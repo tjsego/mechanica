@@ -28,7 +28,21 @@
 #include <type_traits>
 
 typedef std::mt19937 MxRandomType;
-CAPI_DATA(MxRandomType) MxRandom;
+MxRandomType &MxRandomEngine();
+
+/**
+ * @brief Get the current seed for the pseudo-random number generator
+ * 
+ */
+CAPI_FUNC(unsigned int) getSeed();
+
+/**
+ * @brief Set the current seed for the pseudo-random number generator
+ * 
+ * @param _seed 
+ * @return HRESULT 
+ */
+CAPI_FUNC(HRESULT) setSeed(const unsigned int *_seed=0);
 
 enum class MxPointsType : unsigned int {
     Sphere,

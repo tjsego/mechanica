@@ -229,6 +229,8 @@
 
                 window_size: (2-component list of ints) size of application window; default is [800, 600]
 
+                seed: (int) seed for pseudo-random number generator
+
                 logger_level: (int) logger level; default is no logging
 
                 clip_planes: (list of tuple of (MxVector3f, MxVector3f)) list of point-normal pairs of clip planes; default is no planes

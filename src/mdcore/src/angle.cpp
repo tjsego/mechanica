@@ -213,6 +213,7 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
         if(ctheta == 0 || ctheta == -1) {
             std::uniform_real_distribution<float> dist{-1, 1};
             // make a random vector
+            auto MxRandom = MxRandomEngine();
             Magnum::Vector3 x{dist(MxRandom), dist(MxRandom), dist(MxRandom)};
             
             // vector between outer particles
@@ -833,6 +834,7 @@ bool MxAngle_decays(MxAngle *a, std::uniform_real_distribution<double> *uniform0
     if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);
 
     double pr = 1.0 - std::pow(2.0, -_Engine.dt / a->half_life);
+    auto MxRandom = MxRandomEngine();
     bool result = (*uniform01)(MxRandom) < pr;
 
     if(created) delete uniform01;

@@ -209,6 +209,7 @@ static void parse_kwargs(MxSimulator_Config &conf,
                          double *max_distance=NULL, 
                          bool *windowless=NULL, 
                          MxVector2i *window_size=NULL, 
+                         unsigned int *seed=NULL, 
                          uint32_t *perfcounters=NULL, 
                          int *perfcounter_period=NULL, 
                          int *logger_level=NULL, 
@@ -240,6 +241,7 @@ static void parse_kwargs(MxSimulator_Config &conf,
     if(max_distance) conf.universeConfig.max_distance = *max_distance;
     if(windowless) conf.setWindowless(*windowless);
     if(window_size) conf.setWindowSize(*window_size);
+    if(seed) conf.setSeed(*seed);
     if(perfcounters) conf.universeConfig.timers_mask = *perfcounters;
     if(perfcounter_period) conf.universeConfig.timer_output_period = *perfcounter_period;
     if(logger_level) MxLogger::setLevel(*logger_level);
@@ -396,7 +398,7 @@ static void parse_kwargs(const std::vector<std::string> &kwargs, MxSimulator_Con
         s = mx::parse::kwargVal(kwargs, "windowless");
         windowless = new bool(mx::cast<std::string, bool>(s));
 
-        Log(LOG_INFORMATION) << "got windowless" << *windowless ? "True" : "False";
+        Log(LOG_INFORMATION) << "got windowless: " << *windowless ? "True" : "False";
     }
     else windowless = NULL;
 
@@ -408,6 +410,15 @@ static void parse_kwargs(const std::vector<std::string> &kwargs, MxSimulator_Con
         Log(LOG_INFORMATION) << "got window_size: " << std::to_string(window_size->x()) << "," << std::to_string(window_size->y());
     }
     else window_size = NULL;
+
+    unsigned int *seed;
+    if(mx::parse::has_kwarg(kwargs, "seed")) {
+        s = mx::parse::kwargVal(kwargs, "seed");
+        seed = new unsigned int(mx::cast<std::string, unsigned int>(s));
+
+        Log(LOG_INFORMATION) << "got seed: " << std::to_string(*seed);
+    }
+    else seed = NULL;
 
     uint32_t *perfcounters;
     if(mx::parse::has_kwarg(kwargs, "perfcounters")) {
@@ -466,6 +477,7 @@ static void parse_kwargs(const std::vector<std::string> &kwargs, MxSimulator_Con
                  max_distance, 
                  windowless, 
                  window_size, 
+                 seed, 
                  perfcounters, 
                  perfcounter_period, 
                  logger_level, 
@@ -576,6 +588,14 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
     }
     else window_size = NULL;
 
+    unsigned int *seed;
+    if((o = PyDict_GetItemString(kwargs, "seed"))) {
+        seed = new unsigned int(mx::cast<PyObject, unsigned int>(o));
+
+        Log(LOG_INFORMATION) << "got seed: " << std::to_string(*seed);
+    } 
+    else seed = NULL;
+
     uint32_t *perfcounters;
     if((o = PyDict_GetItemString(kwargs, "perfcounters"))) {
         perfcounters = new uint32_t(mx::cast<PyObject, uint32_t>(o));
@@ -643,6 +663,7 @@ static void parse_kwargs(PyObject *kwargs, MxSimulator_Config &conf) {
                  max_distance, 
                  windowless, 
                  window_size, 
+                 seed, 
                  perfcounters, 
                  perfcounter_period, 
                  logger_level, 
@@ -852,6 +873,8 @@ HRESULT MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std:
         Universe.name = conf.title();
 
         Log(LOG_INFORMATION) << "got universe name: " << Universe.name;
+
+        setSeed(const_cast<MxSimulator_Config&>(conf).seed());
 
         // init the engine first
         /* Initialize scene particles */
@@ -1225,6 +1248,8 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
             Log(LOG_WARNING) << "requested window mode in Jupyter notebook, will fail badly if there is no X-server";
         }
 
+        setSeed(const_cast<MxSimulator_Config&>(conf).seed());
+
         // init the engine first
         /* Initialize scene particles */
         universe_init(conf.universeConfig);
@@ -1419,6 +1444,7 @@ HRESULT toFile(const MxSimulator &dataElement, const MxMetaData &metaData, MxIOE
     MXSIMULATORIOTOEASY(fe, "time", _Engine.time);
     MXSIMULATORIOTOEASY(fe, "boundary_conditions", _Engine.boundary_conditions);
     MXSIMULATORIOTOEASY(fe, "max_distance", _Engine.particle_max_dist_fraction * _Engine.s.h[0]);
+    MXSIMULATORIOTOEASY(fe, "seed", getSeed());
     
     if(dataElement.app != NULL) {
         auto renderer = dataElement.app->getRenderer();
@@ -1480,6 +1506,10 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxS
     dataElement->universeConfig.setBoundaryConditions(bcArgs);
     
     MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "max_distance", &dataElement->universeConfig.max_distance);
+
+    unsigned int seed;
+    MXSIMULATORIOFROMEASY(feItr, fileElement.children, metaData, "seed", &seed);
+    dataElement->setSeed(seed);
     
     if(fileElement.children.find("clipPlaneNormals") != fileElement.children.end()) {
         std::vector<MxVector3f> normals, points;

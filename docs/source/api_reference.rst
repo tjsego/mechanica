@@ -35,6 +35,10 @@ This is the API Reference page for the module: :mod:`mechanica`
 
 .. autofunction:: points
 
+.. autofunction:: getSeed
+
+.. autofunction:: setSeed
+
 .. autodata:: cpuinfo
 
 .. autodata:: compile_flags

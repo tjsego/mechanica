@@ -26,6 +26,7 @@ MxTimeEvent::~MxTimeEvent() {}
 
 double MxTimeEventSetNextTimeExponential(MxTimeEvent &event, const double &time) {
     std::exponential_distribution<> d(1/event.period);
+    auto MxRandom = MxRandomEngine();
     return time + d(MxRandom);
 }
 

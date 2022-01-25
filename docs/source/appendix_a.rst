@@ -12,6 +12,7 @@ Appendix A: Exported Simulation State Data
     - Global cutoff
     - Integrator
     - Timestep
+    - Psuedo-random number generator seed
     - Simulation time at export
     - Boundary conditions
     - Maximum distance

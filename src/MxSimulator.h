@@ -235,6 +235,15 @@ public:
         universeConfig.nParticles = i;
     }
 
+    unsigned int *seed() {
+        return _seed;
+    }
+
+    void setSeed(const unsigned int &seed) {
+        if(_seed != NULL) *_seed = seed;
+        else _seed = new unsigned int(seed);
+    }
+
     MxUniverseConfig universeConfig;
 
     int queues;
@@ -255,6 +264,7 @@ private:
     MxSimulator_DpiScalingPolicy _dpiScalingPolicy;
     MxVector2f _dpiScaling;
     bool _windowless;
+    unsigned int *_seed = NULL;
 };
 
 /**
@@ -735,6 +745,8 @@ CAPI_FUNC(HRESULT) _onIPythonNotReady();
  *      bc: (int or dict) boundary conditions; default is everywhere periodic
  * 
  *      window_size: (2-component list of ints) size of application window; default is [800, 600]
+ * 
+ *      seed: (int) seed for pseudo-random number generator
  * 
  *      logger_level: (int) logger level; default is no logging
  * 

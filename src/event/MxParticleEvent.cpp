@@ -18,6 +18,7 @@ MxParticleHandle *particleSelectorUniform(const int16_t &typeId, const int32_t &
     }
     
     std::uniform_int_distribution<int> distribution(0, nr_parts-1);
+    auto MxRandom = MxRandomEngine();
     
     // index in the type's list of particles
     int tid = distribution(MxRandom);

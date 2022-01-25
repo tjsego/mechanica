@@ -36,6 +36,25 @@ struct CAPI_EXPORT MxSystem {
 
    static std::tuple<char*, size_t> testImage();
    static std::tuple<char*, size_t> imageData();
+
+   /**
+    * @brief Save a screenshot of the current scene
+    * 
+    * @param filePath path of file to save
+    * @return HRESULT 
+    */
+   static HRESULT screenshot(const std::string &filePath);
+   
+   /**
+    * @brief Save a screenshot of the current scene
+    * 
+    * @param filePath path of file to save
+    * @param decorate flag to decorate the scene in the screenshot
+    * @param bgcolor background color of the scene in the screenshot
+    * @return HRESULT 
+    */
+   static HRESULT screenshot(const std::string &filePath, const bool &decorate, const MxVector3f &bgcolor);
+   
    static bool contextHasCurrent();
    static HRESULT contextMakeCurrent();
    static HRESULT contextRelease();
@@ -375,6 +394,29 @@ struct CAPI_EXPORT MxSystem {
     * @return HRESULT 
     */
    static HRESULT setLightColor(const MxVector3f &color, const unsigned int &srFlag);
+
+   /**
+    * @brief Get the background color
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getBackgroundColor();
+
+   /**
+    * @brief Set the background color
+    * 
+    * @param color 
+    * @return HRESULT 
+    */
+   static HRESULT setBackgroundColor(const MxVector3f &color);
+
+   /**
+    * @brief Test whether the rendered scene is decorated
+    * 
+    * @return true 
+    * @return false 
+    */
+   static bool decorated();
 
    /**
     * @brief Set flag to draw/not draw scene decorators (e.g., grid)

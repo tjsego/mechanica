@@ -309,7 +309,13 @@ PyObject* MxTestImage(PyObject* dummyo);
 std::tuple<char*, size_t> MxFramebufferImageData();
 PyObject* MxFramebufferImageData(PyObject *dummyo);
 
-
+/**
+ * @brief Save a screenshot of the current scene
+ * 
+ * @param filePath path of file to save
+ * @return HRESULT 
+ */
+HRESULT MxScreenshot(const std::string &filePath);
 
 
 #endif /* SRC_MXAPPLICATION_H_ */

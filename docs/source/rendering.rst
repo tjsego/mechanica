@@ -26,6 +26,8 @@ with specifications made using :ref:`Style <style>` objects, ::
     mx.system.setShininess(0.5 * mx.system.getShininess())
     # Move camera location
     mx.system.setLightDirection(mx.MxVector3f(1, 1, 1))
+    # Save a screenshot with decorations and a white background
+    mx.system.screenshot('mysim.jpg', decorate=True, bgcolor=[1, 1, 1])
 
 Controlling the Camera
 ^^^^^^^^^^^^^^^^^^^^^^^

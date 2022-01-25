@@ -7,6 +7,8 @@ System
 
     .. autoattribute:: subrenderer
 
+    .. automethod:: screenshot
+
     .. automethod:: cameraMoveTo
 
     .. automethod:: cameraViewBottom

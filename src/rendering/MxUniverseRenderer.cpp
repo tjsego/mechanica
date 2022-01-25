@@ -126,8 +126,6 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
     
     GL::Renderer::setDepthFunction(GL::Renderer::StencilFunction::Less);
     
-    GL::Renderer::setClearColor(Color3{0.35f});
-    
     GL::Renderer::enable(GL::Renderer::Feature::Blending);
     
     GL::Renderer::setBlendFunction(
@@ -234,7 +232,8 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
         .setShininess(shininess())
         .setAmbientColor(ambientColor())
         .setDiffuseColor(diffuseColor())
-        .setSpecularColor(specularColor());
+        .setSpecularColor(specularColor()) 
+        .setBackgroundColor(backgroundColor());
 }
 
 static inline int render_particle(SphereInstanceData* pData, int i, MxParticle *p, space_cell *c) {
@@ -481,6 +480,13 @@ MxUniverseRenderer& MxUniverseRenderer::setLightColor(const Color3 &color) {
         s->setLightColor(color);
 
     _lightColor = color;
+    return *this;
+}
+
+MxUniverseRenderer& MxUniverseRenderer::setBackgroundColor(const Color3 &color) {
+    GL::Renderer::setClearColor(color);
+
+    _clearColor = color;
     return *this;
 }
 

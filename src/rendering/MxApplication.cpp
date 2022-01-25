@@ -148,6 +148,18 @@ PyObject* MxFramebufferImageData(PyObject *dummyo) {
     return PyBytes_FromStringAndSize(data, size);
 }
 
+HRESULT MxScreenshot(const std::string &filePath) {
+    Log(LOG_TRACE);
+    
+    if(!Utility::Directory::write(filePath, _MxJpegImageData())) {
+        std::string msg = "Cannot write to file: " + filePath;
+        mx_error(E_FAIL, msg.c_str());
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
 HRESULT MxApplication::simulationStep() {
     
     /* Pause simulation if the mouse was pressed (camera is moving around).

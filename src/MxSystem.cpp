@@ -30,6 +30,43 @@ std::tuple<char*, size_t> MxSystem::imageData() {
     return MxFramebufferImageData();
 }
 
+HRESULT MxSystem::screenshot(const std::string &filePath) {
+
+    try {
+        return MxScreenshot(filePath);
+        
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::screenshot(const std::string &filePath, const bool &decorate, const MxVector3f &bgcolor) {
+
+    try {
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        bool _decorate = renderer->sceneDecorated();
+        MxVector3f _bgcolor = renderer->backgroundColor();
+
+        renderer->decorateScene(decorate);
+        renderer->setBackgroundColor(bgcolor);
+
+        HRESULT result = MxScreenshot(filePath);
+
+        renderer->decorateScene(_decorate);
+        renderer->setBackgroundColor(_bgcolor);
+    
+        return result;
+        
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
 bool MxSystem::contextHasCurrent() {
     try {
         std::thread::id id = std::this_thread::get_id();
@@ -79,8 +116,6 @@ HRESULT MxSystem::contextRelease() {
 
 HRESULT MxSystem::cameraMoveTo(const MxVector3f &eye, const MxVector3f &center, const MxVector3f &up) {
     try {
-        MxUniverseRenderer *rend = MxSimulator::get()->app->getRenderer();
-
         MxSimulator *sim = MxSimulator::get();
         
         MxUniverseRenderer *renderer = sim->app->getRenderer();
@@ -717,6 +752,31 @@ HRESULT MxSystem::setLightColor(const MxVector3f &color, const unsigned int &srF
         mx_exp(e);
         return E_FAIL;
     }
+}
+
+MxVector3f MxSystem::getBackgroundColor() {
+    try {
+        return MxSystem::getRenderer()->backgroundColor();
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
+
+HRESULT MxSystem::setBackgroundColor(const MxVector3f &color) {
+    try {
+        MxSystem::getRenderer()->setBackgroundColor(color);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+bool MxSystem::decorated() {
+    return MxSystem::getRenderer()->sceneDecorated();
 }
 
 HRESULT MxSystem::decorateScene(const bool &decorate) {

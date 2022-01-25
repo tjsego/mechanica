@@ -149,6 +149,10 @@ struct MxUniverseRenderer : MxRenderer {
 
     MxUniverseRenderer& setLightColor(const Color3 &color);
 
+    Color3& backgroundColor() { return _clearColor; }
+
+    MxUniverseRenderer& setBackgroundColor(const Color3 &color);
+
     MxUniverseRenderer& setModelViewTransform(const Magnum::Matrix4& mat) {
         modelViewMat = mat;
         return *this;
@@ -281,6 +285,7 @@ struct MxUniverseRenderer : MxRenderer {
     Float _shininess = 100.0f;
     MxVector3f _lightDir{1.0f, 1.0f, 2.0f};
     Color3 _lightColor = {0.9, 0.9, 0.9};
+    Color3 _clearColor{0.35f};
     
     MxVector3f _eye, _center, _up;
     

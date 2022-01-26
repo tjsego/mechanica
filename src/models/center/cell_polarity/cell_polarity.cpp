@@ -397,7 +397,7 @@ PolarityForcePersistent *MxCellPolarity_createForce_persistent(const float &sens
 
     storePersistentForce(pf);
 
-    pf->func = (MxForce_OneBodyPtr)eval_polarity_force_persistent;
+    pf->func = (MxForce_EvalFcn)eval_polarity_force_persistent;
     pf->sensAB = sensAB;
     pf->sensPCP = sensPCP;
     return pf;
@@ -1040,7 +1040,7 @@ HRESULT MxCellPolarityFIOModule::toFile(const MxMetaData &metaData, MxIOElement 
 
         for(unsigned int i = 0; i < _Engine.nr_types; i++) 
             for(unsigned int fi = 0; fi < storedPersistentForces->size(); fi++) 
-                if(recursiveForceCompare((*storedPersistentForces)[fi], _Engine.p_singlebody->force)) 
+                if(recursiveForceCompare((*storedPersistentForces)[fi], _Engine.forces[i])) 
                     forceTypes[fi] = i;
 
         MXCENTERCELLPOLARITYIOTOEASY(fe, "forces", forces);

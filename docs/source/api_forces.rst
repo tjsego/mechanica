@@ -5,6 +5,8 @@ Forces
 
 .. autoclass:: MxForce
 
+    .. automethod:: bind_species
+
     .. automethod:: berenderson_tstat
 
     .. automethod:: random

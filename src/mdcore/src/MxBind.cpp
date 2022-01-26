@@ -9,7 +9,6 @@
 #include <MxParticle.h>
 #include <engine.h>
 #include <string>
-#include "../../state/MxSpeciesList.h"
 #include "../../mx_error.h"
 #include "../../MxLogger.h"
 #include "../../MxUtil.h"
@@ -74,43 +73,20 @@ HRESULT universe_bind_potential(MxPotential *p, MxBoundaryCondition *bc, MxParti
 }
 
 HRESULT universe_bind_force(MxForce *force, MxParticleType *a_type, const std::string* coupling_symbol) {
-    std::string msg = a_type->name;
-    std::string msg_coupling_symbol = coupling_symbol ? ", " + *coupling_symbol : "";
-    Log(LOG_DEBUG) << msg + msg_coupling_symbol;
+
+    if(engine_add_singlebody_force(&_Engine, force, a_type->id) != engine_err_ok) {
+        std::string msg = "failed to add force to engine: error";
+        msg += std::to_string(engine_err);
+        msg += ", ";
+        msg += engine_err_msg[-engine_err];
+        return mx_error(E_FAIL, msg.c_str());
+    }
     
     if(coupling_symbol == NULL) {
-        if(engine_add_singlebody_force(&_Engine, force, a_type->id, -1) != engine_err_ok) {
-            std::string msg = "failed to add force to engine: error";
-            msg += std::to_string(engine_err);
-            msg += ", ";
-            msg += engine_err_msg[-engine_err];
-            return mx_error(E_FAIL, msg.c_str());
-        }
         return S_OK;
     }
     
-    if(a_type->species) {
-        int index = a_type->species->index_of(coupling_symbol->c_str());
-        if(index < 0) {
-            std::string msg = "could not bind force, the particle type ";
-            msg += a_type->name;
-            msg += " has a chemical species state vector, but it does not have the symbol ";
-            msg += *coupling_symbol;
-            Log(LOG_CRITICAL) << msg;
-            return mx_error(E_FAIL, msg.c_str());
-        }
-        
-        if(engine_add_singlebody_force(&_Engine, force, a_type->id, index) != engine_err_ok) {
-            std::string msg = "failed to add force to engine: error";
-            msg += std::to_string(engine_err);
-            msg += ", ";
-            msg += engine_err_msg[-engine_err];
-            Log(LOG_CRITICAL) << msg;
-            return mx_error(E_FAIL, msg.c_str());
-        }
-        return S_OK;
-    }
-    else {
+    if(!a_type->species) {
         std::string msg = "could not add force, given a coupling symbol, but the particle type ";
         msg += a_type->name;
         msg += " does not have a chemical species vector";
@@ -118,6 +94,7 @@ HRESULT universe_bind_force(MxForce *force, MxParticleType *a_type, const std::s
         return mx_error(E_FAIL, msg.c_str());
     }
 
+    return force->bind_species(a_type, *coupling_symbol);
 }
 
 HRESULT MxBind::particles(MxPotential *p, MxParticle *a, MxParticle *b) {

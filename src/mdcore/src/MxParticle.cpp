@@ -610,7 +610,7 @@ MxParticleHandle *MxParticle_FissionSimple(MxParticle *self,
 
     std::uniform_real_distribution<float> x(-1, 1);
 
-    auto MxRandom = MxRandomEngine();
+    MxRandomType &MxRandom = MxRandomEngine();
     MxVector3f sep = {x(MxRandom), x(MxRandom), x(MxRandom)};
     sep = sep.normalized();
     sep = sep * r2;
@@ -794,7 +794,7 @@ MxParticleHandle* MxParticle_New(MxParticleType *type,
 MxVector3f MxRandomVector(float mean, float std) {
     std::normal_distribution<> dist{mean,std};
     std::uniform_real_distribution<double> uniform01(0.0, 1.0);
-    auto MxRandom = MxRandomEngine();
+    MxRandomType &MxRandom = MxRandomEngine();
     float theta = 2 * M_PI * uniform01(MxRandom);
     float phi = acos(1 - 2 * uniform01(MxRandom));
     float r = dist(MxRandom);
@@ -806,7 +806,7 @@ MxVector3f MxRandomVector(float mean, float std) {
 
 MxVector3f MxRandomUnitVector() {
     std::uniform_real_distribution<double> uniform01(0.0, 1.0);
-    auto MxRandom = MxRandomEngine();
+    MxRandomType &MxRandom = MxRandomEngine();
     float theta = 2 * M_PI * uniform01(MxRandom);
     float phi = acos(1 - 2 * uniform01(MxRandom));
     float r = 1.;
@@ -1006,7 +1006,7 @@ int particle_init(MxParticleHandle *self,
         Log(LOG_TRACE);
         
         MxParticleType *type = self->type();
-        auto MxRandom = MxRandomEngine();
+        MxRandomType &MxRandom = MxRandomEngine();
 
         MxVector3f _position;
         if (position) _position = *position;

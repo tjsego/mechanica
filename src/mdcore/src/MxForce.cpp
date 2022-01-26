@@ -14,6 +14,7 @@
 #include <iostream>
 #include <random>
 #include <../../state/MxStateVector.h>
+#include "../../state/MxSpeciesList.h"
 #include <MxPy.h>
 
 static Berendsen *berenderson_create(float tau);
@@ -119,6 +120,34 @@ void MxConstantForcePy::setValue(PyObject *_userFunc) {
     if(callable && callable != Py_None) MxConstantForce::setValue(getValue());
 }
 
+HRESULT MxForce::bind_species(MxParticleType *a_type, const std::string &coupling_symbol) {
+    std::string msg = a_type->name;
+    Log(LOG_DEBUG) << msg + coupling_symbol;
+
+    if(a_type->species) {
+        int index = a_type->species->index_of(coupling_symbol.c_str());
+        if(index < 0) {
+            std::string msg = "could not bind force, the particle type ";
+            msg += a_type->name;
+            msg += " has a chemical species state vector, but it does not have the symbol ";
+            msg += coupling_symbol;
+            Log(LOG_CRITICAL) << msg;
+            return mx_error(E_FAIL, msg.c_str());
+        }
+
+        this->stateVectorIndex = index;
+    }
+    else {
+        std::string msg = "could not add force, given a coupling symbol, but the particle type ";
+        msg += a_type->name;
+        msg += " does not have a chemical species vector";
+        Log(LOG_CRITICAL) << msg;
+        return mx_error(E_FAIL, msg.c_str());
+    }
+
+    return S_OK;
+}
+
 Berendsen* MxForce::berenderson_tstat(const float &tau) {
     Log(LOG_DEBUG);
 
@@ -152,15 +181,21 @@ Friction* MxForce::friction(const float &coef, const float &std, const float &me
     }
 }
 
-void eval_sum_force(struct MxForce *force, struct MxParticle *p, int stateVectorId, FPTYPE *f) {
+void eval_sum_force(struct MxForce *force, struct MxParticle *p, FPTYPE *f) {
     MxForceSum *sf = (MxForceSum*)force;
-    (*sf->f1->func)(sf->f1, p, stateVectorId, f);
-    (*sf->f2->func)(sf->f2, p, stateVectorId, f);
+    
+    std::vector<FPTYPE> f1(3, 0.0), f2(3, 0.0);
+    (*sf->f1->func)(sf->f1, p, f1.data());
+    (*sf->f2->func)(sf->f2, p, f2.data());
+
+    float scaling = scaling_constant(p, force->stateVectorIndex);
+    for(unsigned int i = 0; i < 3; i++) 
+        p->f[i] += scaling * (f1[i] + f2[i]);
 }
 
 MxForce *MxForce_add(MxForce *f1, MxForce *f2) {
     MxForceSum *sf = new MxForceSum();
-    sf->func = (MxForce_OneBodyPtr)eval_sum_force;
+    sf->func = (MxForce_EvalFcn)eval_sum_force;
 
     sf->f1 = f1;
     sf->f2 = f2;
@@ -191,19 +226,19 @@ MxForce *MxForce::fromString(const std::string &str) {
  *
  * f_b = p / tau * ((T_0 / T) - 1)
  */
-static void berendsen_force(Berendsen* t, MxParticle *p, int stateVectorIndex, FPTYPE*f) {
+static void berendsen_force(Berendsen *t, MxParticle *p, FPTYPE *f) {
     MxParticleType *type = &engine::types[p->typeId];
 
     if(type->kinetic_energy <= 0 || type->target_energy <= 0) return;
 
-    float scale = t->itau * ((type->target_energy / type->kinetic_energy) - 1.0);
+    float scale = t->itau * ((type->target_energy / type->kinetic_energy) - 1.0) * scaling_constant(p, t->stateVectorIndex);
     f[0] += scale * p->v[0];
     f[1] += scale * p->v[1];
     f[2] += scale * p->v[2];
 }
 
-static void constant_force(MxConstantForce* cf, MxParticle *p, int stateVectorIndex, FPTYPE*f) {
-    float scale = scaling_constant(p, stateVectorIndex);
+static void constant_force(MxConstantForce *cf, MxParticle *p, FPTYPE *f) {
+    float scale = scaling_constant(p, cf->stateVectorIndex);
     f[0] += cf->force[0] * scale;
     f[1] += cf->force[1] * scale;
     f[2] += cf->force[2] * scale;
@@ -215,46 +250,42 @@ static void constant_force(MxConstantForce* cf, MxParticle *p, int stateVectorIn
  *
  * f_f = - || v || / tau * v
  */
-static void friction_force(Friction* t, MxParticle *p, int stateVectorIndex, FPTYPE*f) {
-    MxParticleType *type = &engine::types[p->typeId];
+static void friction_force(Friction *t, MxParticle *p, FPTYPE *f) {
     
     if((_Engine.integrator_flags & INTEGRATOR_UPDATE_PERSISTENTFORCE) &&
        (_Engine.time + p->id) % t->durration_steps == 0) {
-        
         
         p->persistent_force = MxRandomVector(t->mean, t->std);
     }
     
     float v2 = p->velocity.dot();
-    float scale = -1. * t->coef * v2;
+    float scale = -1. * t->coef * v2  * scaling_constant(p, t->stateVectorIndex);
     
     f[0] += scale * p->v[0] + p->persistent_force[0];
     f[1] += scale * p->v[1] + p->persistent_force[1];
     f[2] += scale * p->v[2] + p->persistent_force[2];
 }
 
-static void gaussian_force(Gaussian* t, MxParticle *p, int stateVectorIndex, FPTYPE*f) {
-    MxParticleType *type = &engine::types[p->typeId];
-    // values near the mean are the most likely
-    // standard deviation affects the dispersion of generated values from the mean
+static void gaussian_force(Gaussian *t, MxParticle *p, FPTYPE *f) {
     
     if((_Engine.integrator_flags & INTEGRATOR_UPDATE_PERSISTENTFORCE) &&
        (_Engine.time + p->id) % t->durration_steps == 0) {
         
-        
         p->persistent_force = MxRandomVector(t->mean, t->std);
     }
+
+    float scale = scaling_constant(p, t->stateVectorIndex);
     
-    f[0] += p->persistent_force[0];
-    f[1] += p->persistent_force[1];
-    f[2] += p->persistent_force[2];
+    f[0] += scale * p->persistent_force[0];
+    f[1] += scale * p->persistent_force[1];
+    f[2] += scale * p->persistent_force[2];
 }
 
 Berendsen *berenderson_create(float tau) {
     auto *obj = new Berendsen();
 
     obj->type = FORCE_BERENDSEN;
-    obj->func = (MxForce_OneBodyPtr)berendsen_force;
+    obj->func = (MxForce_EvalFcn)berendsen_force;
     obj->itau = 1/tau;
 
     return obj;
@@ -264,7 +295,7 @@ Gaussian *random_create(float mean, float std, float durration) {
     auto *obj = new Gaussian();
     
     obj->type = FORCE_GAUSSIAN;
-    obj->func = (MxForce_OneBodyPtr)gaussian_force;
+    obj->func = (MxForce_EvalFcn)gaussian_force;
     obj->std = std;
     obj->mean = mean;
     obj->durration_steps = std::ceil(durration / _Engine.dt);
@@ -276,7 +307,7 @@ Friction *friction_create(float coef, float mean, float std, float durration) {
     auto *obj = new Friction();
     
     obj->type = FORCE_FRICTION;
-    obj->func = (MxForce_OneBodyPtr)friction_force;
+    obj->func = (MxForce_EvalFcn)friction_force;
     obj->coef = coef;
     obj->std = std;
     obj->mean = mean;
@@ -295,7 +326,7 @@ void MxConstantForce::onTime(double time)
 
 MxConstantForce::MxConstantForce() { 
     type = FORCE_CONSTANT;
-    func = (MxForce_OneBodyPtr)constant_force;
+    func = (MxForce_EvalFcn)constant_force;
 }
 
 MxConstantForce::MxConstantForce(const MxVector3f &f, const float &period) : MxConstantForce() {
@@ -389,6 +420,7 @@ HRESULT toFile(const MxConstantForce &dataElement, const MxMetaData &metaData, M
     MxIOElement *fe;
 
     MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement.stateVectorIndex);
     MXFORCEIOTOEASY(fe, "updateInterval", dataElement.updateInterval);
     MXFORCEIOTOEASY(fe, "lastUpdate", dataElement.lastUpdate);
     MXFORCEIOTOEASY(fe, "force", dataElement.force);
@@ -404,6 +436,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxC
     MxIOChildMap::const_iterator feItr;
 
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "stateVectorIndex", &dataElement->stateVectorIndex);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "updateInterval", &dataElement->updateInterval);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "lastUpdate", &dataElement->lastUpdate);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "force", &dataElement->force);
@@ -418,6 +451,7 @@ HRESULT toFile(const MxConstantForcePy &dataElement, const MxMetaData &metaData,
     MxIOElement *fe;
 
     MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement.stateVectorIndex);
     MXFORCEIOTOEASY(fe, "updateInterval", dataElement.updateInterval);
     MXFORCEIOTOEASY(fe, "lastUpdate", dataElement.lastUpdate);
     MXFORCEIOTOEASY(fe, "force", dataElement.force);
@@ -433,6 +467,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxC
     MxIOChildMap::const_iterator feItr;
 
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "stateVectorIndex", &dataElement->stateVectorIndex);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "updateInterval", &dataElement->updateInterval);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "lastUpdate", &dataElement->lastUpdate);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "force", &dataElement->force);
@@ -448,6 +483,7 @@ HRESULT toFile(const MxForceSum &dataElement, const MxMetaData &metaData, MxIOEl
     MxIOElement *fe;
 
     MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement.stateVectorIndex);
 
     if(dataElement.f1 != NULL) 
         MXFORCEIOTOEASY(fe, "Force1", dataElement.f1);
@@ -465,6 +501,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxF
     MxIOChildMap::const_iterator feItr;
 
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "stateVectorIndex", &dataElement->stateVectorIndex);
     
     feItr = fileElement.children.find("Force1");
     if(feItr != fileElement.children.end()) {
@@ -489,6 +526,7 @@ HRESULT toFile(const Berendsen &dataElement, const MxMetaData &metaData, MxIOEle
     MxIOElement *fe;
 
     MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement.stateVectorIndex);
     MXFORCEIOTOEASY(fe, "itau", dataElement.itau);
 
     fileElement->type = "BerendsenForce";
@@ -502,8 +540,9 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Ber
     MxIOChildMap::const_iterator feItr;
 
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "stateVectorIndex", &dataElement->stateVectorIndex);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "itau", &dataElement->itau);
-    dataElement->func = (MxForce_OneBodyPtr)berendsen_force;
+    dataElement->func = (MxForce_EvalFcn)berendsen_force;
 
     return S_OK;
 }
@@ -514,6 +553,7 @@ HRESULT toFile(const Gaussian &dataElement, const MxMetaData &metaData, MxIOElem
     MxIOElement *fe;
 
     MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement.stateVectorIndex);
     MXFORCEIOTOEASY(fe, "std", dataElement.std);
     MXFORCEIOTOEASY(fe, "mean", dataElement.mean);
     MXFORCEIOTOEASY(fe, "durration_steps", dataElement.durration_steps);
@@ -529,10 +569,11 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Gau
     MxIOChildMap::const_iterator feItr;
 
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "stateVectorIndex", &dataElement->stateVectorIndex);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "std", &dataElement->std);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "mean", &dataElement->mean);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "durration_steps", &dataElement->durration_steps);
-    dataElement->func = (MxForce_OneBodyPtr)gaussian_force;
+    dataElement->func = (MxForce_EvalFcn)gaussian_force;
 
     return S_OK;
 }
@@ -543,6 +584,7 @@ HRESULT toFile(const Friction &dataElement, const MxMetaData &metaData, MxIOElem
     MxIOElement *fe;
 
     MXFORCEIOTOEASY(fe, "type", dataElement.type);
+    MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement.stateVectorIndex);
     MXFORCEIOTOEASY(fe, "coef", dataElement.coef);
     MXFORCEIOTOEASY(fe, "std", dataElement.std);
     MXFORCEIOTOEASY(fe, "mean", dataElement.mean);
@@ -559,11 +601,12 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Fri
     MxIOChildMap::const_iterator feItr;
 
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
+    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "stateVectorIndex", &dataElement->stateVectorIndex);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "coef", &dataElement->coef);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "std", &dataElement->std);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "mean", &dataElement->mean);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "durration_steps", &dataElement->durration_steps);
-    dataElement->func = (MxForce_OneBodyPtr)friction_force;
+    dataElement->func = (MxForce_EvalFcn)friction_force;
 
     return S_OK;
 }
@@ -586,6 +629,7 @@ HRESULT toFile(MxForce *dataElement, const MxMetaData &metaData, MxIOElement *fi
     MxIOElement *fe;
 
     MXFORCEIOTOEASY(fe, "type", dataElement->type);
+    MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement->stateVectorIndex);
     
     fileElement->type = "Force";
 
@@ -597,7 +641,6 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxF
 
     MxIOChildMap::const_iterator feItr;
 
-    // MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &(*dataElement)->type);
     MXFORCE_TYPE fType;
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &fType);
 

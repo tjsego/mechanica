@@ -1,25 +1,50 @@
+"""
+This example demonstrates making force magnitudes depend on concentrations
+"""
+
 import mechanica as mx
 
-mx.init(dt=0.1, dim=[15, 5, 5],
-        bc={'x': ('periodic', 'reset')})
+mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL)
 
 
 class AType(mx.ParticleType):
-    species = ['S1', 'S2', 'S3']
-    style = {"colormap": {"species": "S1",
-                          "map": "rainbow"}}
+    """A particle type carrying a species"""
+    radius = 0.1
+    species = ['S1']
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
+    dynamics = mx.Overdamped
 
 
-A = AType.get()
+class BType(AType):
+    """A particle type that acts as a constant source"""
 
-a1 = A(mx.Universe.center + [0, -1, 0])
-a2 = A(mx.Universe.center + [-5, 1, 0], velocity=[0.5, 0, 0])
+    dynamics = mx.Newtonian
 
-pressure = mx.ConstantForce([0.1, 0, 0])
+    @classmethod
+    def get(cls):
+        result = super().get()
+        result.species.S1.constant = True
+        return result
 
-mx.bind.force(pressure, A, "S1")
 
-a1.species.S1 = 0
-a2.species.S1 = 0.1
+A, B = AType.get(), BType.get()
+
+# Particles are randomly perturbed with increasing S1
+force = mx.Force.random(0.1, 1.0)
+mx.bind.force(force, A, 'S1')
+mx.bind.force(force, B, 'S1')
+
+# S1 diffuses between particles
+mx.Fluxes.flux(A, A, "S1", 1)
+mx.Fluxes.flux(A, B, "S1", 1)
+
+# Make a lattice of stationary particles
+uc = mx.lattice.sc(0.25, A)
+parts = mx.lattice.create_lattice(uc, [25, 25, 25])
+
+# Grab a particle to act as a constant source
+o = parts[24, 0, 24][0]
+o.become(B)
+o.species.S1 = 10.0
 
 mx.run()

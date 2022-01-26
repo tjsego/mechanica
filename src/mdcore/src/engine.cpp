@@ -1335,8 +1335,7 @@ MxFluxes *engine_getfluxes(struct engine *e, int i, int j) {
 	return fluxes[i * e->max_type + j];
 }
 
-CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e, struct MxForce *p,
-                                            int i, int stateVectorId) {
+CAPI_FUNC(int) engine_add_singlebody_force(struct engine *e, struct MxForce *p, int i) {
     /* check for nonsense. */
     if ( e == NULL )
         return error(engine_err_null);
@@ -1344,8 +1343,7 @@ CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e, struct MxForce *p,
         return error(engine_err_range);
 
     /* store the force. */
-    e->p_singlebody[i].force = p;
-    e->p_singlebody[i].stateVectorIndex = stateVectorId;
+    e->forces[i] = p;
 
     if(p->isConstant()) e->constant_forces.push_back((MxConstantForce*)p);
 
@@ -2076,9 +2074,9 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
     bzero( e->cuboid_potentials , sizeof(struct MxPotential *) * e->max_type );
 
     // init singlebody forces
-    if ( ( e->p_singlebody = (MxForceSingleBinding*)malloc( sizeof(MxForceSingleBinding) * e->max_type ) ) == NULL )
+    if ( ( e->forces = (MxForce**)malloc( sizeof(struct MxForce*) * e->max_type ) ) == NULL )
             return error(engine_err_malloc);
-    bzero(e->p_singlebody, sizeof(struct MxForceSingleBinding) * e->max_type );
+    bzero(e->forces, sizeof(struct MxForce*) * e->max_type );
 
     /* Make sortlists? */
     if ( flags & engine_flag_verlet_pseudo ) {

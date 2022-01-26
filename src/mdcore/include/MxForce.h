@@ -33,7 +33,7 @@ enum MXFORCE_TYPE {
 /**
  * single body force function.
  */
-typedef void (*MxForce_OneBodyPtr)(struct MxForce*, struct MxParticle *, int stateVectorId, FPTYPE*f);
+typedef void (*MxForce_EvalFcn)(struct MxForce*, struct MxParticle*, FPTYPE*);
 
 struct Berendsen;
 struct Gaussian;
@@ -49,7 +49,9 @@ struct Friction;
 struct MxForce {
     MXFORCE_TYPE type = FORCE_FORCE;
 
-    MxForce_OneBodyPtr func;
+    MxForce_EvalFcn func;
+
+    int stateVectorIndex = -1;
 
     /**
      * @brief Tests whether this object is a constant force type.
@@ -57,6 +59,17 @@ struct MxForce {
      * @return true if constant
      */
     virtual bool isConstant() { return false; }
+
+    /**
+     * @brief Bind a force to a species. 
+     * 
+     * When a force is bound to a species, the magnitude of the force is scaled by the concentration of the species. 
+     * 
+     * @param a_type particle type containing the species
+     * @param coupling_symbol symbol of the species
+     * @return HRESULT 
+     */
+    HRESULT bind_species(struct MxParticleType *a_type, const std::string &coupling_symbol);
 
     /**
      * @brief Creates a Berendsen thermostat. 
@@ -159,15 +172,6 @@ struct MxForceSum : MxForce {
 };
 
 MxForce *MxForce_add(MxForce *f1, MxForce *f2);
-
-/**
- * a binding of a force to a particle type, where we use a coupling constant from the
- * state vector as a scaling.
- */
-struct MxForceSingleBinding {
-    MxForce *force;
-    int stateVectorIndex;
-};
 
 struct MxConstantForce;
 using MxUserForceFuncType = MxVector3f(*)(MxConstantForce*);

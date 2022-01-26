@@ -54,7 +54,8 @@ If you're looking for something specific, refer to the following,
    cases where Mechanica behaves differently in a particular language are explicitly
    addressed. In general, assume that a documented example or code snippet in one
    language is the same in another unless stated otherwise. For specific details
-   about Mechanica in a particular language, refer to :ref:`Mechanica API Reference`.
+   about Mechanica in a particular language, refer to
+   :ref:`Mechanica API Reference <api_reference>`.
 
 **Funding**
 

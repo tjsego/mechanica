@@ -947,7 +947,7 @@ bool MxDihedral_decays(MxDihedral *d, std::uniform_real_distribution<double> *un
     if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);
 
     double pr = 1.0 - std::pow(2.0, -_Engine.dt / d->half_life);
-    auto MxRandom = MxRandomEngine();
+    MxRandomType &MxRandom = MxRandomEngine();
     bool result = (*uniform01)(MxRandom) < pr;
 
     if(created) delete uniform01;

@@ -607,12 +607,10 @@ HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOEl
     
     std::vector<MxForce*> forces;
     MxForce *f;
-    std::vector<int> forcesSVIdx;
     std::vector<unsigned int> fIdx;
     for(unsigned int i = 0; i < ptl->nr_parts; i++) { 
         auto pTypeId = ptl->parts[i];
-        auto psb = _Engine.p_singlebody[pTypeId];
-        f = psb.force;
+        f = _Engine.forces[pTypeId];
         if(f != NULL) {
             bool storeForce = true;
             if(f->isConstant()) {
@@ -627,14 +625,12 @@ HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOEl
             }
             if(storeForce) {
                 forces.push_back(f);
-                forcesSVIdx.push_back(psb.stateVectorIndex);
                 fIdx.push_back(i);
             }
         }
     }
     if(forces.size() > 0) {
         MXUNIVERSEIOTOEASY(fe, "forces", forces);
-        MXUNIVERSEIOTOEASY(fe, "forcesSVIdx", forcesSVIdx);
         MXUNIVERSEIOTOEASY(fe, "forceType", fIdx);
     }
 
@@ -709,23 +705,15 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxU
 
     if(fileElement.children.find("forces") != fileElement.children.end()) {
         std::vector<MxForce*> forces;
-        std::vector<int> forcesSVIdx;
         std::vector<unsigned int> fIdx;
         int fSVIdx;
         
         MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "forces", &forces);
-        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "forcesSVIdx", &forcesSVIdx);
         MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "forceType", &fIdx);
         for(unsigned int i = 0; i < fIdx.size(); i++) { 
-            fSVIdx = forcesSVIdx[i];
             auto pType = &_Engine.types[MxFIO::importSummary->particleTypeIdMap[fIdx[i]]];
             MxForce *f = forces[i];
-            if(fSVIdx < 0)
-                MxBind::force(f, pType);
-            else {
-                std::string sName = pType->species->item(fSVIdx)->getName();
-                MxBind::force(f, pType, sName);
-            }
+            MxBind::force(f, pType);
         }
     }
     

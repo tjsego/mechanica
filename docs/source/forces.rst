@@ -11,6 +11,8 @@ forces can be created using a static method on the :class:`Force` class
 (:class:`MxForce` in C++), which can be :ref:`bound <binding>` to particles
 by particle type.
 
+.. _creating_forces-label:
+
 Creating Forces
 ^^^^^^^^^^^^^^^^
 

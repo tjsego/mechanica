@@ -233,10 +233,10 @@ typedef struct engine {
     struct MxPotential **cuboid_potentials;
 
 	/**
-	 * vector of single body potentials for types, indexed
+	 * vector of forces for types, indexed
 	 * by type id.
 	 */
-	struct MxForceSingleBinding *p_singlebody;
+	struct MxForce **forces;
 
     /**
      * interaction matrix of pointers to fluxes, same layout as
@@ -485,8 +485,7 @@ CAPI_FUNC(int) engine_add_cuboid_potential (struct engine *e , struct MxPotentia
 /**
  * Add a single body force to the engine.
  */
-CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e ,
-                                            struct MxForce *p , int typeId, int stateVectorId);
+CAPI_FUNC(int) engine_add_singlebody_force(struct engine *e , struct MxForce *p , int typeId);
 
 /**
  * allocates a new angle, returns its id.

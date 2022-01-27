@@ -59,10 +59,10 @@ int MxSpeciesValue::setConstant(const int &value) {
     return species()->setConstant(value);
 }
 
-double MxSpeciesValue::secrete(const double &amount, struct MxParticleList *to, double *distance) {
-    if(to) return MxSecreteUptake::secrete(this, amount, *to);
-    else if(distance) return MxSecreteUptake::secrete(this, amount, *distance);
+double MxSpeciesValue::secrete(const double &amount, const struct MxParticleList &to) {
+    return MxSecreteUptake::secrete(this, amount, to);
+}
 
-    mx_error(E_FAIL, "No particle list or distance specified");
-    return 0.0;
+double MxSpeciesValue::secrete(const double &amount, const double &distance) {
+    return MxSecreteUptake::secrete(this, amount, distance);
 }

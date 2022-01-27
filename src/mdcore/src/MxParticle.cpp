@@ -846,7 +846,7 @@ HRESULT MxParticle_Become(MxParticle *part, MxParticleType *type) {
         MxStateVector *oldState = part->state_vector;
         
         if(type->species) {
-            part->state_vector = new MxStateVector(type->species, pypart, oldState);
+            part->state_vector = new MxStateVector(type->species, part, oldState);
         }
         else {
             part->state_vector = NULL;

@@ -35,14 +35,20 @@ struct MxSpeciesValue
     /**
      * @brief Secrete this species into a neighborhood. 
      * 
-     * Requires either a list of neighboring particles or neighborhood distance. 
+     * @param amount Amount to secrete. 
+     * @param to List of particles to secrete to. 
+     * @return double Amount actually secreted, accounting for availability and other subtleties. 
+     */
+    double secrete(const double &amount, const struct MxParticleList &to);
+
+    /**
+     * @brief Secrete this species into a neighborhood. 
      * 
      * @param amount Amount to secrete. 
-     * @param to Optional list of particles to secrete to. 
      * @param distance Neighborhood distance. 
      * @return double Amount actually secreted, accounting for availability and other subtleties. 
      */
-    double secrete(const double &amount, struct MxParticleList *to=NULL, double *distance=NULL);
+    double secrete(const double &amount, const double &distance);
 
     MxSpeciesValue(const double &value);
     MxSpeciesValue(const double &value, struct MxStateVector *state_vector, uint32_t index);

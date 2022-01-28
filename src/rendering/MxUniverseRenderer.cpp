@@ -25,6 +25,7 @@
 
 #include <Corrade/Utility/Assert.h>
 #include <Corrade/Containers/ArrayView.h>
+#include <Corrade/Containers/GrowableArray.h>
 #include <rendering/MxUniverseRenderer.h>
 #include <Magnum/GL/Renderer.h>
 #include <Magnum/Math/Functions.h>
@@ -82,6 +83,43 @@ static GL::Renderer::Feature clipDistanceGLLabels[] = {
     GL::Renderer::Feature::ClipDistance7
 };
 static const unsigned int numClipDistanceGLLabels = 8;
+
+struct discretizationGridData{
+    Matrix4 transformationMatrix;
+    Color3 color;
+};
+
+static inline void render_discretization_grid(MxVector3ui nr_cells, 
+                                              MxVector3f grid_dim, 
+                                              GL::Buffer *discretizationGridBuffer, 
+                                              GL::Mesh *discretizationGridMesh, 
+                                              Color3 discretizationGridColor) 
+{
+
+    float cell_dim_x = grid_dim.x() / nr_cells.x();
+    float cell_dim_y = grid_dim.y() / nr_cells.y();
+    float cell_dim_z = grid_dim.z() / nr_cells.z();
+    Vector3 cell_dim{cell_dim_x, cell_dim_y, cell_dim_z};
+    Vector3 cell_hdim = cell_dim * 0.5;
+
+    Containers::Array<discretizationGridData> _discretizationGridData;
+    Corrade::Containers::arrayResize(_discretizationGridData, 0);
+    for(unsigned int i = 0; i < nr_cells.x(); i++) {
+        float ox = cell_dim_x * i;
+        for(unsigned int j = 0; j < nr_cells.y(); j++) {
+            float oy = cell_dim_y * j;
+            for(unsigned int k = 0; k < nr_cells.z(); k++) {
+                float oz = cell_dim_z * k;
+                Vector3 cell_origin{ox, oy, oz};
+                Vector3 cell_center = cell_origin + cell_hdim;
+                Matrix4 tm = Matrix4::translation(cell_center) * Matrix4::scaling(cell_hdim);
+                Corrade::Containers::arrayAppend(_discretizationGridData, Corrade::Containers::InPlaceInit, tm, discretizationGridColor);
+            }
+        }
+    }
+    discretizationGridBuffer->setData(_discretizationGridData, GL::BufferUsage::DynamicDraw);
+    discretizationGridMesh->setInstanceCount(_discretizationGridData.size());
+}
 
 MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow *win):
     window{win}, 
@@ -212,6 +250,19 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
     sphereMesh.setInstanceCount(0);
     largeSphereMesh.setInstanceCount(0);
     cuboidMesh.setInstanceCount(0);
+
+    // setup optional discretization grid
+
+    discretizationGridBuffer = GL::Buffer{};
+    discretizationGridMesh = MeshTools::compile(Primitives::cubeWireframe());
+    discretizationGridMesh.addVertexBufferInstanced(
+        discretizationGridBuffer, 1, 0, 
+        Shaders::Flat3D::TransformationMatrix{}, 
+        Shaders::Flat3D::Color3{}
+    );
+    render_discretization_grid(MxVector3ui(conf.universeConfig.spaceGridSize), dim, &discretizationGridBuffer, &discretizationGridMesh, _discretizationGridColor);
+
+    // Set up subrenderers and finish
 
     subRenderers = {
         new MxAngleRenderer(), 
@@ -417,6 +468,9 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     sphereShader.draw(largeSphereMesh);
     sphereShader.draw(cuboidMesh);
 
+    if(_showDiscretizationGrid) 
+        sphereShader.draw(discretizationGridMesh);
+
     for(auto &s : subRenderers) 
         s->draw(camera, viewportSize, modelViewMat);
     
@@ -487,6 +541,18 @@ MxUniverseRenderer& MxUniverseRenderer::setBackgroundColor(const Color3 &color) 
     GL::Renderer::setClearColor(color);
 
     _clearColor = color;
+    return *this;
+}
+
+MxUniverseRenderer& MxUniverseRenderer::setDiscretizationGridColor(const Color3 &color) {
+    _discretizationGridColor = color;
+    render_discretization_grid(
+        MxVector3ui(MxVector3i::from(_Engine.s.cdim)), 
+        MxVector3f(MxVector3d::from(_Engine.s.dim)), 
+        &discretizationGridBuffer, 
+        &discretizationGridMesh, 
+        _discretizationGridColor
+    );
     return *this;
 }
 
@@ -636,7 +702,12 @@ void MxUniverseRenderer::keyPressEvent(Platform::GlfwApplication::KeyEvent& even
             break;
 
         case Platform::GlfwApplication::KeyEvent::Key::D: {
-            decorateScene(!sceneDecorated());
+            if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
+                showDiscretizationGrid(!showingDiscretizationGrid());
+            }
+            else {
+                decorateScene(!sceneDecorated());
+            }
 
             }
             break;

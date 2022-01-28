@@ -425,6 +425,37 @@ struct CAPI_EXPORT MxSystem {
     * @return HRESULT 
     */
    static HRESULT decorateScene(const bool &decorate);
+
+   /**
+    * @brief Test whether discretization is current shown
+    * 
+    * @return true 
+    * @return false 
+    */
+   static bool showingDiscretization();
+
+   /**
+    * @brief Set flag to draw/not draw discretization
+    * 
+    * @param show flag; true says to show
+    * @return HRESULT 
+    */
+   static HRESULT showDiscretization(const bool &show);
+
+   /**
+    * @brief Get the current color of the discretization grid
+    * 
+    * @return MxVector3f 
+    */
+   static MxVector3f getDiscretizationColor();
+
+   /**
+    * @brief Set the color of the discretization grid
+    * 
+    * @param color 
+    * @return HRESULT 
+    */
+   static HRESULT setDiscretizationColor(const MxVector3f &color);
    
    /* Update screen size after the window has been resized */
    static HRESULT viewReshape(const MxVector2i &windowSize);

@@ -791,6 +791,44 @@ HRESULT MxSystem::decorateScene(const bool &decorate) {
     }
 }
 
+bool MxSystem::showingDiscretization() {
+    return MxSystem::getRenderer()->showingDiscretizationGrid();
+}
+
+HRESULT MxSystem::showDiscretization(const bool &show) {
+    try {
+        MxSystem::getRenderer()->showDiscretizationGrid(show);
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+MxVector3f MxSystem::getDiscretizationColor() {
+    try {
+        return MxSystem::getRenderer()->discretizationGridColor();
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return 0;
+    }
+}
+
+HRESULT MxSystem::setDiscretizationColor(const MxVector3f &color) {
+    try {
+        MxSystem::getRenderer()->setDiscretizationGridColor(color);
+
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
 HRESULT MxSystem::viewReshape(const MxVector2i &windowSize) {
     try {
         MxSimulator *sim = MxSimulator::get();

@@ -14,7 +14,9 @@
 %ignore MxUniverseRenderer::sphereMesh;
 %ignore MxUniverseRenderer::largeSphereMesh;
 %ignore MxUniverseRenderer::cuboidMesh;
+%ignore MxUniverseRenderer::discretizationGridMesh;
 %ignore MxUniverseRenderer::cuboidInstanceBuffer;
+%ignore MxUniverseRenderer::discretizationGridBuffer;
 %ignore MxUniverseRenderer::subRenderers;
 
 %include "MxUniverseRenderer.h"

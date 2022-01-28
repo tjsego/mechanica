@@ -71,7 +71,17 @@ System
 
     .. automethod:: setLightColor
 
+    .. automethod:: decorated
+
     .. automethod:: decorateScene
+
+    .. automethod:: showingDiscretization
+
+    .. automethod:: showDiscretization
+
+    .. automethod:: getDiscretizationColor
+
+    .. automethod:: setDiscretizationColor
 
     .. automethod:: cpu_info
 

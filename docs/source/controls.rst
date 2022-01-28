@@ -29,6 +29,7 @@ Keyboard Controls
      "Arrow left",                  "Translate camera left"
      "Arrow right",                 "Translate camera right"
      "Arrow up",                    "Translate camera up"
+     "Ctrl + D",                    "Toggle discretization rendering"
      "Ctrl + arrow down",           "Zoom camera out"
      "Ctrl + arrow left",           "Rotate camera left"
      "Ctrl + arrow right",          "Rotate camera right"

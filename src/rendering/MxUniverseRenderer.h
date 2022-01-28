@@ -162,6 +162,21 @@ struct MxUniverseRenderer : MxRenderer {
         projMat = mat;
         return *this;
     }
+
+    const bool showingDiscretizationGrid() const {
+        return _showDiscretizationGrid;
+    }
+
+    MxUniverseRenderer& showDiscretizationGrid(const bool &show) {
+        _showDiscretizationGrid = show;
+        return *this;
+    }
+
+    Color3& discretizationGridColor() {
+        return _discretizationGridColor;
+    }
+
+    MxUniverseRenderer& setDiscretizationGridColor(const Color3 &color);
     
     const MxVector3f& defaultEye() const {
         return _eye;
@@ -234,6 +249,7 @@ struct MxUniverseRenderer : MxRenderer {
      * - Arrow left: translate camera left
      * - Arrow right: translate camera right
      * - Arrow up: translate camera up
+     * - Ctrl + D: toggle discretization rendering
      * - Ctrl + arrow down: zoom camera out
      * - Ctrl + arrow left: rotate camera left
      * - Ctrl + arrow right: rotate camera right
@@ -276,6 +292,7 @@ struct MxUniverseRenderer : MxRenderer {
 
     bool _dirty = false;
     bool _decorateScene = true;
+    bool _showDiscretizationGrid = false;
     ParticleSphereShader::ColorMode _colorMode = ParticleSphereShader::ColorMode::ConsistentRandom;
     Color3 _ambientColor{0.4f};
     Color3 _diffuseColor{1.f};
@@ -286,6 +303,7 @@ struct MxUniverseRenderer : MxRenderer {
     MxVector3f _lightDir{1.0f, 1.0f, 2.0f};
     Color3 _lightColor = {0.9, 0.9, 0.9};
     Color3 _clearColor{0.35f};
+    Color3 _discretizationGridColor{0.1, 0.1, 0.8};
     
     MxVector3f _eye, _center, _up;
     
@@ -335,8 +353,12 @@ struct MxUniverseRenderer : MxRenderer {
     GL::Mesh largeSphereMesh{NoCreate};
     
     GL::Mesh cuboidMesh{NoCreate};
+
+    GL::Mesh discretizationGridMesh{NoCreate};
     
     GL::Buffer cuboidInstanceBuffer{NoCreate};
+
+    GL::Buffer discretizationGridBuffer{NoCreate};
 
     std::vector<MxSubRenderer*> subRenderers;
 

@@ -22,12 +22,6 @@
 #include <limits>
 #include <string>
 
-struct MxArrowInstanceData {
-    Magnum::Matrix4 transformationMatrix;
-    Magnum::Matrix3 normalMatrix;
-    Magnum::Color4 color;
-};
-
 // todo: make arrow geometry settable
 
 static float _arrowHeadHeight = 0.5;
@@ -35,15 +29,7 @@ static float _arrowHeadRadius = 0.25;
 static float _arrowCylHeight = 0.5;
 static float _arrowCylRadius = 0.1;
 
-/**
- * @brief Generates a 3x3 rotation matrix into the frame of a vector. 
- * 
- * The orientation of the second and third axes of the resulting transformation are arbitrary. 
- * 
- * @param vec Vector along which the first axis of the transformed frame is aligned. 
- * @return MxMatrix3f 
- */
-static MxMatrix3f MxVectorFrameRotation(const MxVector3f &vec) {
+MxMatrix3f MxVectorFrameRotation(const MxVector3f &vec) {
     MxVector3f u1, u2, u3, p;
 
     float vec_len = vec.length();

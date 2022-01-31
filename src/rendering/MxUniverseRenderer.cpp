@@ -59,6 +59,7 @@
 #include <rendering/MxArrowRenderer.h>
 #include <rendering/MxBondRenderer.h>
 #include <rendering/MxDihedralRenderer.h>
+#include <rendering/MxOrientationRenderer.h>
 
 #include <MxUtil.h>
 #include <MxLogger.h>
@@ -268,7 +269,8 @@ MxUniverseRenderer::MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow 
         new MxAngleRenderer(), 
         new MxArrowRenderer(), 
         new MxBondRenderer(), 
-        new MxDihedralRenderer()
+        new MxDihedralRenderer(), 
+        new MxOrientationRenderer()
     };
     for(auto &s : subRenderers) 
         s->start(conf.clipPlanes);
@@ -593,6 +595,7 @@ void MxUniverseRenderer::onCursorMove(double xpos, double ypos)
 
 void MxUniverseRenderer::decorateScene(const bool &decorate) {
     _decorateScene = decorate;
+    MxOrientationRenderer::get()->showAxes(decorate);
 }
 
 bool MxUniverseRenderer::sceneDecorated() const {
@@ -901,6 +904,10 @@ MxSubRenderer *MxUniverseRenderer::getSubRenderer(const MxSubRendererFlag &flag)
             break;
         case SUBRENDERER_DIHEDRAL: {
             return subRenderers[3];
+            }
+            break;
+        case SUBRENDERER_ORIENTATION: {
+            return subRenderers[4];
             }
             break;
         default: {

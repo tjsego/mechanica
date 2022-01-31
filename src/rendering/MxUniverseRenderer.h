@@ -81,10 +81,11 @@ struct CuboidInstanceData {
 
 
 typedef enum MxSubRendererFlag {
-    SUBRENDERER_ANGLE = 1 << 0,
-    SUBRENDERER_ARROW = 1 << 1,
-    SUBRENDERER_BOND = 1 << 2,
-    SUBRENDERER_DIHEDRAL = 1 << 3
+    SUBRENDERER_ANGLE           = 1 << 0,
+    SUBRENDERER_ARROW           = 1 << 1,
+    SUBRENDERER_BOND            = 1 << 2,
+    SUBRENDERER_DIHEDRAL        = 1 << 3, 
+    SUBRENDERER_ORIENTATION     = 1 << 4
 } MxSubRendererFlag;
 
 

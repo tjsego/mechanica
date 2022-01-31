@@ -46,6 +46,12 @@ private:
     friend struct MxArrowRenderer;
 };
 
+struct MxArrowInstanceData {
+    Magnum::Matrix4 transformationMatrix;
+    Magnum::Matrix3 normalMatrix;
+    Magnum::Color4 color;
+};
+
 /**
  * @brief Vector renderer. 
  * 
@@ -166,5 +172,15 @@ private:
     int nextDataId();
 
 };
+
+/**
+ * @brief Generates a 3x3 rotation matrix into the frame of a vector. 
+ * 
+ * The orientation of the second and third axes of the resulting transformation are arbitrary. 
+ * 
+ * @param vec Vector along which the first axis of the transformed frame is aligned. 
+ * @return MxMatrix3f 
+ */
+MxMatrix3f MxVectorFrameRotation(const MxVector3f &vec);
 
 #endif // SRC_RENDERING_MXARROWRENDERER_H_

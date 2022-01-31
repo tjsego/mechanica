@@ -121,6 +121,7 @@ set(SRC
   rendering/MxBondRenderer.cpp
   rendering/MxMeshRenderer.cpp
   rendering/MxDihedralRenderer.cpp
+  rendering/MxOrientationRenderer.cpp
   rendering/MxMeshShaderProgram.cpp
   rendering/MxRenderTarget.cpp
   rendering/MxImageView.cpp
@@ -250,6 +251,7 @@ set(HEADERS
   rendering/MxBondRenderer.h
   rendering/MxMeshRenderer.h
   rendering/MxDihedralRenderer.h
+  rendering/MxOrientationRenderer.h
   rendering/MxMeshShaderProgram.h
   rendering/MxRenderTarget.h
   rendering/MxImageView.h

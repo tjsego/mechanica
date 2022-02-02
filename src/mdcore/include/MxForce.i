@@ -69,4 +69,5 @@
 %pythoncode %{
     Force = MxForce
     ConstantForce = MxConstantForcePy
+    ForceSum = MxForceSum
 %}

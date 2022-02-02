@@ -20,14 +20,14 @@
 %include "Mx3DFStructure.i"
 
 %{
+    #include "io/Mx3DFRenderData.h"
     #include "io/MxIO.h"
-    
     #include "io/Mx3DFIO.h"
 
 %}
 
+%include "io/Mx3DFRenderData.h"
 %include "io/MxIO.h"
-
 %include "io/Mx3DFIO.h"
 
 %pythoncode %{

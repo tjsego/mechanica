@@ -182,26 +182,14 @@ message("CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
 message("CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 message("CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
 
-
+set(MX_HAVEPTHREADS FALSE)
 if(USING_VCPKG)
 
   find_package(pthreads CONFIG REQUIRED)
 
-  # have to set this to create an alias, don't know why...
   set_target_properties(PThreads4W::PThreads4W PROPERTIES IMPORTED_GLOBAL TRUE)
   add_library(Threads::Threads ALIAS PThreads4W::PThreads4W)
-
-
-  #Use the PThreads4W vcpkg package, called pthreads
-  #The package pthreads provides CMake targets:
-
-  #find_package(pthreads CONFIG REQUIRED)
-
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W)
-  #or
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W_CXXEXC)
-  #or
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W_STRUCTEXC)
+  set(MX_HAVEPTHREADS TRUE)
 
 elseif(DEFINED PThreads_ROOT)
 
@@ -215,6 +203,7 @@ elseif(DEFINED PThreads_ROOT)
   target_include_directories(pthreads INTERFACE ${PThreads_ROOT}/include)
   set_target_properties(pthreads PROPERTIES IMPORTED_LOCATION ${PThreads})
   add_library(Threads::Threads ALIAS pthreads)
+  set(MX_HAVEPTHREADS TRUE)
 
 else()
   # use standard unix pthreads, creates Threads::Threads target

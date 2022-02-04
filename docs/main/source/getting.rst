@@ -11,7 +11,8 @@ most dependencies. In addition to requiring `Git <https://git-scm.com/downloads>
 `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_, installation from source
 on Windows requires
 `Visual Studio 2019 Build Tools <https://visualstudio.microsoft.com/downloads/>`_,
-and on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`.
+on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`,
+and on MacOS requires Xcode with 10.9 SDK or greater.
 
 To execute the standard installation, open a terminal in a directory to install Mechanica
 and clone the `Mechanica repository <https://github.com/tjsego/mechanica>`_,
@@ -34,6 +35,13 @@ On Linux
 
     bash mechanica/package/local/mx_install.sh
 
+On MacOS, specify the installed MacOS SDK (*e.g.*, for 10.9)
+
+.. code-block:: bash
+
+    export MXOSX_SYSROOT=10.9
+    bash mechanica/package/local/mx_install.sh
+
 The standard installation will create the directories `mechanica_build` and
 `mechanica_install` next to the `mechanica` root directory, the former containing
 the build files, and the latter containing the installed binaries and conda environment.
@@ -48,7 +56,7 @@ On Windows
     call mechanica_install/etc/mx_vars
     conda activate %MXENV%
 
-On Linux
+On Linux and MacOS
 
 .. code-block:: bash
 
@@ -75,7 +83,7 @@ Customizing the Build
 
 Certain aspects of the installation can be readily customized.
 The source directory `mechanica/package/local` contains subdirectories `linux` and
-`win` containing scripts `mx_install_vars.sh` and `mx_install_vars.bat` for Linux and
+`win` containing scripts `mx_install_vars.sh` and `mx_install_vars.bat` for Linux/MacOS and
 Windows, respectively, which declare default installation environment variables.
 These environment variables can be customized to specify where to find, build and install
 Mechanica, as well as the build configuration.
@@ -109,8 +117,21 @@ On Linux
     conda activate $MXENV
     bash ${MXSRCDIR}/package/local/linux/mx_install_all.sh
 
+On MacOS
+
+.. code-block:: bash
+
+    source $MYMXSRC/package/local/osx/mx_install_vars.sh
+    export MXBUILD_CONFIG=Debug
+    export MXSRCDIR=$MYMXSRC
+    export MXBUILDDIR=$MYMXBUILD
+    export MXINSTALLDIR=$MYMXINSTALL
+    bash ${MXSRCDIR}/package/local/osx/mx_install_env.sh
+    conda activate $MXENV
+    bash ${MXSRCDIR}/package/local/osx/mx_install_all.sh
+
 The default Python version of the installation is 3.7, though Mechanica has also been tested
-on Windows and Linux for Python versions 3.8 and 3.9.
+on Windows, Linux and MacOS for Python versions 3.8 and 3.9.
 To specify a different version of Python, simply add a call to
 `update the conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-python.html#updating-or-upgrading-python>`_
 in the previous commands before calling `mx_install_all`.
@@ -139,9 +160,9 @@ environment as previously described and install the ``notebook``, ``ipywidgets``
 
 Enabling GPU Acceleration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Mechanica supports GPU acceleration using CUDA. To enable GPU acceleration,
-simply tell Mechanica to build with CUDA support and specify the compute capability
-of all available GPUs in the typical way *before* calling `mx_install`.
+Mechanica supports GPU acceleration on Windows and Linux using CUDA. To enable GPU
+acceleration, simply tell Mechanica to build with CUDA support and specify the compute
+capability of all available GPUs in the typical way *before* calling `mx_install`.
 
 On Windows
 

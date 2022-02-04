@@ -22,6 +22,7 @@ Mechanica is a native compiled C++ shared library that's designed to be used for
 and simulation specification in compiled C++ code. Mechanica includes an extensive
 Python API that's designed to be used for model and simulation specification in
 executable Python scripts, an IPython console and a Jupyter Notebook.
+Mechanica currently supports installations on 64-bit Windows, Linux and MacOS systems.
 
 **Quick Summary**
 

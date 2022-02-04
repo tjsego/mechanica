@@ -78,6 +78,10 @@ target_include_directories(glfw PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/glfw/deps>
   )
 
+if(APPLE)
+  set_property(TARGET glfw PROPERTY INSTALL_NAME_DIR )
+endif()
+
 # magnum likes these names:
 #  GLFW::GLFW               - GLFW imported target
 #  GLFW_LIBRARY             - GLFW library

@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <string>
+#include <cstring>
 #include <unordered_map>
 
 std::unordered_map<unsigned int, std::string> boundaryConditionsEnumToNameMap{

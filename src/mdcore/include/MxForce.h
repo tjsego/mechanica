@@ -406,6 +406,7 @@ HRESULT toFile(const Friction &dataElement, const MxMetaData &metaData, MxIOElem
 template <>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Friction *dataElement);
 
+template <>
 HRESULT toFile(MxForce *dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
 
 template <>

@@ -887,7 +887,7 @@ std::string MxSystem::egl_info() {
 std::unordered_map<std::string, std::string> MxSystem::test_headless() {
 #if defined(MX_APPLE)
     return Mx_GlInfo();
-
+}
 #elif defined(MX_LINUX)
     return Mx_GlInfo();
 }

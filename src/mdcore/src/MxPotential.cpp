@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <float.h>
 #include <string.h>
+#include <cstring>
 
 /* include local headers */
 #include "errs.h"
@@ -3663,6 +3664,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxC
 	return S_OK;
 }
 
+template <>
 HRESULT toFile(MxPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
 
     MxIOElement *fe;

@@ -1,0 +1,3 @@
+#!/bin/bash
+export MXPYSITEDIR=@MX_SITEPACKAGES_REAL@
+export MXENV=@PY_ROOT_DIR_REAL@

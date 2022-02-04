@@ -68,6 +68,7 @@ file(RELATIVE_PATH RDIR
   ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
 )
 set(CMAKE_INSTALL_RPATH ${RPATH_PREFIX} ${RPATH_PREFIX}/${RDIR})
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 option(MX_OPENMP "Enable OpenMP parallelism" OFF)
 
@@ -317,9 +318,9 @@ include_directories(${OPENGL_INCLUDE_DIR})
 #
 #endif()
 
-find_package(Assimp REQUIRED)
+find_package(assimp REQUIRED)
 
-if(Assimp_FOUND)
+if(assimp_FOUND)
   message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
 else()
   message("ASSIMP not found")

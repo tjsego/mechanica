@@ -833,6 +833,7 @@ CAPI_FUNC(double) potential_switch_p ( double r , double A , double B );
 
 namespace mx { namespace io {
 
+template <>
 HRESULT toFile(MxPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
 
 template <>

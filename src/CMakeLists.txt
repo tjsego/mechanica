@@ -386,7 +386,8 @@ target_include_directories(mechanica_obj PUBLIC
 
 target_link_libraries(mechanica_obj
   DirectXMath
-  glfw
+  glfw 
+  ${GLFW_LIBRARIES} 
   LibSBML::LibSBML
   Magnum::Application
   Magnum::Magnum
@@ -472,14 +473,27 @@ include(UseSWIG)
 
 set_source_files_properties(mechanica.i PROPERTIES CPLUSPLUS ON SWIG_FLAGS "-keyword;-py3;-doxygen")
 
+set(SWIG_COMPILEDEFS_PY )
+
+# Power through int size mess until properly resolved 
+# See https://github.com/swig/swig/issues/1850
 include(CheckTypeSize)
 check_type_size("long" SIZE_LONG)
 message(STATUS "Got size of long: ${SIZE_LONG} (${HAVE_SIZE_LONG})")
-if(${HAVE_SIZE_LONG})
+if(NOT MX_APPLE)
   if(${SIZE_LONG} STREQUAL 8)
-    set_source_files_properties(mechanica.i PROPERTIES COMPILE_DEFINITIONS SWIGWORDSIZE64)
+    list(APPEND SWIG_COMPILEDEFS_PY SWIGWORDSIZE64)
+  else()
+    list(APPEND SWIG_COMPILEDEFS_PY SWIGWORDSIZE32)
   endif()
 endif()
+
+if(MX_APPLE)
+  list(APPEND SWIG_COMPILEDEFS_PY CORRADE_TARGET_APPLE)
+endif()
+
+message(STATUS "SWIG_COMPILEDEFS_PY=${SWIG_COMPILEDEFS_PY}")
+set_property(SOURCE mechanica.i PROPERTY COMPILE_DEFINITIONS ${SWIG_COMPILEDEFS_PY})
 
 swig_add_library(mechanica_py TYPE SHARED LANGUAGE python SOURCES mechanica.i $<TARGET_OBJECTS:mechanica_obj>)
 
@@ -532,7 +546,8 @@ target_include_directories(mechanica_py PRIVATE ${PYBIND11_INCLUDE_DIR})
 
 set(mechanica_py_LIBS
   mdcore_single
-  glfw
+  glfw 
+  ${GLFW_LIBRARIES} 
   LibSBML::LibSBML 
   Magnum::Application
   Magnum::Magnum
@@ -603,7 +618,8 @@ endif()
 if(UNIX)
   file(RELATIVE_PATH _RPATH2PYLIBS ${MX_SITEPACKAGES}/mechanica ${Python_LIBRARY_DIRS})
   file(RELATIVE_PATH _RPATH2MXLIBS ${MX_SITEPACKAGES}/mechanica ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
-  set_target_properties(mechanica_py PROPERTIES INSTALL_RPATH "${RPATH_PREFIX};${RPATH_PREFIX}/${_RPATH2PYLIBS};${RPATH_PREFIX}/${_RPATH2MXLIBS}")
+  file(RELATIVE_PATH _RPATH2MXENV  ${MX_SITEPACKAGES}/mechanica ${CMAKE_INSTALL_PREFIX})
+  set_target_properties(mechanica_py PROPERTIES INSTALL_RPATH "${RPATH_PREFIX};${RPATH_PREFIX}/${_RPATH2PYLIBS};${RPATH_PREFIX}/${_RPATH2MXLIBS};${RPATH_PREFIX}/${_RPATH2MXENV}")
 endif()
 
 set_target_properties(mechanica_py PROPERTIES PREFIX "")
@@ -652,7 +668,8 @@ file(COPY particle_type.py DESTINATION ${MX_PYPKG_DIR})
 target_link_libraries(mechanica_shared
   PUBLIC
   mdcore_single
-  glfw
+  glfw 
+  ${GLFW_LIBRARIES} 
   LibSBML::LibSBML
   Magnum::Application
   Magnum::Magnum

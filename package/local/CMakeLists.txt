@@ -23,4 +23,4 @@ install(
 )
 
 configure_file(python/mx_config.in.py ${MX_PYPKG_DIR}/mx_config.py @ONLY)
-install(FILES ${MX_PYPKG_DIR}/mx_config.py DESTINATION ${MX_SITEPACKAGES_REL}/mechanica)
+install(FILES ${MX_PYPKG_DIR}/mx_config.py DESTINATION ${MX_SITEPACKAGES}/mechanica)

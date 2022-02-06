@@ -755,15 +755,15 @@ install(TARGETS mechanica_shared
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
 )
 
-install(TARGETS mechanica_py DESTINATION ${MX_SITEPACKAGES_REL}/mechanica)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mechanica.py DESTINATION ${MX_SITEPACKAGES_REL}/mechanica)
+install(TARGETS mechanica_py DESTINATION ${MX_SITEPACKAGES}/mechanica)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mechanica.py DESTINATION ${MX_SITEPACKAGES}/mechanica)
 install(FILES 
         __init__.py 
         lattice.py 
         jwidget.py
         particle_type.py 
         DESTINATION 
-        ${MX_SITEPACKAGES_REL}/mechanica
+        ${MX_SITEPACKAGES}/mechanica
 )
 foreach(_PRHDR ${HEADERS_PRIVATE})
   cmake_path(GET _PRHDR PARENT_PATH _PRHDR_PARENT)

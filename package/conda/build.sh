@@ -16,7 +16,7 @@ CMAKE_CONFIG_ARGS+=(-DLIBXML_INCLUDE_DIR:PATH=${PREFIX}/include/libxml2)
 
 if [[ $(uname) == Darwin ]]; then
   export MACOSX_DEPLOYMENT_TARGET=${MXOSX_SYSROOT}
-  export CONDA_BUILD_SYSROOT="$(xcode-select -p)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MXOSX_SYSROOT}.sdk"
+  CMAKE_CONFIG_ARGS+=(-DCMAKE_OSX_SYSROOT:PATH=${CONDA_BUILD_SYSROOT})
 else
   CMAKE_CONFIG_ARGS+=(-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld)
 

@@ -242,7 +242,7 @@ static float sphere_1body(EnergyMinimizer* p, MxVector3f *p1,
                           MxVector3f *f1) ;
 
 static MxVector3f random_point_disk(std::uniform_real_distribution<float> &uniform01) {
-    auto MxRandom = MxRandomEngine();
+    auto &MxRandom = MxRandomEngine();
     float r = sqrt(uniform01(MxRandom));
     float theta = 2 * M_PI * uniform01(MxRandom);
     return MxVector3f(r * cos(theta), r * sin(theta), 0.);
@@ -270,7 +270,7 @@ static std::vector<MxVector3f> random_points_disk(int n) {
 static MxVector3f random_point_sphere(std::uniform_real_distribution<float> &uniform01) {
     float radius = 1.0;
 
-    auto MxRandom = MxRandomEngine();
+    auto &MxRandom = MxRandomEngine();
     float theta = 2 * M_PI * uniform01(MxRandom);
     float phi = acos(1 - 2 * uniform01(MxRandom));
     float x = radius * sin(phi) * cos(theta);
@@ -313,7 +313,7 @@ static std::vector<MxVector3f> random_points_sphere(int n) {
 }
 
 static MxVector3f random_point_solidsphere(std::uniform_real_distribution<float> &uniform01) {
-    auto MxRandom = MxRandomEngine();
+    auto &MxRandom = MxRandomEngine();
     float theta = 2 * M_PI * uniform01(MxRandom);
     float phi = acos(1 - 2 * uniform01(MxRandom));
     float r = std::cbrt(uniform01(MxRandom));
@@ -349,7 +349,7 @@ static MxVector3f random_point_solidsphere_shell(std::uniform_real_distribution<
                                                  const float &cos0, 
                                                  const float &cos1) 
 {
-    auto MxRandom = MxRandomEngine();
+    auto &MxRandom = MxRandomEngine();
     float theta = 2 * M_PI * uniform01(MxRandom);
     float phi = acos(cos0 - (cos0-cos1) * uniform01(MxRandom));
     float r = std::cbrt((1-dr) + dr * uniform01(MxRandom));
@@ -382,7 +382,7 @@ static std::vector<MxVector3f> random_points_solidsphere_shell(int n, const floa
 }
 
 static MxVector3f random_point_solidcube(std::uniform_real_distribution<float> &uniform01) {
-    auto MxRandom = MxRandomEngine();
+    auto &MxRandom = MxRandomEngine();
     return MxVector3f(uniform01(MxRandom), uniform01(MxRandom), uniform01(MxRandom));
 }
 
@@ -412,7 +412,7 @@ static std::vector<MxVector3f> points_solidcube(int n) {
         if(n < 8) mx_exp(std::runtime_error("minimum 8 points in cube"));
 
         std::uniform_real_distribution<float> uniform01(-0.5, 0.5);
-        auto MxRandom = MxRandomEngine();
+        auto &MxRandom = MxRandomEngine();
         
         for(auto p = result.begin(); p != result.end(); ++p) {
             *p = MxVector3f(uniform01(MxRandom), uniform01(MxRandom), uniform01(MxRandom));
@@ -577,7 +577,7 @@ std::vector<MxVector3f> MxFilledCubeRandom(const MxVector3f &corner1, const MxVe
     std::uniform_real_distribution<float> disx(corner1[0], corner2[0]);
     std::uniform_real_distribution<float> disy(corner1[1], corner2[1]);
     std::uniform_real_distribution<float> disz(corner1[2], corner2[2]);
-    auto MxRandom = MxRandomEngine();
+    auto &MxRandom = MxRandomEngine();
 
     for(int i = 0; i < nParticles; ++i) {
         result.push_back(MxVector3f{disx(MxRandom), disy(MxRandom), disz(MxRandom)});
@@ -1459,6 +1459,7 @@ const int MxCompileFlags::getFlag(const std::string &_flag) {
     auto x = flags.find(_flag);
     if (x != flags.end()) return x->second;
     mx_exp(std::runtime_error("Flag not defined: " + _flag));
+    return 0;
 }
 
 

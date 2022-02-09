@@ -35,7 +35,7 @@ static const char *mxBuildTime() {
     return __TIME__;
 }
 
-static const bool mxHasCuda() {
+static bool mxHasCuda() {
 #ifdef MX_WITHCUDA
     return true;
 #else

@@ -285,23 +285,13 @@ class MxVector : public Vector<size, T> {
     operator const MagnumImplType<T>*() {                                               \
         return static_cast<const MagnumImplType<T>*>(this);                             \
     }                                                                                   \
-    operator MagnumImplType<T>&() {                                                     \
-        return *static_cast<MagnumImplType<T>*>(this);                                  \
-    }                                                                                   \
-    operator const MagnumImplType<T>&() const {                                         \
-        return *static_cast<const MagnumImplType<T>*>(this);                            \
-    }                                                                                   \
                                                                                         \
     Type(const Vector<size, T> &other) : MagnumImplType<T>() {                          \
         for(int i = 0; i < other.Size; ++i) this->_data[i] = other[i];                  \
     }                                                                                   \
     operator Vector<size, T>*() { return static_cast<Vector<size, T>*>(this); }         \
-    operator Vector<size, T>&() { return *static_cast<Vector<size, T>*>(this); }        \
     operator const Vector<size, T>*() {                                                 \
         return static_cast<const Vector<size, T>*>(this);                               \
-    }                                                                                   \
-    operator const Vector<size, T>&() const {                                           \
-        return *static_cast<const Vector<size, T>*>(this);                              \
     }                                                                                   \
     Type(const std::vector<T> &v) : MagnumImplType<T>() {                               \
         for(int i = 0; i < size; ++i) this->_data[i] = v[i];                            \

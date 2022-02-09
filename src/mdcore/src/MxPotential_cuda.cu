@@ -53,16 +53,10 @@ void Mx_cudaFree(MxPotential *p) {
         return;
     
     if(p->pca != NULL) {
-        MxPotential *pca;
-        if(cudaMemcpy(pca, p->pca, sizeof(MxPotential), cudaMemcpyDeviceToHost) != cudaSuccess) 
-            printf("%s\n", "pca load D2H failed!");
-        Mx_cudaFree(pca);
+        Mx_cudaFree(p->pca);
     }
     if(p->pcb != NULL) {
-        MxPotential *pcb;
-        if(cudaMemcpy(pcb, p->pcb, sizeof(MxPotential), cudaMemcpyDeviceToHost) != cudaSuccess)
-            printf("%s\n", "pcb load D2H failed!");
-        Mx_cudaFree(pcb);
+        Mx_cudaFree(p->pcb);
     }
 
     cudaFree(p->c);

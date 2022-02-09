@@ -4,6 +4,7 @@
 %}
 
 %ignore Differentiator;
+%ignore MxColor3Names;
 
 %include "MxUtil.h"
 

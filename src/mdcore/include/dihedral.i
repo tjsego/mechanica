@@ -5,6 +5,8 @@
 
 %rename(_getitem) MxDihedralHandle::operator[];
 
+%ignore MxDihedral_StylePtr;
+
 %include "dihedral.h"
 
 %template(vectorDihedralHandle_p) std::vector<MxDihedralHandle*>;

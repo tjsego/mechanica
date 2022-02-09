@@ -842,7 +842,7 @@ bool MxDihedralHandle::check() {
 }
 
 HRESULT MxDihedralHandle::destroy() {
-    MxDihedral_Destroy(this->get());
+    return MxDihedral_Destroy(this->get());
 }
 
 std::vector<MxDihedralHandle*> MxDihedralHandle::items() {

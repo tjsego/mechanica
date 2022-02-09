@@ -106,9 +106,6 @@ class MxMatrix : public Matrix<size, T> {
     static Type<T>& from(T* data) {                                                     \
     return *reinterpret_cast<Type<T>*>(&MagnumImplType<T>::from(data));                 \
     }                                                                                   \
-    static const Type<T>& from(const T* data) {                                         \
-        return (Type<T>)MagnumImplType<T>::from(data);                                  \
-    }                                                                                   \
                                                                                         \
     Type<T> operator-() const {                                                         \
         return (Type<T>)MagnumImplType<T>::operator-();                                 \
@@ -201,25 +198,13 @@ class MxMatrix : public Matrix<size, T> {
     operator const MagnumImplType<T>*() {                                               \
         return static_cast<const MagnumImplType<T>*>(this);                             \
     }                                                                                   \
-    operator MagnumImplType<T>&() {                                                     \
-        return *static_cast<MagnumImplType<T>*>(this);                                  \
-    }                                                                                   \
-    operator const MagnumImplType<T>&() const {                                         \
-        return *static_cast<const MagnumImplType<T>*>(this);                            \
-    }                                                                                   \
                                                                                         \
     Type(const Matrix<size, T>& other) : MagnumImplType<T>() {                          \
         for(int i = 0; i < other.Size; ++i) this->operator[](i) = other[i];             \
     }                                                                                   \
     operator Matrix<size, T>*() { return reinterpret_cast<Matrix<size, T>*>(this); }    \
-    operator Matrix<size, T>&() {                                                       \
-        return *reinterpret_cast<Matrix<size, T>*>(this);                               \
-    }                                                                                   \
     operator const Matrix<size, T>*() {                                                 \
         return reinterpret_cast<const Matrix<size, T>*>(this);                          \
-    }                                                                                   \
-    operator const Matrix<size, T>&() const {                                           \
-        return *reinterpret_cast<const Matrix<size, T>*>(this);                         \
     }                                                                                   \
     operator std::vector<std::vector<T> >&() const {                                    \
         std::vector<T> *result = new std::vector<T>(size);                              \

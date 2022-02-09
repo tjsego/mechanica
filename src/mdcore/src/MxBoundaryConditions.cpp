@@ -578,8 +578,6 @@ MxBoundaryConditionsArgsContainer::MxBoundaryConditionsArgsContainer(int *_bcVal
                                                                      std::unordered_map<std::string, float> *_bcRestores) : 
     bcValue(nullptr), bcVals(nullptr), bcVels(nullptr), bcRestores(nullptr)
 {
-    switch(true);
-    
     if(_bcValue) setValueAll(*_bcValue);
     else {
         if(_bcVals)

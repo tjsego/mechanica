@@ -107,7 +107,7 @@ const MxVector4f &MxClipPlanes::getClipPlaneEquation(const unsigned int &index) 
         MxUniverseRenderer *renderer = MxSystem::getRenderer();
         
         if(index > renderer->clipPlaneCount()) mx_exp(std::range_error("index out of bounds"));
-        return renderer->getClipPlaneEquation(index);
+        return MxVector4f::from(renderer->getClipPlaneEquation(index).data());
     }
     catch(const std::exception &e) {
         mx_error(E_FAIL, e.what());

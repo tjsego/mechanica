@@ -518,7 +518,7 @@ int cuda_bonds_bonds_initialize(engine *e, MxBond *bonds, int N) {
     MxBondCUDA *bonds_cuda = (MxBondCUDA*)malloc(size_bonds);
 
     int nr_runners = e->nr_runners;
-    auto func = [&bonds, &bonds_cuda, N, nr_runners](int tid) {
+    auto func = [&bonds, &bonds_cuda, N, nr_runners](size_t tid) {
         for(int i = tid; i < N; i += nr_runners) 
             bonds_cuda[i] = MxBondCUDA(&bonds[i]);
     };
@@ -550,7 +550,7 @@ int cuda_bonds_bonds_finalize(engine *e) {
 
     int nr_runners = e->nr_runners;
     int N = cuda_bonds_size;
-    auto func = [&bonds_cuda, N, nr_runners](int tid) {
+    auto func = [&bonds_cuda, N, nr_runners](size_t tid) {
         for(int i = tid; i < N; i += nr_runners) 
             bonds_cuda[i].finalize();
     };
@@ -711,7 +711,7 @@ int engine_cuda_finalize_bonds(engine *e, int *binds, int nr_bonds) {
         return cuda_error(engine_err_cuda);
 
     int nr_runners = e->nr_runners;
-    auto func = [&bonds_cuda, &binds, nr_bonds, nr_runners](int tid) {
+    auto func = [&bonds_cuda, &binds, nr_bonds, nr_runners](size_t tid) {
         for(int i = tid; i < nr_bonds; i += nr_runners) 
             bonds_cuda[binds[i]].finalize();
     };
@@ -738,7 +738,7 @@ int engine_cuda_finalize_bonds_all(engine *e) {
 
     int nr_bonds = cuda_bonds_size;
     int nr_runners = e->nr_runners;
-    auto func = [&bonds_cuda, nr_bonds, nr_runners](int tid) {
+    auto func = [&bonds_cuda, nr_bonds, nr_runners](size_t tid) {
         for(int i = tid; i < nr_bonds; i += nr_runners) 
             bonds_cuda[i].finalize();
     };
@@ -977,7 +977,7 @@ int engine_bond_cuda_load_bond_chunk(MxBond *bonds, int loc, int N) {
 
     int nr_runners = _Engine.nr_runners;
     auto bl = cuda_bonds_bonds_local;
-    auto func = [&bl, &buff, N, nr_runners](int tid) -> void {
+    auto func = [&bl, &buff, N, nr_runners](size_t tid) -> void {
         for(int j = tid; j < N; j += nr_runners) 
             bl[j] = MxBondCUDAData(&buff[j]);
     };
@@ -1335,7 +1335,7 @@ int cuda_angles_angles_initialize(engine *e, MxAngle *angles, int N) {
     MxAngleCUDA *angles_cuda = (MxAngleCUDA*)malloc(size_angles);
 
     int nr_runners = e->nr_runners;
-    auto func = [&angles, &angles_cuda, N, nr_runners](int tid) {
+    auto func = [&angles, &angles_cuda, N, nr_runners](size_t tid) {
         for(int i = tid; i < N; i += nr_runners) 
             angles_cuda[i] = MxAngleCUDA(&angles[i]);
     };
@@ -1367,7 +1367,7 @@ int cuda_angles_angles_finalize(engine *e) {
 
     int nr_runners = e->nr_runners;
     int N = cuda_angles_size;
-    auto func = [&angles_cuda, N, nr_runners](int tid) {
+    auto func = [&angles_cuda, N, nr_runners](size_t tid) {
         for(int i = tid; i < N; i += nr_runners) 
             angles_cuda[i].finalize();
     };
@@ -1593,7 +1593,7 @@ int engine_cuda_finalize_angles(engine *e, int *ainds, int nr_angles) {
         return cuda_error(engine_err_cuda);
 
     int nr_runners = e->nr_runners;
-    auto func = [&angles_cuda, &ainds, nr_angles, nr_runners](int tid) {
+    auto func = [&angles_cuda, &ainds, nr_angles, nr_runners](size_t tid) {
         for(int i = tid; i < nr_angles; i += nr_runners) 
             angles_cuda[ainds[i]].finalize();
     };
@@ -1637,7 +1637,7 @@ int engine_cuda_finalize_angles_all(engine *e) {
 
     int nr_angles = cuda_angles_size;
     int nr_runners = e->nr_runners;
-    auto func = [&angles_cuda, nr_angles, nr_runners](int tid) {
+    auto func = [&angles_cuda, nr_angles, nr_runners](size_t tid) {
         for(int i = tid; i < nr_angles; i += nr_runners) 
             angles_cuda[i].finalize();
     };
@@ -1874,7 +1874,7 @@ int engine_angle_cuda_load_angle_chunk(MxAngle *angles, int loc, int N) {
 
     int nr_runners = _Engine.nr_runners;
     auto al = cuda_angles_angles_local;
-    auto func = [&al, &buff, loc, N, nr_runners](int tid) -> void {
+    auto func = [&al, &buff, loc, N, nr_runners](size_t tid) -> void {
         for(int j = tid; j < N; j += nr_runners) 
             al[j] = MxAngleCUDAData(&buff[j], loc + j);
     };

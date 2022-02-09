@@ -1,5 +1,16 @@
 %module mechanica
 
+#pragma SWIG nowarn=312 // Nested union not currently supported
+#pragma SWIG nowarn=314 // '<X>' is a python keyword, renaming to '_<X>'
+#pragma SWIG nowarn=325 // Nested class not currently supported
+#pragma SWIG nowarn=389 // operator[] ignored (consider using %extend)
+#pragma SWIG nowarn=401 // Nothing known about base class
+#pragma SWIG nowarn=503 // Can't wrap '<X>' unless renamed to a valid identifier.
+#pragma SWIG nowarn=506 // Can't wrap varargs with keyword arguments enabled
+#pragma SWIG nowarn=509 // Overloaded method <F> effectively ignored, as it is shadowed
+#pragma SWIG nowarn=511 // Can't use keyword arguments with overloaded functions
+#pragma SWIG nowarn=560 // Unknown Doxygen command: requires
+
 %include "typemaps.i"
 
 // C++ std::string handling
@@ -163,9 +174,6 @@
 
 // Simulator
 %include "MxSimulator.i"
-
-// SurfaceSimulator
-%include "MxSurfaceSimulator.i"
 
 // Universe
 %include "MxUniverse.i"

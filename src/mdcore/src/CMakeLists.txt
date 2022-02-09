@@ -64,7 +64,7 @@ set(PRIVATE_HEADERS
   btree.h
   mainpage.h
   smoothing_kernel.hpp
-  reader.h
+  # reader.h
   MxConstraint.hpp
   MxCluster.hpp
   engine_advance.h
@@ -101,7 +101,7 @@ SET(SOURCES
   errs.cpp
   bond.cpp
   angle.cpp
-  reader.cpp
+  # reader.cpp
   rigid.cpp
   dihedral.cpp
   exclusion.cpp

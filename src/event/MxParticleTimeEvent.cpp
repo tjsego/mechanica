@@ -94,8 +94,8 @@ HRESULT MxParticleTimeEvent::eval(const double &time) {
 }
 
 MxParticleTimeEvent::operator MxTimeEvent&() const {
-    MxTimeEvent e(period, NULL, NULL, NULL, start_time, end_time);
-    return e;
+    MxTimeEvent *e = new MxTimeEvent(period, NULL, NULL, NULL, start_time, end_time);
+    return *e;
 }
 
 double MxParticleTimeEvent::getNextTime(const double &current_time) {

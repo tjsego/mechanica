@@ -36,8 +36,6 @@ class MxQuaternion : public Quaternion<T> {
         MxQuaternion(const Quaternion<T>* other) noexcept: Quaternion<T>(*other) {}
         operator Quaternion<T>*() { return static_cast<Quaternion<T>>(this); }
         operator const Quaternion<T>*() { return static_cast<const Quaternion<T>>(this); }
-        operator Quaternion<T>&() const { return *static_cast<Quaternion<T>>(this); }
-        operator const Quaternion<T>&() const { return *static_cast<const Quaternion<T>>(this); }
 
         T* data() { return Quaternion<T>::data(); }
         constexpr const T* data() const { return Quaternion<T>::data(); }

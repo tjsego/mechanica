@@ -61,7 +61,7 @@ jobs:
         displayName: Generate environment recipe
       - task: CopyFiles@2
         inputs:
-          contents: 
+          contents: |
             '$(INSTALL_DIR)/bin/**'
             '$(INSTALL_DIR)/etc/**'
             '$(INSTALL_DIR)/include/**'

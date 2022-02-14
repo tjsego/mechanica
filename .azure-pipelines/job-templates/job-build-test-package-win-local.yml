@@ -6,19 +6,18 @@ parameters:
   working_dir: ''
   staging_dir: ''
 
-variables:
-  PY_VERSION_DEC: ${{ format('3.{0}', parameters.py_minor_version) }}
-  PY_VERSION_LAB: ${{ format('py3{0}', parameters.py_minor_version) }}
-  ROOT_DIR: '${{ parameters.working_dir }}\mechanica'
-  SOURCE_DIR: '$(ROOT_DIR)\mechanica'
-  INSTALL_DIR: '$(ROOT_DIR)\mechanica_install'
-  EXEC_PYTHON: '$(INSTALL_DIR)\mx_env\python.exe'
-
 jobs:
   - job: ${{ parameters.name }}
     displayName: ${{ parameters.name }}
     continueOnError: false
     timeoutInMinutes: 0
+    variables:
+      PY_VERSION_DEC: ${{ format('3.{0}', parameters.py_minor_version) }}
+      PY_VERSION_LAB: ${{ format('py3{0}', parameters.py_minor_version) }}
+      ROOT_DIR: '${{ parameters.working_dir }}\mechanica'
+      SOURCE_DIR: '$(ROOT_DIR)\mechanica'
+      INSTALL_DIR: '$(ROOT_DIR)\mechanica_install'
+      EXEC_PYTHON: '$(INSTALL_DIR)\mx_env\python.exe'
     steps:
       
       # Setup

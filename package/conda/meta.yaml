@@ -17,7 +17,8 @@ source:
 
 build:
   number: {{ environ.get('MX_BUILDNUMBER', 0) }}
-  script_env: # [osx]
+  script_env:
+    - MXBUILDQUAL={{ environ.get('MX_BUILDQUAL', '') }}
     - CONDA_BUILD_SYSROOT={{ environ.get('MX_BUILD_SYSROOT', '') }} # [osx]
 
 requirements:

@@ -12,4 +12,4 @@ foreach(hdr ${MX_MODEL_HDRS_LOCAL})
   )
 endforeach(hdr)
 
-install(FILES __init__.py DESTINATION ${MX_SITEPACKAGES_REL}/mechanica/models)
+install(FILES __init__.py DESTINATION ${MX_SITEPACKAGES}/mechanica/models)

@@ -264,14 +264,18 @@ if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
   include_directories(${Python_INCLUDE_DIRS})
 endif()
 
-# Determine install site-packages location using info from environment
-execute_process(
-  COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
-  OUTPUT_VARIABLE MX_SITEPACKAGES_REL
-)
-string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
-file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
-set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
+# Determine install site-packages location using info from environment if not provided
+if(DEFINED MX_INSTALL_PREFIX_PYTHON)
+  SET(MX_SITEPACKAGES ${MX_INSTALL_PREFIX_PYTHON})
+else()
+  execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
+    OUTPUT_VARIABLE MX_SITEPACKAGES_REL
+  )
+  string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
+  file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
+  set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
+endif()
 message("MX_SITEPACKAGES: ${MX_SITEPACKAGES}")
 
 # needed for jpeg image writer

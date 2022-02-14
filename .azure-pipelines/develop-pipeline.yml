@@ -16,14 +16,15 @@ stages:
     pool:
       vmImage: 'windows-2019'
     dependsOn: []
-    - template: .azure-pipelines/job-templates/job-build-test-package-win-local.yml
-      parameters:
-        name: 'MechanicaBuildWindows'
-        platform_name: 'win64'
-        mx_buildqual: $(mx_buildqual)
-        py_minor_version: $(py_minor_version)
-        working_dir: $(System.DefaultWorkingDirectory)
-        staging_dir: $(Build.ArtifactStagingDirectory)
+    jobs:
+      - template: .azure-pipelines/job-templates/job-build-test-package-win-local.yml
+        parameters:
+          name: 'MechanicaBuildWindows'
+          platform_name: 'win64'
+          mx_buildqual: $(mx_buildqual)
+          py_minor_version: $(py_minor_version)
+          working_dir: $(System.DefaultWorkingDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)
 
   # Linux build: local
 
@@ -32,14 +33,15 @@ stages:
     pool: 
       vmImage: 'ubuntu-20.04'
     dependsOn: []
-    - template: .azure-pipelines/job-templates/job-build-test-package-linux-local.yml
-      parameters:
-        name: 'MechanicaBuildLinuxLocal'
-        platform_name: 'linux64'
-        mx_buildqual: $(mx_buildqual)
-        py_minor_version: $(py_minor_version)
-        working_dir: $(System.DefaultWorkingDirectory)
-        staging_dir: $(Build.ArtifactStagingDirectory)
+    jobs:
+      - template: .azure-pipelines/job-templates/job-build-test-package-linux-local.yml
+        parameters:
+          name: 'MechanicaBuildLinuxLocal'
+          platform_name: 'linux64'
+          mx_buildqual: $(mx_buildqual)
+          py_minor_version: $(py_minor_version)
+          working_dir: $(System.DefaultWorkingDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)
 
   # MacOS build: local
 
@@ -48,11 +50,12 @@ stages:
     pool: 
       vmImage: 'macOS-10.11'
     dependsOn: []
-    - template: .azure-pipelines/job-templates/job-build-test-package-osx-local.yml
-      parameters:
-        name: 'MechanicaBuildMacLocal'
-        platform_name: 'osx64'
-        mx_buildqual: $(mx_buildqual)
-        py_minor_version: $(py_minor_version)
-        working_dir: $(System.DefaultWorkingDirectory)
-        staging_dir: $(Build.ArtifactStagingDirectory)
+    jobs:
+      - template: .azure-pipelines/job-templates/job-build-test-package-osx-local.yml
+        parameters:
+          name: 'MechanicaBuildMacLocal'
+          platform_name: 'osx64'
+          mx_buildqual: $(mx_buildqual)
+          py_minor_version: $(py_minor_version)
+          working_dir: $(System.DefaultWorkingDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)

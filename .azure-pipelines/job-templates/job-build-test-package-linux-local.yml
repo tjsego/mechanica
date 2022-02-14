@@ -60,8 +60,6 @@ jobs:
           source activate ${MXENV}
           $(EXEC_PYTHON) $(SOURCE_DIR)/.azure-pipelines/mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }}
         displayName: Generate environment recipe
-      - script: mkdir ${{ parameters.staging_dir }}/cpu
-        displayName: Create packaging directory
       - task: CopyFiles@2
         inputs:
           contents:
@@ -74,10 +72,10 @@ jobs:
             '$(INSTALL_DIR)/VERSION.txt'
             '$(SOURCE_DIR)/.azure-pipelines/env-installers/mx_install_env.sh'
             '$(SOURCE_DIR)/.azure-pipelines/env-recipes/mx_rtenv.yml'
-          targetFolder: ${{ parameters.staging_dir }}/cpu
+          targetFolder: ${{ parameters.staging_dir }}
         displayName: Stage package
       
       # Publish
-      - publish: ${{ parameters.staging_dir }}/cpu
+      - publish: ${{ parameters.staging_dir }}
         artifact: mechanica-${{ parameters.platform_name }}-$(PY_VERSION_LAB)
         displayName: Publish package

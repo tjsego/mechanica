@@ -259,10 +259,13 @@ std::string print_eglinfo()
 					      EGL_DEFAULT_DISPLAY,
 					      NULL), "X11 platform");
      
+     #ifdef EGL_PLATFORM_SURFACELESS_MESA
      if (strstr(clientext, "EGL_MESA_platform_surfaceless"))
        ret += doOneDisplay(ss, getPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA,
 					      EGL_DEFAULT_DISPLAY,
 					      NULL), "Surfaceless platform");
+     #endif
+     
      if (strstr(clientext, "EGL_EXT_platform_device"))
        ret += doOneDisplay(ss, getPlatformDisplay(EGL_PLATFORM_DEVICE_EXT,
 					      EGL_DEFAULT_DISPLAY,

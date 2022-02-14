@@ -25,7 +25,7 @@ stages:
     dependsOn: []
     jobs:
       - ${{ each py_minor_version in $(py_minor_versions) }}:
-        - template: .azure-pipelines/job-templates/job-build-test-package-win-local.yml
+        - template: job-templates/job-build-test-package-win-local.yml
           parameters:
             name: ${{ format('MechanicaBuildWindowsLocal - Python 3.{0}', $(py_minor_version)) }}
             platform_name: 'win64'
@@ -43,7 +43,7 @@ stages:
     dependsOn: []
     jobs:
       - ${{ each py_minor_version in $(py_minor_versions) }}:
-        - template: .azure-pipelines/job-templates/job-build-test-package-linux-local.yml
+        - template: job-templates/job-build-test-package-linux-local.yml
           parameters:
             name: ${{ format('MechanicaBuildLinuxLocal - Python 3.{0}', $(py_minor_version)) }}
             platform_name: 'linux64'
@@ -61,7 +61,7 @@ stages:
     dependsOn: []
     jobs:
       - ${{ each py_minor_version in $(py_minor_versions) }}:
-        - template: .azure-pipelines/job-templates/job-build-test-package-osx-local.yml
+        - template: job-templates/job-build-test-package-osx-local.yml
           parameters:
             name: ${{ format('MechanicaBuildMacLocal - Python 3.{0}', $(py_minor_version)) }}
             platform_name: 'osx64'
@@ -78,7 +78,7 @@ stages:
       vmImage: 'windows-2019'
     dependsOn: []
     jobs:
-      - template: .azure-pipelines/job-templates/job-build-test-package-win-conda.yml
+      - template: job-templates/job-build-test-package-win-conda.yml
         parameters:
           name: 'MechanicaBuildWindowsConda'
           platform_name: 'win64'
@@ -96,7 +96,7 @@ stages:
       vmImage: 'ubuntu-20.04'
     dependsOn: []
     jobs:
-      - template: .azure-pipelines/job-templates/job-build-test-package-linux-conda.yml
+      - template: job-templates/job-build-test-package-linux-conda.yml
         parameters:
           name: 'MechanicaBuildLinuxConda'
           platform_name: 'linux64'
@@ -114,7 +114,7 @@ stages:
       vmImage: 'macOS-10.11'
     dependsOn: []
     jobs:
-      - template: .azure-pipelines/job-templates/job-build-test-package-osx-conda.yml
+      - template: job-templates/job-build-test-package-osx-conda.yml
         parameters:
           name: 'MechanicaBuildMacConda'
           platform_name: 'osx64'

@@ -17,7 +17,7 @@ stages:
       vmImage: 'windows-2019'
     dependsOn: []
     jobs:
-      - template: .azure-pipelines/job-templates/job-build-test-package-win-local.yml
+      - template: job-templates/job-build-test-package-win-local.yml
         parameters:
           name: 'MechanicaBuildWindows'
           platform_name: 'win64'
@@ -34,7 +34,7 @@ stages:
       vmImage: 'ubuntu-20.04'
     dependsOn: []
     jobs:
-      - template: .azure-pipelines/job-templates/job-build-test-package-linux-local.yml
+      - template: job-templates/job-build-test-package-linux-local.yml
         parameters:
           name: 'MechanicaBuildLinuxLocal'
           platform_name: 'linux64'
@@ -51,7 +51,7 @@ stages:
       vmImage: 'macOS-10.11'
     dependsOn: []
     jobs:
-      - template: .azure-pipelines/job-templates/job-build-test-package-osx-local.yml
+      - template: job-templates/job-build-test-package-osx-local.yml
         parameters:
           name: 'MechanicaBuildMacLocal'
           platform_name: 'osx64'

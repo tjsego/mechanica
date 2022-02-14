@@ -50,7 +50,7 @@ jobs:
       # Conda recipe has built-in tests, so none necessary here
 
       # Package and publish
-      - template: .azure-pipelines/job-templates/steps-package-publish-conda.yml
+      - template: steps-package-publish-conda.yml
         parameters:
           platform_name: 'linux64'
           mx_version: $(mx_version)

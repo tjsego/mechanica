@@ -174,6 +174,15 @@ set(MX_VERSION_DEV ${CMAKE_MATCH_1})
 
 message("version: ${MX_VERSION_MAJOR}.${MX_VERSION_MINOR}.${MX_VERSION_PATCH}")
 
+# Get the build qualifier from the environment, if one was specified
+if(DEFINED ENV{MXBUILDQUAL})
+  set(MX_BUILDQUAL $ENV{MXBUILDQUAL})
+  set(MX_HASBUILDQUAL true)
+  message("qualifer: ${MX_BUILDQUAL}")
+else()
+  set(MX_HASBUILDQUAL false)
+endif()
+
 message("CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 message("CMAKE_OSX_DEPLOYMENT_TARGET: ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 message("MACOSX_DEPLOYMENT_TARGET: ${MACOSX_DEPLOYMENT_TARGET}")

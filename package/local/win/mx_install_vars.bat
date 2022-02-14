@@ -15,5 +15,8 @@ set MXINSTALLDIR=%MXSRCDIR%\..\mechanica_install
 rem path to environment root
 set MXENV=%MXINSTALLDIR%\mx_env
 
+rem local build qualifier
+set MXBUILDQUAL="local"
+
 rem path to cuda root directory
 set MXCUDAENV=""

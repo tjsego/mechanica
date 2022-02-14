@@ -1,0 +1,59 @@
+parameters:
+  name: ''
+  platform_name: 'linux64'
+  mx_buildqual: ''
+  working_dir: ''
+  staging_dir: ''
+  mx_version: ''
+  mx_buildnum: ''
+  cuda: false
+
+variables:
+  ROOT_DIR: '${{ parameters.working_dir }}/mechanica'
+  SOURCE_DIR: '$(ROOT_DIR)/mechanica'
+  BUILD_ROOT: '$(ROOT_DIR)/mx_condabuild'
+  ENV_DIR: '$(BUILD_ROOT)/buildenv'
+  BUILD_OUTPUT: '$(BUILD_ROOT)/result'
+
+jobs:
+  - job: ${{ parameters.name }}
+    displayName: ${{ parameters.name }}
+    continueOnError: false
+    timeoutInMinutes: 0
+    steps:
+
+      # Setup
+      - bash: echo "##vso[task.prependpath]$CONDA/bin"
+        displayName: Add conda to path
+      - script: sudo apt install -y libgl1-mesa-dev libegl1-mesa-dev
+        displayName: Install dependencies
+      - script: |
+          mkdir $(ROOT_DIR)
+          mkdir $(BUILD_ROOT)
+          mkdir $(BUILD_OUTPUT)
+          cd $(ROOT_DIR)
+        displayName: Create working directories
+      - checkout: self
+        submodules: recursive
+        path: $(ROOT_DIR)
+        displayName: Get source
+      - script: conda create -p $(ENV_DIR) conda-build conda-verify -y
+        displayName: Conda setup
+      
+      # Build
+      - script: |
+          source conda activate $(ENV_DIR)
+          export MX_VERSION=$(mx_version)
+          export MX_BUILDNUMBER=$(mx_buildnum)
+          export MX_BUILDQUAL=${{ parameters.mx_buildqual }}
+          conda build -c conda-forge --croot $(BUILD_OUTPUT) $(SOURCE_DIR)/package/conda
+
+      # Conda recipe has built-in tests, so none necessary here
+
+      # Package and publish
+      - template: .azure-pipelines/job-templates/steps-package-publish-conda.yml
+        parameters:
+          platform_name: 'linux64'
+          mx_version: $(mx_version)
+          staging_dir: ${{ parameters.staging_dir }}
+          build_output: $(BUILD_OUTPUT)

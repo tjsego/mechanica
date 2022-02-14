@@ -1,0 +1,12 @@
+name: mechanica
+channels:
+  - conda-forge
+dependencies:
+  - python=@PYTHON_VERSION@
+  - numpy
+  - jpeg
+  - bzip2
+  - libxml2
+  - matplotlib
+  - assimp=5
+  - nlohmann_json

@@ -1,0 +1,81 @@
+parameters:
+  name: ''
+  platform_name: 'osx64'
+  mx_buildqual: ''
+  py_minor_version: 7
+  working_dir: ''
+  staging_dir: ''
+
+variables:
+  PY_VERSION_DEC: ${{ format('3.{0}', parameters.py_minor_version) }}
+  PY_VERSION_LAB: ${{ format('py3{0}', parameters.py_minor_version) }}
+  ROOT_DIR: '${{ parameters.working_dir }}'/mechanica
+  SOURCE_DIR: '$(ROOT_DIR)/mechanica'
+  INSTALL_DIR: '$(ROOT_DIR)/mechanica_install'
+  EXEC_PYTHON: '$(INSTALL_DIR)/mx_env/bin/python'
+
+jobs:
+  - job: ${{ parameters.name }}
+    displayName: ${{ parameters.name }}
+    continueOnError: false
+    timeoutInMinutes: 0
+    steps:
+      
+      # Setup
+      - bash: echo "##vso[task.prependpath]$CONDA/bin"
+        displayName: Add conda to path
+      - bash: sudo chown -R $USER $CONDA
+        displayName: Take ownership of conda installation
+      - script: |
+          mkdir $(ROOT_DIR)
+          cd $(ROOT_DIR)
+        displayName: Create working directory
+      - checkout: self
+        submodules: recursive
+        path: $(ROOT_DIR)
+        displayName: Get source
+      - script: conda config --add channels conda-forge
+        displayName: Conda setup
+      
+      # Build
+      - script: |
+          source $(SOURCE_DIR)/package/local/osx/mx_install_vars.sh
+          bash $(SOURCE_DIR)/package/local/osx/mx_install_env.sh
+          source activate ${MXENV}
+          conda install -y python=$(PY_VERSION_DEC)
+          export MXBUILDQUAL=${{ parameters.mx_buildqual }}
+          bash $(SOURCE_DIR)/package/local/osx/mx_install_all.sh
+        displayName: Execute build
+      
+      # Test
+      - script: |
+          source $(INSTALL_DIR)/etc/mx_vars.sh
+          source activate ${MXENV}
+          $(EXEC_PYTHON) $(SOURCE_DIR)/.azure-pipelines/tests-temp/test.py
+        displayName: Run supplementary test
+      
+      # Package
+      - script: |
+          source $(INSTALL_DIR)/etc/mx_vars.sh
+          source activate ${MXENV}
+          $(EXEC_PYTHON) $(SOURCE_DIR)/.azure-pipelines/mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }}
+        displayName: Generate environment recipe
+      - task: CopyFiles@2
+        inputs:
+          contents: 
+            '$(INSTALL_DIR)/bin/**'
+            '$(INSTALL_DIR)/etc/**'
+            '$(INSTALL_DIR)/include/**'
+            '$(INSTALL_DIR)/lib/**'
+            '$(INSTALL_DIR)/README.md'
+            '$(INSTALL_DIR)/LICENSE.txt'
+            '$(INSTALL_DIR)/VERSION.txt'
+            '$(SOURCE_DIR)/.azure-pipelines/env-installers/mx_install_env.sh'
+            '$(SOURCE_DIR)/.azure-pipelines/env-recipes/mx_rtenv.yml'
+          targetFolder: ${{ parameters.staging_dir }}
+        displayName: Stage package
+      
+      # Publish
+      - publish: ${{ parameters.staging_dir }}
+        artifact: mechanica-${{ parameters.platform_name }}-$(PY_VERSION_LAB)
+        displayName: Publish package

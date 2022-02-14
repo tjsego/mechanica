@@ -1,0 +1,146 @@
+parameters:
+  name: ''
+  platform_name: 'win64'
+  mx_buildqual: ''
+  py_minor_version: 7
+  working_dir: ''
+  staging_dir: ''
+  cuda: false
+
+variables:
+  PY_VERSION_DEC: ${{ format('3.{0}', parameters.py_minor_version) }}
+  PY_VERSION_LAB: ${{ format('py3{0}', parameters.py_minor_version) }}
+  ROOT_DIR: '${{ parameters.working_dir }}\mechanica'
+  SOURCE_DIR: '$(ROOT_DIR)\mechanica'
+  INSTALL_DIR: '$(ROOT_DIR)\mechanica_install'
+  EXEC_PYTHON: '$(INSTALL_DIR)\mx_env\python.exe'
+
+jobs:
+  - job: ${{ parameters.name }}
+    displayName: ${{ parameters.name }}
+    continueOnError: false
+    timeoutInMinutes: 0
+    steps:
+      
+      # Setup
+      - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
+        displayName: Add conda to path
+      - script: |
+          mkdir $(ROOT_DIR)
+          cd $(ROOT_DIR)
+        displayName: Create working directory
+      - checkout: self
+        submodules: recursive
+        path: $(ROOT_DIR)
+        displayName: Get source
+      - script: call conda config --add channels conda-forge
+        displayName: Conda setup
+      
+      # Build: CPU
+      - ${{ if eq(parameters.cuda, false) }}:
+        - script: |
+            call $(SOURCE_DIR)\package\local\win\mx_install_vars
+            call $(SOURCE_DIR)\package\local\win\mx_install_env
+            call conda activate %MXENV%
+            call conda install -y python=$(PY_VERSION_DEC)
+            set MXBUILDQUAL=${{ parameters.mx_buildqual }}
+            call $(SOURCE_DIR)\package\local\win\mx_install_all
+          displayName: Execute build
+      
+      # Build: CUDA
+      - ${{ if eq(parameters.cuda, true) }}:
+        - script: |
+            call $(SOURCE_DIR)\package\local\win\mx_install_vars
+            call $(SOURCE_DIR)\package\local\win\mx_install_env
+            call conda activate %MXENV%
+            call conda install -y python=$(PY_VERSION_DEC)
+            call conda install -y -c nvidia cuda
+            set MXBUILDQUAL=${{ parameters.mx_buildqual }}
+            set MX_WITHCUDA=1
+            set CUDAARCHS=35;37;50;52;53;60;61;62;70;72;75;80;86;87
+            call $(SOURCE_DIR)\package\local\win\mx_install_all
+          displayName: Execute build
+      
+      # Test: CPU
+      - ${{ if eq(parameters.cuda, false) }}:
+        - script: |
+            call $(INSTALL_DIR)\etc\mx_vars
+            call conda activate %MXENV%
+            $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\tests-temp\test.py
+          displayName: Run supplementary test
+      
+      # Test: CUDA
+      - ${{ if eq(parameters.cuda, true) }}:
+        - script: |
+            call $(INSTALL_DIR)\etc\mx_vars
+            call conda activate %MXENV%
+            $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\tests-temp\test_gpu.py
+          displayName: Run supplementary test
+      
+      # Package
+
+      #   Generate environment recipe: CPU
+      - ${{ if eq(parameters.cuda, false) }}:
+        - script: |
+            call $(INSTALL_DIR)\etc\mx_vars
+            call conda activate %MXENV%
+            $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }}
+          displayName: Generate environment recipe
+
+      #   Generate environment recipe: CUDA
+      - ${{ if eq(parameters.cuda, false) }}:
+        - script: |
+            call $(INSTALL_DIR)\etc\mx_vars
+            call conda activate %MXENV%
+            $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }} -c
+          displayName: Generate environment recipe
+      
+      #   Stage artifact contents: CPU
+      - ${{ if eq(parameters.cuda, false) }}:
+        - script: mkdir ${{ parameters.staging_dir }}/cpu
+          displayName: Create packaging directory
+        - task: CopyFiles@2
+          inputs:
+            contents: 
+              '$(INSTALL_DIR)\bin\**'
+              '$(INSTALL_DIR)\etc\**'
+              '$(INSTALL_DIR)\include\**'
+              '$(INSTALL_DIR)\lib\**'
+              '$(INSTALL_DIR)\README.md'
+              '$(INSTALL_DIR)\LICENSE.txt'
+              '$(INSTALL_DIR)\VERSION.txt'
+              '$(SOURCE_DIR)\.azure-pipelines\env-installers\mx_install_env.bat'
+              '$(SOURCE_DIR)\.azure-pipelines\env-recipes\mx_rtenv.yml'
+            targetFolder: ${{ parameters.staging_dir }}/cpu
+          displayName: Stage package
+      
+      #   Stage artifact contents: CUDA
+      - ${{ if eq(parameters.cuda, true) }}:
+        - script: mkdir ${{ parameters.staging_dir }}/cuda
+          displayName: Create packaging directory
+        - task: CopyFiles@2
+          inputs:
+            contents: 
+              '$(INSTALL_DIR)\bin\**'
+              '$(INSTALL_DIR)\etc\**'
+              '$(INSTALL_DIR)\include\**'
+              '$(INSTALL_DIR)\lib\**'
+              '$(INSTALL_DIR)\README.md'
+              '$(INSTALL_DIR)\LICENSE.txt'
+              '$(INSTALL_DIR)\VERSION.txt'
+              '$(SOURCE_DIR)\.azure-pipelines\env-installers\mx_install_env.bat'
+              '$(SOURCE_DIR)\.azure-pipelines\env-recipes\mx_rtenv.yml'
+            targetFolder: ${{ parameters.staging_dir }}/cuda
+          displayName: Stage package
+      
+      # Publish: CPU
+      - ${{ if eq(parameters.cuda, false) }}:
+        - publish: ${{ parameters.staging_dir }}/cpu
+          artifact: mechanica-${{ parameters.platform_name }}-$(PY_VERSION_LAB)
+          displayName: Publish package
+      
+      # Publish: CUDA
+      - ${{ if eq(parameters.cuda, true) }}:
+        - publish: ${{ parameters.staging_dir }}/cuda
+          artifact: mechanica-${{ parameters.platform_name }}-$(PY_VERSION_LAB)-cuda
+          displayName: Publish package

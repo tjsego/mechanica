@@ -17,5 +17,8 @@ export MXINSTALLDIR=${MXSRCDIR}/../mechanica_install
 # path to environment root
 export MXENV=${MXINSTALLDIR}/mx_env
 
+# local build qualifier
+export MXBUILDQUAL="local"
+
 # path to cuda root directory
 export MXCUDAENV=""

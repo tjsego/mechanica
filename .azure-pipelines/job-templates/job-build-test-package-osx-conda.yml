@@ -7,20 +7,18 @@ parameters:
   mx_version: ''
   mx_buildnum: ''
 
-variables:
-  ROOT_DIR: '${{ parameters.working_dir }}/mechanica'
-  SOURCE_DIR: '$(ROOT_DIR)/mechanica'
-  BUILD_ROOT: '$(ROOT_DIR)/mx_condabuild'
-  ENV_DIR: '$(BUILD_ROOT)/buildenv'
-  BUILD_OUTPUT: '$(BUILD_ROOT)/result'
-  OSX_SYSROOT: '10.11'
-
 jobs:
   - job: ${{ parameters.name }}
     displayName: ${{ parameters.name }}
     continueOnError: false
     timeoutInMinutes: 0
     variables:
+      ROOT_DIR: '${{ parameters.working_dir }}/mechanica'
+      SOURCE_DIR: '$(ROOT_DIR)/mechanica'
+      BUILD_ROOT: '$(ROOT_DIR)/mx_condabuild'
+      ENV_DIR: '$(BUILD_ROOT)/buildenv'
+      BUILD_OUTPUT: '$(BUILD_ROOT)/result'
+      OSX_SYSROOT: '10.11'
       BASENAME_SYSROOT: '${{ format('MacOSX{0}.sdk', $(OSX_SYSROOT)) }}'
       BASENAMEDL_SYSROOT: '${{ format('{0}.tar.xz', $(BASENAME_SYSROOT)) }}'
       SOURCE_SYSROOT: '${{ format('https://github.com/phracker/MacOSX-SDKs/releases/download/10.13/{0}', $(BASENAMEDL_SYSROOT)) }}'

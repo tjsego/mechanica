@@ -7,18 +7,17 @@ parameters:
   mx_version: ''
   mx_buildnum: ''
 
-variables:
-  ROOT_DIR: '${{ parameters.working_dir }}/mechanica'
-  SOURCE_DIR: '$(ROOT_DIR)/mechanica'
-  BUILD_ROOT: '$(ROOT_DIR)/mx_condabuild'
-  ENV_DIR: '$(BUILD_ROOT)/buildenv'
-  BUILD_OUTPUT: '$(BUILD_ROOT)/result'
-
 jobs:
   - job: ${{ parameters.name }}
     displayName: ${{ parameters.name }}
     continueOnError: false
     timeoutInMinutes: 0
+    variables:
+      ROOT_DIR: '${{ parameters.working_dir }}/mechanica'
+      SOURCE_DIR: '$(ROOT_DIR)/mechanica'
+      BUILD_ROOT: '$(ROOT_DIR)/mx_condabuild'
+      ENV_DIR: '$(BUILD_ROOT)/buildenv'
+      BUILD_OUTPUT: '$(BUILD_ROOT)/result'
     steps:
 
       # Setup

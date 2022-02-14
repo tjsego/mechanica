@@ -10,26 +10,30 @@ parameters:
     - py38
     - py39
 
-variables:
-  ${{ if eq(parameters.cuda, 'win64') }}:
-    CONDA_PLATFORM_NAME: 'win-64'
-  ${{ elif eq(parameters.cuda, 'linux64') }}:
-    CONDA_PLATFORM_NAME: 'linux-64'
-  ${{ elif eq(parameters.cuda, 'osx64') }}:
-    CONDA_PLATFORM_NAME: 'osx-64'
-  ${{ else }}:
-    CONDA_PLATFORM_NAME: ''
-
 steps:
   - ${{ each val in parameters.py_versions }}:
     # Package
     - script: |
         mkdir ${{ parameters.staging_dir }}/${{ val }}
-    - task: CopyFiles@2
-      inputs:
-        contents: '${{ format('{0}/{1}/mechanica-{2}-{3}*.tar.bz2', ${{ parameters.build_output }}, $(CONDA_PLATFORM_NAME), parameters.mx_version), ${{ val }} }}'
-        targetFolder: ${{ parameters.staging_dir }}/${{ val }}
-      displayName: Stage python ${{ val }} package
+
+    ${{ if eq(parameters.cuda, 'win64') }}:
+      - task: CopyFiles@2
+        inputs:
+          contents: '${{ format('{0}/win-64/mechanica-{1}-{2}*.tar.bz2', ${{ parameters.build_output }}, parameters.mx_version), ${{ val }} }}'
+          targetFolder: ${{ parameters.staging_dir }}/${{ val }}
+        displayName: Stage python ${{ val }} package
+    ${{ elif eq(parameters.cuda, 'linux64') }}:
+      - task: CopyFiles@2
+        inputs:
+          contents: '${{ format('{0}/linux-64/mechanica-{1}-{2}*.tar.bz2', ${{ parameters.build_output }}, parameters.mx_version), ${{ val }} }}'
+          targetFolder: ${{ parameters.staging_dir }}/${{ val }}
+        displayName: Stage python ${{ val }} package
+    ${{ elif eq(parameters.cuda, 'osx64') }}:
+      - task: CopyFiles@2
+        inputs:
+          contents: '${{ format('{0}/osx-64/mechanica-{1}-{2}*.tar.bz2', ${{ parameters.build_output }}, parameters.mx_version), ${{ val }} }}'
+          targetFolder: ${{ parameters.staging_dir }}/${{ val }}
+        displayName: Stage python ${{ val }} package
 
     # Publish
     - publish: ${{ parameters.staging_dir }}/${{ val }}

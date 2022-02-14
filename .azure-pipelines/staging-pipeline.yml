@@ -1,4 +1,4 @@
-name: mechanica_staging_$(Data:yyyyMMdd)$(Rev:.r)
+name: mechanica_staging_$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   - staging

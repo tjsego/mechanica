@@ -1,4 +1,4 @@
-name: mechanica_develop_$(Data:yyyyMMdd)$(Rev:.r)
+name: mechanica_develop_$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   - develop

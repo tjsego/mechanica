@@ -1,4 +1,4 @@
-name: mechanica_$(Data:yyyyMMdd)$(Rev:.r)
+name: mechanica_$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   - master

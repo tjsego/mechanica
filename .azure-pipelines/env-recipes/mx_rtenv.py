@@ -6,7 +6,6 @@ The generated script is deposited next to this script, and is named 'mx_rtenv.ym
 command line arguments are the python version and platform
     - valid python versions -v/--version: 3.7, 3.8, 3.9
     - valid platforms -p/--platform: win64, linux64, osx64
-    - cuda dependencies -c/--cuda (win64 and linux64 only)
 """
 
 import argparse
@@ -35,8 +34,6 @@ class MxRTEnvParser:
         parser.add_argument('-p', '--platform', required=True, type=str, dest='platform',
                             help='Target platform',
                             choices=supported_platform)
-        parser.add_argument('-c', '--cuda', required=False, type=bool, dest='cuda', default=False,
-                            help='Flag to append cuda dependency')
 
         self.parsed_args = parser.parse_args(argv)
 
@@ -52,12 +49,6 @@ class MxRTEnvParser:
 
         return self.parsed_args.platform
 
-    @property
-    def cuda(self) -> bool:
-        """Cuda dependency flag"""
-        
-        return self.parsed_args.cuda
-
     @staticmethod
     def help_str() -> str:
         """Simple help string when incorrectly called"""
@@ -65,21 +56,17 @@ class MxRTEnvParser:
         return 'Command line arguments are the python version (-v) and platform (-p)'
 
 
-def main(py_version: str, platform: str, cuda: bool = False):
+def main(py_version: str, platform: str):
     if py_version not in supported_py_version:
         raise ValueError('Unsupported python version. Supported versions are ' + ','.join(supported_py_version))
     elif platform not in supported_platform:
         raise ValueError('Unsupported platform. Supported versions are ' + ','.join(supported_platform))
-    elif cuda and platform == 'osx':
-        raise ValueError('CUDA is not supported for osx')
 
     env_script = f'mx_rtenv_{platform}.in.yml'
     env_script_path = os.path.join(this_dir, env_script)
     with open(env_script_path, 'r') as f:
         fstr = f.read()
     fstr.replace(py_version_token, py_version)
-    if cuda:
-        fstr += os.linesep + '  - cuda'
     with open(env_output_script_path, 'w') as f:
         f.write(fstr)
 
@@ -88,4 +75,4 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         raise ValueError(MxRTEnvParser.help_str())
     argvp = MxRTEnvParser(sys.argv[1:])
-    main(py_version=argvp.py_version, platform=argvp.platform, cuda=argvp.cuda)
+    main(py_version=argvp.py_version, platform=argvp.platform)

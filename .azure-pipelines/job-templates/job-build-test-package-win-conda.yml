@@ -6,7 +6,6 @@ parameters:
   staging_dir: ''
   mx_version: ''
   mx_buildnum: ''
-  cuda: false
 
 variables:
   ROOT_DIR: '${{ parameters.working_dir }}\mechanica'

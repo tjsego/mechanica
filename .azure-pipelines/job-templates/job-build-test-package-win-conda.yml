@@ -18,6 +18,8 @@ jobs:
       BUILD_ROOT: '$(ROOT_DIR)\mx_condabuild'
       ENV_DIR: '$(BUILD_ROOT)\buildenv'
       BUILD_OUTPUT: '$(BUILD_ROOT)\result'
+    workspace:
+      clean: all
     steps:
 
       # Setup
@@ -31,16 +33,16 @@ jobs:
         submodules: recursive
         path: mechanica
         displayName: Get source
-      - script: call conda create -p $(ENV_DIR) conda-build conda-verify -y
+      - script: conda create -p $(ENV_DIR) conda-build conda-verify -y
         displayName: Conda setup
 
       # Build
       - script: |
-          call conda activate $(ENV_DIR)
+          call activate $(ENV_DIR)
           set MX_VERSION=$(mx_version)
           set MX_BUILDNUMBER=$(mx_buildnum)
           set MX_BUILDQUAL=${{ parameters.mx_buildqual }}
-          call conda build -c conda-forge --croot $(BUILD_OUTPUT) $(SOURCE_DIR)\package\conda
+          conda build -c conda-forge --croot $(BUILD_OUTPUT) $(SOURCE_DIR)\package\conda
 
       # Conda recipe has built-in tests, so none necessary here
 

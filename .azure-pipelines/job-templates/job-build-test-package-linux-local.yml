@@ -18,6 +18,8 @@ jobs:
       SOURCE_DIR: '$(ROOT_DIR)/mechanica'
       INSTALL_DIR: '$(ROOT_DIR)/mechanica_install'
       EXEC_PYTHON: '$(INSTALL_DIR)/mx_env/bin/python'
+    workspace:
+      clean: all
     steps:
 
       # Setup
@@ -53,7 +55,7 @@ jobs:
       - script: |
           source $(INSTALL_DIR)/etc/mx_vars.sh
           source activate ${MXENV}
-          $(EXEC_PYTHON) $(SOURCE_DIR)/.azure-pipelines/mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }}
+          $(EXEC_PYTHON) $(SOURCE_DIR)/.azure-pipelines/env-recipes/mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }}
         displayName: Generate environment recipe
       - task: CopyFiles@2
         inputs:

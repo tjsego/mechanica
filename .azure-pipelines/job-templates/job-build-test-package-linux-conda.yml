@@ -18,6 +18,8 @@ jobs:
       BUILD_ROOT: '$(ROOT_DIR)/mx_condabuild'
       ENV_DIR: '$(BUILD_ROOT)/buildenv'
       BUILD_OUTPUT: '$(BUILD_ROOT)/result'
+    workspace:
+      clean: all
     steps:
 
       # Setup

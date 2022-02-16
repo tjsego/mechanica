@@ -18,6 +18,8 @@ jobs:
       SOURCE_DIR: '$(ROOT_DIR)\mechanica'
       INSTALL_DIR: '$(ROOT_DIR)\mechanica_install'
       EXEC_PYTHON: '$(INSTALL_DIR)\mx_env\python.exe'
+    workspace:
+      clean: all
     steps:
       
       # Setup
@@ -33,9 +35,10 @@ jobs:
       # Build
       - script: |
           call $(SOURCE_DIR)\package\local\win\mx_install_vars
-          call $(SOURCE_DIR)\package\local\win\mx_install_env
-          call conda activate %MXENV%
-          call conda install -y python=$(PY_VERSION_DEC)
+          conda create --yes --prefix %MXENV%
+          conda env update --prefix %MXENV% --file %MXSRCDIR%\package\local\win\mx_env.yml
+          call activate %MXENV%
+          conda install -y python=$(PY_VERSION_DEC)
           set MXBUILDQUAL=${{ parameters.mx_buildqual }}
           call $(SOURCE_DIR)\package\local\win\mx_install_all
         displayName: Execute build
@@ -43,15 +46,15 @@ jobs:
       # Test
       - script: |
           call $(INSTALL_DIR)\etc\mx_vars
-          call conda activate %MXENV%
+          call activate %MXENV%
           $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\tests-temp\test.py
         displayName: Run supplementary test
       
       # Package
       - script: |
           call $(INSTALL_DIR)\etc\mx_vars
-          call conda activate %MXENV%
-          $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }}
+          call activate %MXENV%
+          $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\env-recipes\mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }}
         displayName: Generate environment recipe
       - task: CopyFiles@2
         inputs:

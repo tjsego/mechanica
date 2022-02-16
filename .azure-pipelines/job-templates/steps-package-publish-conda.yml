@@ -17,27 +17,27 @@ steps:
     - script: |
         mkdir ${{ parameters.staging_dir }}/${{ val }}
 
-    ${{ if eq(parameters.cuda, 'win64') }}:
+    ${{ if eq(parameters.platform_name, 'win64') }}:
       - task: CopyFiles@2
         inputs:
-          sourceFolder: '${{ format('{0}\win-64', parameters.build_output) }}'
-          contents: '${{ format('mechanica-{0}-{1}*.tar.bz2', parameters.mx_version, val) }}'
+          sourceFolder: ${{ parameters.build_output }}\win-64
+          contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
           targetFolder: ${{ parameters.staging_dir }}\${{ val }}
           flattenFolders: true
         displayName: Stage python ${{ val }} package
-    ${{ elif eq(parameters.cuda, 'linux64') }}:
+    ${{ elif eq(parameters.platform_name, 'linux64') }}:
       - task: CopyFiles@2
         inputs:
-          sourceFolder: '${{ format('{0}/linux-64', parameters.build_output) }}'
-          contents: '${{ format('mechanica-{0}-{1}*.tar.bz2', parameters.mx_version, val) }}'
+          sourceFolder: ${{ parameters.build_output }}/linux-64
+          contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
           targetFolder: ${{ parameters.staging_dir }}/${{ val }}
           flattenFolders: true
         displayName: Stage python ${{ val }} package
-    ${{ elif eq(parameters.cuda, 'osx64') }}:
+    ${{ elif eq(parameters.platform_name, 'osx64') }}:
       - task: CopyFiles@2
         inputs:
-          sourceFolder: '${{ format('{0}/osx-64', parameters.build_output) }}'
-          contents: '${{ format('mechanica-{0}-{1}*.tar.bz2', parameters.mx_version, val) }}'
+          sourceFolder: ${{ parameters.build_output }}/osx-64
+          contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
           targetFolder: ${{ parameters.staging_dir }}/${{ val }}
           flattenFolders: true
         displayName: Stage python ${{ val }} package

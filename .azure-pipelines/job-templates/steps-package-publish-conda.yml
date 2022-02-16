@@ -1,11 +1,15 @@
 parameters:
-  platform_name: ''
-  mx_version: ''
-  staging_dir: ''
-  build_output: ''
-  - name: py_versions
-    type: object
-    default: ['py37', 'py38', 'py39']
+- name: platform_name
+  type: string
+- name: mx_version
+  type: string
+- name: staging_dir
+  type: string
+- name: build_output
+  type: string
+- name: py_versions
+  type: object
+  default: ['py37', 'py38', 'py39']
 
 steps:
   - ${{ each val in parameters.py_versions }}:
@@ -16,20 +20,26 @@ steps:
     ${{ if eq(parameters.cuda, 'win64') }}:
       - task: CopyFiles@2
         inputs:
-          contents: '${{ format('{0}/win-64/mechanica-{1}-{2}*.tar.bz2', ${{ parameters.build_output }}, parameters.mx_version), ${{ val }} }}'
-          targetFolder: ${{ parameters.staging_dir }}/${{ val }}
+          sourceFolder: '${{ format('{0}\win-64', ${{ parameters.build_output }}) }}'
+          contents: '${{ format('mechanica-{0}-{1}*.tar.bz2', ${{ parameters.mx_version }}, ${{ val }}) }}'
+          targetFolder: ${{ parameters.staging_dir }}\${{ val }}
+          flattenFolders: true
         displayName: Stage python ${{ val }} package
     ${{ elif eq(parameters.cuda, 'linux64') }}:
       - task: CopyFiles@2
         inputs:
-          contents: '${{ format('{0}/linux-64/mechanica-{1}-{2}*.tar.bz2', ${{ parameters.build_output }}, parameters.mx_version), ${{ val }} }}'
+          sourceFolder: '${{ format('{0}/linux-64', ${{ parameters.build_output }}) }}'
+          contents: '${{ format('mechanica-{0}-{1}*.tar.bz2', ${{ parameters.mx_version }}, ${{ val }}) }}'
           targetFolder: ${{ parameters.staging_dir }}/${{ val }}
+          flattenFolders: true
         displayName: Stage python ${{ val }} package
     ${{ elif eq(parameters.cuda, 'osx64') }}:
       - task: CopyFiles@2
         inputs:
-          contents: '${{ format('{0}/osx-64/mechanica-{1}-{2}*.tar.bz2', ${{ parameters.build_output }}, parameters.mx_version), ${{ val }} }}'
+          sourceFolder: '${{ format('{0}/osx-64', ${{ parameters.build_output }}) }}'
+          contents: '${{ format('mechanica-{0}-{1}*.tar.bz2', ${{ parameters.mx_version }}, ${{ val }}) }}'
           targetFolder: ${{ parameters.staging_dir }}/${{ val }}
+          flattenFolders: true
         displayName: Stage python ${{ val }} package
 
     # Publish

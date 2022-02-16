@@ -60,18 +60,21 @@ jobs:
         displayName: Generate environment recipe
       - task: CopyFiles@2
         inputs:
+          sourceFolder: $(INSTALL_DIR)
           contents: |
-            '$(INSTALL_DIR)\bin\**'
-            '$(INSTALL_DIR)\etc\**'
-            '$(INSTALL_DIR)\include\**'
-            '$(INSTALL_DIR)\lib\**'
-            '$(INSTALL_DIR)\README.md'
-            '$(INSTALL_DIR)\LICENSE.txt'
-            '$(INSTALL_DIR)\VERSION.txt'
-            '$(SOURCE_DIR)\.azure-pipelines\env-installers\mx_install_env.bat'
-            '$(SOURCE_DIR)\.azure-pipelines\env-recipes\mx_rtenv.yml'
+            **\*
+            !mx_env\**\*
           targetFolder: ${{ parameters.staging_dir }}
         displayName: Stage package
+      - task: CopyFiles@2
+        inputs:
+          sourceFolder: $(SOURCE_DIR)
+          contents: |
+            .azure-pipelines\env-installers\mx_install_env.bat
+            .azure-pipelines\env-recipes\mx_rtenv.yml
+          targetFolder: ${{ parameters.staging_dir }}
+          flattenFolders: true
+        displayName: Stage package helpers
       
       # Publish
       - publish: ${{ parameters.staging_dir }}

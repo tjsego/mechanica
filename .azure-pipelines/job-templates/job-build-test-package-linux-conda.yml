@@ -25,7 +25,9 @@ jobs:
       # Setup
       - bash: echo "##vso[task.prependpath]$CONDA/bin"
         displayName: Add conda to path
-      - script: sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev
+      - script: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev
         displayName: Install dependencies
       - script: |
           mkdir $(BUILD_ROOT)
@@ -40,7 +42,7 @@ jobs:
       
       # Build
       - script: |
-          source conda activate $(ENV_DIR)
+          source activate $(ENV_DIR)
           export MX_VERSION=$(mx_version)
           export MX_BUILDNUMBER=$(mx_buildnum)
           export MX_BUILDQUAL=${{ parameters.mx_buildqual }}

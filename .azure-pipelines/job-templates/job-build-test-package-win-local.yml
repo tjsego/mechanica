@@ -41,6 +41,7 @@ jobs:
       # Build
       - script: |
           call $(SOURCE_DIR)\package\local\win\mx_install_vars
+          call activate %MXENV%
           set MXBUILDQUAL=${{ parameters.mx_buildqual }}
           call $(SOURCE_DIR)\package\local\win\mx_install_all
         displayName: Execute build

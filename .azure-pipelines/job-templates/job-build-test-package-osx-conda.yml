@@ -50,7 +50,7 @@ jobs:
       
       # Build
       - script: |
-          source conda activate $(ENV_DIR)
+          source activate $(ENV_DIR)
           export MX_VERSION=$(mx_version)
           export MX_BUILDNUMBER=$(mx_buildnum)
           export MX_BUILDQUAL=${{ parameters.mx_buildqual }}

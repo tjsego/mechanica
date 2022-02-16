@@ -29,6 +29,7 @@ jobs:
         displayName: Create working directories
       - checkout: self
         submodules: recursive
+        path: mechanica
         displayName: Get source
       - script: call conda create -p $(ENV_DIR) conda-build conda-verify -y
         displayName: Conda setup

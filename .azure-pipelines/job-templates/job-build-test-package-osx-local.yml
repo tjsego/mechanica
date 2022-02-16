@@ -27,6 +27,7 @@ jobs:
         displayName: Take ownership of conda installation
       - checkout: self
         submodules: recursive
+        path: mechanica
         displayName: Get source
       - script: conda config --add channels conda-forge
         displayName: Conda setup

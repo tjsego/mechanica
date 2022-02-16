@@ -23,7 +23,7 @@ jobs:
       # Setup
       - bash: echo "##vso[task.prependpath]$CONDA/bin"
         displayName: Add conda to path
-      - script: sudo apt install -y libgl1-mesa-dev libegl1-mesa-dev
+      - script: sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev
         displayName: Install dependencies
       - script: |
           mkdir $(BUILD_ROOT)
@@ -31,6 +31,7 @@ jobs:
         displayName: Create working directories
       - checkout: self
         submodules: recursive
+        path: mechanica
         displayName: Get source
       - script: conda create -p $(ENV_DIR) conda-build conda-verify -y
         displayName: Conda setup

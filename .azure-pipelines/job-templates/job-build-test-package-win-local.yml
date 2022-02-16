@@ -25,6 +25,7 @@ jobs:
         displayName: Add conda to path
       - checkout: self
         submodules: recursive
+        path: mechanica
         displayName: Get source
       - script: call conda config --add channels conda-forge
         displayName: Conda setup

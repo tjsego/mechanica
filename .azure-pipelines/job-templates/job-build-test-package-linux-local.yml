@@ -14,7 +14,7 @@ jobs:
     variables:
       PY_VERSION_DEC: ${{ format('3.{0}', parameters.py_minor_version) }}
       PY_VERSION_LAB: ${{ format('py3{0}', parameters.py_minor_version) }}
-      ROOT_DIR: '${{ parameters.working_dir }}/mechanica'
+      ROOT_DIR: '${{ parameters.working_dir }}'
       SOURCE_DIR: '$(ROOT_DIR)/mechanica'
       INSTALL_DIR: '$(ROOT_DIR)/mechanica_install'
       EXEC_PYTHON: '$(INSTALL_DIR)/mx_env/bin/python'
@@ -25,13 +25,8 @@ jobs:
         displayName: Add conda to path
       - script: sudo apt install -y libgl1-mesa-dev libegl1-mesa-dev
         displayName: Install dependencies
-      - script: |
-          mkdir $(ROOT_DIR)
-          cd $(ROOT_DIR)
-        displayName: Create working directory
       - checkout: self
         submodules: recursive
-        path: $(ROOT_DIR)
         displayName: Get source
       - script: conda config --add channels conda-forge
         displayName: Conda setup

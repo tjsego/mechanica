@@ -23,7 +23,7 @@ stages:
           platform_name: 'win64'
           mx_buildqual: $(mx_buildqual)
           py_minor_version: $(py_minor_version)
-          working_dir: $(System.DefaultWorkingDirectory)
+          working_dir: $(Agent.BuildDirectory)
           staging_dir: $(Build.ArtifactStagingDirectory)
 
   # Linux build: local
@@ -40,7 +40,7 @@ stages:
           platform_name: 'linux64'
           mx_buildqual: $(mx_buildqual)
           py_minor_version: $(py_minor_version)
-          working_dir: $(System.DefaultWorkingDirectory)
+          working_dir: $(Agent.BuildDirectory)
           staging_dir: $(Build.ArtifactStagingDirectory)
 
   # MacOS build: local
@@ -48,7 +48,7 @@ stages:
   - stage: MechanicaBuildMacLocal
     displayName: Local build for Mac
     pool: 
-      vmImage: 'macOS-10.11'
+      vmImage: 'macOS-11'
     dependsOn: []
     jobs:
       - template: job-templates/job-build-test-package-osx-local.yml
@@ -57,5 +57,5 @@ stages:
           platform_name: 'osx64'
           mx_buildqual: $(mx_buildqual)
           py_minor_version: $(py_minor_version)
-          working_dir: $(System.DefaultWorkingDirectory)
+          working_dir: $(Agent.BuildDirectory)
           staging_dir: $(Build.ArtifactStagingDirectory)

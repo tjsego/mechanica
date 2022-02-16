@@ -23,7 +23,7 @@ stages:
           name: 'MechanicaBuildWindowsConda'
           platform_name: 'win64'
           mx_buildqual: $(mx_buildqual)
-          working_dir: $(System.DefaultWorkingDirectory)
+          working_dir: $(Agent.BuildDirectory)
           staging_dir: $(Build.ArtifactStagingDirectory)
           mx_version: $(mx_version)
           mx_buildnum: $(mx_buildnum)
@@ -41,7 +41,7 @@ stages:
           name: 'MechanicaBuildLinuxConda'
           platform_name: 'linux64'
           mx_buildqual: $(mx_buildqual)
-          working_dir: $(System.DefaultWorkingDirectory)
+          working_dir: $(Agent.BuildDirectory)
           staging_dir: $(Build.ArtifactStagingDirectory)
           mx_version: $(mx_version)
           mx_buildnum: $(mx_buildnum)
@@ -51,7 +51,7 @@ stages:
   - stage: MechanicaBuildMacConda
     displayName: Conda build for Mac
     pool:
-      vmImage: 'macOS-10.11'
+      vmImage: 'macOS-11'
     dependsOn: []
     jobs:
       - template: job-templates/job-build-test-package-osx-conda.yml
@@ -59,7 +59,7 @@ stages:
           name: 'MechanicaBuildMacConda'
           platform_name: 'osx64'
           mx_buildqual: $(mx_buildqual)
-          working_dir: $(System.DefaultWorkingDirectory)
+          working_dir: $(Agent.BuildDirectory)
           staging_dir: $(Build.ArtifactStagingDirectory)
           mx_version: $(mx_version)
           mx_buildnum: $(mx_buildnum)

@@ -13,7 +13,7 @@ jobs:
     continueOnError: false
     timeoutInMinutes: 0
     variables:
-      ROOT_DIR: '${{ parameters.working_dir }}/mechanica'
+      ROOT_DIR: '${{ parameters.working_dir }}'
       SOURCE_DIR: '$(ROOT_DIR)/mechanica'
       BUILD_ROOT: '$(ROOT_DIR)/mx_condabuild'
       ENV_DIR: '$(BUILD_ROOT)/buildenv'
@@ -26,14 +26,11 @@ jobs:
       - script: sudo apt install -y libgl1-mesa-dev libegl1-mesa-dev
         displayName: Install dependencies
       - script: |
-          mkdir $(ROOT_DIR)
           mkdir $(BUILD_ROOT)
           mkdir $(BUILD_OUTPUT)
-          cd $(ROOT_DIR)
         displayName: Create working directories
       - checkout: self
         submodules: recursive
-        path: $(ROOT_DIR)
         displayName: Get source
       - script: conda create -p $(ENV_DIR) conda-build conda-verify -y
         displayName: Conda setup

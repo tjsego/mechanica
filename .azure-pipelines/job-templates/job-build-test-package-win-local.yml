@@ -29,16 +29,18 @@ jobs:
         submodules: recursive
         path: mechanica
         displayName: Get source
-      - script: call conda config --add channels conda-forge
-        displayName: Conda setup
-      
-      # Build
       - script: |
+          call conda config --add channels conda-forge
           call $(SOURCE_DIR)\package\local\win\mx_install_vars
           conda create --yes --prefix %MXENV%
           conda env update --prefix %MXENV% --file %MXSRCDIR%\package\local\win\mx_env.yml
           call activate %MXENV%
           conda install -y python=$(PY_VERSION_DEC)
+        displayName: Conda setup
+      
+      # Build
+      - script: |
+          call $(SOURCE_DIR)\package\local\win\mx_install_vars
           set MXBUILDQUAL=${{ parameters.mx_buildqual }}
           call $(SOURCE_DIR)\package\local\win\mx_install_all
         displayName: Execute build

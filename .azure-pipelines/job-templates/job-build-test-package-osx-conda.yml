@@ -57,6 +57,7 @@ jobs:
           export MXOSX_SYSROOT=$(OSX_SYSROOT)
           export MX_BUILD_SYSROOT=$(BUILD_SYSROOT)
           conda build -c conda-forge --croot $(BUILD_OUTPUT) $(SOURCE_DIR)/package/conda
+        displayName: Execute build
 
       # Conda recipe has built-in tests, so none necessary here
 

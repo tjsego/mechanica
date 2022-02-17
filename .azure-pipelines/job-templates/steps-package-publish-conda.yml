@@ -44,5 +44,5 @@ steps:
 
     # Publish
     - publish: ${{ parameters.staging_dir }}/${{ val }}
-        artifact: mechanica-${{ parameters.platform_name }}-conda-${{ val }}
-        displayName: Publish ${{ val }} package
+      artifact: mechanica-${{ parameters.platform_name }}-conda-${{ val }}
+      displayName: Publish ${{ val }} package

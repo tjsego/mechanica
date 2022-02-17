@@ -7,12 +7,12 @@ variables:
   mx_version: '0.30.0'
   mx_buildnum: 0
   mx_buildqual: 'release'
-  - name: py_minor_versions
-    type: object
-    default:
-    - 7
-    - 8
-    - 9
+- name: py_minor_versions
+  type: object
+  default:
+  - 7
+  - 8
+  - 9
 
 stages:
 

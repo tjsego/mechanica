@@ -15,7 +15,6 @@ steps:
 - ${{ each val in parameters.py_versions }}:
   - script: mkdir ${{ parameters.staging_dir }}/${{ val }}
     displayName: Prepare python ${{ val }} staging
-  
   ${{ if eq(parameters.platform_name, 'win64') }}:
     - task: CopyFiles@2
       inputs:
@@ -40,7 +39,6 @@ steps:
         targetFolder: ${{ parameters.staging_dir }}/${{ val }}
         flattenFolders: true
       displayName: Stage python ${{ val }} package
-
   - publish: ${{ parameters.staging_dir }}/${{ val }}
     artifact: mechanica-${{ parameters.platform_name }}-conda-${{ val }}
     displayName: Publish ${{ val }} package

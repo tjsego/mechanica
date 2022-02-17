@@ -22,7 +22,7 @@ jobs:
       BASENAME_SYSROOT: ${{ format('MacOSX{0}.sdk', variables.OSX_SYSROOT) }}
       BASENAMEDL_SYSROOT: ${{ format('{0}.tar.xz', variables.BASENAME_SYSROOT) }}
       SOURCE_SYSROOT: ${{ format('https://github.com/phracker/MacOSX-SDKs/releases/download/10.13/{0}', variables.BASENAMEDL_SYSROOT) }}
-      BUILD_SYSROOT: ${{ format('$(BUILD_ROOT)/{0}', variables.BASENAMEDL_SYSROOT) }}
+      BUILD_SYSROOT: ${{ format('$(BUILD_ROOT)/{0}', variables.BASENAME_SYSROOT) }}
     workspace:
       clean: all
     steps:

@@ -26,10 +26,10 @@ stages:
       - ${{ each py_minor_version in parameters.py_minor_versions }}:
         - template: job-templates/job-build-test-package-win-local.yml
           parameters:
-            name: ${{ format('MechanicaBuildWindowsLocal - Python 3.{0}', $(py_minor_version)) }}
+            name: ${{ format('MechanicaBuildWindowsLocal - Python 3.{0}', ${{ py_minor_version }}) }}
             platform_name: 'win64'
             mx_buildqual: $(mx_buildqual)
-            py_minor_version: $(py_minor_version)
+            py_minor_version: ${{ py_minor_version }}
             working_dir: $(Agent.BuildDirectory)
             staging_dir: $(Build.ArtifactStagingDirectory)
 
@@ -44,10 +44,10 @@ stages:
       - ${{ each py_minor_version in parameters.py_minor_versions }}:
         - template: job-templates/job-build-test-package-linux-local.yml
           parameters:
-            name: ${{ format('MechanicaBuildLinuxLocal - Python 3.{0}', $(py_minor_version)) }}
+            name: ${{ format('MechanicaBuildLinuxLocal - Python 3.{0}', ${{ py_minor_version }}) }}
             platform_name: 'linux64'
             mx_buildqual: $(mx_buildqual)
-            py_minor_version: $(py_minor_version)
+            py_minor_version: ${{ py_minor_version }}
             working_dir: $(Agent.BuildDirectory)
             staging_dir: $(Build.ArtifactStagingDirectory)
 
@@ -62,10 +62,10 @@ stages:
       - ${{ each py_minor_version in parameters.py_minor_versions }}:
         - template: job-templates/job-build-test-package-osx-local.yml
           parameters:
-            name: ${{ format('MechanicaBuildMacLocal - Python 3.{0}', $(py_minor_version)) }}
+            name: ${{ format('MechanicaBuildMacLocal - Python 3.{0}', ${{ py_minor_version }}) }}
             platform_name: 'osx64'
             mx_buildqual: $(mx_buildqual)
-            py_minor_version: $(py_minor_version)
+            py_minor_version: ${{ py_minor_version }}
             working_dir: $(Agent.BuildDirectory)
             staging_dir: $(Build.ArtifactStagingDirectory)
 

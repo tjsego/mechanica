@@ -66,9 +66,8 @@ def main(py_version: str, platform: str):
     env_script_path = os.path.join(this_dir, env_script)
     with open(env_script_path, 'r') as f:
         fstr = f.read()
-    fstr.replace(py_version_token, py_version)
     with open(env_output_script_path, 'w') as f:
-        f.write(fstr)
+        f.write(fstr.replace(py_version_token, py_version))
 
 
 if __name__ == '__main__':

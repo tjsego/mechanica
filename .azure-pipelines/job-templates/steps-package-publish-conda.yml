@@ -12,35 +12,35 @@ parameters:
   default: ['py37', 'py38', 'py39']
 
 steps:
-  - ${{ each val in parameters.py_versions }}:
-    - script: mkdir ${{ parameters.staging_dir }}/${{ val }}
-      displayName: Prepare python ${{ val }} staging
-    ${{ if eq(parameters.platform_name, 'win64') }}:
-      - task: CopyFiles@2
-        inputs:
-          sourceFolder: ${{ parameters.build_output }}\win-64
-          contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
-          targetFolder: ${{ parameters.staging_dir }}\${{ val }}
-          flattenFolders: true
-        displayName: Stage python ${{ val }} package
-    ${{ elseif eq(parameters.platform_name, 'linux64') }}:
-      - task: CopyFiles@2
-        inputs:
-          sourceFolder: ${{ parameters.build_output }}/linux-64
-          contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
-          targetFolder: ${{ parameters.staging_dir }}/${{ val }}
-          flattenFolders: true
-        displayName: Stage python ${{ val }} package
-    ${{ elseif eq(parameters.platform_name, 'osx64') }}:
-      - task: CopyFiles@2
-        inputs:
-          sourceFolder: ${{ parameters.build_output }}/osx-64
-          contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
-          targetFolder: ${{ parameters.staging_dir }}/${{ val }}
-          flattenFolders: true
-        displayName: Stage python ${{ val }} package
+- ${{ each val in parameters.py_versions }}:
+  - script: mkdir ${{ parameters.staging_dir }}/${{ val }}
+    displayName: Prepare python ${{ val }} staging
   
-  - ${{ each val in parameters.py_versions }}:
-    - publish: ${{ parameters.staging_dir }}/${{ val }}
-      artifact: mechanica-${{ parameters.platform_name }}-conda-${{ val }}
-      displayName: Publish ${{ val }} package
+  ${{ if eq(parameters.platform_name, 'win64') }}:
+    - task: CopyFiles@2
+      inputs:
+        sourceFolder: ${{ parameters.build_output }}\win-64
+        contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
+        targetFolder: ${{ parameters.staging_dir }}\${{ val }}
+        flattenFolders: true
+      displayName: Stage python ${{ val }} package
+  ${{ elseif eq(parameters.platform_name, 'linux64') }}:
+    - task: CopyFiles@2
+      inputs:
+        sourceFolder: ${{ parameters.build_output }}/linux-64
+        contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
+        targetFolder: ${{ parameters.staging_dir }}/${{ val }}
+        flattenFolders: true
+      displayName: Stage python ${{ val }} package
+  ${{ elseif eq(parameters.platform_name, 'osx64') }}:
+    - task: CopyFiles@2
+      inputs:
+        sourceFolder: ${{ parameters.build_output }}/osx-64
+        contents: mechanica-${{ parameters.mx_version }}-${{ val }}*.tar.bz2
+        targetFolder: ${{ parameters.staging_dir }}/${{ val }}
+        flattenFolders: true
+      displayName: Stage python ${{ val }} package
+
+  - publish: ${{ parameters.staging_dir }}/${{ val }}
+    artifact: mechanica-${{ parameters.platform_name }}-conda-${{ val }}
+    displayName: Publish ${{ val }} package

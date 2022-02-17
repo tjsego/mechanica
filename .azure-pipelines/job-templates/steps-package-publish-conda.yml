@@ -39,6 +39,8 @@ steps:
           targetFolder: ${{ parameters.staging_dir }}/${{ val }}
           flattenFolders: true
         displayName: Stage python ${{ val }} package
+  
+  - ${{ each val in parameters.py_versions }}:
     - publish: ${{ parameters.staging_dir }}/${{ val }}
       artifact: mechanica-${{ parameters.platform_name }}-conda-${{ val }}
       displayName: Publish ${{ val }} package

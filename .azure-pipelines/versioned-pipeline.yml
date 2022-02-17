@@ -7,7 +7,11 @@ variables:
   mx_version: '0.30.0'
   mx_buildnum: 0
   mx_buildqual: 'release'
-  py_minor_versions: [7, 8, 9]
+
+parameters:
+- name: py_minor_versions
+  type: object
+  default: [7, 8, 9]
 
 stages:
 
@@ -19,7 +23,7 @@ stages:
       vmImage: 'windows-2019'
     dependsOn: []
     jobs:
-      - ${{ each py_minor_version in $(py_minor_versions) }}:
+      - ${{ each py_minor_version in parameters.py_minor_versions }}:
         - template: job-templates/job-build-test-package-win-local.yml
           parameters:
             name: ${{ format('MechanicaBuildWindowsLocal - Python 3.{0}', $(py_minor_version)) }}
@@ -37,7 +41,7 @@ stages:
       vmImage: 'ubuntu-20.04'
     dependsOn: []
     jobs:
-      - ${{ each py_minor_version in $(py_minor_versions) }}:
+      - ${{ each py_minor_version in parameters.py_minor_versions }}:
         - template: job-templates/job-build-test-package-linux-local.yml
           parameters:
             name: ${{ format('MechanicaBuildLinuxLocal - Python 3.{0}', $(py_minor_version)) }}
@@ -55,7 +59,7 @@ stages:
       vmImage: 'macOS-11'
     dependsOn: []
     jobs:
-      - ${{ each py_minor_version in $(py_minor_versions) }}:
+      - ${{ each py_minor_version in parameters.py_minor_versions }}:
         - template: job-templates/job-build-test-package-osx-local.yml
           parameters:
             name: ${{ format('MechanicaBuildMacLocal - Python 3.{0}', $(py_minor_version)) }}

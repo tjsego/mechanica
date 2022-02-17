@@ -25,7 +25,7 @@ steps:
           targetFolder: ${{ parameters.staging_dir }}\${{ val }}
           flattenFolders: true
         displayName: Stage python ${{ val }} package
-    ${{ elif eq(parameters.platform_name, 'linux64') }}:
+    ${{ elseif eq(parameters.platform_name, 'linux64') }}:
       - task: CopyFiles@2
         inputs:
           sourceFolder: ${{ parameters.build_output }}/linux-64
@@ -33,7 +33,7 @@ steps:
           targetFolder: ${{ parameters.staging_dir }}/${{ val }}
           flattenFolders: true
         displayName: Stage python ${{ val }} package
-    ${{ elif eq(parameters.platform_name, 'osx64') }}:
+    ${{ elseif eq(parameters.platform_name, 'osx64') }}:
       - task: CopyFiles@2
         inputs:
           sourceFolder: ${{ parameters.build_output }}/osx-64

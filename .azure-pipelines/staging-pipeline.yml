@@ -4,7 +4,7 @@ trigger:
   - staging
 
 variables:
-  mx_version: '0.30.0-s'
+  mx_version: '0.30.0.s'
   mx_buildnum: 0
   mx_buildqual: 'staging'
 

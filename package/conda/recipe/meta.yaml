@@ -6,14 +6,14 @@ about:
   home: https://github.com/tjsego/mechanica
   license: LGPL-3.0
   license_family: LGPL
-  license_file: ../../LICENSE.txt
+  license_file: ../../../LICENSE.txt
   summary: Interactive, particle-based physics, chemistry and biology modeling and simulation environment
 
 extra:
   maintainers: T.J. Sego
 
 source:
-  path: ../../
+  path: ../../../
 
 build:
   number: {{ environ.get('MX_BUILDNUMBER', 0) }}

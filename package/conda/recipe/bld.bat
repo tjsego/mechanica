@@ -1,5 +1,8 @@
 set MXBUILD_CONFIG=Release
 
+set MXPACKAGELOCALOFF=1
+set MXPACKAGECONDA=1
+
 mkdir mx_build_conda
 cd mx_build_conda
 

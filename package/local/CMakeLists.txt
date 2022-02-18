@@ -1,6 +1,12 @@
-# Ensure real paths for install environment variables, so we can use relative paths during building without requiring source to execute
-file(REAL_PATH "${MX_SITEPACKAGES}" MX_SITEPACKAGES_REAL)
-file(REAL_PATH "${PY_ROOT_DIR}" PY_ROOT_DIR_REAL)
+file(RELATIVE_PATH MX_SITEPACKAGES_REL 
+    ${CMAKE_INSTALL_PREFIX}/etc 
+    ${MX_SITEPACKAGES}
+)
+
+file(RELATIVE_PATH PY_ROOT_DIR_REL
+    ${CMAKE_INSTALL_PREFIX}/etc 
+    ${PY_ROOT_DIR}
+)
 
 if(WIN32)
     set(VARFILE_DIR win)

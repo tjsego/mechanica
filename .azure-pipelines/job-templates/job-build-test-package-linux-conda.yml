@@ -46,7 +46,7 @@ jobs:
           export MX_VERSION=$(mx_version)
           export MX_BUILDNUMBER=$(mx_buildnum)
           export MX_BUILDQUAL=${{ parameters.mx_buildqual }}
-          conda build -c conda-forge --croot $(BUILD_OUTPUT) $(SOURCE_DIR)/package/conda
+          conda build -c conda-forge --croot $(BUILD_OUTPUT) $(SOURCE_DIR)/package/conda/recipe
         displayName: Execute build
 
       # Conda recipe has built-in tests, so none necessary here

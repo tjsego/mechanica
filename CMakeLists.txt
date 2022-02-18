@@ -183,6 +183,22 @@ else()
   set(MX_HASBUILDQUAL false)
 endif()
 
+# Get package details
+#   Local install is assumed unless MXPACKAGELOCALOFF env var is set
+set(MX_PACKAGE_LOCAL true)
+if(DEFINED ENV{MXPACKAGELOCALOFF})
+  set(MX_PACKAGE_LOCAL false)
+  message("Disabled local package")
+else()
+  message("Enabled local package")
+endif()
+#   Conda is enabled when MXPACKAGECONDA env var is set
+set(MX_PACKAGE_CONDA false)
+if(DEFINED ENV{MXPACKAGECONDA})
+  set(MX_PACKAGE_CONDA true)
+  message("Enabled conda package")
+endif()
+
 message("CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 message("CMAKE_OSX_DEPLOYMENT_TARGET: ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 message("MACOSX_DEPLOYMENT_TARGET: ${MACOSX_DEPLOYMENT_TARGET}")

@@ -2,6 +2,9 @@
 
 MXBUILD_CONFIG=Release
 
+export MXPACKAGELOCALOFF=1
+export MXPACKAGECONDA=1
+
 mkdir -p -v mx_build_conda
 cd mx_build_conda
 

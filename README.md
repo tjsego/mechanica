@@ -21,9 +21,9 @@ executable Python scripts, an IPython console and a Jupyter Notebook.
 
 |Platform | Status |
 | :-----: | :----: |
-| Linux   | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.testing.develop?branchName=test%2Faz_develop&stageName=Local%20build%20for%20Linux)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=1&branchName=test%2Faz_develop)   |
-| MacOS   | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.testing.develop?branchName=test%2Faz_develop&stageName=Local%20build%20for%20Mac)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=1&branchName=test%2Faz_develop)     |
-| Windows | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.testing.develop?branchName=test%2Faz_develop&stageName=Local%20build%20for%20Windows)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=1&branchName=test%2Faz_develop) |
+| Linux   | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Linux)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)   |
+| MacOS   | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Mac)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)     |
+| Windows | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Windows)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop) |
 
 # Installation #
 

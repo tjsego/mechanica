@@ -1,0 +1,83 @@
+parameters:
+  name: ''
+  platform_name: 'win64'
+  mx_buildqual: ''
+  py_minor_version: 7
+  working_dir: ''
+  staging_dir: ''
+
+jobs:
+  - job: ${{ parameters.name }}
+    displayName: ${{ parameters.name }}
+    continueOnError: false
+    timeoutInMinutes: 0
+    variables:
+      PY_VERSION_DEC: ${{ format('3.{0}', parameters.py_minor_version) }}
+      PY_VERSION_LAB: ${{ format('py3{0}', parameters.py_minor_version) }}
+      ROOT_DIR: '${{ parameters.working_dir }}'
+      SOURCE_DIR: '$(ROOT_DIR)\mechanica'
+      INSTALL_DIR: '$(ROOT_DIR)\mechanica_install'
+      EXEC_PYTHON: '$(INSTALL_DIR)\mx_env\python.exe'
+    workspace:
+      clean: all
+    steps:
+      
+      # Setup
+      - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
+        displayName: Add conda to path
+      - checkout: self
+        submodules: recursive
+        path: mechanica
+        displayName: Get source
+      - script: |
+          call conda config --add channels conda-forge
+          call $(SOURCE_DIR)\package\local\win\mx_install_vars
+          conda create --yes --prefix %MXENV%
+          conda env update --prefix %MXENV% --file %MXSRCDIR%\package\local\win\mx_env.yml
+          call activate %MXENV%
+          conda install -y python=$(PY_VERSION_DEC)
+        displayName: Conda setup
+      
+      # Build
+      - script: |
+          call $(SOURCE_DIR)\package\local\win\mx_install_vars
+          call activate %MXENV%
+          set MXBUILDQUAL=${{ parameters.mx_buildqual }}
+          call $(SOURCE_DIR)\package\local\win\mx_install_all
+        displayName: Execute build
+      
+      # Test
+      - script: |
+          call $(INSTALL_DIR)\etc\mx_vars
+          call activate %MXENV%
+          $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\tests-temp\test.py
+        displayName: Run supplementary test
+      
+      # Package
+      - script: |
+          call $(INSTALL_DIR)\etc\mx_vars
+          call activate %MXENV%
+          $(EXEC_PYTHON) $(SOURCE_DIR)\.azure-pipelines\env-recipes\mx_rtenv.py -v $(PY_VERSION_DEC) -p ${{ parameters.platform_name }}
+        displayName: Generate environment recipe
+      - task: CopyFiles@2
+        inputs:
+          sourceFolder: $(INSTALL_DIR)
+          contents: |
+            **\*
+            !mx_env\**\*
+          targetFolder: ${{ parameters.staging_dir }}
+        displayName: Stage package
+      - task: CopyFiles@2
+        inputs:
+          sourceFolder: $(SOURCE_DIR)
+          contents: |
+            .azure-pipelines\env-installers\mx_install_env.bat
+            .azure-pipelines\env-recipes\mx_rtenv.yml
+          targetFolder: ${{ parameters.staging_dir }}
+          flattenFolders: true
+        displayName: Stage package helpers
+      
+      # Publish
+      - publish: ${{ parameters.staging_dir }}
+        artifact: mechanica-${{ parameters.platform_name }}-$(PY_VERSION_LAB)
+        displayName: Publish package

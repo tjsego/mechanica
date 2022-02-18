@@ -1,0 +1,65 @@
+name: mechanica_staging_$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  - staging
+
+variables:
+  mx_version: '0.30.0.s'
+  mx_buildnum: 0
+  mx_buildqual: 'staging'
+
+stages:
+
+  # Windows build: conda
+
+  - stage: MechanicaBuildWindowsConda
+    displayName: Conda build for Windows
+    pool:
+      vmImage: 'windows-2019'
+    dependsOn: []
+    jobs:
+      - template: job-templates/job-build-test-package-win-conda.yml
+        parameters:
+          name: 'MechanicaBuildWindowsConda'
+          platform_name: 'win64'
+          mx_buildqual: $(mx_buildqual)
+          working_dir: $(Agent.BuildDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)
+          mx_version: $(mx_version)
+          mx_buildnum: $(mx_buildnum)
+
+  # Linux build: conda
+
+  - stage: MechanicaBuildLinuxConda
+    displayName: Conda build for Linux
+    pool:
+      vmImage: 'ubuntu-20.04'
+    dependsOn: []
+    jobs:
+      - template: job-templates/job-build-test-package-linux-conda.yml
+        parameters:
+          name: 'MechanicaBuildLinuxConda'
+          platform_name: 'linux64'
+          mx_buildqual: $(mx_buildqual)
+          working_dir: $(Agent.BuildDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)
+          mx_version: $(mx_version)
+          mx_buildnum: $(mx_buildnum)
+
+  # MacOS build: conda
+
+  - stage: MechanicaBuildMacConda
+    displayName: Conda build for Mac
+    pool:
+      vmImage: 'macOS-11'
+    dependsOn: []
+    jobs:
+      - template: job-templates/job-build-test-package-osx-conda.yml
+        parameters:
+          name: 'MechanicaBuildMacConda'
+          platform_name: 'osx64'
+          mx_buildqual: $(mx_buildqual)
+          working_dir: $(Agent.BuildDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)
+          mx_version: $(mx_version)
+          mx_buildnum: $(mx_buildnum)

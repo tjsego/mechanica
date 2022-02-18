@@ -10,7 +10,7 @@ dependencies:
   - ninja
   - swig>=4
   - numpy
-  - jpeg
+  - jpeg<=9b
   - bzip2
   - libxml2
   - matplotlib

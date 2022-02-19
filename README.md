@@ -16,26 +16,28 @@ Mechanica is a native compiled C++ shared library that's designed to be used for
 and simulation specification in compiled C++ code. Mechanica includes an extensive 
 Python API that's designed to be used for model and simulation specification in 
 executable Python scripts, an IPython console and a Jupyter Notebook. 
+Mechanica currently supports installations on 64-bit Windows, Linux and MacOS systems. 
 
 ## Build Status ##
 
-|Platform | Status |
-| :-----: | :----: |
-| Linux   | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Linux)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)   |
-| MacOS   | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Mac)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)     |
-| Windows | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Windows)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop) |
+| Platform | Status |
+| :------: | :----: |
+| Linux    | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Linux)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)   |
+| MacOS    | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Mac)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)     |
+| Windows  | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Windows)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop) |
 
 # Installation #
 
 ## Pre-Built Binaries ##
 
 Pre-built binaries of the latest Mechanica developments are archived at the 
-[Mechanic Azure project](https://dev.azure.com/Mechanica-sim/Mechanica). 
+[Mechanica Azure project](https://dev.azure.com/Mechanica-sim/Mechanica). 
 Installing pre-built binaries requires [Miniconda](https://docs.conda.io/en/latest/miniconda.html). 
-Packages include a convenience script `mx_install_env` that installs the depencies 
-of the Mechanica installation on execution. After installing the depencies 
+Binaries on Linux require the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`. 
+Packages include a convenience script `mx_install_env` that installs the dependencies 
+of the Mechanica installation on execution. After installing the dependencies 
 environment, the Mechanica installation can be used after executing the following steps 
-from a terminal. 
+from a terminal with the root of the installation as the current directory. 
 
 On Windows
 ```bash
@@ -67,7 +69,8 @@ most dependencies. In addition to requiring [Git](https://git-scm.com/downloads)
 [Miniconda](https://docs.conda.io/en/latest/miniconda.html), installation from source 
 on Windows requires 
 [Visual Studio 2019 Build Tools](https://visualstudio.microsoft.com/downloads/), 
-and on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`. 
+on Linux requires the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`, 
+and on MacOS requires Xcode with 10.9 SDK or greater. 
 
 To execute the standard installation, open a terminal in a directory to install Mechanica
 and clone this respository,
@@ -85,6 +88,11 @@ On Linux
 ```bash
 bash mechanica/package/local/mx_install.sh
 ```
+On MacOS, specify the installed MacOS SDK (*e.g.*, for 10.9)  
+```bash
+export MXOSX_SYSROOT=10.9
+bash mechanica/package/local/mx_install.sh
+```
  
 The standard installation will create the directories `mechanica_build` and 
 `mechanica_install` next to the `mechanica` root directory, the former containing 
@@ -98,7 +106,7 @@ On Windows
 call mechanica_install/etc/mx_vars
 conda activate %MXENV%
 ```
-On Linux
+On Linux and MacOS 
 ```bash
 source mechanica_install/etc/mx_vars.sh
 conda activate $MXENV
@@ -120,10 +128,10 @@ import mechanica as mx
 
 Certain aspects of the installation can be readily customized. 
 The source directory `mechanica/package/local` contains subdirectories `linux` and 
-`win` containing scripts `mx_install_vars.sh` and `mx_install_vars.bat` for Linux and 
-Windows, respectively, which declare default installation environment variables. 
-These environment variables can be customized to specify where to find, build and install 
-Mechanica, as well as the build configuration. 
+`win` containing scripts `mx_install_vars.sh` and `mx_install_vars.bat` for 
+Linux/MacOS and Windows, respectively, which declare default installation 
+environment variables. These environment variables can be customized to specify 
+where to find, build and install Mechanica, as well as the build configuration. 
 For example, to install Mechanica from a source directory `MYMXSRC`, build Mechanica 
 at path `MYMXBUILD` in debug mode and install into directory `MYMXINSTALL`, perform the following. 
 
@@ -149,9 +157,20 @@ bash ${MXSRCDIR}/package/local/linux/mx_install_env.sh
 conda activate $MXENV
 bash ${MXSRCDIR}/package/local/linux/mx_install_all.sh
 ```
+On MacOS
+```bash
+source $MYMXSRC/package/local/osx/mx_install_vars.sh
+export MXBUILD_CONFIG=Debug
+export MXSRCDIR=$MYMXSRC
+export MXBUILDDIR=$MYMXBUILD
+export MXINSTALLDIR=$MYMXINSTALL
+bash ${MXSRCDIR}/package/local/osx/mx_install_env.sh
+conda activate $MXENV
+bash ${MXSRCDIR}/package/local/osx/mx_install_all.sh
+```
 
 The default Python version of the installation is 3.7, though Mechanica has also been tested 
-on Windows and Linux for Python versions 3.8 and 3.9. 
+on Windows, Linux and MacOS for Python versions 3.8 and 3.9. 
 To specify a different version of Python, simply add a call to 
 [update the conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-python.html#updating-or-upgrading-python) 
 in the previous commands before calling `mx_install_all`. 

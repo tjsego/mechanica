@@ -7,6 +7,11 @@
 
 %extend Mx3DFMeshData{
     %pythoncode %{
+        def is_in(self, *args, **kwargs) -> bool:
+            """Alias of :meth:_in"""
+            
+            return self._in(*args, **kwargs)
+        
         @property
         def vertices(self) -> vectorMx3DFVertexData_p:
             return self.getVertices()

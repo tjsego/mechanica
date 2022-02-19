@@ -3,6 +3,44 @@
 Getting Mechanica
 ==================
 
+Pre-Built Binaries
+-------------------
+
+Pre-built binaries of the latest Mechanica developments are archived at the
+`Mechanica Azure project <https://dev.azure.com/Mechanica-sim/Mechanica>`_.
+Installing pre-built binaries requires `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_.
+Packages include a convenience script `mx_install_env` that installs the dependencies
+of the Mechanica installation on execution. After installing the dependencies
+environment, the Mechanica installation can be used after executing the following steps
+from a terminal with the root of the installation as the current directory.
+
+On Windows
+
+.. code-block:: bat
+
+    call etc/mx_vars
+    conda activate %MXENV%
+
+On Linux and MacOS
+
+.. code-block:: bash
+
+    source etc/mx_vars.sh
+    conda activate $MXENV
+
+Launching the provided examples are then as simple as the following
+
+.. code-block:: bash
+
+    python examples/cell_sorting.py
+
+Likewise Mechanica can be imported in Python scripts and interactive consoles
+
+.. code-block:: python
+
+    import mechanica as mx
+
+
 Installing From Source
 -----------------------
 

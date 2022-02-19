@@ -20,23 +20,23 @@ Mechanica currently supports installations on 64-bit Windows, Linux and MacOS sy
 
 ## Build Status ##
 
-|Platform | Status |
-| :-----: | :----: |
-| Linux   | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Linux)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)   |
-| MacOS   | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Mac)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)     |
-| Windows | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Windows)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop) |
+| Platform | Status |
+| :------: | :----: |
+| Linux    | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Linux)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)   |
+| MacOS    | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Mac)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)     |
+| Windows  | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Windows)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop) |
 
 # Installation #
 
 ## Pre-Built Binaries ##
 
 Pre-built binaries of the latest Mechanica developments are archived at the 
-[Mechanic Azure project](https://dev.azure.com/Mechanica-sim/Mechanica). 
+[Mechanica Azure project](https://dev.azure.com/Mechanica-sim/Mechanica). 
 Installing pre-built binaries requires [Miniconda](https://docs.conda.io/en/latest/miniconda.html). 
-Packages include a convenience script `mx_install_env` that installs the depencies 
-of the Mechanica installation on execution. After installing the depencies 
+Packages include a convenience script `mx_install_env` that installs the dependencies 
+of the Mechanica installation on execution. After installing the dependencies 
 environment, the Mechanica installation can be used after executing the following steps 
-from a terminal. 
+from a terminal with the root of the installation as the current directory. 
 
 On Windows
 ```bash

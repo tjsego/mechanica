@@ -6,7 +6,7 @@ continuous delivery (CI/CD) to rapidly and reliably deliver the latest
 features for use by the general public. 
 To download recent release and development builds and review build status 
 by supported platform, visit the 
-[Mechanic Azure project](https://dev.azure.com/Mechanica-sim/Mechanica). 
+[Mechanica Azure project](https://dev.azure.com/Mechanica-sim/Mechanica). 
 
 Development and release of Mechanica is divided into three stages. 
 The stage origin of an official Mechanica build is encoded in the 

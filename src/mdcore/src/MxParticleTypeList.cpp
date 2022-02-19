@@ -34,6 +34,7 @@ uint16_t MxParticleTypeList::insert(const MxParticleType *ptype) {
     if(ptype) return insert(ptype->id);
 
     mx_error(E_FAIL, "cannot insert a NULL type");
+    return 0;
 }
 
 uint16_t MxParticleTypeList::remove(int32_t id) {

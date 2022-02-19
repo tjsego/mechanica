@@ -4,6 +4,7 @@
 %}
 
 %ignore MxFluxes_integrate;
+%ignore MxFluxes::fluxes;
 
 %include "Flux.hpp"
 

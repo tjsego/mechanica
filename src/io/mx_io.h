@@ -61,6 +61,18 @@ template <typename T>
 HRESULT toFile(const T &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
 
 /**
+ * @brief Convert an object to an intermediate I/O object
+ * 
+ * @tparam T type of object to convert
+ * @param dataElement object to convert
+ * @param metaData meta data of target installation
+ * @param fileElement resulting I/O object
+ * @return HRESULT 
+ */
+template <typename T>
+HRESULT toFile(T *dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+/**
  * @brief Instantiate an object from an intermediate I/O object
  * 
  * @tparam T type of object to instantiate
@@ -562,6 +574,21 @@ HRESULT toFile(const std::vector<T> &dataElement, const MxMetaData &metaData, Mx
 }
 
 template <typename T>
+HRESULT toFile(std::vector<T*> dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    fileElement->type = "vector";
+    fileElement->children.reserve(dataElement.size());
+    for(unsigned int i = 0; i < dataElement.size(); i++) {
+        MxIOElement *fe = new MxIOElement();
+        if(toFile<T>(dataElement[i], metaData, fe) != S_OK) 
+            return E_FAIL;
+        
+        fe->parent = fileElement;
+        fileElement->children[std::to_string(i)] = fe;
+    }
+    return S_OK;
+}
+
+template <typename T>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, std::vector<T> *dataElement) {
     unsigned int numEls = fileElement.children.size();
     dataElement->reserve(numEls);
@@ -607,9 +634,15 @@ HRESULT toFile(const std::map<S, T> &dataElement, const MxMetaData &metaData, Mx
 template <typename S, typename T>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, std::map<S, T> *dataElement) {
     
-    MxIOElement *keysfe, *valsfe;
-    MXIOFINDSAFE(fileElement, keysfeItr, "keys", keysfe);
-    MXIOFINDSAFE(fileElement, valsfeItr, "values", valsfe);
+    auto keysfeItr = fileElement.children.find("keys");
+    if(keysfeItr == fileElement.children.end())
+        return E_FAIL;
+    MxIOElement *keysfe = keysfeItr->second;
+
+    auto valsfeItr = fileElement.children.find("values");
+    if(valsfeItr == fileElement.children.end())
+        return E_FAIL;
+    MxIOElement *valsfe = valsfeItr->second;
 
     std::vector<S> keysde;
     std::vector<T> valsde;
@@ -653,9 +686,15 @@ HRESULT toFile(const std::unordered_map<S, T> &dataElement, const MxMetaData &me
 template <typename S, typename T>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, std::unordered_map<S, T> *dataElement) {
     
-    MxIOElement *keysfe, *valsfe;
-    MXIOFINDSAFE(fileElement, keysfeItr, "keys", keysfe);
-    MXIOFINDSAFE(fileElement, valsfeItr, "values", valsfe);
+    auto keysfeItr = fileElement.children.find("keys");
+    if(keysfeItr == fileElement.children.end())
+        return E_FAIL;
+    MxIOElement *keysfe = keysfeItr->second;
+
+    auto valsfeItr = fileElement.children.find("values");
+    if(valsfeItr == fileElement.children.end())
+        return E_FAIL;
+    MxIOElement *valsfe = valsfeItr->second;
 
     std::vector<S> keysde;
     std::vector<T> valsde;

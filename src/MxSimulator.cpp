@@ -398,7 +398,7 @@ static void parse_kwargs(const std::vector<std::string> &kwargs, MxSimulator_Con
         s = mx::parse::kwargVal(kwargs, "windowless");
         windowless = new bool(mx::cast<std::string, bool>(s));
 
-        Log(LOG_INFORMATION) << "got windowless: " << *windowless ? "True" : "False";
+        Log(LOG_INFORMATION) << "got windowless: " << (*windowless ? "True" : "False");
     }
     else windowless = NULL;
 
@@ -1173,6 +1173,7 @@ MxSimulator *MxSimulator::get() {
         return Simulator;
     }
     mx_exp(std::logic_error("Simulator is not initiazed"));
+    return NULL;
 }
 
 MxSimulatorPy *MxSimulatorPy::get() {

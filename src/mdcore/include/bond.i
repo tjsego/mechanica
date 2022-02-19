@@ -5,6 +5,8 @@
 
 %rename(_getitem) MxBondHandle::operator[];
 
+%ignore MxBond_StylePtr;
+
 %include "bond.h"
 
 %template(vectorBondHandle_p) std::vector<MxBondHandle*>;

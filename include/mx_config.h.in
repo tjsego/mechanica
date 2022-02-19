@@ -15,6 +15,7 @@
 #cmakedefine MX_MODEL_DIR "@MX_MODEL_DIR@"
 
 #cmakedefine MX_WITHCUDA
+#cmakedefine MX_BUILDQUAL "@MX_BUILDQUAL@"
 
 #define MX_VERSION_MAJOR @MX_VERSION_MAJOR@
 #define MX_VERSION_MINOR @MX_VERSION_MINOR@
@@ -35,7 +36,7 @@ static const char *mxBuildTime() {
     return __TIME__;
 }
 
-static const bool mxHasCuda() {
+static bool mxHasCuda() {
 #ifdef MX_WITHCUDA
     return true;
 #else

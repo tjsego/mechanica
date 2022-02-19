@@ -611,6 +611,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Fri
     return S_OK;
 }
 
+template <>
 HRESULT toFile(MxForce *dataElement, const MxMetaData &metaData, MxIOElement *fileElement) { 
 
     if(dataElement->type & FORCE_BERENDSEN) 

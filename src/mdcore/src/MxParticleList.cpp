@@ -42,6 +42,7 @@ uint16_t MxParticleList::insert(const MxParticleHandle *particle) {
     if(particle) return insert(particle->id);
 
     mx_error(E_FAIL, "cannot insert a NULL particle");
+    return 0;
 }
 
 uint16_t MxParticleList::remove(int32_t id)

@@ -1,43 +1,37 @@
 import mechanica as mx
 
-mx.init()
+mx.init(cutoff=3)
 
 
 class AType(mx.ParticleType):
     radius = 0.1
     dynamics = mx.Overdamped
-    mass = 5
     style = {"color": "MediumSeaGreen"}
 
 
 class BType(mx.ParticleType):
     radius = 0.1
     dynamics = mx.Overdamped
-    mass = 10
     style = {"color": "skyblue"}
 
 
 A = AType.get()
 B = BType.get()
 
-p = mx.Potential.coulomb(q=2, min=0.01, max=3)
+p = mx.Potential.coulomb(q=0.5, min=0.01, max=3)
+q = mx.Potential.coulomb(q=0.5, min=0.01, max=3)
+r = mx.Potential.coulomb(q=2.0, min=0.01, max=3)
 
 mx.bind.types(p, A, A)
-mx.bind.types(p, B, B)
-mx.bind.types(p, A, B)
+mx.bind.types(q, B, B)
+mx.bind.types(r, A, B)
 
-r = mx.Force.random(mean=0, std=1)
-
-mx.bind.force(r, A)
-
-pos = [x * 10 + mx.Universe.center for x in mx.random_points(mx.PointsType.SolidCube, 50000)]
+pos = [x * 10 + mx.Universe.center for x in mx.random_points(mx.PointsType.SolidCube, 1000)]
 
 [A(p) for p in pos]
 
 a = A.items()[0]
 
-[p.become(B) for p in a.neighbors(3)]
-
-a.radius = 2
+[p.become(B) for p in a.neighbors(5)]
 
 mx.show()

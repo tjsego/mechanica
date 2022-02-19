@@ -9,6 +9,8 @@
 %rename(to_cluster) MxParticleHandle::operator MxClusterParticleHandle*();
 %rename(to_cluster) MxParticleType::operator MxClusterParticleType*();
 
+%ignore MxParticle_Colors;
+
 %include "MxParticle.h"
 
 %template(vectorParticle) std::vector<MxParticle>;

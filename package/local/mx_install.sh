@@ -6,9 +6,15 @@ current_dir=$(pwd)
 
 set -o pipefail -e
 
-source ${this_dir}/linux/mx_install_vars.sh
+if [[ $(uname) == Darwin ]]; then
+    subdir=osx
+else
+    subdir=linux
+fi
 
-bash ${MXSRCDIR}/package/local/linux/mx_install_env.sh
+source ${this_dir}/${subdir}/mx_install_vars.sh
+
+bash ${MXSRCDIR}/package/local/${subdir}/mx_install_env.sh
 
 source ${HOME}/miniconda3/etc/profile.d/conda.sh
 
@@ -31,6 +37,6 @@ fi
 
 conda activate ${MXENV}
 
-bash ${MXSRCDIR}/package/local/linux/mx_install_all.sh
+bash ${MXSRCDIR}/package/local/${subdir}/mx_install_all.sh
 
 cd ${current_dir}

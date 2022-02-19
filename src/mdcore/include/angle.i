@@ -5,6 +5,8 @@
 
 %rename(_getitem) MxAngleHandle::operator[];
 
+%ignore MxAngle_StylePtr;
+
 %include "angle.h"
 
 %template(vectorAngleHandle_p) std::vector<MxAngleHandle*>;

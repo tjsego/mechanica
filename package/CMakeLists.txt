@@ -15,9 +15,11 @@ set(MXPY_RPATH_LIB '${MXPY_RPATH_LIB}')
 set(MXPY_RPATH_BIN_SITE None)
 set(MXPY_RPATH_LIB_SITE None)
 
-# This is a placeholder for supporting more packages in future dev
-set(MX_PACKAGE_LOCAL TRUE)
+# Select package based on settings
 
-if(${MX_PACKAGE_LOCAL})
+if(MX_PACKAGE_LOCAL)
     add_subdirectory(local)
+endif()
+if(MX_PACKAGE_CONDA)
+    add_subdirectory(conda)
 endif()

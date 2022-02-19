@@ -102,7 +102,7 @@ HRESULT MxParticleEvent::setMxParticleEventParticleSelector(MxParticleEventParti
 HRESULT MxParticleEvent::setMxParticleEventParticleSelector(std::string selectorName) {
     auto *particleSelector = getMxParticleEventParticleSelectorN(selectorName);
     if(!particleSelector) return E_FAIL;
-    setMxParticleEventParticleSelector(particleSelector);
+    return setMxParticleEventParticleSelector(particleSelector);
 }
 
 MxParticleHandle *MxParticleEvent::getNextParticle() {

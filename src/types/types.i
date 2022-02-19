@@ -130,7 +130,7 @@
 
 %include "MxQuaternion.h"
 
-typedef long HRESULT;
+typedef int32_t HRESULT;
 
 typedef mx::type::MxVector2<double> MxVector2d;
 typedef mx::type::MxVector3<double> MxVector3d;

@@ -1952,10 +1952,10 @@ int engine_init ( struct engine *e , const double *origin , const double *dim , 
 
     /* make sure the inputs are ok */
     if ( e == NULL || origin == NULL || dim == NULL || cells == NULL ) {
-		if(!e) 		Log(LOG_CRITICAL) << "no engine";
-		if(!origin) Log(LOG_CRITICAL) << "no origin";
-		if(!dim) 	Log(LOG_CRITICAL) << "no dim";
-		if(!cells) 	Log(LOG_CRITICAL) << "no cells";
+		if(!e) 		{ Log(LOG_CRITICAL) << "no engine"; }
+		if(!origin) { Log(LOG_CRITICAL) << "no origin"; }
+		if(!dim) 	{ Log(LOG_CRITICAL) << "no dim"; }
+		if(!cells) 	{ Log(LOG_CRITICAL) << "no cells"; }
 
         return error(engine_err_null);
 	}

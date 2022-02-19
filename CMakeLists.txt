@@ -68,6 +68,7 @@ file(RELATIVE_PATH RDIR
   ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
 )
 set(CMAKE_INSTALL_RPATH ${RPATH_PREFIX} ${RPATH_PREFIX}/${RDIR})
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 option(MX_OPENMP "Enable OpenMP parallelism" OFF)
 
@@ -173,6 +174,31 @@ set(MX_VERSION_DEV ${CMAKE_MATCH_1})
 
 message("version: ${MX_VERSION_MAJOR}.${MX_VERSION_MINOR}.${MX_VERSION_PATCH}")
 
+# Get the build qualifier from the environment, if one was specified
+if(DEFINED ENV{MXBUILDQUAL})
+  set(MX_BUILDQUAL $ENV{MXBUILDQUAL})
+  set(MX_HASBUILDQUAL true)
+  message("qualifer: ${MX_BUILDQUAL}")
+else()
+  set(MX_HASBUILDQUAL false)
+endif()
+
+# Get package details
+#   Local install is assumed unless MXPACKAGELOCALOFF env var is set
+set(MX_PACKAGE_LOCAL true)
+if(DEFINED ENV{MXPACKAGELOCALOFF})
+  set(MX_PACKAGE_LOCAL false)
+  message("Disabled local package")
+else()
+  message("Enabled local package")
+endif()
+#   Conda is enabled when MXPACKAGECONDA env var is set
+set(MX_PACKAGE_CONDA false)
+if(DEFINED ENV{MXPACKAGECONDA})
+  set(MX_PACKAGE_CONDA true)
+  message("Enabled conda package")
+endif()
+
 message("CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 message("CMAKE_OSX_DEPLOYMENT_TARGET: ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 message("MACOSX_DEPLOYMENT_TARGET: ${MACOSX_DEPLOYMENT_TARGET}")
@@ -182,26 +208,14 @@ message("CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
 message("CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 message("CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
 
-
+set(MX_HAVEPTHREADS FALSE)
 if(USING_VCPKG)
 
   find_package(pthreads CONFIG REQUIRED)
 
-  # have to set this to create an alias, don't know why...
   set_target_properties(PThreads4W::PThreads4W PROPERTIES IMPORTED_GLOBAL TRUE)
   add_library(Threads::Threads ALIAS PThreads4W::PThreads4W)
-
-
-  #Use the PThreads4W vcpkg package, called pthreads
-  #The package pthreads provides CMake targets:
-
-  #find_package(pthreads CONFIG REQUIRED)
-
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W)
-  #or
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W_CXXEXC)
-  #or
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W_STRUCTEXC)
+  set(MX_HAVEPTHREADS TRUE)
 
 elseif(DEFINED PThreads_ROOT)
 
@@ -215,6 +229,7 @@ elseif(DEFINED PThreads_ROOT)
   target_include_directories(pthreads INTERFACE ${PThreads_ROOT}/include)
   set_target_properties(pthreads PROPERTIES IMPORTED_LOCATION ${PThreads})
   add_library(Threads::Threads ALIAS pthreads)
+  set(MX_HAVEPTHREADS TRUE)
 
 else()
   # use standard unix pthreads, creates Threads::Threads target
@@ -265,14 +280,18 @@ if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
   include_directories(${Python_INCLUDE_DIRS})
 endif()
 
-# Determine install site-packages location using info from environment
-execute_process(
-  COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
-  OUTPUT_VARIABLE MX_SITEPACKAGES_REL
-)
-string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
-file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
-set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
+# Determine install site-packages location using info from environment if not provided
+if(DEFINED MX_INSTALL_PREFIX_PYTHON)
+  SET(MX_SITEPACKAGES ${MX_INSTALL_PREFIX_PYTHON})
+else()
+  execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
+    OUTPUT_VARIABLE MX_SITEPACKAGES_REL
+  )
+  string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
+  file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
+  set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
+endif()
 message("MX_SITEPACKAGES: ${MX_SITEPACKAGES}")
 
 # needed for jpeg image writer
@@ -328,9 +347,9 @@ include_directories(${OPENGL_INCLUDE_DIR})
 #
 #endif()
 
-find_package(Assimp REQUIRED)
+find_package(assimp REQUIRED)
 
-if(Assimp_FOUND)
+if(assimp_FOUND)
   message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
 else()
   message("ASSIMP not found")

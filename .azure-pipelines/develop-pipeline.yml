@@ -1,7 +1,14 @@
 name: mechanica_develop_$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
-  - develop
+  branches:
+    include:
+    - develop
+
+pr:
+  branches:
+    include:
+    - develop
 
 variables:
   py_minor_version: 7

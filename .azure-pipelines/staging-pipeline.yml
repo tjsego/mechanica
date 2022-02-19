@@ -1,7 +1,14 @@
 name: mechanica_staging_$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
-  - staging
+  branches:
+    include:
+    - staging
+
+pr:
+  branches:
+    include:
+    - staging
 
 variables:
   mx_version: '0.30.0.s'

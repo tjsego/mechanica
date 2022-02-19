@@ -1,7 +1,14 @@
 name: mechanica_$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
-  - master
+  branches:
+    include:
+    - master
+
+pr:
+  branches:
+    include:
+    - master
 
 variables:
   mx_version: '0.30.0'

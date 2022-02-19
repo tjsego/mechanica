@@ -33,6 +33,7 @@ Mechanica currently supports installations on 64-bit Windows, Linux and MacOS sy
 Pre-built binaries of the latest Mechanica developments are archived at the 
 [Mechanica Azure project](https://dev.azure.com/Mechanica-sim/Mechanica). 
 Installing pre-built binaries requires [Miniconda](https://docs.conda.io/en/latest/miniconda.html). 
+Binaries on Linux require the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`. 
 Packages include a convenience script `mx_install_env` that installs the dependencies 
 of the Mechanica installation on execution. After installing the dependencies 
 environment, the Mechanica installation can be used after executing the following steps 

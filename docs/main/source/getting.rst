@@ -6,7 +6,13 @@ Getting Mechanica
 Pre-Built Binaries
 -------------------
 
-Pre-built binaries of the latest Mechanica developments are archived at the
+Binary distributions of Mechanica are available via conda from the `mechanica` channel,
+
+.. code-block:: bash
+
+    conda install -c mechanica mechanica
+
+Pre-built binaries of the latest Mechanica developments are also archived at the
 `Mechanica Azure project <https://dev.azure.com/Mechanica-sim/Mechanica>`_.
 Installing pre-built binaries requires `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_.
 Binaries on Linux require the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`.

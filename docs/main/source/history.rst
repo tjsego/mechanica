@@ -3,6 +3,61 @@
 History
 ========
 
+Version 0.31.0
+--------------
+Huge release, with completion of (hopefully) all features for Version 1.0.0
+
+* Core features
+
+  * Adds support for model specification in pure C++
+  * Adds support for generating bindings in additional languages
+  * Adds a formal event system, with callback capabilities in C++ and python
+  * Implements universal naming of particle types: a registered type can now always be uniquely determined anywhere in a simulation
+  * Adds "models" module for application-specific modeling features
+  * Adds libSBML dependency
+  * Removes carbon
+  * Adds modular CUDA runtime support
+  * Improves synchronization of SBML states and state vector dynamics
+  * Adds simulation I/O based on JSON
+  * Adds I/O support for 3D model format files
+* Modeling features
+
+  * Populates event system with events for
+
+    * single events
+    * time-dependent events
+    * particle-dependent events
+    * time- and particle-dependent events
+  * Adds cell polarity model to models module
+  * Adds "reset" boundary condition
+  * Unifies bond interfaces
+* Visualization / interactive features
+
+  * Adds camera and basic visualization interfaces
+  * Adds clip planes support for bonds rendering
+  * Adds interactive interface for clip planes
+  * Adds interface for random number generator
+  * Adds interface to customize basic visualization (e.g., background color, scene decorations)
+  * Adds screenshot interface
+  * Adds rendering of space discretization
+  * Adds visualization of view orientation
+  * Adds keyboard commands for
+
+    * pre-defined views
+    * toggling scene decorations
+    * toggling display of space discretization
+* Documentation features
+
+  * Adds documentation on (hopefully) all modeling and simulation features
+  * Adds documentation on select back-end details
+  * Adds automated C/C++ API documentation using Doxygen
+  * Adds automated Python API documentation using Sphinx
+* Build / distribution features
+
+  * Adds automated local build using conda
+  * Adds conda package recipe
+  * Implements CI/CD using Azure
+
 Version Alpha 1.0.30.4
 ----------------------
 * fixed bugs in performance timers

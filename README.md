@@ -20,11 +20,26 @@ Mechanica currently supports installations on 64-bit Windows, Linux and MacOS sy
 
 ## Build Status ##
 
+### Binaries ###
+
+The latest Mechanica developments are archived at the 
+[Mechanica Azure project](https://dev.azure.com/Mechanica-sim/Mechanica).
+
 | Platform | Status |
 | :------: | :----: |
 | Linux    | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Linux)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)   |
 | MacOS    | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Mac)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)     |
 | Windows  | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Windows)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop) |
+
+### Documentation ###
+
+Mechanica documentation is available online, 
+
+| Document                 | Link                                                                         | Status |
+| :----------------------: | :--------------------------------------------------------------------------: | :----: |
+| Mechanica Documentation  | [link](https://mechanica-documentation.readthedocs.io/en/latest/)            | [![Documentation Status](https://readthedocs.org/projects/mechanica-documentation/badge/?version=latest)](https://mechanica-documentation.readthedocs.io/en/latest/?badge=latest) |
+| C++ API Documentation    | [link](https://mechanica-c-api-documentation.readthedocs.io/en/latest/)      | [![Documentation Status](https://readthedocs.org/projects/mechanica-c-api-documentation/badge/?version=latest)](https://mechanica-c-api-documentation.readthedocs.io/en/latest/?badge=latest) |
+| Python API Documentation | [link](https://mechanica-python-api-documentation.readthedocs.io/en/latest/) | [![Documentation Status](https://readthedocs.org/projects/mechanica-python-api-documentation/badge/?version=latest)](https://mechanica-python-api-documentation.readthedocs.io/en/latest/?badge=latest) |
 
 # Installation #
 

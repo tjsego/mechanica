@@ -8,6 +8,7 @@ about:
   license_family: LGPL
   license_file: ../../../LICENSE.txt
   summary: Interactive, particle-based physics, chemistry and biology modeling and simulation environment
+  doc_url: https://mechanica-documentation.readthedocs.io/en/latest/
 
 extra:
   maintainers: T.J. Sego

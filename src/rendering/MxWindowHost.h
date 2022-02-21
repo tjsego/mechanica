@@ -14,16 +14,4 @@ class MxWindowHost
 {
 };
 
-/**
- * The the particle type type
- */
-CAPI_DATA(PyTypeObject) MxWindowHost_Type;
-
-
-
-/**
- * Init and add to python module
- */
-HRESULT MxWindowHost_init(PyObject *m);
-
 #endif /* SRC_MXWINDOWHOST_H_ */

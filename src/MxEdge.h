@@ -13,8 +13,6 @@
 
 #define EDGE_MAX_POLYGONS 3
 
-CAPI_DATA(struct CType*) MxEdge_Type;
-
 struct MxVertex;
 
 /**
@@ -25,7 +23,7 @@ struct MxVertex;
  * and is incident to two cells. If an edge is incident to three polygons, then
  * it lies in a volumetric region of material, and is incident to three cells.
  */
-struct MxEdge : CObject
+struct MxEdge
 {
     const uint id;
 
@@ -50,12 +48,6 @@ struct MxEdge : CObject
      * face don't have any neighbors.
      */
     MxPolygon *polygons[EDGE_MAX_POLYGONS] = {nullptr};
-
-    static bool classof(const CObject *o) {
-        return o->ob_type == MxEdge_Type;
-    }
-
-    static CType *type() {return MxEdge_Type;};
 
     uint polygonCount() const {
         return polygons[0] == nullptr ? 0 :

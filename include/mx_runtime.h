@@ -8,7 +8,6 @@
 #ifndef _INCLUDE_CA_RUNTIME_H_
 #define _INCLUDE_CA_RUNTIME_H_
 
-#include <carbon.h>
 #include <stdio.h>
 
 

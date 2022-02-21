@@ -14,7 +14,7 @@
 #include "MxController.h"
 #include "MxView.h"
 
-struct MxRenderTarget: public CObject
+struct MxRenderTarget
 {
 public:
     MxRenderTarget();

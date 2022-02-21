@@ -6,162 +6,102 @@
  */
 
 #include <DissapativeParticleDynamics.hpp>
-#include <MxConvert.hpp>
+
+#include <../../io/MxFIO.h>
+
+#include <cmath>
+#include <limits>
 
 
 #define DPD_SELF(handle) DPDPotential *self = ((DPDPotential*)(handle))
 
 
-
-static PyMethodDef dpd_methods[] = {
-    { NULL, NULL, 0, NULL }
-};
-
-
-PyGetSetDef dpd_getsets[] = {
-    {
-        .name = "alpha",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            DPD_SELF(obj);
-            return mx::cast(self->alpha);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            try {
-                DPD_SELF(obj);
-                self->alpha = mx::cast<float>(val);
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "gamma",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            DPD_SELF(obj);
-            return mx::cast(self->gamma);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            try {
-                DPD_SELF(obj);
-                self->gamma = mx::cast<float>(val);
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "sigma",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            DPD_SELF(obj);
-            return mx::cast(self->sigma);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            try {
-                DPD_SELF(obj);
-                self->sigma = mx::cast<float>(val);
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {NULL}
-};
-
-PyTypeObject DPDPotential_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name =           "DPDPotential",
-    .tp_basicsize =      sizeof(DPDPotential),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           0,
-    .tp_as_number =      0,
-    .tp_as_sequence =    0,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            0,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags =          Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc =            "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        dpd_methods,
-    .tp_members =        0,
-    .tp_getset =         dpd_getsets,
-    .tp_base =           &MxPotential_Type,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           0,
-    .tp_alloc =          0,
-    .tp_new =            0,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
-
-
-PyObject * DPDPotential_New(float alpha, float gamma, float sigma, float cutoff, bool shifted) {
-    DPDPotential *p = (DPDPotential*)potential_alloc(&DPDPotential_Type);
-    
-    p->kind = POTENTIAL_KIND_DPD;
-    p->alpha = alpha;
-    p->gamma = gamma;
-    p->sigma = sigma;
-    p->a = std::sqrt(std::numeric_limits<float>::epsilon());
-    p->b = cutoff;
-    p->name = "Dissapative Particle Dynamics";
+DPDPotential::DPDPotential(float alpha, float gamma, float sigma, float cutoff, bool shifted) : MxPotential() {
+    this->kind = POTENTIAL_KIND_DPD;
+    this->alpha = alpha;
+    this->gamma = gamma;
+    this->sigma = sigma;
+    this->a = std::sqrt(std::numeric_limits<float>::epsilon());
+    this->b = cutoff;
+    this->name = "Dissapative Particle Dynamics";
     if(shifted) {
-        p->flags |= POTENTIAL_SHIFTED;
+        this->flags |= POTENTIAL_SHIFTED;
     }
-    return p;
+}
+
+DPDPotential *DPDPotential::fromPot(MxPotential *pot) {
+    if(pot->kind != POTENTIAL_KIND_DPD) 
+        return NULL;
+    return (DPDPotential*)pot;
+}
+
+std::string DPDPotential::toString() {
+    MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+    if(mx::io::toFile(this, metaData, fe) != S_OK) 
+        return "";
+    return mx::io::toStr(fe, metaData);
+}
+
+DPDPotential *DPDPotential::fromString(const std::string &str) {
+    return mx::io::fromString<DPDPotential*>(str);
 }
 
 
-HRESULT _DPDPotential_Init(PyObject* m) {
-        
-    if (PyType_Ready((PyTypeObject*)&DPDPotential_Type) < 0) {
-        return E_FAIL;
-    }
+namespace mx { namespace io {
 
-    Py_INCREF(&DPDPotential_Type);
-    if (PyModule_AddObject(m, "DPDPotential", (PyObject *)&DPDPotential_Type) < 0) {
-        Py_DECREF(&DPDPotential_Type);
+#define MXDPDPOTENTIALIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXDPDPOTENTIALIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
         return E_FAIL;
-    }
+
+HRESULT toFile(DPDPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXDPDPOTENTIALIOTOEASY(fe, "kind", dataElement->kind);
+    MXDPDPOTENTIALIOTOEASY(fe, "alpha", dataElement->alpha);
+    MXDPDPOTENTIALIOTOEASY(fe, "gamma", dataElement->gamma);
+    MXDPDPOTENTIALIOTOEASY(fe, "sigma", dataElement->sigma);
+    MXDPDPOTENTIALIOTOEASY(fe, "a", dataElement->a);
+    MXDPDPOTENTIALIOTOEASY(fe, "b", dataElement->b);
+    MXDPDPOTENTIALIOTOEASY(fe, "name", std::string(dataElement->name));
+    MXDPDPOTENTIALIOTOEASY(fe, "flags", dataElement->flags);
+
+    fileElement->type = "DPDPotential";
 
     return S_OK;
 }
 
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, DPDPotential **dataElement) {
 
+    MxIOChildMap::const_iterator feItr;
 
+    uint32_t kind, flags;
+    MXDPDPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "kind", &kind);
+    MXDPDPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "flags", &flags);
+
+    float alpha, gamma, sigma, b;
+    MXDPDPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "alpha", &alpha);
+    MXDPDPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "gamma", &gamma);
+    MXDPDPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "sigma", &sigma);
+    MXDPDPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "b", &b);
+
+    *dataElement = new DPDPotential(alpha, gamma, sigma, b, flags & POTENTIAL_SHIFTED);
+
+    return S_OK;
+}
+
+}};
+
+DPDPotential *DPDPotential_fromStr(const std::string &str) {
+    return DPDPotential::fromString(str);
+}

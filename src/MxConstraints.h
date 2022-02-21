@@ -11,18 +11,28 @@
 #include "mechanica_private.h"
 #include <vector>
 
+// A propagator using these to determine what information to give a constraint
+enum CONSTRAINABLE_TYPE {
+    CONSTRAINABLE_NONE, 
+    CONSTRAINABLE_CELL, 
+    CONSTRAINABLE_POLYGON
+};
+
+struct MxConstrainable;
+
 struct IConstraint {
+
+    virtual CONSTRAINABLE_TYPE dataType() { return CONSTRAINABLE_TYPE::CONSTRAINABLE_NONE; }
 
     virtual HRESULT setTime(float time) = 0;
 
-    virtual float energy(const CObject **objs, int32_t len) = 0;
+    virtual float energy(const std::vector<MxConstrainable*> &objs) = 0;
 
-    virtual HRESULT project(CObject **obj, int32_t len) = 0;
+    virtual HRESULT project(const std::vector<MxConstrainable*> &obj) = 0;
 };
 
 
-struct MxConstrainableType : CType {
-
+struct MxConstrainableType {
 
     std::vector<IConstraint*> constraints;
 
@@ -30,6 +40,9 @@ struct MxConstrainableType : CType {
 
 struct MxConstrainable {
 
+    MxConstrainableType *constraintType;
+
+    MxConstrainable(MxConstrainableType *type) : constraintType(type) {}
 
 };
 

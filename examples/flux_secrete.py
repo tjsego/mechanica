@@ -1,39 +1,47 @@
-import mechanica as m
+import mechanica as mx
 
-m.init(dim=[6.5, 6.5, 6.5], bc=m.FREESLIP_FULL)
+mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL)
 
-class A (m.Particle):
+
+class AType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap" : {"species" : "S1", "map" : "rainbow","range" : "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
 
-class B (m.Particle):
+
+class BType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap" : {"species" : "S1", "map" : "rainbow","range" : "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
 
-    def spew(self, event):
 
-        print("spew...")
+A = AType.get()
+B = BType.get()
 
-        # reset the value of the species
-        # secrete consumes material...
-        self.species.S1 = 500
-        self.species.S1.secrete(250, distance=1)
+mx.Fluxes.flux(A, A, "S1", 5, 0.005)
 
-m.flux(A, A, "S1", 5, 0.005)
+uc = mx.lattice.sc(0.25, A)
 
-uc = m.lattice.sc(0.25, A)
-
-parts = m.lattice.create_lattice(uc, [25, 25, 25])
+parts = mx.lattice.create_lattice(uc, [25, 25, 25])
 
 # grap the particle at the top cornder
-o = parts[24,0,24][0]
+o = parts[24, 0, 24][0]
 
-print("secreting pos: ", o.position)
+print("secreting pos: ", o.position.as_list())
 
 # change type to B, since there is no flux rule between A and B
 o.become(B)
 
-m.on_time(B.spew, period=0.3)
-m.show()
+
+def spew(event: mx.ParticleTimeEvent):
+
+    print("spew...")
+
+    # reset the value of the species
+    # secrete consumes material...
+    event.targetParticle.species.S1 = 500
+    event.targetParticle.species.S1.secrete(250, distance=1)
+
+
+mx.on_particletime(ptype=B, invoke_method=spew, period=0.3)
+mx.run()

@@ -1,14 +1,11 @@
-import mechanica as m
+import mechanica as mx
 import numpy as np
 import math
 
 import matplotlib
 import matplotlib.pyplot as plt
 
-from time import time
-from random import random
-
-print ( matplotlib.__version__ )
+print(matplotlib.__version__ )
 
 # potential cutoff distance
 cutoff = 10
@@ -20,11 +17,10 @@ count = 6000
 avg_pts = 3
 
 # dimensions of universe
-dim=np.array([30., 30., 30.])
-center = dim / 2
+dim = [30., 30., 30.]
 
 # new simulator
-m.init(dim=dim, cutoff=cutoff, integrator=m.FORWARD_EULER, dt=0.002)
+mx.init(dim=dim, cutoff=cutoff, integrator=mx.FORWARD_EULER, dt=0.002)
 
 clump_radius = 2
 
@@ -32,18 +28,18 @@ clump_radius = 2
 avg_bins = 3
 
 prev_pos = np.zeros((count, 3))
-avg_vel  = np.zeros((count, 3))
-avg_pos  = np.zeros((count, 3))
-avg_index = 0;
+avg_vel = np.zeros((count, 3))
+avg_pos = np.zeros((count, 3))
+avg_index = 0
 
 # the output display array.
-# matplotlib uses (Y:X) axis arrays instead of normal (X:Y)
-# seriously, WTF matplotlib???
+# matplotlib uses (Y:X) axis arrays instead of (X:Y)
 display_velocity = np.zeros((100, 200))
 display_velocity_count = np.zeros((100, 200))
 
 # keep a handle on all the cells we've made.
 cells = count * [None]
+
 
 def cartesian_to_spherical(pt, origin):
     """
@@ -76,48 +72,50 @@ def spherical_index_from_cartesian(pos, origin, theta_bins, phi_bins):
     i = math.floor(sph[1] / (2. * np.pi) * theta_bins)
     j = math.floor(sph[2] / (np.pi + np.finfo(np.float32).eps) * phi_bins)
 
-    return (i, j)
+    return i, j
 
 
-class Yolk(m.Particle):
+class YolkType(mx.ParticleType):
     mass = 500000
     radius = 6
 
 
-class Cell(m.Particle):
+class CellType(mx.ParticleType):
     mass = 5
     radius = 0.25
-    target_temperature=0
-    dynamics = m.Overdamped
+    target_temperature = 0
+    dynamics = mx.Overdamped
+
+
+Yolk = YolkType.get()
+Cell = CellType.get()
 
 total_height = 2 * Yolk.radius + 2 * clump_radius
 yshift = total_height/2 - Yolk.radius
 cshift = total_height/2 - 1.3 * clump_radius
 
 
-pot_yc = m.Potential.soft_sphere(kappa=300, epsilon=50, r0=1, \
-                                 eta=2, tol = 0.03, min=0.1, max=8, shift=True)
+pot_yc = mx.Potential.soft_sphere(kappa=300, epsilon=50, r0=1, eta=2, tol=0.03, min=0.1, max=8, shift=True)
 
-pot_cc = m.Potential.soft_sphere(kappa=600, epsilon=0.5, r0=1, \
-                                 eta=3, tol = 0.05, min=0, max=2.5, shift=True)
+pot_cc = mx.Potential.soft_sphere(kappa=600, epsilon=0.5, r0=1, eta=3, tol=0.05, min=0, max=2.5, shift=True)
 
 # bind the potential with the *TYPES* of the particles
-m.Universe.bind(pot_yc, Yolk, Cell)
-m.Universe.bind(pot_cc, Cell, Cell)
+mx.bind.types(pot_yc, Yolk, Cell)
+mx.bind.types(pot_cc, Cell, Cell)
 
 # create a random force. In overdamped dynamcis, we neeed a random force to
 # enable the objects to move around, otherwise they tend to get trapped
 # in a potential
-rforce = m.forces.random(0, 1)
+rforce = mx.Force.random(mean=0, std=1)
 
 # bind it just like any other force
-m.bind(rforce, Cell)
+mx.bind.force(rforce, Cell)
 
-yolk = Yolk(position=center-[0., 0., yshift])
+yolk = Yolk(position=mx.Universe.center + [0., 0., -yshift])
 
-for i, p in enumerate(m.random_points(m.SolidSphere, count)):
-    pos = p * clump_radius + center+[0., 0., cshift]
-    cells[i] = Cell(position=pos)
+for i, p in enumerate(mx.random_points(mx.PointsType.SolidSphere, count)):
+    pos = p * clump_radius + mx.Universe.center
+    cells[i] = Cell(position=pos + [0., 0., cshift])
 
 
 def calc_avg_pos(e):
@@ -137,9 +135,9 @@ def calc_avg_pos(e):
             # get the theta / phi index from the cartesian coordinate
             # remeber, matplotlib is backwards and wants matricies in
             # transposed order.
-            ii, jj = spherical_index_from_cartesian(avg_pos[i], \
-                                                    yolk.position, \
-                                                    display_velocity.shape[1], \
+            ii, jj = spherical_index_from_cartesian(avg_pos[i],
+                                                    yolk.position,
+                                                    display_velocity.shape[1],
                                                     display_velocity.shape[0])
 
             # counts of samples we have for this spherical coordinate
@@ -152,14 +150,13 @@ def calc_avg_pos(e):
 
         Z = display_velocity
 
-
         plt.pause(0.01)
         plt.clf()
-        #plt.contour(Z)
+        # plt.contour(Z)
 
         yy = np.linspace(0, np.pi, num=100)
         xx = np.linspace(0, 2 * np.pi, num=200)
-        c=plt.pcolormesh(xx, yy, Z, cmap ='jet')
+        c = plt.pcolormesh(xx, yy, Z, cmap='jet')
         plt.colorbar(c)
         plt.show(block=False)
 
@@ -168,11 +165,11 @@ def calc_avg_pos(e):
         display_velocity_count[:] = 0
         display_velocity[:] = 0
 
-
     # bump counter where we store velocity info to be averaged
     avg_index = (avg_index + 1) % avg_bins
 
-m.on_time(calc_avg_pos, period=0.01)
+
+mx.on_time(invoke_method=calc_avg_pos, period=0.01)
 
 # run the simulator interactive
-m.Simulator.run()
+mx.run()

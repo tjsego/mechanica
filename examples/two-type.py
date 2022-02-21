@@ -1,5 +1,4 @@
-import mechanica as m
-import numpy as np
+import mechanica as mx
 
 # potential cutoff distance
 cutoff = 8
@@ -7,45 +6,39 @@ cutoff = 8
 count = 3000
 
 # dimensions of universe
-dim=np.array([20., 20., 20.])
-center = dim / 2
+dim = [20., 20., 20.]
 
 # new simulator
-m.init(dim=dim, cutoff=cutoff)
+mx.init(dim=dim, cutoff=cutoff)
 
-class Big(m.Particle):
+
+class BigType(mx.ParticleType):
     mass = 500000
     radius = 3
 
-class Small(m.Particle):
+
+class SmallType(mx.ParticleType):
     mass = 0.1
     radius = 0.2
-    target_temperature=0
+    target_temperature = 0
 
 
-pot_bs = m.Potential.soft_sphere(kappa=100, epsilon=1, r0=3.2, \
-    eta=3, tol = 0.1, min=0.1, max=8)
+Big = BigType.get()
+Small = SmallType.get()
 
-pot_ss = m.Potential.soft_sphere(kappa=1, epsilon=0.1, r0=0.2, \
-    eta=2, tol = 0.05, min=0.01, max=4)
+
+pot_bs = mx.Potential.soft_sphere(kappa=100, epsilon=1, r0=3.2, eta=3, tol=0.1, min=0.1, max=8)
+
+pot_ss = mx.Potential.soft_sphere(kappa=1, epsilon=0.1, r0=0.2, eta=2, tol=0.05, min=0.01, max=4)
 
 # bind the potential with the *TYPES* of the particles
-m.Universe.bind(pot_bs, Big, Small)
-m.Universe.bind(pot_ss, Small, Small)
+mx.bind.types(pot_bs, Big, Small)
+mx.bind.types(pot_ss, Small, Small)
 
-Big(position=center, velocity=[0., 0., 0.])
+Big(position=mx.Universe.center, velocity=[0., 0., 0.])
 
-for p in m.random_points(m.Disk, count) * \
-    2.5 * Big.radius + center + [0, 0, Big.radius + 1]:
-    Small(p)
+for p in mx.random_points(mx.PointsType.Disk, count):
+    Small(p * 2.5 * Big.radius + mx.Universe.center + [0, 0, Big.radius + 1])
 
 # run the simulator interactive
-m.Simulator.run()
-
-
-
-
-
-
-
-
+mx.run()

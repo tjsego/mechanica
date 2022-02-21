@@ -1,34 +1,38 @@
-import mechanica as m
+import mechanica as mx
 import numpy as np
 
 # potential cutoff distance
 cutoff = 3
 
 # dimensions of universe
-dim=[10., 10., 10.]
+dim = [10., 10., 10.]
 
 # new simulator
-m.init(dim=dim,
-       window_size=[900,900],
-       perfcounter_period=100,
-       clip_planes = [([2, 2, 2], [1, 1, 0.5]), ([8, 8, 8], [-1, -1, 0.9])])
+mx.init(dim=dim,
+        window_size=[900, 900],
+        perfcounter_period=100,
+        clip_planes=[([2, 2, 2], [1, 1, 0.5]), ([5, 5, 5], [-1, 1, -1])])
 
 # create a potential representing a 12-6 Lennard-Jones potential
 # A The first parameter of the Lennard-Jones potential.
 # B The second parameter of the Lennard-Jones potential.
 # cutoff
-pot = m.Potential.lennard_jones_12_6(0.275 , cutoff, 9.5075e-06 , 6.1545e-03 , 1.0e-3 )
+pot = mx.Potential.lennard_jones_12_6(0.275, cutoff, 9.5075e-06, 6.1545e-03, 1.0e-3)
 
 
 # create a particle type
 # all new Particle derived types are automatically
 # registered with the universe
-class Argon(m.Particle):
-    radius=0.1
+class ArgonType(mx.ParticleType):
+    radius = 0.1
     mass = 39.4
 
+
+Argon = ArgonType.get()
+
+
 # bind the potential with the *TYPES* of the particles
-m.Universe.bind(pot, Argon, Argon)
+mx.bind.types(pot, Argon, Argon)
 
 # uniform random cube
 positions = np.random.uniform(low=0, high=10, size=(13000, 3))
@@ -38,5 +42,22 @@ for pos in positions:
     # the particle to the universe
     Argon(pos)
 
+# Create a clip plane on demand
+cp = mx.ClipPlanes.create(mx.Universe.center, mx.MxVector3f(0., 1., 0.))
+
+# Animate the clip plane
+
+
+def rotate_clip(e):
+    """Rotates the clip plane about the x-axis"""
+    cf = 2 * np.pi * mx.Universe.time / 20.0
+    cp.setEquation(mx.Universe.center, mx.MxVector3f(0., np.cos(cf), np.sin(cf)))
+
+
+mx.on_time(period=mx.Universe.dt, invoke_method=rotate_clip)
+
+# Orient the camera to verify animation
+mx.system.cameraViewRight()
+
 # run the simulator interactive
-m.run()
+mx.run()

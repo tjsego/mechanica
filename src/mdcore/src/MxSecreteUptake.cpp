@@ -7,10 +7,9 @@
 
 #include <MxSecreteUptake.hpp>
 #include <MxParticle.h>
-#include <CSpeciesValue.hpp>
-#include <CSpeciesList.hpp>
-#include <CStateVector.hpp>
-#include <CConvert.hpp>
+#include <../../mx_error.h>
+#include <../../state/MxSpeciesList.h>
+#include <../../state/MxStateVector.h>
 #include <MxParticleList.hpp>
 #include <metrics.h>
 #include <engine.h>
@@ -20,12 +19,12 @@
 
 
 
-HRESULT MxSecrete_AmountToParticles(struct CSpeciesValue *species,
-        float amount, uint16_t nr_parts,
-        int32_t *parts, float *secreted)
+HRESULT MxSecrete_AmountToParticles(struct MxSpeciesValue *species,
+        double amount, uint16_t nr_parts,
+        int32_t *parts, double *secreted)
 {
-    CStateVector *stateVector = species->state_vector;
-    CSpecies *s = stateVector->species->item(species->index);
+    MxStateVector *stateVector = species->state_vector;
+    MxSpecies *s = stateVector->species->item(species->index);
     const std::string& speciesName = s->getId();
     
     float amountToRemove = amount < stateVector->fvec[species->index] ? amount : stateVector->fvec[species->index];
@@ -42,7 +41,7 @@ HRESULT MxSecrete_AmountToParticles(struct CSpeciesValue *species,
         
         int index;
         
-        if(p && p->state_vector && (index = p->state_vector->species->index_of(speciesName)) >= 0) {
+        if(p && p->state_vector && (index = p->state_vector->species->index_of(speciesName.c_str())) >= 0) {
             pvec.push_back({p, index});
         }
     }
@@ -61,11 +60,11 @@ HRESULT MxSecrete_AmountToParticles(struct CSpeciesValue *species,
     return S_OK;
 }
 
-HRESULT MxSecrete_AmountWithinDistance(struct CSpeciesValue *species,
-        float amount, float radius,
-        const std::set<short int> *typeIds, float *secreted)
+HRESULT MxSecrete_AmountWithinDistance(struct MxSpeciesValue *species,
+        double amount, double radius,
+        const std::set<short int> *typeIds, double *secreted)
 {
-    MxParticle *part = MxParticle_Get(species->state_vector->owner);
+    MxParticle *part = (MxParticle*)species->state_vector->owner;
     uint16_t nr_parts = 0;
     int32_t *parts = NULL;
     
@@ -75,87 +74,35 @@ HRESULT MxSecrete_AmountWithinDistance(struct CSpeciesValue *species,
 }
 
 
+double MxSecreteUptake::secrete(MxSpeciesValue *species, const double &amount, const MxParticleList &to) {
+    double secreted = 0;
+    try{
+        if(FAILED(MxSecrete_AmountToParticles(species, amount, to.nr_parts, to.parts, &secreted))) return NULL;
+    }
+    catch(const std::exception &e) {
+        
+    }
+    return secreted;
+}
 
-static PyObject *secrete(PyObject *self, PyObject *args, PyObject *kwargs) {
+double MxSecreteUptake::secrete(MxSpeciesValue *species, const double &amount, const double &distance) {
+    double secreted = 0;
     
-    float secreted = 0;
-    PyObject *result = NULL;
-    CSpeciesValue *species = (CSpeciesValue*)self;
-    MxParticle *part = MxParticle_Get(species->state_vector->owner);
+    MxParticle *part = (MxParticle*)species->state_vector->owner;
     if(!part) {
-        PyErr_SetString(PyExc_SystemError, "species state vector has no owner");
-        return NULL;
+        mx_exp(std::runtime_error("species state vector has no owner"));
+        return 0.0;
     }
     
-    try{        
-        float amount = carbon::cast<float>(carbon::py_arg("amount", 0, args, kwargs));
-        
-        PyObject *to = carbon::py_arg("to", 1, args, kwargs);
-        
-        MxParticleList *toList = MxParticleList_FromPyObject(to);
-        
-        if(toList) {
-            if(SUCCEEDED(MxSecrete_AmountToParticles(species, amount, toList->nr_parts,
-                                                     toList->parts, &secreted))) {
-                result = carbon::cast(secreted);
-            }
-            Py_DECREF(toList);
-            return result;
-        }
-        
-        PyObject *distance = carbon::py_arg("distance", 1, args, kwargs);
-        
-        if(carbon::check<float>(distance)) {
-            
-            // take into account the radius of this particle.
-            float radius = part->radius + carbon::cast<float>(distance);
-            
-            std::set<short int> ids;
-            
-            if(FAILED(MxParticleType_IdsFromPythonObj(NULL, ids))) {
-                PyErr_SetString(PyExc_SystemError, "error getting particle ids");
-                return NULL;
-            }
-            
-            if(FAILED(MxSecrete_AmountWithinDistance(species, amount, radius, &ids, &secreted))) {
-                return NULL;
-            }
-            
-            result = carbon::cast(secreted);
-        }
+    try{
+        // take into account the radius of this particle.
+        double radius = (double)part->radius + distance;
+        std::set<short int> ids = (std::set<short int>)MxParticleType::particleTypeIds();
+        if(FAILED(MxSecrete_AmountWithinDistance(species, amount, radius, &ids, &secreted))) return NULL;
     }
     catch(const std::exception &e) {
         
     }
     
-    return result;
-}
-
-PyMethodDef secrete_mthdef = {
-    "secrete",                          // const char  *ml_name;   /* The name of the built-in function/method */
-    (PyCFunction)secrete,               // PyCFunction ml_meth;    /* The C function that implements it */
-    METH_VARARGS | METH_KEYWORDS,       // ml_flags;   /* Combination of METH_xxx flags, which mostly
-                                        //                describe the args expected by the C func */
-    "docs..."                           //const char  *ml_doc;     /* The __doc__ attribute, or NULL */
-};
-
-
-HRESULT _MxSecreteUptake_Init(PyObject *m)
-{
-    if(PyType_Ready(&CSpeciesValue_Type) != 0) {
-        return c_error(E_FAIL, "CSpeciesValue_Type is not ready");
-    }
-    
-    PyObject *descr = PyDescr_NewMethod(&CSpeciesValue_Type, &secrete_mthdef);
-    if(!descr) {
-        return c_error(E_FAIL, "could not create secrete method");
-    }
-    
-    if(PyDict_SetItemString(CSpeciesValue_Type.tp_dict, secrete_mthdef.ml_name, descr) != 0) {
-        return c_error(E_FAIL, "error setting CSpeciesValue_Type dictionary secrete value");
-    }
-    
-    Py_DECREF(descr);
-    
-    return S_OK;
+    return secreted;
 }

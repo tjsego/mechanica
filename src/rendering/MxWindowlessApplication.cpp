@@ -18,7 +18,8 @@
 #include <Magnum/GL/Version.h>
 
 #include "MxGlInfo.h"
-
+#include <MxLogger.h>
+#include <mx_error.h>
 #include <iostream>
 
 #include "access_private.hpp"
@@ -77,7 +78,7 @@ struct MxWindowlessWindow : MxWindow
 {
     MxWindowlessApplication *app;
 
-    Magnum::Vector2i windowSize() const override {
+    MxVector2i windowSize() const override {
         return app->framebuffer().viewport().size();
     };
 
@@ -109,7 +110,7 @@ MxWindowlessApplication::MxWindowlessApplication(const Arguments &args) :
 {
 }
 
-HRESULT MxWindowlessApplication::createContext(const MxSimulator::Config &conf) {
+HRESULT MxWindowlessApplication::createContext(const MxSimulator_Config &conf) {
 
     // default Magnum WindowlessApplication config, does not have any options
     Configuration windowlessConf;
@@ -117,7 +118,7 @@ HRESULT MxWindowlessApplication::createContext(const MxSimulator::Config &conf) 
     Log(LOG_INFORMATION) << "trying to create windowless context";
 
     if(!WindowlessApplication::tryCreateContext(windowlessConf)) {
-        return c_error(E_FAIL, "could not create windowless context");
+        return mx_error(E_FAIL, "could not create windowless context");
     }
     
     Magnum::Platform::WindowlessApplication &app = *this;

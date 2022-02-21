@@ -6,8 +6,3 @@
  */
 
 #include <rendering/MxWindow.h>
-
-HRESULT MxWindow_init(PyObject *m)
-{
-	return S_OK;
-}

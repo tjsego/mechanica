@@ -12,7 +12,6 @@
 #include <MxForce.h>
 #include <MxPy.h>
 #include <MxSimulator.h>
-#include <MxConvert.hpp>
 #include <MxUtil.h>
 #include <metrics.h>
 #include <cmath>
@@ -22,26 +21,20 @@
 #include <MxCuboid.hpp>
 #include <MxBind.hpp>
 #include <MxPy.h>
-#include <CStateVector.hpp>
-#include "Magnum/Math/Matrix4.h"
-#include <CSpeciesList.hpp>
+#include <state/MxStateVector.h>
+#include <state/MxSpeciesList.h>
 #include <MxSystem.h>
-
-
-#define PY_CHECK(hr) {if(!SUCCEEDED(hr)) { throw py::error_already_set();}}
-
-using Magnum::Vector3;
+#include <mx_error.h>
+#include <rendering/MxStyle.hpp>
+#include <io/MxFIO.h>
 
 MxUniverse Universe = {
     .isRunning = false
 };
 
-
-static HRESULT universe_bind_force(MxForce *force, PyObject *args, PyObject *kwargs);
-
-static PyObject *universe_virial(PyObject *self, PyObject *_args, PyObject *_kwargs);
-
-static Magnum::Vector3 universe_center();
+MxUniverse *getUniverse() {
+    return &Universe;
+}
 
 // the single static engine instance per process
 
@@ -77,7 +70,7 @@ CAPI_FUNC(struct engine*) engine_get()
         if(_Engine.flags == 0) { \
             std::string err = MX_FUNCTION; \
             err += "universe not initialized"; \
-            throw std::domain_error(err.c_str()); \
+            mx_exp(std::domain_error(err.c_str())); \
         }
 
 #define UNIVERSE_CHECK(hr) \
@@ -87,7 +80,7 @@ CAPI_FUNC(struct engine*) engine_get()
 #define UNIVERSE_FINALLY(retval) \
     } \
     catch(const std::exception &e) { \
-        C_EXP(e); return retval; \
+        mx_exp(e); return retval; \
     }
 
 MxUniverseConfig::MxUniverseConfig() :
@@ -97,454 +90,192 @@ MxUniverseConfig::MxUniverseConfig() :
     cutoff{1},
     flags{0},
     maxTypes{64},
-    dt{0.01},
+    dt{0.01}, 
+    start_step{0},
     temp{1},
     nParticles{100},
     threads{mx::ThreadPool::hardwareThreadSize()},
     integrator{EngineIntegrator::FORWARD_EULER},
-    boundaryConditionsPtr{NULL},
+    boundaryConditionsPtr{new MxBoundaryConditionsArgsContainer()},
     max_distance{-1},
     timers_mask {0},
     timer_output_period {-1}
 {
 }
 
-
-static PyObject *universe_bind(PyObject *self, PyObject *args, PyObject *kwargs) {
-    UNIVERSE_TRY();
-    PyObject *result = NULL;
-    UNIVERSE_CHECK(MxUniverse_Bind(args, kwargs, &result));
-    Py_RETURN_NONE;
-    UNIVERSE_FINALLY(NULL);
-}
-
-static PyObject *universe_step(PyObject *self, PyObject *args, PyObject *kwargs) {
-    UNIVERSE_TRY();
-    double until = mx::arg<double>("until", 0, args, kwargs, 0);
-    double dt = mx::arg<double>("dt", 1, args, kwargs, 0);
-    UNIVERSE_CHECK(MxUniverse_Step(until, dt));
-    Py_RETURN_NONE;
-    UNIVERSE_FINALLY(NULL);
-}
-
-static PyObject *universe_stop(PyObject *self, PyObject *args, PyObject *kwargs) {
-    UNIVERSE_TRY();
-    UNIVERSE_CHECK(MxUniverse_SetFlag(MxUniverse_Flags::MX_RUNNING, false));
-    Py_RETURN_NONE;
-    UNIVERSE_FINALLY(NULL);
-}
-
-static PyObject *universe_start(PyObject *self, PyObject *args, PyObject *kwargs) {
-    UNIVERSE_TRY();
-    UNIVERSE_CHECK(MxUniverse_SetFlag(MxUniverse_Flags::MX_RUNNING, true));
-    Py_RETURN_NONE;
-    UNIVERSE_FINALLY(NULL);
-}
-
-static PyObject *universe_bind_pairwise(PyObject *self, PyObject *args, PyObject *kwargs) {
-    UNIVERSE_TRY();
-    return MxPyUniverse_BindPairwise(args, kwargs);
-    UNIVERSE_FINALLY(NULL);
-}
-
-static PyObject *universe_reset(PyObject *self, PyObject *args, PyObject *kwargs) {
-    UNIVERSE_TRY();
-    engine_reset(&_Engine);
-    Py_RETURN_NONE;
-    UNIVERSE_FINALLY(NULL);
-}
-
-static PyObject *universe_particles(PyObject *self) {
-    UNIVERSE_TRY();
-    return (PyObject*)MxParticleList_All();
-    UNIVERSE_FINALLY(NULL);
-}
-
-static PyObject *universe_grid(PyObject *mod, PyObject *args, PyObject *kwargs) {
+MxMatrix3f *MxUniverse::virial(MxVector3f *origin, float *radius, std::vector<MxParticleType*> *types) {
     try {
-        Magnum::Vector3i shape = mx::arg<Magnum::Vector3i>("shape", 0, args, kwargs);
-        
-        return MxParticle_Grid(shape, NULL);
+        MxVector3f _origin = origin ? *origin : MxUniverse::getCenter();
+        float _radius = radius ? *radius : 2 * _origin.max();
+
+        std::set<short int> typeIds;
+
+        if (types) {
+            for (auto type : *types) 
+                if (type) 
+                    typeIds.insert(type->id);
+        }
+        else {
+            for(int i = 0; i < _Engine.nr_types; ++i) 
+                typeIds.insert(i);
+        }
+
+        MxMatrix3f *m;
+        if(SUCCEEDED(MxCalculateVirial(_origin.data(), _radius, typeIds, m->data()))) {
+            return m;
+        }
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
+    return NULL;
 }
 
-static PyObject *universe_bonds(PyObject *mod, PyObject *args, PyObject *kwargs) {
+HRESULT MxUniverse::step(const double &until, const double &dt) {
     UNIVERSE_TRY();
-    PyObject *bonds = PyList_New(0);
+    return MxUniverse_Step(until, dt);
+    UNIVERSE_FINALLY(1);
+}
+
+HRESULT MxUniverse::stop() {
+    UNIVERSE_TRY();
+    return MxUniverse_SetFlag(MxUniverse_Flags::MX_RUNNING, false);
+    UNIVERSE_FINALLY(1);
+}
+
+HRESULT MxUniverse::start() {
+    UNIVERSE_TRY();
+    return MxUniverse_SetFlag(MxUniverse_Flags::MX_RUNNING, true);
+    UNIVERSE_FINALLY(1);
+}
+
+HRESULT MxUniverse::reset() {
+    UNIVERSE_TRY();
+    return engine_reset(&_Engine);
+    UNIVERSE_FINALLY(1);
+}
+
+MxUniverse* MxUniverse::get() {
+    return &Universe;
+}
+
+MxParticleList *MxUniverse::particles() {
+    UNIVERSE_TRY();
+    return MxParticleList::all();
+    UNIVERSE_FINALLY(NULL);
+}
+
+void MxUniverse::resetSpecies() {
+    UNIVERSE_TRY();
     
-    int j = 0;
+    for(int i = 0; i < _Engine.s.nr_parts; ++i) {
+        MxParticle *part = _Engine.s.partlist[i];
+        if(part && part->state_vector) {
+            part->state_vector->reset();
+        }
+    }
     
+    for(int i = 0; i < _Engine.s.largeparts.count; ++i) {
+        MxParticle *part = &_Engine.s.largeparts.parts[i];
+        if(part && part->state_vector) {
+            part->state_vector->reset();
+        }
+    }
+    
+    // redraw, state changed. 
+    MxSimulator::get()->redraw();
+    
+    UNIVERSE_FINALLY();
+}
+
+std::vector<std::vector<std::vector<MxParticleList*> > > MxUniverse::grid(MxVector3i shape) {
+    UNIVERSE_TRY();
+    return MxParticle_Grid(shape);
+    UNIVERSE_FINALLY(std::vector<std::vector<std::vector<MxParticleList*> > >());
+}
+
+std::vector<MxBondHandle*> *MxUniverse::bonds() {
+    UNIVERSE_TRY();
+    std::vector<MxBondHandle*> *bonds = new std::vector<MxBondHandle*>();
+    bonds->reserve(_Engine.nr_bonds);
+
     for(int i = 0; i < _Engine.nr_bonds; ++i) {
         MxBond *b = &_Engine.bonds[i];
-        if((b->flags & BOND_ACTIVE) ) {
-            PyList_Insert(bonds, j++, MxBondHandle_FromId(i));
-        }
+        if (b->flags & BOND_ACTIVE)
+            bonds->push_back(new MxBondHandle(i));
     }
     return bonds;
     UNIVERSE_FINALLY(NULL);
 }
 
+std::vector<MxAngleHandle*> *MxUniverse::angles() {
+    UNIVERSE_TRY();
+    std::vector<MxAngleHandle*> *angles = new std::vector<MxAngleHandle*>();
+    angles->reserve(_Engine.nr_angles);
 
-static PyMethodDef universe_methods[] = {
-    { "bind", (PyCFunction)universe_bind, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "bind_pairwise", (PyCFunction)universe_bind_pairwise, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "virial", (PyCFunction)universe_virial, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "step", (PyCFunction)universe_step, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "stop", (PyCFunction)universe_stop, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "start", (PyCFunction)universe_start, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "reset", (PyCFunction)universe_reset, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "particles", (PyCFunction)universe_particles, METH_STATIC | METH_NOARGS, NULL },
-    { "reset_species", (PyCFunction)MxUniverse_ResetSpecies, METH_STATIC| METH_VARARGS | METH_KEYWORDS, NULL },
-    { "grid", (PyCFunction)universe_grid, METH_VARARGS | METH_KEYWORDS, NULL },
-    { "bonds", (PyCFunction)universe_bonds, METH_VARARGS | METH_KEYWORDS, NULL },
-    { NULL, NULL, 0, NULL }
-};
+    for(int i = 0; i < _Engine.nr_angles; ++i) {
+        MxAngle *a = &_Engine.angles[i];
+        if (a->flags & BOND_ACTIVE)
+            angles->push_back(new MxAngleHandle(i));
+    }
+    return angles;
+    UNIVERSE_FINALLY(NULL);
+}
 
+std::vector<MxDihedralHandle*> *MxUniverse::dihedrals() {
+    UNIVERSE_TRY();
+    std::vector<MxDihedralHandle*> *dihedrals = new std::vector<MxDihedralHandle*>();
+    dihedrals->reserve(_Engine.nr_dihedrals);
 
-PyGetSetDef universe_getsets[] = {
-    {
-        .name = "dim",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            UNIVERSE_TRY();
-            return mx::cast(MxUniverse::dim());
-            UNIVERSE_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "temperature",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            UNIVERSE_TRY();
-            return mx::cast(engine_temperature(&_Engine));
-            UNIVERSE_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "time",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            UNIVERSE_TRY();
-            return mx::cast(_Engine.time * _Engine.dt);
-            UNIVERSE_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "dt",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            UNIVERSE_TRY();
-            return mx::cast(_Engine.dt);
-            UNIVERSE_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "on_time",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            UNIVERSE_TRY();
-            Py_INCREF(_Engine.on_time); return (PyObject*)_Engine.on_time;
-            UNIVERSE_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "center",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            UNIVERSE_TRY();
-            Magnum::Vector3 center = universe_center();
-            PyObject *result = mx::cast(center);
-            return result;
-            UNIVERSE_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "boundary_conditions",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            UNIVERSE_TRY();
-            Py_IncRef((PyObject*)&_Engine.boundary_conditions);
-            return (PyObject*)&_Engine.boundary_conditions;
-            UNIVERSE_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "kinetic_energy",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            UNIVERSE_TRY();
-            return mx::cast(engine_kinetic_energy(&_Engine));
-            UNIVERSE_FINALLY(0);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {NULL}
-};
+    for(int i = 0; i < _Engine.nr_dihedrals; ++i) {
+        MxDihedral *d = &_Engine.dihedrals[i];
+        dihedrals->push_back(new MxDihedralHandle(i));
+    }
+    return dihedrals;
+    UNIVERSE_FINALLY(NULL);
+}
 
+double MxUniverse::getTemperature() {
+    return engine_temperature(&_Engine);
+}
 
+double MxUniverse::getTime() {
+    return _Engine.time * _Engine.dt;
+}
 
-PyTypeObject MxUniverse_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name =           "MxUniverse",
-    .tp_basicsize =      sizeof(PyObject),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           0,
-    .tp_as_number =      0,
-    .tp_as_sequence =    0,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            0,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags =          Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        universe_methods,
-    .tp_members =        0,
-    .tp_getset =         universe_getsets,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           0,
-    .tp_alloc =          0,
-    .tp_new =            0,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
+double MxUniverse::getDt() {
+    return _Engine.dt;
+}
 
-Magnum::Vector3 MxUniverse::origin()
+MxEventList *MxUniverse::getEventList() {
+    return (MxEventList *)this->events;
+}
+
+MxBoundaryConditions *MxUniverse::getBoundaryConditions() {
+    return &_Engine.boundary_conditions;
+}
+
+double MxUniverse::getKineticEnergy() {
+    return engine_kinetic_energy(&_Engine);
+}
+
+int MxUniverse::getNumTypes() {
+    return _Engine.nr_types;
+}
+
+double MxUniverse::getCutoff() {
+    return _Engine.s.cutoff;
+}
+
+MxVector3f MxUniverse::origin()
 {
-    return Vector3{(float)_Engine.s.origin[0], (float)_Engine.s.origin[1], (float)_Engine.s.origin[2]};
+    return MxVector3f{(float)_Engine.s.origin[0], (float)_Engine.s.origin[1], (float)_Engine.s.origin[2]};
 }
 
-Magnum::Vector3 MxUniverse::dim()
+MxVector3f MxUniverse::dim()
 {
-    return Vector3{(float)_Engine.s.dim[0], (float)_Engine.s.dim[1], (float)_Engine.s.dim[2]};
+    return MxVector3f{(float)_Engine.s.dim[0], (float)_Engine.s.dim[1], (float)_Engine.s.dim[2]};
 }
-
-
-HRESULT _MxUniverse_init(PyObject* m)
-{
-    if (PyType_Ready((PyTypeObject*)&MxUniverse_Type) < 0) {
-        return E_FAIL;
-    }
-    
-    PyObject* universe = PyObject_New(PyObject, &MxUniverse_Type);
-
-    if(!universe) {
-        return c_error(E_FAIL, "could not get universe from main module");
-    }
-
-    PyModule_AddObject(m, "Universe", universe);
-    
-    PyModule_AddObject(m, "universe", universe);
-
-    return S_OK;
-}
-
-
-HRESULT MxUniverse_Bind(PyObject *args, PyObject *kwargs, PyObject **out)
-{
-    *out = NULL;
-
-    if(kwargs && PyDict_Size(kwargs) > 0) {
-        if((PyDict_Size(kwargs) > 1) ||
-            PyUnicode_CompareWithASCIIString(PyList_GET_ITEM(PyDict_Keys(kwargs), 0), "bound") != 0) {
-            return c_error(E_INVALIDARG, "Error, kwargs to Universe.bind contains invalid items");
-        }
-    }
-
-    if(args && PyTuple_Size(args) == 4) {
-        return MxUniverse_BindThing3(PyTuple_GetItem(args, 0),
-                                     PyTuple_GetItem(args, 1),
-                                     PyTuple_GetItem(args, 2),
-                                     PyTuple_GetItem(args, 3));
-    }
-
-    PyObject *cutoff = NULL;
-    MxParticleList *pl = NULL;
-    if(args && PyTuple_Size(args) == 3 &&
-       kwargs &&
-       (cutoff = PyDict_GetItemString(kwargs, "cutoff")) &&
-       (pl = MxParticleList_FromPyObject(PyTuple_GetItem(args, 1)))) {
-        PyObject *pot = PyTuple_GetItem(args, 0);
-        if(MxPotential_Check(pot) && PyNumber_Check(cutoff)) {
-            PyObject *result = MxBond_PairwiseNew((MxPotential*)pot, pl,
-                PyFloat_AsDouble(cutoff), NULL, args, kwargs);
-            *out = result;
-            Py_DECREF(pl);
-            return S_OK;
-        }
-        Py_DecRef(pl);
-    }
-
-    PyObject *bound = NULL;
-    if(args && PyTuple_Size(args) == 3 &&
-       kwargs && (bound = PyDict_GetItemString(kwargs, "bound"))) {
-        return MxUniverse_BindThing3(PyTuple_GetItem(args, 0),
-                                     PyTuple_GetItem(args, 1),
-                                     PyTuple_GetItem(args, 2),
-                                     bound);
-    }
-    
-    if(args && PyTuple_Size(args) >= 2 && MxForce_Check(PyTuple_GetItem(args, 0))) {
-        return universe_bind_force((MxForce*)PyTuple_GetItem(args, 0), args, kwargs);
-    }
-
-    if(args && PyTuple_Size(args) == 3) {
-        return MxUniverse_BindThing2(PyTuple_GetItem(args, 0),
-                                     PyTuple_GetItem(args, 1),
-                                     PyTuple_GetItem(args, 2));
-    }
-
-    return mx_error(E_FAIL, "bind only implemented for 2 or 3 arguments: bind(thing, a, b, ...)");
-}
-
-
-CAPI_FUNC(HRESULT) MxUniverse_BindThing3(PyObject *thing, PyObject *a,
-                                         PyObject *b, PyObject *c)
-{
-    if(PyObject_IsInstance(thing, (PyObject*)&MxPotential_Type) && PyBool_Check(c)) {
-        return universe_bind_potential((MxPotential*)thing, a, b, c == Py_True);
-    }
-    return mx_error(E_NOTIMPL, "binding currently implmented for potentials to things");
-}
-
-CAPI_FUNC(HRESULT) MxUniverse_BindThing2(PyObject *thing, PyObject *a,
-        PyObject *b)
-{
-    if(PyObject_IsInstance(thing, (PyObject*)&MxPotential_Type)) {
-        return universe_bind_potential((MxPotential*)thing, a, b);
-    }
-    return mx_error(E_NOTIMPL, "binding currently implmented for potentials to things");
-}
-
-
-static HRESULT universe_bind_force(MxForce *force, PyObject *args, PyObject *kwargs) {
-    
-    if(PyTuple_Size(args) < 2) {
-        return C_ERR(E_FAIL, "binding a force requires at least two arguments, only one given");
-    }
-    
-    PyObject *arg1 = PyTuple_GetItem(args, 1);
-    MxParticleType *a_type = MxParticleType_Get(arg1);
-    if(!a_type) {
-        std::string msg = "could not convert second argument of type ";
-        msg += arg1->ob_type->tp_name;
-        msg += " to a particle type";
-        return C_ERR(E_FAIL, msg.c_str());
-    }
-    
-    PyObject *coupling = NULL;
-    if(PyTuple_Size(args) == 3) {
-        coupling = PyTuple_GetItem(args, 2);
-    }
-    else if(kwargs) {
-        coupling = PyDict_GetItemString(kwargs, "coupling_symbol");
-    }
-    
-    if(coupling == NULL) {
-        if(engine_add_singlebody_force(&_Engine, force, a_type->id, -1) != engine_err_ok) {
-            std::string msg = "failed to add force to engine: error";
-            msg += std::to_string(engine_err);
-            msg += ", ";
-            msg += engine_err_msg[-engine_err];
-            return mx_error(E_FAIL, msg.c_str());
-        }
-        return S_OK;
-    }
-    
-    if(a_type->species) {
-        int index = a_type->species->index_of(coupling);
-        if(index < 0) {
-            std::string msg = "could not bind force, the particle type ";
-            msg += a_type->name;
-            msg += " has a chemical species state vector, but it does not have the symbol ";
-            msg += carbon::str(coupling);
-            return C_ERR(E_FAIL, msg.c_str());
-        }
-        
-        if(engine_add_singlebody_force(&_Engine, force, a_type->id, index) != engine_err_ok) {
-            std::string msg = "failed to add force to engine: error";
-            msg += std::to_string(engine_err);
-            msg += ", ";
-            msg += engine_err_msg[-engine_err];
-            return mx_error(E_FAIL, msg.c_str());
-        }
-        return S_OK;
-    }
-    else {
-        std::string msg = "could not add force, given a coupling symbol, but the particle type ";
-        msg += a_type->name;
-        msg += " does not have a chemical species vector";
-        return C_ERR(E_FAIL, msg.c_str());
-    }
-}
-
 
 CAPI_FUNC(HRESULT) MxUniverse_Step(double until, double dt) {
 
@@ -552,16 +283,43 @@ CAPI_FUNC(HRESULT) MxUniverse_Step(double until, double dt) {
         return E_FAIL;
     }
 
-    if ( engine_step( &_Engine ) != 0 ) {
-        printf("main: engine_step failed with engine_err=%i.\n",engine_err);
-        errs_dump(stdout);
-        // TODO: correct error reporting
-        return E_FAIL;
+    // Ok to call here, since nothing happens if root element is already released. 
+    MxFIO::releaseMxIORootElement();
+
+    // TODO: add support for adaptive time stepping
+    // if (dt <= 0.0) dt = _Engine.dt;
+    dt = _Engine.dt;
+
+    float dtStore = _Engine.dt;
+    _Engine.dt = dt;
+
+    if (until <= 0.0) until = _Engine.dt;
+
+    float tf = _Engine.time + until / dtStore;
+
+    while (_Engine.time < tf) {
+        if ( engine_step( &_Engine ) != 0 ) {
+            printf("main: engine_step failed with engine_err=%i.\n",engine_err);
+            errs_dump(stdout);
+            // TODO: correct error reporting
+            return E_FAIL;
+        }
+
+        // notify time listeners
+        if(Universe.events->eval(_Engine.time * _Engine.dt) != 0) {
+            printf("main: engine_step failed with engine_err=%i.\n",engine_err);
+            errs_dump(stdout);
+            // TODO: correct error reporting
+            return E_FAIL;
+        }
+
+        if(_Engine.timer_output_period > 0 && _Engine.time % _Engine.timer_output_period == 0 ) {
+            MxPrintPerformanceCounters();
+        }
+
     }
 
-    if(_Engine.timer_output_period > 0 && _Engine.time % _Engine.timer_output_period == 0 ) {
-        MxPrintPerformanceCounters();
-    }
+    _Engine.dt = dtStore;
 
     return S_OK;
 }
@@ -584,343 +342,554 @@ CAPI_FUNC(HRESULT) MxUniverse_SetFlag(MxUniverse_Flags flag, int value)
         universe_flags &= ~(flag);
     }
 
-    return MxSimulator_Redraw();
+    return MxSimulator::get()->redraw();
+}
+
+MxVector3f MxUniverse::getCenter() {
+    return engine_center();
 }
 
 
-PyObject *universe_virial(PyObject *self, PyObject *_args, PyObject *_kwargs) {
-    try {
-        PyObject *_origin = mx::py_arg("origin", 0, _args, _kwargs);
-        PyObject *_radius = mx::py_arg("radius", 1, _args, _kwargs);
-        PyObject *_types = mx::py_arg("types", 2, _args, _kwargs);
+namespace mx { namespace io {
 
-        Magnum::Vector3 origin;
-        float radius = 0;
-        std::set<short int> typeIds;
+#define MXUNIVERSEIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
 
-        if(_origin) {
-            origin = mx::cast<Magnum::Vector3>(_origin);
-        }
-        else {
-            origin = universe_center();
-        }
+#define MXUNIVERSEIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
 
-        if(_radius) {
-            radius = mx::cast<float>(_radius);
-        }
-        else {
-            // complete simulation domain
-            radius = 2 * origin.max();
-        }
+template <>
+HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
 
-        if(_types) {
-            if(PyList_Check(_types)) {
-                for(int i = 0; i < PyList_GET_SIZE(_types); ++i) {
-                    PyObject *item = PyList_GET_ITEM(_types, i);
-                    MxParticleType *type = MxParticleType_Get(item);
-                    if(type) {
-                        typeIds.insert(type->id);
+    MxIOElement *fe;
+
+    MxUniverse *u = const_cast<MxUniverse*>(&dataElement);
+
+    MXUNIVERSEIOTOEASY(fe, "name", u->name);
+    
+    MxParticleList pl = *u->particles();
+    if(pl.nr_parts > 0) {
+        std::vector<MxParticle> particles;
+        particles.reserve(pl.nr_parts);
+        for(unsigned int i = 0; i < pl.nr_parts; i++) {
+            auto ph = pl.item(i);
+            if(ph != NULL) {
+                auto p = ph->part();
+                if(p != NULL && !(p->flags & PARTICLE_NONE))
+                    particles.push_back(*p);
+            }
+        }
+        MXUNIVERSEIOTOEASY(fe, "particles", particles);
+    }
+
+    // Store bonds; potentials and styles are stored separately to reduce storage
+    
+    std::vector<MxBondHandle*> bhl = *u->bonds();
+    std::vector<MxPotential*> bondPotentials;
+    std::vector<std::vector<unsigned int> > bondPotentialIdx;
+    std::vector<MxStyle> bondStyles;
+    std::vector<MxStyle*> bondStylesP;
+    std::vector<std::vector<unsigned int> > bondStyleIdx;
+    if(bhl.size() > 0) {
+        std::vector<MxBond> bl;
+        bl.reserve(bhl.size());
+        for(auto bh : bhl) {
+            auto b = bh->get();
+            if(b->flags & BOND_ACTIVE) {
+                if(b->potential != NULL) {
+                    int idx = -1;
+                    for(unsigned int i = 0; i < bondPotentials.size(); i++) {
+                        if(bondPotentials[i] == b->potential) {
+                            idx = i;
+                            break;
+                        }
                     }
-                    else {
-                        std::string msg = "error, types must be a list of Particle types, types[";
-                        msg += std::to_string(i);
-                        msg += "] is a ";
-                        msg += item->ob_type->tp_name;
-                        throw std::logic_error(msg.c_str());
+
+                    if(idx < 0) {
+                        idx = bondPotentials.size();
+                        bondPotentials.push_back(b->potential);
+                        bondPotentialIdx.emplace_back();
                     }
+                    bondPotentialIdx[idx].push_back(bl.size());
+                }
+                if(b->style != NULL) {
+                    int idx = -1;
+                    for(unsigned int i = 0; i < bondStylesP.size(); i++) {
+                        if(bondStylesP[i] == b->style) {
+                            idx = i;
+                            break;
+                        }
+                    }
+
+                    if(idx < 0) {
+                        idx = bondStylesP.size();
+                        bondStyles.push_back(*b->style);
+                        bondStylesP.push_back(b->style);
+                        bondStyleIdx.emplace_back();
+                    }
+                    bondStyleIdx[idx].push_back(bl.size());
+                }
+
+                bl.push_back(*b);
+            }
+        }
+        MXUNIVERSEIOTOEASY(fe, "bonds", bl);
+        MXUNIVERSEIOTOEASY(fe, "bondPotentials", bondPotentials);
+        MXUNIVERSEIOTOEASY(fe, "bondPotentialIdx", bondPotentialIdx);
+        MXUNIVERSEIOTOEASY(fe, "bondStyles", bondStyles);
+        MXUNIVERSEIOTOEASY(fe, "bondStyleIdx", bondStyleIdx);
+    }
+
+    // Store angles; potentials and styles are stored separately to reduce storage
+    
+    std::vector<MxAngleHandle*> ahl = *u->angles();
+    std::vector<MxPotential*> anglePotentials;
+    std::vector<std::vector<unsigned int> > anglePotentialIdx;
+    std::vector<MxStyle> angleStyles;
+    std::vector<MxStyle*> angleStylesP;
+    std::vector<std::vector<unsigned int> > angleStyleIdx;
+    if(ahl.size() > 0) {
+        std::vector<MxAngle> al;
+        al.reserve(ahl.size());
+        for(auto ah : ahl) {
+            auto a = ah->get();
+            if(a->flags & ANGLE_ACTIVE) {
+                if(a->potential != NULL) {
+                    int idx = -1;
+                    for(unsigned int i = 0; i < anglePotentials.size(); i++) {
+                        if(anglePotentials[i] == a->potential) {
+                            idx = i;
+                            break;
+                        }
+                    }
+
+                    if(idx < 0) {
+                        idx = anglePotentials.size();
+                        anglePotentials.push_back(a->potential);
+                        anglePotentialIdx.emplace_back();
+                    }
+                    anglePotentialIdx[idx].push_back(al.size());
+                }
+                if(a->style != NULL) {
+                    int idx = -1;
+                    for(unsigned int i = 0; i < angleStylesP.size(); i++) {
+                        if(angleStylesP[i] == a->style) {
+                            idx = i;
+                            break;
+                        }
+                    }
+
+                    if(idx < 0) {
+                        idx = angleStylesP.size();
+                        angleStyles.push_back(*a->style);
+                        angleStylesP.push_back(a->style);
+                        angleStyleIdx.emplace_back();
+                    }
+                    angleStyleIdx[idx].push_back(al.size());
+                }
+
+                al.push_back(*a);
+            }
+        }
+        MXUNIVERSEIOTOEASY(fe, "angles", al);
+        MXUNIVERSEIOTOEASY(fe, "anglePotentials", anglePotentials);
+        MXUNIVERSEIOTOEASY(fe, "anglePotentialIdx", anglePotentialIdx);
+        MXUNIVERSEIOTOEASY(fe, "angleStyles", angleStyles);
+        MXUNIVERSEIOTOEASY(fe, "angleStyleIdx", angleStyleIdx);
+    }
+
+    // Store dihedrals; potentials and styles are stored separately to reduce storage
+    
+    std::vector<MxDihedralHandle*> dhl = *u->dihedrals();
+    std::vector<MxPotential*> dihedralPotentials;
+    std::vector<std::vector<unsigned int> > dihedralPotentialIdx;
+    std::vector<MxStyle> dihedralStyles;
+    std::vector<MxStyle*> dihedralStylesP;
+    std::vector<std::vector<unsigned int> > dihedralStyleIdx;
+    if(dhl.size() > 0) {
+        std::vector<MxDihedral> dl;
+        dl.reserve(dhl.size());
+        for(auto dh : dhl) {
+            auto d = dh->get();
+            if(d != NULL) {
+                if(d->potential != NULL) {
+                    int idx = -1;
+                    for(unsigned int i = 0; i < dihedralPotentials.size(); i++) {
+                        if(dihedralPotentials[i] == d->potential) {
+                            idx = i;
+                            break;
+                        }
+                    }
+
+                    if(idx < 0) {
+                        idx = dihedralPotentials.size();
+                        dihedralPotentials.push_back(d->potential);
+                        dihedralPotentialIdx.emplace_back();
+                    }
+                    dihedralPotentialIdx[idx].push_back(dl.size());
+                }
+                if(d->style != NULL) {
+                    int idx = -1;
+                    for(unsigned int i = 0; i < dihedralStylesP.size(); i++) {
+                        if(dihedralStylesP[i] == d->style) {
+                            idx = i;
+                            break;
+                        }
+                    }
+
+                    if(idx < 0) {
+                        idx = dihedralStylesP.size();
+                        dihedralStyles.push_back(*d->style);
+                        dihedralStylesP.push_back(d->style);
+                        dihedralStyleIdx.emplace_back();
+                    }
+                    dihedralStyleIdx[idx].push_back(dl.size());
+                }
+
+                dl.push_back(*d);
+            }
+        }
+        MXUNIVERSEIOTOEASY(fe, "dihedrals", dl);
+        MXUNIVERSEIOTOEASY(fe, "dihedralPotentials", dihedralPotentials);
+        MXUNIVERSEIOTOEASY(fe, "dihedralPotentialIdx", dihedralPotentialIdx);
+        MXUNIVERSEIOTOEASY(fe, "dihedralStyles", dihedralStyles);
+        MXUNIVERSEIOTOEASY(fe, "dihedralStyleIdx", dihedralStyleIdx);
+    }
+    
+    MXUNIVERSEIOTOEASY(fe, "temperature", u->getTemperature());
+    MXUNIVERSEIOTOEASY(fe, "kineticEnergy", u->getKineticEnergy());
+
+    MxParticleTypeList *ptl = MxParticleTypeList::all();
+    std::vector<MxParticleType> partTypes;
+    partTypes.reserve(ptl->nr_parts);
+    for(unsigned int i = 0; i < ptl->nr_parts; i++) 
+        partTypes.push_back(*ptl->item(i));
+    MXUNIVERSEIOTOEASY(fe, "particleTypes", partTypes);
+
+    MxPotential *p, *p_cluster;
+    std::vector<MxPotential*> pV, pV_cluster;
+    std::vector<unsigned int> pIdxA, pIdxB, pIdxA_cluster, pIdxB_cluster;
+    for(unsigned int i = 0; i < ptl->nr_parts; i++) {
+        for(unsigned int j = i; j < ptl->nr_parts; j++) {
+            unsigned int k = ptl->parts[i] * _Engine.max_type + ptl->parts[j];
+            p = _Engine.p[k];
+            p_cluster = _Engine.p_cluster[k];
+            if(p != NULL) {
+                pV.push_back(p);
+                pIdxA.push_back(i);
+                pIdxB.push_back(j);
+            }
+            if(p_cluster != NULL) {
+                pV_cluster.push_back(p_cluster);
+                pIdxA_cluster.push_back(i);
+                pIdxB_cluster.push_back(j);
+            }
+        }
+    }
+    if(pV.size() > 0) {
+        MXUNIVERSEIOTOEASY(fe, "potentials", pV);
+        MXUNIVERSEIOTOEASY(fe, "potentialTypeA", pIdxA);
+        MXUNIVERSEIOTOEASY(fe, "potentialTypeB", pIdxB);
+    }
+    if(pV_cluster.size() > 0) {
+        MXUNIVERSEIOTOEASY(fe, "potentialsCluster", pV_cluster);
+        MXUNIVERSEIOTOEASY(fe, "potentialClusterTypeA", pIdxA_cluster);
+        MXUNIVERSEIOTOEASY(fe, "potentialClusterTypeB", pIdxB_cluster);
+    }
+
+    // save forces
+    
+    std::vector<MxForce*> forces;
+    MxForce *f;
+    std::vector<unsigned int> fIdx;
+    for(unsigned int i = 0; i < ptl->nr_parts; i++) { 
+        auto pTypeId = ptl->parts[i];
+        f = _Engine.forces[pTypeId];
+        if(f != NULL) {
+            bool storeForce = true;
+            if(f->isConstant()) {
+                if(f->type == FORCE_CONSTANTPY) {
+                    MxConstantForcePy *cf = (MxConstantForcePy*)f;
+                    storeForce = cf->callable == NULL;
+                }
+                else {
+                    MxConstantForce *cf = (MxConstantForce*)f;
+                    storeForce = cf->userFunc == NULL;
                 }
             }
-            else {
-                throw std::logic_error("types must be a list of Particle types");
+            if(storeForce) {
+                forces.push_back(f);
+                fIdx.push_back(i);
             }
         }
-        else {
-            for(int i = 0; i < _Engine.nr_types; ++i) {
-                typeIds.insert(i);
-            }
-        }
-        Magnum::Matrix3 m;
-        HRESULT result = MxCalculateVirial(origin.data(),
-                                             radius,
-                                             typeIds,
-                                             m.data());
-        if(SUCCEEDED(result)) {
-            return mx::cast(m);
-        }
     }
-    catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+    if(forces.size() > 0) {
+        MXUNIVERSEIOTOEASY(fe, "forces", forces);
+        MXUNIVERSEIOTOEASY(fe, "forceType", fIdx);
     }
-    return NULL;
+
+    delete ptl;
+
+    fileElement->type = "Universe";
+
+    return S_OK;
 }
 
-Magnum::Vector3 universe_center() {
-    Magnum::Vector3 center = {
-        (float)_Engine.s.dim[0],
-        (float)_Engine.s.dim[1],
-        (float)_Engine.s.dim[2]
-    };
-    center = center / 2;
-    return center;
-}
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxUniverse *dataElement) {
 
+    MxIOChildMap::const_iterator feItr;
 
-/**
- * bind_pairwise(pot, parts, cutoff, *args, **kwargs)
- */
-PyObject *MxPyUniverse_BindPairwise(PyObject *args, PyObject *kwds) {
-    static const char* names[] = {
-        "potential", "particles", "cutoff", "pairs"
-    };
+    MxFIO::importSummary = new MxFIOImportSummary();
 
-    try {
-        PyObject *ppot = mx::py_arg(names[0], 0, args, kwds);
-        PyObject *pparts = mx::py_arg(names[1], 1, args, kwds);
-        PyObject *pcutoff = mx::py_arg(names[2], 2, args, kwds);
-        PyObject *pairs = mx::py_arg(names[3], 3, args, kwds);
+    MxUniverse *universe = MxUniverse::get();
 
-        MxPotential *pot;
-        MxParticleList *parts;
-        float cutoff;
+    MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "name", &universe->name);
+    MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "temperature", &_Engine.temperature);
 
-        if(MxPotential_Check(ppot)) {
-            pot = (MxPotential*)ppot;
-        }
+    // Setup data should have already been intercepted by this stage, so populate universe
+
+    // load types
+    //      Special handling here: export includes default types, 
+    //      which must be skipped here to avoid duplicating imported defaults with those of installation
+
+    feItr = fileElement.children.find("particleTypes");
+    MxIOElement *fePartTypes = feItr->second;
+    for(unsigned int i = 0; i < fePartTypes->children.size(); i++) {
+        if(i < 2) { 
+            MxFIO::importSummary->particleTypeIdMap[i] = i;
+        } 
         else {
-            c_error(E_FAIL, "argument 0 is not a potential");
-            return NULL;
+            MxIOElement *fePartType = fePartTypes->children[std::to_string(i)];
+            MxParticleType partType;
+            auto typeId = partType.id;
+            mx::io::fromFile(*fePartType, metaData, &_Engine.types[typeId]);
+            MxFIO::importSummary->particleTypeIdMap[i] = typeId;
         }
+    }
 
-        if((parts = MxParticleList_FromPyObject(pparts)) == NULL) {
-            c_error(E_FAIL, "argument 1 is not a particle list");
-            return NULL;
+    // load potentials
+
+    if(fileElement.children.find("potentials") != fileElement.children.end()) {
+        std::vector<MxPotential*> pV;
+        std::vector<unsigned int> pIdxA, pIdxB;
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "potentials", &pV);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "potentialTypeA", &pIdxA);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "potentialTypeB", &pIdxB);
+        for(unsigned int i = 0; i < pV.size(); i++) {
+            auto typeIdA = MxFIO::importSummary->particleTypeIdMap[pIdxA[i]];
+            auto typeIdB = MxFIO::importSummary->particleTypeIdMap[pIdxB[i]];
+            MxBind::types(pV[i], &_Engine.types[typeIdA], &_Engine.types[typeIdB]);
         }
-
-        if(PyNumber_Check(pcutoff))  {
-            cutoff = PyFloat_AsDouble(pcutoff);
+    }
+    if(fileElement.children.find("potentialsCluster") != fileElement.children.end()) {
+        std::vector<MxPotential*> pV_cluster;
+        std::vector<unsigned int> pIdxA_cluster, pIdxB_cluster;
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "potentialsCluster", &pV_cluster);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "potentialClusterTypeA", &pIdxA_cluster);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "potentialClusterTypeB", &pIdxB_cluster);
+        for(unsigned int i = 0; i < pV_cluster.size(); i++) {
+            auto typeIdA = MxFIO::importSummary->particleTypeIdMap[pIdxA_cluster[i]];
+            auto typeIdB = MxFIO::importSummary->particleTypeIdMap[pIdxB_cluster[i]];
+            MxBind::types(pV_cluster[i], &_Engine.types[typeIdA], &_Engine.types[typeIdB], true);
         }
-        else {
-            c_error(E_FAIL, "argument 2 is not a number");
-            return NULL;
+    }
+
+    // load forces
+
+    if(fileElement.children.find("forces") != fileElement.children.end()) {
+        std::vector<MxForce*> forces;
+        std::vector<unsigned int> fIdx;
+        int fSVIdx;
+        
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "forces", &forces);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "forceType", &fIdx);
+        for(unsigned int i = 0; i < fIdx.size(); i++) { 
+            auto pType = &_Engine.types[MxFIO::importSummary->particleTypeIdMap[fIdx[i]]];
+            MxForce *f = forces[i];
+            MxBind::force(f, pType);
         }
+    }
+    
+    // load particles
 
-        PyObject *bond_args = NULL;
+    if(fileElement.children.find("particles") != fileElement.children.end()) {
 
-        // first 3 positional args, if given have to be pot, parts, and cutoff.
-        // if we have more than 3 position args, pass those as additional args to
-        // bonds ctor.
+        std::vector<MxParticle> particles;
+        MxParticle *part;
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "particles", &particles);
+        auto feParticles = feItr->second;
+        for(unsigned int i = 0; i < particles.size(); i++) {
+            MxParticle &p = particles[i];
+            auto typeId = MxFIO::importSummary->particleTypeIdMap[p.typeId];
+            auto pType = &_Engine.types[typeId];
+            int32_t clusterId = p.clusterId > 0 ? MxFIO::importSummary->particleIdMap[p.clusterId] : p.clusterId;
+            auto ph = MxParticle_New(pType, &p.position, &p.velocity, &clusterId);
+            auto part = ph->part();
+            auto pId = p.id;
+            MxFIO::importSummary->particleIdMap[pId] = part->id;
 
-        if(PyTuple_Size(args) > 3) {
-            bond_args = PyTuple_GetSlice(args, 3, PyTuple_Size(args));
-        }
-        else {
-            bond_args = PyTuple_New(0);
-        }
-
-        if(kwds) {
-            for(int i = 0; i < 4; ++i) {
-                PyObject *key = PyUnicode_FromString(names[i]);
-                if(PyDict_Contains(kwds, key)) {
-                    PyDict_DelItem(kwds, key);
+            part->radius = p.radius;
+            part->mass = p.mass;
+            part->imass = p.imass;
+            part->flags = p.flags;
+            part->creation_time = p.creation_time;
+            if(p.state_vector) {
+                for(unsigned int j = 0; j < p.state_vector->size; j++) {
+                    MxSpecies *species = p.state_vector->species->item(j);
+                    int k = part->state_vector->species->index_of(species->getId().c_str());
+                    if(k >= 0) 
+                        part->state_vector->fvec[k] = p.state_vector->fvec[j];
                 }
-                Py_DECREF(key);
+            }
+            if(p.style) 
+                part->style = new MxStyle(*p.style);
+        }
+
+    }
+
+    // load bonds; potentials and styles are stored separately to reduce storage
+
+    if(fileElement.children.find("bonds") != fileElement.children.end()) {
+        std::vector<MxBond> bonds;
+        std::vector<MxPotential*> bondPotentials;
+        std::vector<std::vector<unsigned int> > bondPotentialIdx;
+        std::vector<MxStyle> bondStyles;
+        std::vector<std::vector<unsigned int> > bondStyleIdx;
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "bonds", &bonds);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "bondPotentials", &bondPotentials);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "bondPotentialIdx", &bondPotentialIdx);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "bondStyles", &bondStyles);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "bondStyleIdx", &bondStyleIdx);
+        std::vector<MxBondHandle> bondsCreated(bonds.size(), MxBondHandle());
+
+        for(unsigned int i = 0; i < bondPotentialIdx.size(); i++) { 
+            auto bIndices = bondPotentialIdx[i];
+            MxPotential *p = bondPotentials[i];
+            for(auto bIdx : bIndices) {
+                auto b = bonds[bIdx];
+                MxBondHandle bh(
+                    p, 
+                    MxFIO::importSummary->particleIdMap[b.i], 
+                    MxFIO::importSummary->particleIdMap[b.j], 
+                    b.half_life, b.dissociation_energy, b.flags
+                );
+                auto be = bh.get();
+
+                be->creation_time = b.creation_time;
+                bondsCreated[bIdx] = bh;
             }
         }
 
-        PyObject *result = MxBond_PairwiseNew(pot, parts, cutoff, pairs, bond_args, kwds);
-
-        Py_DECREF(bond_args);
-
-        return result;
-    }
-    catch (const std::exception &e) {
-        C_RETURN_EXP(e);
-    }
-}
-
-static bool contains_bond(PyListObject *bonds, int nbonds, int a, int b) {
-    for(int i = 0; i < nbonds; ++i) {
-        assert(i < PyList_GET_SIZE(bonds));
-        MxBondHandle *h = (MxBondHandle*)PyList_GET_ITEM(bonds, i);
-        MxBond *bond = &_Engine.bonds[h->id];
-        if((bond->i == a && bond->j == b) || (bond->i == b && bond->j == a)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-static int insert_bond(PyListObject *bonds, int nbonds, int a, int b,
-                       MxPotential *pot, MxParticleList *parts) {
-    int p1 = parts->parts[a];
-    int p2 = parts->parts[b];
-    if(!contains_bond(bonds, nbonds, p1, p2)) {
-        MxBondHandle *bond = MxBondHandle_New(0, p1, p2,
-                                              std::numeric_limits<double>::max(),
-                                              std::numeric_limits<double>::max(),
-                                              pot);
-        assert(nbonds < PyList_GET_SIZE(bonds));
-        PyList_SET_ITEM(bonds, nbonds, bond);
-        return 1;
-    }
-    return 0;
-}
-
-
-PyObject* MxUniverse_BindSphere(PyObject *args, PyObject *kwds) {
-    static const float Pi = M_PI;
-
-    try {
-        //potential
-        //*     number of subdivisions
-        //*     tuple of starting / stopping theta (polar angle)
-        //*     center of sphere
-        //*     radius of sphere
-        PyObject *ppot = mx::py_arg("potential", 0, args, kwds);
-        PyObject *pn = mx::py_arg("n", 1, args, kwds);
-        PyObject *pcenter = mx::py_arg("center", 2, args, kwds);
-        PyObject *pradius = mx::py_arg("radius", 3, args, kwds);
-        PyObject *pphi = mx::py_arg("phi", 4, args, kwds);
-        PyObject *type = mx::py_arg("type", 5, args, kwds);
-
-        MxPotential *pot;
-        int n;
-        float phi0 = 0;
-        float phi1 = Pi;
-
-        if(ppot == NULL || !MxPotential_Check(ppot)) {
-            throw std::logic_error("no potential given");
-        }
-
-        if(pn == NULL || !PyNumber_Check(pn)) {
-            throw std::logic_error("no n number of subdivisions, or n not a number");
-        }
-
-        if(pphi) {
-            if(!PyTuple_Check(pphi) || PyTuple_Size(pphi) != 2) {
-                throw std::logic_error("phi must be a tuple (phi_0, phi_1)");
+        for(unsigned int i = 0; i < bondStyleIdx.size(); i++) {
+            auto bIndices = bondStyleIdx[i];
+            MxStyle *s = new MxStyle(bondStyles[i]);
+            for(auto bIdx : bIndices) {
+                auto bh = bondsCreated[bIdx];
+                if(bh.id >= 0) 
+                    bh.get()->style = s;
             }
-            phi0 = mx::cast<float>(PyTuple_GetItem(pphi, 0));
-            phi1 = mx::cast<float>(PyTuple_GetItem(pphi, 1));
-
-            if(phi0 < 0 || phi0 > Pi) throw std::logic_error("phi_0 must be between 0 and pi");
-            if(phi1 < 0 || phi1 > Pi) throw std::logic_error("phi_1 must be between 0 and pi");
-            if(phi1 < phi0) throw std::logic_error("phi_1 must be greater than phi_0");
         }
-
-        Magnum::Vector3 center =  pcenter ? mx::cast<Magnum::Vector3>(pcenter) : universe_center();
-
-        float radius = pradius ? mx::cast<float>(pradius) : 1;
-
-        pot = (MxPotential*)ppot;
-        n = PyLong_AsLong(pn);
-
-        std::vector<Magnum::Vector3> vertices;
-        std::vector<int32_t> indices;
-
-        Magnum::Matrix4 s = Magnum::Matrix4::scaling(Magnum::Vector3{radius, radius, radius});
-        Magnum::Matrix4 t = Magnum::Matrix4::translation(center);
-        Magnum::Matrix4 m = t * s;
-
-        Mx_Icosphere(n, phi0, phi1, vertices, indices);
-
-        Magnum::Vector3 velocity;
-
-        MxParticleList *parts = MxParticleList_New(vertices.size());
-        parts->nr_parts = vertices.size();
-
-        // Euler formula for graphs:
-        // For a closed polygon -- non-manifold mesh: T−E+V=1 -> E = T + V - 1
-        // for a sphere: T−E+V=2. -> E = T + V - 2
-
-        int edges;
-        if(phi0 <= 0 && phi1 >= Pi) {
-            edges = vertices.size() + (indices.size() / 3) - 2;
-        }
-        else if(mx::almost_equal(phi0, 0.0f) || mx::almost_equal(phi1, Pi)) {
-            edges = vertices.size() + (indices.size() / 3) - 1;
-        }
-        else {
-            edges = vertices.size() + (indices.size() / 3);
-        }
-
-        if(edges <= 0) {
-            return PyTuple_Pack(2, Py_None, Py_None);
-        }
-
-        PyListObject *bonds = (PyListObject*)PyList_New(edges);
-
-        for(int i = 0; i < vertices.size(); ++i) {
-            Magnum::Vector3 pos = m.transformPoint(vertices[i]);
-            MxParticleHandle *p = MxParticle_NewEx(type, pos, velocity, -1);
-            parts->parts[i] = p->id;
-            Py_DecRef(p);
-        }
-
-        if(vertices.size() > 0 && indices.size() == 0) {
-            PyObject *result = PyTuple_New(2);
-            PyTuple_SET_ITEM(result, 0, (PyObject*)parts);
-            Py_INCREF(Py_None);
-            PyTuple_SET_ITEM(result, 1, (PyObject*)Py_None);
-            return result;
-        }
-
-        int nbonds = 0;
-        for(int i = 0; i < indices.size(); i += 3) {
-            int a = indices[i];
-            int b = indices[i+1];
-            int c = indices[i+2];
-
-            nbonds += insert_bond(bonds, nbonds, a, b, pot, parts);
-            nbonds += insert_bond(bonds, nbonds, b, c, pot, parts);
-            nbonds += insert_bond(bonds, nbonds, c, a, pot, parts);
-        }
-
-        // TODO: probably excessive error message...
-        if(nbonds != PyList_GET_SIZE(bonds)) {
-            std::string msg = "unknown error in finding edges for sphere mesh, \n";
-            msg += "vertices: " + std::to_string(vertices.size()) + "\n";
-            msg += "indices: " + std::to_string(indices.size()) + "\n";
-            msg += "expected edges: " + std::to_string(edges) + "\n";
-            msg += "found edges: " + std::to_string(nbonds);
-            throw std::overflow_error(msg);
-        }
-
-        PyObject *result = PyTuple_New(2);
-        PyTuple_SET_ITEM(result, 0, (PyObject*)parts);
-        PyTuple_SET_ITEM(result, 1, (PyObject*)bonds);
-
-        // at this point, each returned object has a ref count of 1,
-        // they're all either lists, or handles to stuff.
-        return (PyObject*)result;
     }
-    catch (const std::exception &e) {
-        C_RETURN_EXP(e);
+
+    // load angles; potentials and styles are stored separately to reduce storage
+    
+    if(fileElement.children.find("angles") != fileElement.children.end()) {
+        std::vector<MxAngle> angles;
+        std::vector<MxPotential*> anglePotentials;
+        std::vector<std::vector<unsigned int> > anglePotentialIdx;
+        std::vector<MxStyle> angleStyles;
+        std::vector<std::vector<unsigned int> > angleStyleIdx;
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "angles", &angles);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "anglePotentials", &anglePotentials);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "anglePotentialIdx", &anglePotentialIdx);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "angleStyles", &angleStyles);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "angleStyleIdx", &angleStyleIdx);
+        std::vector<MxAngleHandle*> anglesCreated(angles.size(), 0);
+
+        for(unsigned int i = 0; i < anglePotentialIdx.size(); i++) { 
+            auto aIndices = anglePotentialIdx[i];
+            MxPotential *p = anglePotentials[i];
+            for(auto aIdx : aIndices) {
+                auto a = angles[aIdx];
+                MxParticle *pi, *pj, *pk;
+                pi = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[a.i]];
+                pj = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[a.j]];
+                pk = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[a.k]];
+                auto ah = MxAngle::create(p, pi->py_particle(), pj->py_particle(), pk->py_particle(), a.flags);
+                auto ae = ah->get();
+
+                ae->half_life = a.half_life;
+                ae->dissociation_energy = a.dissociation_energy;
+                ae->creation_time = a.creation_time;
+                anglesCreated[aIdx] = ah;
+            }
+        }
+
+        for(unsigned int i = 0; i < angleStyleIdx.size(); i++) {
+            auto aIndices = angleStyleIdx[i];
+            MxStyle *s = new MxStyle(angleStyles[i]);
+            for(auto aIdx : aIndices) {
+                auto a = anglesCreated[aIdx];
+                if(a != NULL) 
+                    a->get()->style = s;
+            }
+        }
     }
+
+    // load dihedrals; potentials and styles are stored separately to reduce storage
+    
+    if(fileElement.children.find("dihedrals") != fileElement.children.end()) {
+        std::vector<MxDihedral> dihedrals;
+        std::vector<MxPotential*> dihedralPotentials;
+        std::vector<std::vector<unsigned int> > dihedralPotentialIdx;
+        std::vector<MxStyle> dihedralStyles;
+        std::vector<std::vector<unsigned int> > dihedralStyleIdx;
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "dihedrals", &dihedrals);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "dihedralPotentials", &dihedralPotentials);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "dihedralPotentialIdx", &dihedralPotentialIdx);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "dihedralStyles", &dihedralStyles);
+        MXUNIVERSEIOFROMEASY(feItr, fileElement.children, metaData, "dihedralStyleIdx", &dihedralStyleIdx);
+        std::vector<MxDihedralHandle*> dihedralsCreated(dihedrals.size(), 0);
+
+        for(unsigned int i = 0; i < dihedralPotentialIdx.size(); i++) { 
+            auto dIndices = dihedralPotentialIdx[i];
+            MxPotential *p = dihedralPotentials[i];
+            for(auto dIdx : dIndices) {
+                auto d = dihedrals[dIdx];
+                MxParticle *pi, *pj, *pk, *pl;
+                pi = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[d.i]];
+                pj = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[d.j]];
+                pk = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[d.k]];
+                pl = _Engine.s.partlist[MxFIO::importSummary->particleIdMap[d.l]];
+                auto dh = MxDihedral::create(p, pi->py_particle(), pj->py_particle(), pk->py_particle(), pl->py_particle());
+                auto de = dh->get();
+
+                de->half_life = d.half_life;
+                de->dissociation_energy = d.dissociation_energy;
+                de->creation_time = d.creation_time;
+                dihedralsCreated[dIdx] = dh;
+            }
+        }
+
+        for(unsigned int i = 0; i < dihedralStyleIdx.size(); i++) {
+            auto dIndices = dihedralStyleIdx[i];
+            MxStyle *s = new MxStyle(dihedralStyles[i]);
+            for(auto dIdx : dIndices) {
+                auto d = dihedralsCreated[dIdx];
+                if(d != NULL) 
+                    d->get()->style = s;
+            }
+        }
+    }
+
+    return S_OK;
 }
 
-
-PyObject* MxUniverse_ResetSpecies(PyObject *self, PyObject *args, PyObject *kwargs) {
-    UNIVERSE_TRY();
-    
-    for(int i = 0; i < _Engine.s.nr_parts; ++i) {
-        MxParticle *part = _Engine.s.partlist[i];
-        if(part && part->state_vector) {
-            part->state_vector->reset();
-        }
-    }
-    
-    for(int i = 0; i < _Engine.s.largeparts.count; ++i) {
-        MxParticle *part = &_Engine.s.largeparts.parts[i];
-        if(part && part->state_vector) {
-            part->state_vector->reset();
-        }
-    }
-    
-    // redraw, state changed. 
-    MxSimulator_Redraw();
-    
-    Py_RETURN_NONE;
-    
-    UNIVERSE_FINALLY(NULL);
-}
+}};

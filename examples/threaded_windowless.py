@@ -1,55 +1,54 @@
-import mechanica as m
+import mechanica as mx
 import threading
 
-m.Logger.set_level(m.Logger.LOG_INFORMATION)
+mx.Logger.setLevel(mx.Logger.INFORMATION)
 
-m.init(windowless=True, window_size=[1024,1024])
+mx.init(windowless=True, window_size=[1024, 1024])
 
-print(m.system.gl_info())
+print(mx.system.gl_info())
 
-class Na (m.Particle):
+
+class NaType(mx.ParticleType):
     radius = 0.4
-    style={"color":"orange"}
+    style = {"color": "orange"}
 
-class Cl (m.Particle):
+
+class ClType(mx.ParticleType):
     radius = 0.25
-    style={"color":"spablue"}
+    style = {"color": "spablue"}
 
-uc = m.lattice.bcc(0.9, [Na, Cl])
 
-m.lattice.create_lattice(uc, [10, 10, 10])
+uc = mx.lattice.bcc(0.9, [NaType.get(), ClType.get()])
+
+mx.lattice.create_lattice(uc, [10, 10, 10])
+
 
 def threaded_steps(steps):
 
     print('thread start')
 
     print("thread, calling context_has_current()")
-    m.Simulator.context_has_current()\
+    mx.system.contextHasCurrent()
 
     print("thread, calling context_make_current())")
-    m.Simulator.context_make_current()
+    mx.system.contextMakeCurrent()
 
-    m.step()
+    mx.step()
 
-    with open('threaded.jpg', 'wb') as f:
-        f.write(m.system.image_data())
+    mx.system.screenshot('threaded.jpg')
 
     print("thread calling release")
-    m.Simulator.context_release()
+    mx.system.contextRelease()
 
     print("thread done")
 
 
-# m.system.image_data() is a jpg byte stream of the
-# contents of the frame buffer.
-
 print("main writing main.jpg")
 
-with open('main.jpg', 'wb') as f:
-    f.write(m.system.image_data())
+mx.system.screenshot('main.jpg')
 
 print("main calling context_release()")
-m.Simulator.context_release()
+mx.system.contextRelease()
 
 thread = threading.Thread(target=threaded_steps, args=(1,))
 
@@ -57,16 +56,12 @@ thread.start()
 
 thread.join()
 
+print("main thread context_has_current: ", mx.system.contextHasCurrent())
 
-print("main thread context_has_current: ", m.Simulator.context_has_current())
+mx.system.contextMakeCurrent()
 
-m.Simulator.context_make_current()
+mx.step()
 
-m.step()
-
-
-with open('main2.jpg', 'wb') as f:
-    f.write(m.system.image_data())
-
+mx.system.screenshot('main2.jpg', decorate=False, bgcolor=[1, 1, 1])
 
 print("all done")

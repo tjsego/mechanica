@@ -15,11 +15,11 @@
 
 
 struct MxTesselatorResult {
-    std::vector<Vector3> vertices;
+    std::vector<MxVector3f> vertices;
     std::vector<int> indices;
 };
 
-MxTesselatorResult MxTriangulateFaceSimple(const std::vector<Vector3> &vertices);
+MxTesselatorResult MxTriangulateFaceSimple(const std::vector<MxVector3f> &vertices);
 
 
 #endif /* SRC_MXTESSELATOR_H_ */

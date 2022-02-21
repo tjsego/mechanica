@@ -21,16 +21,18 @@
 #define INCLUDE_PARTICLE_H_
 #include "platform.h"
 #include "fptype.h"
-#include "carbon.h"
-#include <Magnum/Magnum.h>
-#include <Magnum/Math/Vector4.h>
-#include <Magnum/Math/Quaternion.h>
+#include "../../state/MxStateVector.h"
+#include "../../types/mx_types.h"
 #include "space_cell.h"
+#include "angle.h"
+#include "bond.h"
+#include "dihedral.h"
 #include "MxParticleList.hpp"
+#include "MxParticleTypeList.h"
 #include <set>
 
 
-CAPI_STRUCT(NOMStyle);
+CAPI_STRUCT(MxStyle);
 
 
 /* error codes */
@@ -65,7 +67,7 @@ typedef enum MxParticleFlags {
 
 
 /** ID of the last error. */
-CAPI_DATA(int) particle_err;
+// CAPI_DATA(int) particle_err;
 
 
 /**
@@ -73,6 +75,8 @@ CAPI_DATA(int) particle_err;
  */
 #define CLUSTER_PARTLIST_INCR 50
 
+struct MxCluster;
+struct MxClusterParticleHandle;
 
 /**
  * The particle data structure.
@@ -84,6 +88,9 @@ CAPI_DATA(int) particle_err;
  *
  * All particles are stored in a series of contiguous blocks of memory that are owned
  * by the space cells. Each space cell has a array of particle structs.
+ * 
+ * If you're building a model, you should probably instead be working with a 
+ * MxParticleHandle. 
  */
 struct MxParticle  {
     
@@ -97,8 +104,8 @@ struct MxParticle  {
      * whole 4 vector here. 
      */
     union {
-        FPTYPE f[4] __attribute__ ((aligned (16)));
-        Magnum::Vector3 force __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) f[4];
+        MX_ALIGNED(MxVector3f, 16) force;
         
         struct {
             float __dummy0[3];
@@ -109,8 +116,8 @@ struct MxParticle  {
 
 	/** Particle velocity */
     union {
-        FPTYPE v[4] __attribute__ ((aligned (16)));
-        Magnum::Vector3 velocity __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) v[4];
+        MX_ALIGNED(MxVector3f, 16) velocity;
         
         struct {
             float __dummy1[3];
@@ -121,8 +128,8 @@ struct MxParticle  {
     
     /** Particle position */
     union {
-        FPTYPE x[4] __attribute__ ((aligned (16)));
-        Magnum::Vector3 position __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) x[4];
+        MX_ALIGNED(MxVector3f, 16) position;
 
         struct {
             float __dummy2[3];
@@ -133,7 +140,7 @@ struct MxParticle  {
 
     /** random force force */
     union {
-        Magnum::Vector3 persistent_force __attribute__ ((aligned (16)));
+        MX_ALIGNED(MxVector3f, 16) persistent_force;
     };
 
     // inverse mass
@@ -147,10 +154,10 @@ struct MxParticle  {
 	float q;
 
 	// runge-kutta k intermediates.
-	Magnum::Vector3 p0;
-	Magnum::Vector3 v0;
-	Magnum::Vector3 xk[4];
-	Magnum::Vector3 vk[4];
+	MxVector3f p0;
+	MxVector3f v0;
+	MxVector3f xk[4];
+	MxVector3f vk[4];
 
 	/**
 	 * Particle id, virtual id
@@ -180,8 +187,9 @@ struct MxParticle  {
     struct MxParticleHandle *_pyparticle;
 
     /**
-     * public way of getting the pyparticle. Creates and caches one if
-     * it's not there.
+     * @brief Get a handle for this particle. 
+     * 
+     * @return struct MxParticleHandle* 
      */
     struct MxParticleHandle *py_particle();
 
@@ -203,28 +211,56 @@ struct MxParticle  {
      */
     HRESULT removepart(int32_t uid);
 
-    inline MxParticle *particle(int i);
+    MxParticle *particle(int i);
 
     // style pointer, set at object construction time.
     // may be re-set by users later.
     // the base particle type has a default style.
-    NOMStyle *style;
+    MxStyle *style;
 
     /**
      * pointer to state vector (optional)
      */
-    struct CStateVector *state_vector;
+    struct MxStateVector *state_vector;
 
-    inline Magnum::Vector3 global_position();
+    MxVector3f global_position();
 
-    inline void set_global_position(const Magnum::Vector3& pos);
+    void set_global_position(const MxVector3f& pos);
     
     /**
      * performs a self-verify, in debug mode raises assertion if not valid
      */
     bool verify();
+
+    
+    /**
+     * @brief Cast to a cluster type. Limits casting to cluster by type. 
+     * 
+     * @return MxCluster* 
+     */
+    operator MxCluster*();
     
     MxParticle();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned particle is not automatically registered with the engine. 
+     * 
+     * To properly register a particle from a string, pass the string to the 
+     * particle constructor of the appropriate particle type or cluster. 
+     * 
+     * @param str 
+     * @return MxParticle* 
+     */
+    static MxParticle *fromString(const std::string &str);
 };
 
 /**
@@ -240,30 +276,169 @@ HRESULT MxParticle_Verify();
 
 
 /**
- * Layout of the actual Python particle object.
+ * @brief A handle to a particle. 
  *
  * The engine allocates particle memory in blocks, and particle
  * values get moved around all the time, so their addresses change.
  *
- * The partlist is always ordered  by id, i.e. partlist[id]  always
+ * The partlist is always ordered by id, i.e. partlist[id]  always
  * points to the same particle, even though that particle may move
  * from cell to cell.
+ * 
+ * This is a safe way to work with a particle. 
  */
-struct MxParticleHandle : PyObject {
+struct MxParticleHandle {
     int id;
-    inline MxParticle *part();
+    int typeId;
+
+    /**
+     * @brief Gets the actual particle of this handle. 
+     * 
+     * @return MxParticle* 
+     */
+    MxParticle *part();
+
+    /**
+     * @brief Gets the particle type of this handle. 
+     * 
+     * @return MxParticleType* 
+     */
+    MxParticleType *type();
+
+    MxParticleHandle() : id(0), typeId(0) {}
+    MxParticleHandle(const int &id, const int &typeId) : id(id), typeId(typeId) {}
+
+    virtual MxParticleHandle* fission();
+
+    /**
+     * @brief Splits a single particle into two. Returns the new particle. 
+     * 
+     * @return MxParticleHandle* 
+     */
+    virtual MxParticleHandle* split();
+
+    /**
+     * @brief Destroys the particle, and removes it from inventory. 
+     * 
+     * Subsequent references to a destroyed particle result in an error. 
+     * 
+     * @return HRESULT 
+     */
+    HRESULT destroy();
+
+    /**
+     * @brief Calculates the particle's coordinates in spherical coordinates. 
+     * 
+     * By default, calculations are made with respect to the center of the universe. 
+     * 
+     * @param particle a particle to use as the origin, optional
+     * @param origin a point to use as the origin, optional
+     * @return MxVector3f 
+     */
+    MxVector3f sphericalPosition(MxParticle *particle=NULL, MxVector3f *origin=NULL);
+
+    /**
+     * @brief Computes the relative position with respect to an origin while 
+     * optionally account for boundary conditions. 
+     * 
+     * @param origin origin
+     * @param comp_bc flag to compensate for boundary conditions; default true
+     * @return MxVector3f relative position with respect to the given origin
+     */
+    MxVector3f relativePosition(const MxVector3f &origin, const bool &comp_bc=true);
+
+    /**
+     * @brief Computes the virial tensor. Optionally pass a distance to include a neighborhood. 
+     * 
+     * @param radius A distance to define a neighborhood, optional
+     * @return MxMatrix3f 
+     */
+    virtual MxMatrix3f virial(float *radius=NULL);
+
+    /**
+     * @brief Dynamically changes the *type* of an object. We can change the type of a 
+     * MxParticleType-derived object to anyther pre-existing MxParticleType-derived 
+     * type. What this means is that if we have an object of say type 
+     * *A*, we can change it to another type, say *B*, and and all of the forces 
+     * and processes that acted on objects of type A stip and the forces and 
+     * processes defined for type B now take over. 
+     * 
+     * @param type new particle type
+     * @return HRESULT 
+     */
+    HRESULT become(MxParticleType *type);
+
+    /**
+     * @brief Gets a list of nearby particles. 
+     * 
+     * @param distance optional search distance; default is simulation cutoff
+     * @param types optional list of particle types to search by; default is all types
+     * @return MxParticleList* 
+     */
+    MxParticleList *neighbors(const float *distance=NULL, const std::vector<MxParticleType> *types=NULL);
+
+    /**
+     * @brief Gets a list of all bonded neighbors. 
+     * 
+     * @return MxParticleList* 
+     */
+    MxParticleList *getBondedNeighbors();
+
+    /**
+     * @brief Calculates the distance to another particle
+     * 
+     * @param _other another particle. 
+     * @return float 
+     */
+    float distance(MxParticleHandle *_other);
+    std::vector<MxBondHandle*> *getBonds();
+    std::vector<MxAngleHandle*> *getAngles();
+    std::vector<MxDihedralHandle*> *getDihedrals();
+
+    double getCharge();
+    void setCharge(const double &charge);
+    double getMass();
+    void setMass(const double &mass);
+    bool getFrozen();
+    void setFrozen(const bool frozen);
+    bool getFrozenX();
+    void setFrozenX(const bool frozen);
+    bool getFrozenY();
+    void setFrozenY(const bool frozen);
+    bool getFrozenZ();
+    void setFrozenZ(const bool frozen);
+    MxStyle *getStyle();
+    void setStyle(MxStyle *style);
+    double getAge();
+    double getRadius();
+    void setRadius(const double &radius);
+    std::string getName();
+    std::string getName2();
+    MxVector3f getPosition();
+    void setPosition(MxVector3f position);
+    MxVector3f getVelocity();
+    void setVelocity(MxVector3f velocity);
+    MxVector3f getForce();
+    void setForce(MxVector3f force);
+    int getId();
+    int16_t getTypeId();
+    uint16_t getFlags();
+    MxStateVector *getSpecies();
+
+    /**
+     * Limits casting to cluster by type
+     */
+    operator MxClusterParticleHandle*();
 };
 
 /**
- * Structure containing information on each particle species.
+ * @brief Structure containing information on each particle type.
  *
- * This is only a definition for the particle *type*, not the actual
- * instance vars like pos, vel, which are stored in part.
- *
- * Extend the PyHeapTypeObject, because this is the actual type that
- * gets allocated, its a python thing.
+ * This is only a definition for a *type* of particle, and not an 
+ * actual particle with position, velocity, etc. However, particles 
+ * of this *type* can be created with one of these. 
  */
-struct MxParticleType : PyHeapTypeObject {
+struct MxParticleType {
 
     static const int MAX_NAME = 64;
 
@@ -281,27 +456,43 @@ struct MxParticleType : PyHeapTypeObject {
      */
     uint16_t particle_flags;
 
-    /** Constant physical characteristics */
-    double mass, imass, charge;
+    /**
+     * @brief Default mass of particles
+     */
+    double mass;
+    
+    double imass;
+    
+    /**
+     * @brief Default charge of particles
+     */
+    double charge;
 
-    /** default radius for particles that don't define their own radius */
+    /**
+     * @brief Default radius of particles
+     */
     double radius;
 
     /**
-     * energy and potential energy of this type, this is updated by the engine
-     * each time step.
+     * @brief Kinetic energy of all particles of this type. 
      */
     double kinetic_energy;
 
+    /**
+     * @brief Potential energy of all particles of this type. 
+     */
     double potential_energy;
 
+    /**
+     * @brief Target energy of all particles of this type. 
+     */
     double target_energy;
 
     /**
-     * minimum radius, if a fission event occurs, it will not spit a particle
-     * such that it's radius gets less than this value.
-     *
-     * defaults to radius
+     * @brief Default minimum radius of this type. 
+     * 
+     * If a split event occurs, resulting particles will have a radius 
+     * at least as great as this value. 
      */
     double minimum_radius;
 
@@ -309,25 +500,36 @@ struct MxParticleType : PyHeapTypeObject {
     double eps, rmin;
 
     /**
-     * what kind of propator does this particle type use?
+     * @brief Default dynamics of particles of this type. 
      */
     unsigned char dynamics;
 
-    /** Name of this particle type. */
-    char name[MAX_NAME], name2[MAX_NAME];
+    /**
+     * @brief Name of this particle type.
+     */
+    char name[MAX_NAME];
+    
+    char name2[MAX_NAME];
 
     /**
-     * list of particles that belong to this type.
+     * @brief list of particles that belong to this type.
      */
     MxParticleList parts;
 
-    // style pointer, optional.
-    NOMStyle *style;
+    /**
+     * @brief list of particle types that belong to this type.
+     */
+    MxParticleTypeList types;
 
     /**
-     * optional pointer to species list. This is the metadata for the species, define it in the type.
+     * @brief style pointer, optional.
      */
-    struct CSpeciesList *species;
+    MxStyle *style;
+
+    /**
+     * @brief optional pointer to species list. This is the metadata for the species
+     */
+    struct MxSpeciesList *species = 0;
 
     /**
      * add a particle (id) to this type
@@ -341,59 +543,134 @@ struct MxParticleType : PyHeapTypeObject {
     HRESULT del_part(int32_t id);
 
     /**
-     * get the i'th particle that's a member of this type.
+     * @brief get the i'th particle that's a member of this type.
+     * 
+     * @param i index of particle to get
+     * @return MxParticle* 
      */
-    inline MxParticle *particle(int i);
+    MxParticle *particle(int i);
+
+    /**
+     * @brief Get all current particle type ids, excluding clusters
+     * 
+     * @return std::set<int> 
+     */
+    static std::set<short int> particleTypeIds();
+
+    bool isCluster();
+
+    /**
+     * Limits casting to cluster by type
+     */
+    operator MxClusterParticleType*();
+
+    /**
+     * @brief Particle constructor. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param position position of new particle, optional
+     * @param velocity velocity of new particle, optional
+     * @param clusterId id of parent cluster, optional
+     * @return MxParticleHandle* 
+     */
+    MxParticleHandle *operator()(MxVector3f *position=NULL,
+                                 MxVector3f *velocity=NULL,
+                                 int *clusterId=NULL);
+    
+    /**
+     * @brief Particle constructor. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param str JSON string
+     * @param clusterId id of parent cluster, optional
+     * @return MxParticleHandle* 
+     */
+    MxParticleHandle *operator()(const std::string &str, int *clusterId=NULL);
+
+    /**
+     * @brief Particle type constructor. 
+     * 
+     * New type is constructed from the definition of the calling type. 
+     * 
+     * @param _name name of the new type
+     * @return MxParticleType* 
+     */
+    MxParticleType* newType(const char *_name);
+
+    /**
+     * @brief Registers a type with the engine.
+     * 
+     * Note that this occurs automatically, unless noReg==true in constructor.  
+     * 
+     * @return HRESULT 
+     */
+    virtual HRESULT registerType();
+
+    /**
+     * @brief A callback for when a type is registered
+     */
+    virtual void on_register() {}
+
+    /**
+     * @brief Tests whether this type is registered
+     * 
+     * @return true if registered
+     */
+    bool isRegistered();
+
+    /**
+     * @brief Get the type engine instance
+     * 
+     * @return MxParticleType* 
+     */
+    virtual MxParticleType *get();
+
+    MxParticleType(const bool &noReg=false);
+    virtual ~MxParticleType() {}
+
+    bool getFrozen();
+    void setFrozen(const bool &frozen);
+    bool getFrozenX();
+    void setFrozenX(const bool &frozen);
+    bool getFrozenY();
+    void setFrozenY(const bool &frozen);
+    bool getFrozenZ();
+    void setFrozenZ(const bool &frozen);
+    // temperature is an ensemble property
+    double getTemperature();
+    double getTargetTemperature();
+    void setTargetTemperature(const double &temperature);
+
+    /**
+     * @brief Get all particles of this type. 
+     * 
+     * @return MxParticleList* 
+     */
+    MxParticleList *items();
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned type is automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxParticleType* 
+     */
+    static MxParticleType *fromString(const std::string &str);
 };
 
-/**
- * The type of each individual particle.
- */
-//CAPI_DATA(MxParticleType) MxParticle_Type;
 CAPI_FUNC(MxParticleType*) MxParticle_GetType();
 
 CAPI_FUNC(MxParticleType*) MxCluster_GetType();
-
-/**
- * initialize the base particle type in the
- *
- * sets the engine.types[0] particle.
- *
- * The engine.types array is assumed to be allocated, but not initialized.
- */
-HRESULT engine_particle_base_init(PyObject *m);
-
-/**
- * The the particle type type
- */
-CAPI_DATA(PyTypeObject) MxParticleType_Type;
-
-/**
- * Determines if this object is a particle type.
- * @returns TRUE if a symbol, FALSE otherwise.
- */
-CAPI_FUNC(int) MxParticle_Check(PyObject *o);
-
-
-/**
- *
- *
- * Call to tp_new
- * PyObject *particle_type_new(PyTypeObject *, PyObject *, PyObject *)
- * type: <class 'ParticleType'>,
- * args: (
- *     'A',
- *     (<class 'Particle'>,),
- *     {'__module__': '__main__', '__qualname__': 'A'}
- * ),
- * kwargs: <NULL>)
- *
- * Args to tp_new should be a 3-tuple, with
- * 0: string of name of object
- * 1: base classes
- * 2: dictionary
- */
-
 
 /**
  * Creates a new MxParticleType for the given particle data pointer.
@@ -405,47 +682,26 @@ MxParticleType *MxParticleType_ForEngine(struct engine *e, double mass , double 
                                          const char *name , const char *name2);
 
 /**
- * Creates and initialized a new particle type, adds it to the
+ * Creates and initializes a new particle type, adds it to the
  * global engine
  *
  * creates both a new type, and a new data entry in the engine.
  */
-MxParticleType *MxParticleType_New(const char *_name, PyObject *dict);
-
+MxParticleType* MxParticleType_New(const char *_name);
 
 /**
- * Gets the particle type of an object.
- * returns a borrowed reference.
- * (1) If the object is a particle derived instance, returns
- *     the particle type.
- * (2) if object is a particle type, simply returns itself.
- * (3) If the object is a wrapper, as in a cluster type,
- *     returns the corresponding particle type.
- * (4) null otherwise.
+ * @brief Get a registered particle type by type name
+ * 
+ * @param name name of particle type
+ * @return MxParticleType* 
  */
-CAPI_FUNC(MxParticleType*) MxParticleType_Get(PyObject *obj);
-
 CAPI_FUNC(MxParticleType*) MxParticleType_FindFromName(const char* name);
 
 /**
  * checks if a python object is a particle, and returns the
  * corresponding particle pointer, NULL otherwise
  */
-CAPI_FUNC(MxParticle*) MxParticle_Get(PyObject* obj);
-
-CAPI_FUNC(int) MxParticleType_Check(PyObject* obj);
-
-
-/**
- * checks of the given python object is a sequence of some sort,
- * and checks that every element is a MxParticleType, fills the
- * result set.
- *
- * Every object in the given object must be a type, if it finds
- * a non-particle type object in the python sequence,
- * returns an error conditions.
- */
-HRESULT MxParticleType_IdsFromPythonObj(PyObject *obj, std::set<short int>& ids);
+CAPI_FUNC(MxParticle*) MxParticle_Get(MxParticleHandle *pypart);
 
 
 /**
@@ -454,8 +710,8 @@ HRESULT MxParticleType_IdsFromPythonObj(PyObject *obj, std::set<short int>& ids)
  *
  * points in a random direction with given magnitide mean, std
  */
-Magnum::Vector3 MxRandomVector(float mean, float std);
-Magnum::Vector3 MxRandomUnitVector();
+MxVector3f MxRandomVector(float mean, float std);
+MxVector3f MxRandomUnitVector();
 
 
 /**
@@ -466,16 +722,14 @@ Magnum::Vector3 MxRandomUnitVector();
  *
  * Vector of numbers indicate how to split the attached chemical cargo.
  */
-CAPI_FUNC(PyObject*) MxParticle_FissionSimple(MxParticle *part,
+CAPI_FUNC(MxParticleHandle*) MxParticle_FissionSimple(MxParticle *part,
         MxParticleType *a, MxParticleType *b,
         int nPartitionRatios, float *partitionRations);
 
-
-CAPI_FUNC(PyObject*) MxParticle_New(PyObject *type, PyObject *args, PyObject *kwargs);
-
-CAPI_FUNC(MxParticleHandle*) MxParticle_NewEx(PyObject *type,
-    const Magnum::Vector3 &pos, const Magnum::Vector3 &velocity,
-    int clusterId);
+CAPI_FUNC(MxParticleHandle*) MxParticle_New(MxParticleType *type, 
+                                            MxVector3f *position=NULL,
+                                            MxVector3f *velocity=NULL,
+                                            int *clusterId=NULL);
 
 /**
  * Change the type of one particle to another.
@@ -493,9 +747,32 @@ CAPI_FUNC(HRESULT) MxParticle_Become(MxParticle *part, MxParticleType *type);
  */
 CAPI_DATA(unsigned int) *MxParticle_Colors;
 
+// Returns 1 if a type has been registered, otherwise 0
+CAPI_FUNC(HRESULT) MxParticleType_checkRegistered(MxParticleType *type);
+
 /**
- * internal function to initalize the particle and particle types
+ * mandatory internal function to initalize the particle and particle types
+ *
+ * sets the engine.types[0] particle.
+ *
+ * The engine.types array is assumed to be allocated, but not initialized.
  */
-HRESULT _MxParticle_init(PyObject *m);
+HRESULT _MxParticle_init();
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxParticle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticle *dataElement);
+
+template <>
+HRESULT toFile(const MxParticleType &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxParticleType *dataElement);
+
+}};
 
 #endif // INCLUDE_PARTICLE_H_

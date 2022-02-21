@@ -20,17 +20,9 @@
 #ifndef INCLUDE_LOCK_H_
 #define INCLUDE_LOCK_H_
 
+#include <platform.h>
 
 
-/* Get the inlining right. */
-#ifndef INLINE
-# if __GNUC__ && !__GNUC_STDC_INLINE__
-#  define INLINE extern inline
-# else
-#  define INLINE inline
-# endif
-#endif
-    
 #ifdef PTHREAD_LOCK
     #define lock_type pthread_spinlock_t
     #define lock_init( l ) ( pthread_spin_init( l , PTHREAD_PROCESS_PRIVATE ) != 0 )
@@ -42,7 +34,7 @@
     #define lock_type volatile int
     #define lock_init( l ) ( *l = 0 )
     #define lock_destroy( l ) 0
-    __attribute__ ((always_inline)) INLINE int lock_lock ( volatile int *l ) {
+    MX_ALWAYS_INLINE int lock_lock ( volatile int *l ) {
         while ( __sync_val_compare_and_swap( l , 0 , 1 ) != 0 )
             while( *l );
         return 0;

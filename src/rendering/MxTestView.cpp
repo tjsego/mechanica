@@ -105,12 +105,10 @@ int testWin(int argc, char** argv) {
     return 0;
 }
 
-PyObject *PyTestWin(PyObject *self, PyObject *a)
+int testWin()
 {
     char *args[] = {(char*)"foo", (char*)"bar"};
-
-     testWin(1, args);
-    Py_RETURN_NONE;
+    return testWin(1, args);
 }
 
 MxTestView::MxTestView(int width, int height) :
@@ -267,7 +265,7 @@ MxTestView::MxTestView(int width, int height) :
 
 void MxTestView::draw()
 {
-    transform = transform * Magnum::Matrix3::rotation(Magnum::Rad(0.05));
+    transform = transform * MxMatrix3f::rotation(0.05);
 
     shader->setTransformationProjectionMatrix(transform);
     /* Render here */

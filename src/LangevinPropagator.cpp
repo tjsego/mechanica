@@ -16,84 +16,90 @@
 LangevinPropagator::LangevinPropagator() {
 }
 
+void LangevinPropagator::_ConstraintItems::update(const LangevinPropagator *prop) {
+    if(!prop->mesh) return;
 
-template<typename T>
-HRESULT LangevinPropagator::updateItem(T &item) {
-    HRESULT result = E_FAIL;
+    this->args.clear();
 
-    if(!mesh) {
-        return S_OK;
-    }
-
-    item.args.clear();
-
-    if (CType_IsSubtype(item.type, MxCell::type())) {
-        for(CellPtr cell : mesh->cells) {
-            if(cell->isRoot()) {
-                continue;
-            }
-
-            if(CType_IsSubtype(cell->ob_type, item.type)) {
-                item.args.push_back(cell);
-                result = S_OK;
-            }
+    switch (this->actor->dataType())
+    {
+    case CONSTRAINABLE_TYPE::CONSTRAINABLE_CELL:
+        for(CellPtr cell : prop->mesh->cells) {
+            if(!cell->isRoot() && cell->constraintType == this->type) this->args.push_back(cell);
         }
-    }
-
-    if (CType_IsSubtype(item.type, MxPolygon::type())) {
-        for(PolygonPtr poly : mesh->polygons) {
-            if(CType_IsSubtype(poly->ob_type, item.type)) {
-                item.args.push_back(poly);
-                result = S_OK;
-            }
+        break;
+    case CONSTRAINABLE_TYPE::CONSTRAINABLE_POLYGON:
+        for(PolygonPtr poly : prop->mesh->polygons) {
+            if(poly->constraintType == this->type) this->args.push_back(poly);
         }
+        break;
+    default:
+        break;
     }
 
-    std::cout << "items for " << item.type->tp_name << " , args size: " << item.args.size() << std::endl;
-
-    return result;
 }
 
+void LangevinPropagator::_ForceItems::update(const LangevinPropagator *prop) {
+    if(!prop->mesh) return;
 
-template<typename T>
-HRESULT LangevinPropagator::updateItems(std::vector<T> &items)
+    this->args.clear();
+
+    switch (this->actor->dataType())
+    {
+    case FORCABLE_TYPE::FORCABLE_CELL:
+        for(CellPtr cell : prop->mesh->cells) {
+            if(!cell->isRoot() && cell->forceType == this->type) this->args.push_back(cell);
+        }
+        break;
+    case FORCABLE_TYPE::FORCABLE_POLYGON:
+        for(PolygonPtr poly : prop->mesh->polygons) {
+            if(poly->forceType == this->type) this->args.push_back(poly);
+        }
+    default:
+        break;
+    }
+
+}
+
+template<typename A, typename T, typename O>
+HRESULT LangevinPropagator::updateItems(std::vector<LangevinPropagator::BaseItems<A, T, O> > &items)
 {
-    for(T& i : items) {
-        updateItem(i);
+    for(auto &i : items) {
+        i.update(this);
     }
     return S_OK;
 }
 
-template<typename T, typename KeyType>
-T& LangevinPropagator::getItem(std::vector<T>& items, KeyType* key)
+template<typename A, typename T, typename O> 
+LangevinPropagator::BaseItems<A, T, O> &LangevinPropagator::getItem(std::vector<LangevinPropagator::BaseItems<A, T, O> >& items, A* key)
 {
     auto it = std::find_if(
             items.begin(), items.end(),
-            [key](const T& x) { return x.thing == key;});
+            [key](const BaseItems<A, T, O>& x) { return x.actor == key;});
     if(it != items.end()) {
         return *it;
     }
     else {
-        items.push_back(T{key});
+        LangevinPropagator::BaseItems<A, T, O> item(key);
+        items.push_back(item);
         return items.back();
     }
 }
 
-template<typename T, typename KeyType>
-HRESULT LangevinPropagator::bindTypeItem(std::vector<T>& items,
-        KeyType* key, CType* type)
+template<typename A, typename T, typename O>
+HRESULT LangevinPropagator::bindTypeItem(std::vector<LangevinPropagator::BaseItems<A, T, O> >& items,
+        A* key, T* type)
 {
-    T& ci = getItem(items, key);
+    LangevinPropagator::BaseItems<A, T, O> &ci = getItem(items, key);
     ci.type = type;
-    return updateItem(ci);
+    ci.update(this);
+    return S_OK;
 }
 
 HRESULT LangevinPropagator::setModel(MxModel *m) {
     this->model = m;
     this->mesh = m->mesh;
     m->propagator = this;
-    
-    mesh->addObjectDeleteListener(objectDeleteListener, this);
 
     return structureChanged();
 }
@@ -246,8 +252,7 @@ HRESULT LangevinPropagator::applyConstraints()
     do {
 
         for(ConstraintItems &ci : constraints) {
-            CObject **data = ci.args.data();
-            ci.thing->project(data, ci.args.size());
+            ci.actor->project(ci.args);
         }
         
         iter += 1;
@@ -312,23 +317,28 @@ HRESULT LangevinPropagator::structureChanged()
 }
 
 
-HRESULT LangevinPropagator::bindForce(IForce* force, CObject* obj)
+HRESULT LangevinPropagator::bindForce(IForce* force, MxForcableType* type)
 {
-    CType *type = dyn_cast<CType>(obj);
     if(type) {
+        for(auto f : type->forces) {
+            if(f == force) return S_OK;
+        }
+        type->forces.push_back(force);
         return bindTypeItem(forces, force, type);
     }
-    return E_NOTIMPL;
+    return S_OK;
 }
 
-HRESULT LangevinPropagator::bindConstraint(IConstraint* constraint,
-        CObject* obj)
+HRESULT LangevinPropagator::bindConstraint(IConstraint* constraint, MxConstrainableType* type)
 {
-    CType *type = dyn_cast<CType>(obj);
     if(type) {
+        for(auto c : type->constraints) {
+            if(c == constraint) return S_OK;
+        }
+        type->constraints.push_back(constraint);
         return bindTypeItem(constraints, constraint, type);
     }
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 HRESULT MxBind_PropagatorModel(LangevinPropagator* propagator, MxModel* model)
@@ -337,20 +347,30 @@ HRESULT MxBind_PropagatorModel(LangevinPropagator* propagator, MxModel* model)
     return propagator->setModel(model);
 }
 
-HRESULT LangevinPropagator::objectDeleteListener(CObject* pThis,
-        const CObject* obj, uint32_t what)
-{
-	return E_NOTIMPL;
-}
-
 HRESULT LangevinPropagator::unbindConstraint(IConstraint* constraint)
 {
-	return E_NOTIMPL;
+	for(auto c : constraints) {
+        if(c.actor == constraint) {
+            for(auto tc = c.type->constraints.begin(); tc != c.type->constraints.end(); ++tc) {
+                if(*tc == constraint) c.type->constraints.erase(tc);
+            }
+            c.unbind();
+        }
+    }
+    return S_OK;
 }
 
 HRESULT LangevinPropagator::unbindForce(IForce* force)
 {
-	return E_NOTIMPL;
+	for(auto f : forces) {
+        if(f.actor == force) {
+            for(auto tf = f.type->forces.begin(); tf != f.type->forces.end(); ++tf) {
+                if(*tf == force) f.type->forces.erase(tf);
+            }
+            f.unbind();
+        }
+    }
+    return S_OK;
 }
 
 HRESULT LangevinPropagator::setPositions(float time, uint32_t len, const Vector3* pos)
@@ -361,8 +381,7 @@ HRESULT LangevinPropagator::setPositions(float time, uint32_t len, const Vector3
 HRESULT LangevinPropagator::applyForces()
 {
     for(ForceItems &f : forces) {
-        CObject **data = f.args.data();
-        f.thing->applyForce(0, data, f.args.size());
+        f.actor->applyForce(0, f.args);
     }
 
     return S_OK;

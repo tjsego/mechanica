@@ -17,8 +17,10 @@
  * 
  ******************************************************************************/
 
+// TODO: implement hook for potentials by particles
+
 /* Include configuratin header */
-#include "../config.h"
+#include <mdcore_config.h>
 
 /* Include some standard header files */
 #include <stdlib.h>
@@ -32,13 +34,18 @@
 /* Include headers for overloaded vector functions. */
 #include "cutil_math.h"
 
+#include <cuda_runtime.h>
+#include <curand.h>
+
 /* Include some conditional headers. */
 #ifdef HAVE_MPI
     #include <mpi.h>
 #endif
 
 /* Force single precision. */
-#define FPTYPE_SINGLE 1
+#ifndef FPTYPE_SINGLE
+    #define FPTYPE_SINGLE 1
+#endif
 
 /* Disable vectorization for the nvcc compiler's sake. */
 #undef __SSE__
@@ -51,32 +58,38 @@
 #include "errs.h"
 #include "fptype.h"
 #include "lock.h"
-#include "part.h"
-#include "cell.h"
+#include "MxParticle_cuda.h"
+#include "space_cell.h"
 #include "space.h"
 #include "task.h"
-#include "potential.h"
+#include "MxPotential_cuda.h"
+#include "MxBoundaryConditions_cuda.h"
+#include "Flux.hpp"
 #include "engine.h"
 #include "runner_cuda.h"
+#include "flux_cuda.h"
 
+#ifndef CPU_TPS
+#include <ctime>
+#define CPU_TPS CLOCKS_PER_SEC
+#endif
 
 /* the error macro. */
 #define error(id)				( engine_err = errs_register( id , engine_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
 #define cuda_error(id)			( engine_err = errs_register( id , cudaGetErrorString(cudaGetLastError()) , __LINE__ , __FUNCTION__ , __FILE__ ) )
 
-
-/* The constant null potential. */
-__constant__ struct potential *potential_null_cuda = NULL;
-
-/* The number of cells and pairs. */
-__constant__ int cuda_nr_cells = 0;
-
 /* The parts (non-texture access). */
-__constant__ float4 *cuda_parts;
-__constant__ int cuda_nr_parts;
+__constant__ MxParticleCUDA *cuda_parts;
+__constant__ float *cuda_part_states;
+static unsigned int engine_cuda_nr_states = 0;
+
+// Boundary conditions
+__constant__ MxBoundaryConditionsCUDA cuda_bcs;
+static MxBoundaryConditionsCUDA cuda_bcs_dev;
 
 /* Diagonal entries and potential index lookup table. */
-__constant__ unsigned int *cuda_pind;
+__constant__ int *cuda_pind;
+__constant__ int *cuda_pind_cluster;
 
 /* The mutex for accessing the cell pair list. */
 __device__ int cuda_cell_mutex = 0;
@@ -87,7 +100,7 @@ __device__ volatile int NAMD_barrier = 0;
 __device__ int cuda_pair_next = 0;
 
 /* The list of cell pairs. */
-__constant__ struct cellpair_cuda *cuda_pairs;
+
 __device__ int *cuda_taboo;
 #ifdef TASK_TIMERS
 /*x = block y = type z = start w = end*/
@@ -101,48 +114,141 @@ __constant__ int cuda_nr_tasks = 0;
 /* The per-SM task queues. */
 __device__ struct queue_cuda cuda_queues[ cuda_maxqueues ];
 __device__ struct queue_cuda cuda_sorts[ cuda_maxqueues ];
-__constant__ int cuda_nrqueues;
 __constant__ int cuda_queue_size;
 
 /* Some constants. */
+__constant__ float cuda_dt = 0.0f;
 __constant__ float cuda_cutoff2 = 0.0f;
 __constant__ float cuda_cutoff = 0.0f;
 __constant__ float cuda_dscale = 0.0f;
 __constant__ float cuda_maxdist = 0.0f;
-__constant__ struct potential **cuda_p;
 __constant__ int cuda_maxtype = 0;
-__constant__ struct potential *cuda_pots;
+__constant__ struct MxPotentialCUDA *cuda_pots = NULL;
+__constant__ struct MxPotentialCUDA *cuda_pots_cluster = NULL;
 
 /* Sortlists for the Verlet algorithm. */
 __device__ unsigned int *cuda_sortlists = NULL;
 
-/* The potential coefficients, as a texture. */
-texture< float4 , cudaTextureType2D > tex_coeffs;
-texture< float4 , cudaTextureType2D > tex_parts;
-
-/* Other textures. */
-texture< int , cudaTextureType1D > tex_pind;
-
-/* Arrays to hold the textures. */
-cudaArray *cuda_coeffs;
-
 /* Cell origins. */
 __constant__ float *cuda_corig;
 
-/* The potential parameters (hard-wired size for now). */
-__constant__ float cuda_eps[ 100 ];
-__constant__ float cuda_rmin[ 100 ];
+// Cell dimensions
+__constant__ float3 *cuda_cdims;
 
-/* Use a set of variables to communicate with the outside world. */
-__device__ float cuda_fio[32];
-__device__ int cuda_io[32];
-__device__ int cuda_rcount = 0;
+// Cell flags
+__constant__ unsigned int *cuda_cflags;
 
 /* Potential energy. */
 __device__ float cuda_epot = 0.0f, cuda_epot_out;
 
 /* Timers. */
 __device__ float cuda_timers[ tid_count ];
+
+// Random number generators
+__device__ curandState *cuda_rand_norm;
+
+// Fluxes
+extern __constant__ unsigned int *cuda_fxind;
+extern __constant__ struct MxFluxesCUDA *cuda_fluxes;
+
+
+__global__ void cuda_init_rand_norm_device(curandState *rand_norm, int nr_rands, unsigned long long seed) {
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    while(tid < nr_rands) {
+        curand_init(seed, tid, 0, &rand_norm[tid]);
+        tid += stride;
+    }
+}
+
+extern "C" int engine_cuda_rand_norm_init(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(e->rand_norm_init_cuda[did]) 
+            continue;
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        int nr_threads = e->nr_threads[did];
+        int nr_blocks = e->nr_blocks[did];
+        int nr_rands = nr_threads * nr_blocks;
+
+        if(cudaMalloc(&e->rand_norm_cuda[did], sizeof(curandState) * nr_rands) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        cuda_init_rand_norm_device<<<nr_blocks, nr_threads>>>((curandState *)e->rand_norm_cuda[did], nr_rands, e->rand_norm_seed_cuda);
+        if(cudaPeekAtLastError() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaMemcpyToSymbol(cuda_rand_norm, &e->rand_norm_cuda[did], sizeof(void *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        e->rand_norm_init_cuda[did] = true;
+
+    }
+
+    return engine_err_ok;
+
+}
+
+int engine_cuda_rand_norm_finalize(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) { 
+
+        if(!e->rand_norm_init_cuda[did]) 
+            continue;
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaFree(e->rand_norm_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        e->rand_norm_init_cuda[did] = false;
+
+    }
+    
+    return engine_err_ok;
+
+}
+
+/**
+ * @brief Sets the random seed for the CUDA uniform number generators. 
+ * 
+ * @param e The #engine
+ * @param seed The seed
+ * @param onDevice A flag specifying whether the engine is current on the device
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_rand_norm_setSeed(struct engine *e, unsigned int seed, bool onDevice) {
+
+    if(onDevice)
+        if(engine_cuda_rand_norm_finalize(e) < 0)
+            return cuda_error(engine_err_cuda);
+
+    e->rand_norm_seed_cuda = seed;
+
+    if(onDevice) {
+        if(engine_cuda_rand_norm_init(e) < 0)
+            return cuda_error(engine_err_cuda);
+
+        for(int did = 0; did < e->nr_devices; did++) {
+
+            if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+                return cuda_error(engine_err_cuda);
+
+            if(cudaDeviceSynchronize() != cudaSuccess)
+                return cuda_error(engine_err_cuda);
+
+        }
+    }
+
+    return engine_err_ok;
+
+}
 
 
 /* Map sid to shift vectors. */
@@ -196,7 +302,7 @@ __device__ void cuda_mutex_lock ( int *m ) {
     TIMER_TIC
     while ( atomicCAS( m , 0 , 1 ) != 0 );
     TIMER_TOC( tid_mutex )
-    }
+}
 
 
 /**
@@ -214,7 +320,7 @@ __device__ int cuda_mutex_trylock ( int *m ) {
     int res = atomicCAS( m , 0 , 1 ) == 0;
     TIMER_TOC( tid_mutex )
     return res;
-    }
+}
 
 
 /**
@@ -241,7 +347,7 @@ __device__ int cuda_mutex_lock_cond ( int *m , int *c ) {
             }
     TIMER_TOC( tid_mutex )
     return 0;
-    }
+}
 
 
 /**
@@ -256,7 +362,7 @@ __device__ void cuda_mutex_unlock ( int *m ) {
     TIMER_TIC
     atomicExch( m , 0 );
     TIMER_TOC( tid_mutex )
-    }
+}
     
     
 /**
@@ -288,7 +394,7 @@ __device__ int cuda_queue_gettask ( struct queue_cuda *q ) {
     /* Return the acquired task ID. */
     return tid;
     
-    }
+}
 
 
 /**
@@ -310,7 +416,7 @@ __device__ void cuda_queue_puttask ( struct queue_cuda *q , int tid ) {
     /* Write the task back to the queue. */
     q->data[ind] = tid;
     
-    }
+}
     
     
 /**
@@ -321,7 +427,7 @@ __noinline__ __device__ uint get_smid ( void ) {
     uint ret;
     asm("mov.u32 %0, %smid;" : "=r"(ret) );
     return ret;
-    }
+}
 
 
 /**
@@ -337,9 +443,7 @@ __noinline__ __device__ uint get_smid ( void ) {
 __device__ int runner_cuda_gettask ( struct queue_cuda *q , int steal ) {
 
     int tid = -1;
-    #ifndef FORCES_LOCAL
-        int cid, cjd;
-    #endif
+    int cid, cjd;
     
     TIMER_TIC
     
@@ -349,48 +453,44 @@ __device__ int runner_cuda_gettask ( struct queue_cuda *q , int steal ) {
         /* If this task is not even free, don't even bother. */
         if ( !cuda_tasks[tid].wait ) {
     
-            #ifdef FORCES_LOCAL
+            /* Dfferent options for different tasks. */
+            if ( cuda_tasks[tid].type == task_type_sort ) {
+            
+                /* No locking needed. */
                 break;
-            #else
-                /* Dfferent options for different tasks. */
-                if ( cuda_tasks[tid].type == task_type_sort ) {
-                
-                    /* No locking needed. */
-                    break;
-                
-                    }
-                else if ( cuda_tasks[tid].type == task_type_self ) {
-                
-                    /* Decode this task. */
-                    cid = cuda_tasks[tid].i;
-
-                    /* Lock down this task? */
-                    if ( cuda_mutex_trylock( &cuda_taboo[ cid ] ) )
-                        break;
-                            
-                    }
-                else if ( cuda_tasks[tid].type == task_type_pair ) {
-                
-                    /* Decode this task. */
-                    cid = cuda_tasks[tid].i;
-                    cjd = cuda_tasks[tid].j;
-
-                    /* Lock down this task? */
-                    if ( cuda_mutex_trylock( &cuda_taboo[ cid ] ) )
-                        if ( cuda_mutex_trylock( &cuda_taboo[ cjd ] ) ) 
-                            break;
-                        else
-                            cuda_mutex_unlock( &cuda_taboo[ cid ] );
-                            
-                    }
-            #endif
-
+            
             }
+            else if ( cuda_tasks[tid].type == task_type_self ) {
+            
+                /* Decode this task. */
+                cid = cuda_tasks[tid].i;
+
+                /* Lock down this task? */
+                if ( cuda_mutex_trylock( &cuda_taboo[ cid ] ) )
+                    break;
+                        
+            }
+            else if ( cuda_tasks[tid].type == task_type_pair ) {
+            
+                /* Decode this task. */
+                cid = cuda_tasks[tid].i;
+                cjd = cuda_tasks[tid].j;
+
+                /* Lock down this task? */
+                if ( cuda_mutex_trylock( &cuda_taboo[ cid ] ) )
+                    if ( cuda_mutex_trylock( &cuda_taboo[ cjd ] ) ) 
+                        break;
+                    else
+                        cuda_mutex_unlock( &cuda_taboo[ cid ] );
+                        
+            }
+
+        }
                 
         /* Put this task back into the queue. */
         cuda_queue_puttask( q , tid );
     
-        }
+    }
         
     /* Put this task into the recycling queue, if needed. */
     if ( tid >= 0 ) {
@@ -398,14 +498,14 @@ __device__ int runner_cuda_gettask ( struct queue_cuda *q , int steal ) {
             atomicSub( (int *)&q->count , 1 );
         else
             q->rec_data[ atomicAdd( (int *)&q->rec_count , 1 ) ] = tid;
-        }
+    }
         
     TIMER_TOC(tid_queue);
         
     /* Return whatever we got. */
     return tid;
 
-    }
+}
 
 __device__ int runner_cuda_gettask_nolock ( struct queue_cuda *q , int steal ) {
 
@@ -419,14 +519,9 @@ __device__ int runner_cuda_gettask_nolock ( struct queue_cuda *q , int steal ) {
         /* If this task is not even free, don't even bother. */
         if ( !cuda_tasks[tid].wait ) {
     
-            #ifdef FORCES_LOCAL
-                break;
-            #else
-                break;
-                    
-            #endif
+            break;
 
-            }
+        }
         /*if( cuda_tasks[tid].type == task_type_pair )
         {
 	       	cid = cuda_tasks[tid].i;
@@ -441,7 +536,7 @@ __device__ int runner_cuda_gettask_nolock ( struct queue_cuda *q , int steal ) {
         /* Put this task back into the queue. */
         cuda_queue_puttask( q , tid );
     
-        }
+    }
         
     /* Put this task into the recycling queue, if needed. */
     if ( tid >= 0 ) {
@@ -449,16 +544,55 @@ __device__ int runner_cuda_gettask_nolock ( struct queue_cuda *q , int steal ) {
             atomicSub( (int *)&q->count , 1 );
         else
             q->rec_data[ atomicAdd( (int *)&q->rec_count , 1 ) ] = tid;
-        }
+    }
         
     TIMER_TOC(tid_queue);
         
     /* Return whatever we got. */
     return tid;
 
+}
+
+__device__ inline void w_cubic_spline_cuda(float r2, float h, float *result) {
+    float r = rsqrt(r2);
+    float x = r/h;
+    float y;
+    
+    if(x < 1.f) {
+        float x2 = x * x;
+        y = 1.f - (3.f / 2.f) * x2 + (3.f / 4.f) * x2 * x;
     }
+    else if(x >= 1.f && x < 2.f) {
+        float arg = 2.f - x;
+        y = (1.f / 4.f) * arg * arg * arg;
+    }
+    else {
+        y = 0.f;
+    }
+    
+    *result = y / (M_PI * h * h * h);
+}
 
-
+__device__ inline void w_cubic_spline_cuda(float r2, float h, float *result, float *_r) {
+    float r = sqrt(r2);
+    float x = 1.f/(r*h);
+    float y;
+    
+    if(x < 1.f) {
+        float x2 = x * x;
+        y = 1.f - (3.f / 2.f) * x2 + (3.f / 4.f) * x2 * x;
+    }
+    else if(x >= 1.f && x < 2.f) {
+        float arg = 2.f - x;
+        y = (1.f / 4.f) * arg * arg * arg;
+    }
+    else {
+        y = 0.f;
+    }
+    
+    *result = y / (M_PI * h * h * h);
+    *_r = r;
+}
     
 /**
  * @brief Copy bulk memory in a strided way.
@@ -483,7 +617,7 @@ __device__ inline void cuda_memcpy ( void *dest , void *source , int count ) {
         
     TIMER_TOC(tid_memcpy)
         
-    }
+}
 
 
     
@@ -500,7 +634,7 @@ __device__ inline void cuda_memcpy_old ( void *dest , void *source , int count )
         
     TIMER_TOC(tid_memcpy)
         
-    }
+}
 
 
 /**
@@ -527,17 +661,17 @@ __device__ inline void cuda_sum ( float *a , float *b , int count ) {
         for ( j = 0 ; j < cuda_sum_chunk ; j++ ) {
             i = (cuda_sum_chunk*k+j)*cuda_frame + threadID;
             chunk[j] = a[i] + b[i];
-            }
+        }
         #pragma unroll
         for ( j = 0 ; j < cuda_sum_chunk ; j++ )
             a[ (cuda_sum_chunk*k+j)*cuda_frame + threadID ] = chunk[j];
-        }
+    }
     for ( k = cuda_sum_chunk*cuda_frame*icount + threadID ; k < count ; k += cuda_frame )
         a[k] += b[k];
         
     TIMER_TOC(tid_update)
         
-    }
+}
     
     
     
@@ -569,8 +703,8 @@ __device__ inline void cuda_sort_descending ( unsigned int *a , int count ) {
             if  ( ( swap_i & 0xffff ) < ( swap_j & 0xffff ) ) {
                 a[ind] = swap_j;
                 a[jnd] = swap_i;
-                }
             }
+        }
             
         /* Let that last step sink in. */
             __syncthreads();
@@ -585,17 +719,17 @@ __device__ inline void cuda_sort_descending ( unsigned int *a , int count ) {
                 if  ( ( swap_i & 0xffff ) < ( swap_j & 0xffff ) ) {
                     a[ind] = swap_j;
                     a[jnd] = swap_i;
-                    }
                 }
-                __syncthreads();
             }
-            
+                __syncthreads();
         }
+            
+    }
         
     TIMER_TOC(tid_sort)
 
         
-    }
+}
 
     
 
@@ -632,12 +766,12 @@ __device__ void cuda_sort_ascending ( unsigned int *a , int count ) {
             if  ( ( swap_i[0] & 0xffff ) > ( swap_j[0] & 0xffff ) ) {
                 a[ind[0]] = swap_j[0];
                 a[jnd[0]] = swap_i[0];
-                }
+            }
             if  ( ( swap_i[1] & 0xffff ) > ( swap_j[1] & 0xffff ) ) {
                 a[ind[1]] = swap_j[1];
                 a[jnd[1]] = swap_i[1];
-                }
             }
+        }
             
         /* Let that last step sink in. */
         // __threadfence_block();
@@ -656,216 +790,147 @@ __device__ void cuda_sort_ascending ( unsigned int *a , int count ) {
                 if  ( ( swap_i[0] & 0xffff ) > ( swap_j[0] & 0xffff ) ) {
                     a[ind[0]] = swap_j[0];
                     a[jnd[0]] = swap_i[0];
-                    }
+                }
                 if  ( ( swap_i[1] & 0xffff ) > ( swap_j[1] & 0xffff ) ) {
                     a[ind[1]] = swap_j[1];
                     a[jnd[1]] = swap_i[1];
-                    }
                 }
-            // __threadfence_block();
             }
-            
+            // __threadfence_block();
         }
+            
+    }
         
     TIMER_TOC(tid_sort)
         
+}
+
+__device__ 
+void engine_cuda_rand_norm(int threadID, int nr_rands, float *result) {
+    int i;
+    curandState *rand_norm = &cuda_rand_norm[threadID];
+    for(i = 0; i < nr_rands; i++) 
+        result[i] = curand_normal(rand_norm);
+}
+
+__device__ 
+void engine_cuda_rand_norm_getState(int threadID, curandState **rand_norm) {
+    *rand_norm = &cuda_rand_norm[threadID];
+}
+
+__device__ 
+void engine_cuda_random_vector3(float vecLength, float *result) {
+    curandState *rand_norm;
+    engine_cuda_rand_norm_getState(threadIdx.x + blockIdx.x * blockDim.x, &rand_norm);
+    result[0] = curand_normal(rand_norm);
+    result[1] = curand_normal(rand_norm);
+    result[2] = curand_normal(rand_norm);
+    float len = sqrtf(result[0] * result[0] + result[1] * result[1] + result[2] * result[2]);
+    result[0] = result[0] * vecLength / len;
+    result[1] = result[1] * vecLength / len;
+    result[2] = result[2] * vecLength / len;
+}
+
+
+extern "C" int engine_cuda_boundary_conditions_load(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        cuda_bcs_dev = MxBoundaryConditionsCUDA(e->boundary_conditions);
+
+        if(cudaMemcpyToSymbol(cuda_bcs, &cuda_bcs_dev, sizeof(MxBoundaryConditionsCUDA), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
     }
 
-    
-    
-/** 
- * @brief Evaluates the given potential at the given point (interpolated) using
- *      texture memory on the device.
+    return engine_err_ok;
+}
+
+/**
+ * @brief Finalize boundary conditions on device. 
+ * 
+ * @param e The #engine.
  *
- * @param pid The index of the #potential to be evaluated.
- * @param r2 The radius at which it is to be evaluated, squared.
- * @param e Pointer to a floating-point value in which to store the
- *      interaction energy.
- * @param f Pointer to a floating-point value in which to store the
- *      magnitude of the interaction force divided by r.
- *
- * Note that for efficiency reasons, this function does not check if any
- * of the parameters are @c NULL or if @c sqrt(r2) is within the interval
- * of the #potential @c p.
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
  */
+int engine_cuda_boundary_conditions_finalize(struct engine *e) {
 
-__device__ inline void potential_eval_cuda_tex ( int pid , float r2 , float *e , float *f ) {
+    for(int did = 0; did < e->nr_devices; did++) {
 
-    int ind;
-    float x, ee, eff, r, ir;
-    float4 alpha, c1, c2;
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        cuda_bcs_dev.finalize();
+
+    }
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Refresh boundary conditions on device. Can be safely called while on device. 
+ * 
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_boundary_conditions_refresh(struct engine *e) {
+    
+    if(engine_cuda_boundary_conditions_finalize(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_boundary_conditions_load(e) < 0)
+        return error(engine_err);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+
+__device__ void potential_eval_r_cuda(struct MxPotential *p, FPTYPE r, FPTYPE *e, FPTYPE *f) {
+
+    int ind, k;
+    FPTYPE x, ee, eff, *c;
     
     TIMER_TIC
-    
-    /* Get r for the right type. */
-    ir = rsqrtf(r2);
-    r = r2*ir;
-    
-    /* compute the interval index */
-    alpha = tex2D( tex_coeffs , 0 , pid );
-    // alpha = tex1D( tex_alphas , pid );
-    if ( ( ind = alpha.x + r * ( alpha.y + r * alpha.z ) ) < 0 )
-        ind = 0;
-    
-    /* pre-load the coefficients. */
-    c1 = tex2D( tex_coeffs , 2*ind+2 , pid );
-    c2 = tex2D( tex_coeffs , 2*ind+3 , pid );
-    
+
+    /* compute the index */
+    ind = fmaxf(0.0f, p->alpha[0] + r * (p->alpha[1] + r * p->alpha[2]));
+
+    /* get the table offset */
+    c = &(p->c[ind * potential_chunk]);
+
     /* adjust x to the interval */
-    x = (r - c1.x) * c1.y;
-    
+    x = (r - c[0]) * c[1];
+
     /* compute the potential and its derivative */
-    eff = c1.z;
-    ee = c1.z * x + c1.w;
-    eff = eff * x + ee;
-    ee = ee * x + c2.x;
-    eff = eff * x + ee;
-    ee = ee * x + c2.y;
-    eff = eff * x + ee;
-    ee = ee * x + c2.z;
-    eff = eff * x + ee;
-    ee = ee * x + c2.w;
+    ee = c[2] * x + c[3];
+    eff = c[2];
+    for ( k = 4 ; k < potential_chunk ; k++ ) {
+        eff = eff * x + ee;
+        ee = ee * x + c[k];
+        }
 
     /* store the result */
-    *e = ee; *f = eff * c1.y * ir;
-        
+    *e = ee; *f = eff * c[1];
+
     TIMER_TOC(tid_potential)
-        
-    }
 
+}
 
-/** 
- * @brief Evaluates the given potential at the given point (interpolated) using
- *      texture memory on the device.
- *
- * @param pid The index of the #potential to be evaluated.
- * @param r2 The radius at which it is to be evaluated, squared.
- * @param e Pointer to a floating-point value in which to store the
- *      interaction energy.
- * @param f Pointer to a floating-point value in which to store the
- *      magnitude of the interaction force divided by r.
- *
- * Note that for efficiency reasons, this function does not check if any
- * of the parameters are @c NULL or if @c sqrt(r2) is within the interval
- * of the #potential @c p.
- */
-
-__device__ inline void potential_eval4_cuda_tex ( int4 pid , float4 r2 , float4 *e , float4 *f ) {
-
-    int4 ind;
-    float4 x, ee, eff, r, ir, c1[4], c2[4], a[4];
-    
-    TIMER_TIC
-    
-    /* Get r for the right type. */
-    ir.x = rsqrtf(r2.x);
-    ir.y = rsqrtf(r2.y);
-    ir.z = rsqrtf(r2.z);
-    ir.w = rsqrtf(r2.w);
-    r = r2*ir;
-    
-    /* compute the interval index */
-    a[0] = tex2D( tex_coeffs , 0 , pid.x );
-    a[1] = tex2D( tex_coeffs , 0 , pid.y );
-    a[2] = tex2D( tex_coeffs , 0 , pid.z );
-    a[3] = tex2D( tex_coeffs , 0 , pid.w );
-    /* a[0] = tex1D( tex_alphas , pid.x );
-    a[1] = tex1D( tex_alphas , pid.y );
-    a[2] = tex1D( tex_alphas , pid.z );
-    a[3] = tex1D( tex_alphas , pid.w ); */
-    ind.x = max( 0 , (int)( a[0].x + r.x * ( a[0].y + r.x * a[0].z ) ) );
-    ind.y = max( 0 , (int)( a[1].x + r.y * ( a[1].y + r.y * a[1].z ) ) );
-    ind.z = max( 0 , (int)( a[2].x + r.z * ( a[2].y + r.z * a[2].z ) ) );
-    ind.w = max( 0 , (int)( a[3].x + r.w * ( a[3].y + r.w * a[3].z ) ) );
-    
-    /* pre-load the coefficients. */
-    c1[0] = tex2D( tex_coeffs , 2*ind.x+2 , pid.x );
-    c2[0] = tex2D( tex_coeffs , 2*ind.x+3 , pid.x );
-    c1[1] = tex2D( tex_coeffs , 2*ind.y+2 , pid.y );
-    c2[1] = tex2D( tex_coeffs , 2*ind.y+3 , pid.y );
-    c1[2] = tex2D( tex_coeffs , 2*ind.z+2 , pid.z );
-    c2[2] = tex2D( tex_coeffs , 2*ind.z+3 , pid.z );
-    c1[3] = tex2D( tex_coeffs , 2*ind.w+2 , pid.w );
-    c2[3] = tex2D( tex_coeffs , 2*ind.w+3 , pid.w );
-    
-    /* adjust x to the interval */
-    x.x = (r.x - c1[0].x) * c1[0].y;
-    x.y = (r.y - c1[1].x) * c1[1].y;
-    x.z = (r.z - c1[2].x) * c1[2].y;
-    x.w = (r.w - c1[3].x) * c1[3].y;
-    
-    /* compute the potential and its derivative */
-    eff.x = c1[0].z;
-    eff.y = c1[1].z;
-    eff.z = c1[2].z;
-    eff.w = c1[3].z;
-    ee.x = c1[0].z * x.x + c1[0].w;
-    ee.y = c1[1].z * x.y + c1[1].w;
-    ee.z = c1[2].z * x.z + c1[2].w;
-    ee.w = c1[3].z * x.w + c1[3].w;
-    eff.x = eff.x * x.x + ee.x;
-    eff.y = eff.y * x.y + ee.y;
-    eff.z = eff.z * x.z + ee.z;
-    eff.w = eff.w * x.w + ee.w;
-    ee.x = ee.x * x.x + c2[0].x;
-    ee.y = ee.y * x.y + c2[1].x;
-    ee.z = ee.z * x.z + c2[2].x;
-    ee.w = ee.w * x.w + c2[3].x;
-    eff.x = eff.x * x.x + ee.x;
-    eff.y = eff.y * x.y + ee.y;
-    eff.z = eff.z * x.z + ee.z;
-    eff.w = eff.w * x.w + ee.w;
-    ee.x = ee.x * x.x + c2[0].y;
-    ee.y = ee.y * x.y + c2[1].y;
-    ee.z = ee.z * x.z + c2[2].y;
-    ee.w = ee.w * x.w + c2[3].y;
-    eff.x = eff.x * x.x + ee.x;
-    eff.y = eff.y * x.y + ee.y;
-    eff.z = eff.z * x.z + ee.z;
-    eff.w = eff.w * x.w + ee.w;
-    ee.x = ee.x * x.x + c2[0].z;
-    ee.y = ee.y * x.y + c2[1].z;
-    ee.z = ee.z * x.z + c2[2].z;
-    ee.w = ee.w * x.w + c2[3].z;
-    eff.x = eff.x * x.x + ee.x;
-    eff.y = eff.y * x.y + ee.y;
-    eff.z = eff.z * x.z + ee.z;
-    eff.w = eff.w * x.w + ee.w;
-    ee.x = ee.x * x.x + c2[0].w;
-    ee.y = ee.y * x.y + c2[1].w;
-    ee.z = ee.z * x.z + c2[2].w;
-    ee.w = ee.w * x.w + c2[3].w;
-
-    /* Scale the derivative accordingly. */
-    eff.x *= c1[0].y * ir.x;
-    eff.y *= c1[1].y * ir.y;
-    eff.z *= c1[2].y * ir.z;
-    eff.w *= c1[3].y * ir.w;
-    
-    /* store the result */
-    *e = ee; *f = eff;
-        
-    TIMER_TOC(tid_potential4)
-        
-    }
-
-
-/** 
- * @brief Evaluates the given potential at the given point (interpolated).
- *
- * @param p The #potential to be evaluated.
- * @param r2 The radius at which it is to be evaluated, squared.
- * @param e Pointer to a floating-point value in which to store the
- *      interaction energy.
- * @param f Pointer to a floating-point value in which to store the
- *      magnitude of the interaction force divided by r.
- *
- * Note that for efficiency reasons, this function does not check if any
- * of the parameters are @c NULL or if @c sqrt(r2) is within the interval
- * of the #potential @c p.
- */
-
-__device__ inline void potential_eval_cuda ( struct potential *p , float r2 , float *e , float *f ) {
+__device__ void potential_eval_cuda ( struct MxPotential *p , float r2 , float *e , float *f ) {
 
     int ind, k;
     float x, ee, eff, *c, ir, r;
@@ -892,129 +957,637 @@ __device__ inline void potential_eval_cuda ( struct potential *p , float r2 , fl
     for ( k = 4 ; k < potential_chunk ; k++ ) {
         eff = eff * x + ee;
         ee = ee * x + c[k];
-        }
+    }
 
     /* store the result */
     *e = ee; *f = eff * c[1] * ir;
         
     TIMER_TOC(tid_potential)
         
-    }
+}
 
+__device__ void potential_eval_cuda ( struct MxPotentialCUDAData p , float r2 , float *e , float *f ) {
 
-/**
- * @brief Compute the pairwise interactions for the given pair on a CUDA device.
- *
- * @param icid Array of parts in the first cell.
- * @param count_i Number of parts in the first cell.
- * @param icjd Array of parts in the second cell.
- * @param count_j Number of parts in the second cell.
- * @param pshift A pointer to an array of three floating point values containing
- *      the vector separating the centers of @c cell_i and @c cell_j.
- * @param cid Part buffer in local memory.
- * @param cjd Part buffer in local memory.
- *
- * @sa #runner_dopair.
- */
-
-#ifdef PARTS_TEX 
-__device__ void runner_dopair_unsorted_cuda ( int cid , int count_i , int cjd , int count_j , float *forces_i , float *forces_j , float *shift , float *epot_global ) {
-#else
-__device__ void runner_dopair_unsorted_cuda ( float4 *parts_i , int count_i , float4 *parts_j , int count_j , float *forces_i , float *forces_j , float *shift , float *epot_global ) {
-#endif
-
-    int k, pid, pjd, ind, wrap_i, threadID;
-    int pjoff;
-    int pot;
-    float epot = 0.0f, dx[3], pjf[3], r2, w;
-    float ee = 0.0f, eff = 0.0f;
-    float4 pi, pj;
+    int ind, k;
+    float x, ee, eff, *c, ir, r;
     
     TIMER_TIC
     
-    /* Get the size of the frame, i.e. the number of threads in this block. */
-    threadID = threadIdx.x;
+    /* Get r for the right type. */
+    ir = rsqrtf(r2);
+    r = r2*ir;
     
-    /* Get the wraps. */
-    wrap_i = (count_i < cuda_frame) ? cuda_frame : count_i;
+    /* compute the interval index */
+    ind = fmaxf( 0.0f , p.alpha.x + r * (p.alpha.y + r * p.alpha.z) );
     
-    /* Make sure everybody is in the same place. */
-    // __threadfence_block();
-
-    /* Loop over the particles in cell_j, frame-wise. */
-    for ( pjd = threadID ; pjd < count_j ; pjd += cuda_frame ) {
+    /* get the table offset */
+    c = &(p.c[ind * potential_chunk]);
     
-        /* Get a direct pointer on the pjdth part in cell_j. */
-        #ifdef PARTS_TEX
-            pj = tex2D( tex_parts , pjd , cjd );
-        #else
-            pj = parts_j[ pjd ];
-        #endif
-        pjoff = pj.w * cuda_maxtype;
-        pj.x += shift[0]; pj.y += shift[1]; pj.z += shift[2];
-        pjf[0] = 0.0f; pjf[1] = 0.0f; pjf[2] = 0.0f;
-        
-        /* Loop over the particles in cell_i. */
-        for ( ind = 0 ; ind < wrap_i ; ind++ ) {
-        
-            /* Wrap the particle index correctly. */
-            if ( ( pid = ind + threadID ) >= wrap_i )
-                pid -= wrap_i;
-            if ( pid < count_i ) {
-            
-                /* Get a handle on the wrapped particle pid in cell_i. */
-                #ifdef PARTS_TEX
-                    pi = tex2D( tex_parts , pid , cid );
-                #else
-                    pi = parts_i[ pid ];
-                #endif
-
-                /* Compute the radius between pi and pj. */
-                r2 = 0.0f;
-                dx[0] = pi.x - pj.x; r2 += dx[0]*dx[0];
-                dx[1] = pi.y - pj.y; r2 += dx[1]*dx[1];
-                dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
-
-                /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pjoff + (int)pi.w ] ) != 0 ) {
-
-                    // atomicAdd( &cuda_rcount , 1 );
-                
-                    /* Interact particles pi and pj. */
-                    potential_eval_cuda_tex( pot , r2 , &ee , &eff );
-
-                    /* Store the interaction force and energy. */
-                    epot += ee;
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        w = eff * dx[k];
-                        forces_i[ 3*pid + k ] -= w;
-                        pjf[k] += w;
-                        }
-
-                    /* Sync the shared memory values. */
-                    // __threadfence_block();
-                
-                    } /* in range and potential. */
-
-                } /* valid pid? */
-        
-            } /* loop over parts in cell_i. */
-            
-        /* Update the force on pj. */
-        for ( k = 0 ; k < 3 ; k++ )
-            forces_j[ 3*pjd + k ] += pjf[k];
-
-        /* Sync the shared memory values. */
-        // __threadfence_block();
-            
-        } /* loop over the particles in cell_j. */
-        
-    /* Store the potential energy. */
-    *epot_global += epot;
-        
-    TIMER_TOC(tid_pair)
-        
+    /* adjust x to the interval */
+    x = (r - c[0]) * c[1];
+    
+    /* compute the potential and its derivative */
+    ee = c[2] * x + c[3];
+    eff = c[2];
+    #pragma unroll
+    for ( k = 4 ; k < potential_chunk ; k++ ) {
+        eff = eff * x + ee;
+        ee = ee * x + c[k];
     }
+
+    /* store the result */
+    *e = ee; *f = eff * c[1] * ir;
+        
+    TIMER_TOC(tid_potential)
+        
+}
+
+
+/** 
+ * @brief Evaluates the given potential at the given point (interpolated).
+ *
+ * @param p The #potential to be evaluated.
+ * @param ri Radius of the ith particle. 
+ * @param rj Radius of the jth particle. 
+ * @param r2 The radius at which it is to be evaluated, squared.
+ * @param e Pointer to a floating-point value in which to store the
+ *      interaction energy.
+ * @param f Pointer to a floating-point value in which to store the
+ *      magnitude of the interaction force divided by r.
+ *
+ * Note that for efficiency reasons, this function does not check if any
+ * of the parameters are @c NULL or if @c sqrt(r2) is within the interval
+ * of the #potential @c p.
+ */
+__device__ inline void potential_eval_ex_cuda (struct MxPotentialCUDAData p, float ri, float rj, float r2, float *e, float *f, bool *result) {
+
+    int ind, k;
+    float x, ee, eff, *c, ir, r;
+    
+    TIMER_TIC
+    
+    /* Get r for the right type. */
+    ir = rsqrtf(r2);
+    r = r2*ir;
+    
+    // cutoff min value, eval at lowest func interpolation.
+    r = r < p.w.x ? p.w.x : r;
+    
+    if(p.flags & POTENTIAL_SCALED) {
+        r = r / (ri + rj);
+    }
+    else if(p.flags & POTENTIAL_SHIFTED) {
+        r = r - (ri + rj) + p.w.z;
+    }
+    
+    /* compute the interval index */
+    ind = fmaxf( 0.0f , p.alpha.x + r * (p.alpha.y + r * p.alpha.z) );
+
+    if(r > p.w.y || ind > p.n) {
+        *result = false;
+        return;
+    }
+    
+    /* get the table offset */
+    c = &(p.c[ind * potential_chunk]);
+    
+    /* adjust x to the interval */
+    x = (r - c[0]) * c[1];
+    
+    /* compute the potential and its derivative */
+    ee = c[2] * x + c[3];
+    eff = c[2];
+    #pragma unroll
+    for ( k = 4 ; k < potential_chunk ; k++ ) {
+        eff = eff * x + ee;
+        ee = ee * x + c[k];
+    }
+
+    /* store the result */
+    *e = ee; *f = eff * c[1] * ir;
+
+    *result = true;
+        
+    TIMER_TOC(tid_potential)
+        
+}
+
+
+__device__ inline void dpd_eval_cuda(MxPotentialCUDAData pot, MxParticleCUDA pi, MxParticleCUDA pj, float *dx, float r2, float *e, float *fi, float *fj, bool *result) {
+
+    float delta = rsqrtf(cuda_dt);
+    
+    float ri = pi.v.w;
+    float rj = pj.v.w;
+    bool shifted = pot.flags & POTENTIAL_SHIFTED;
+    
+    float cutoff = shifted ? (pot.w.y + ri + rj) : pot.w.y;
+    
+    if(r2 > cutoff * cutoff) {
+        *result = false;
+        return;
+    }
+    
+    float r = sqrtf(r2);
+    
+    if(r < pot.w.x) {
+        *result = false;
+        return;
+    }
+    
+    // unit vector
+    float3 unit_vec{dx[0] / r, dx[1] / r, dx[2] / r};
+    
+    float3 v{pi.v.x - pj.v.x, pi.v.y - pj.v.y, pi.v.z - pj.v.z};
+    
+    float shifted_r = shifted ? r - ri - rj : r;
+    
+    // conservative force
+    float omega_c = shifted_r < 0.f ?  1.f : (1 - shifted_r / cutoff);
+    
+    float fc = pot.dpd_cfs.x * omega_c;
+    
+    // dissapative force
+    float omega_d = omega_c * omega_c;
+    
+    float fd = - pot.dpd_cfs.y * omega_d * (unit_vec.x * v.x + unit_vec.y * v.y + unit_vec.z * v.z);
+    
+    float fr = pot.dpd_cfs.z * omega_c * delta;
+    
+    float f = fc + fd + fr;
+    
+    fi[0] += f * unit_vec.x;
+    fi[1] += f * unit_vec.y;
+    fi[2] += f * unit_vec.z;
+    fj[0] -= f * unit_vec.x;
+    fj[1] -= f * unit_vec.y;
+    fj[2] -= f * unit_vec.z;
+    
+    // TODO: correct energy
+    *e = 0;
+
+    *result = true;
+
+}
+
+
+__device__ inline void dpd_boundary_eval_cuda(MxPotentialCUDAData pot, MxParticleCUDA pi, float3 velocity, float *dx, float r2, float *e, float *force, bool *result) {
+
+    float delta = rsqrtf(cuda_dt);
+    
+    float cutoff = pot.w.y;
+    
+    if(r2 > cutoff * cutoff) {
+        *result = false;
+        return;
+    }
+    
+    float r = sqrtf(r2);
+    
+    if(r < pot.w.x) {
+        *result = false;
+        return;
+    }
+    
+    // unit vector
+    float3 unit_vec{dx[0] / r, dx[1] / r, dx[2] / r};
+    
+    float3 v{pi.v.x - velocity.x, pi.v.y - velocity.y, pi.v.z - velocity.z};
+    
+    // conservative force
+    float omega_c = 1 - r / cutoff;
+    
+    float fc = pot.dpd_cfs.x * omega_c;
+    
+    // dissapative force
+    float omega_d = omega_c * omega_c;
+    
+    float fd = - pot.dpd_cfs.y * omega_d * (unit_vec.x * v.x + unit_vec.y * v.y + unit_vec.z * v.z);
+    
+    float fr = pot.dpd_cfs.z * omega_c * delta;
+    
+    float f = fc + fd + fr;
+    
+    force[0] += f * unit_vec.x;
+    force[1] += f * unit_vec.y;
+    force[2] += f * unit_vec.z;
+    
+    // TODO: correct energy
+    *e = 0;
+
+    *result = true;
+
+}
+
+
+// Underlying evaluation call; using templates to eliminate instructional overhead
+template<uint32_t kind> 
+__device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDAData p_cuda, 
+                                                    MxParticleCUDA pi, 
+                                                    MxParticleCUDA pj, 
+                                                    float *dx, 
+                                                    float r2, 
+                                                    float *epot, 
+                                                    float *fi, 
+                                                    float *fj, 
+                                                    bool *result) 
+{
+    float e;
+    *result = false;
+    float _dx[3], _r2;
+    auto flags = p_cuda.flags;
+
+    auto a = p_cuda.w.x;
+    
+    if(flags & POTENTIAL_PERIODIC) {
+        // Assuming elsewhere there's a corresponding potential in the opposite direction
+        _dx[0] = dx[0] - p_cuda.offset.x;
+        _dx[1] = dx[1] - p_cuda.offset.y;
+        _dx[2] = dx[2] - p_cuda.offset.z;
+        _r2 = _dx[0]*_dx[0] + _dx[1]*_dx[1] + _dx[2]*_dx[2];
+    }
+    else {
+        _r2 = r2;
+        #pragma unroll
+        for (int k = 0; k < 3; k++) {
+            _dx[k] = dx[k];
+        }
+    }
+    
+    // if distance is less that potential min distance, define random
+    // for repulsive force.
+    if(_r2 < a * a) {
+        int tid = threadIdx.x + blockDim.x * blockIdx.x;
+        curandState *rand_norm = &cuda_rand_norm[tid];
+        _dx[0] = curand_normal(rand_norm);
+        _dx[1] = curand_normal(rand_norm);
+        _dx[2] = curand_normal(rand_norm);
+        float len = 1.f / std::sqrt(_dx[0] * _dx[0] + _dx[1] * _dx[1] + _dx[2] * _dx[2]);
+        _dx[0] = _dx[0] * p_cuda.w.x * len;
+        _dx[1] = _dx[1] * p_cuda.w.x * len;
+        _dx[2] = _dx[2] * p_cuda.w.x * len;
+        _r2 = p_cuda.w.x * p_cuda.w.x;
+    }
+    
+    if(kind == POTENTIAL_KIND_DPD) {
+        /* update the forces if part in range */
+        dpd_eval_cuda(p_cuda, pi, pj, _dx, _r2 , &e, fi, fj, result);
+        
+        if(*result) {
+            
+            *epot += e;
+        }
+    }
+    else if(kind == POTENTIAL_KIND_BYPARTICLES) {
+        // Currently not supported... ignoring
+        *result = false;
+    }
+    else {
+        float f;
+    
+        /* update the forces if part in range */
+        potential_eval_ex_cuda(p_cuda, pi.v.w, pj.v.w, _r2 , &e , &f, result);
+        if(*result) {
+            
+            #pragma unroll
+            for (int k = 0 ; k < 3 ; k++ ) {
+                float w = f * _dx[k];
+                fi[k] -= w;
+                fj[k] += w;
+            }
+            
+            /* tabulate the energy */
+            *epot += e;
+        }
+    }
+}
+
+__device__ inline void potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda, 
+                                                    MxParticleCUDA pi, 
+                                                    MxParticleCUDA pj, 
+                                                    float *dx, 
+                                                    float r2, 
+                                                    float *epot, 
+                                                    float *fi, 
+                                                    float *fj, 
+                                                    bool *result) 
+{
+    bool eval_result = false;
+
+    #pragma unroll
+    for(int i = 0; i < p_cuda.nr_dpds; i++) {
+        MxPotentialCUDAData pcd = p_cuda.data[i];
+
+        bool er = false;
+        _potential_eval_super_ex_cuda<POTENTIAL_KIND_DPD>(pcd, pi, pj, dx, r2, epot, fi, fj, &er);
+        eval_result |= er;
+    }
+
+    #pragma unroll
+    for(int i = p_cuda.nr_dpds; i < p_cuda.nr_pots; i++) {
+        MxPotentialCUDAData pcd = p_cuda.data[i];
+
+        bool er = false;
+
+        _potential_eval_super_ex_cuda<POTENTIAL_KIND_POTENTIAL>(pcd, pi, pj, dx, r2, epot, fi, fj, &er);
+        eval_result |= er;
+    }
+
+    *result = eval_result;
+}
+
+// Underlying evaluation call; using templates to eliminate instructional overhead
+template<uint32_t kind> 
+__device__ inline void _boundary_eval_cuda_ex_cuda(MxPotentialCUDAData p_cuda, 
+                                                   MxParticleCUDA part, 
+                                                   MxBoundaryConditionCUDA bc, 
+                                                   float *dx, 
+                                                   float r2, 
+                                                   float *epot, 
+                                                   float *force, 
+                                                   bool *result) 
+{
+    float e;
+    *result = false;
+    float _dx[3], _r2;
+
+    auto a = p_cuda.w.x, a2 = a * a;
+    
+    // if distance is less that potential min distance, define random
+    // for repulsive force.
+    if(r2 < a2) {
+        _dx[0] = bc.normal.x * a;
+        _dx[1] = bc.normal.y * a;
+        _dx[2] = bc.normal.z * a;
+        _r2 = a2;
+    }
+    else {
+        _r2 = r2;
+        _dx[0] = dx[0];
+        _dx[1] = dx[1];
+        _dx[2] = dx[2];
+    }
+    
+    if(kind == POTENTIAL_KIND_DPD) {
+        /* update the forces if part in range */
+        dpd_boundary_eval_cuda(p_cuda, part, bc.velocity, _dx, _r2, &e, force, result);
+        
+        if(*result) {
+            /* tabulate the energy */
+            *epot += e;
+        }
+    }
+    else {
+        float f;
+    
+        /* update the forces if part in range */
+        potential_eval_ex_cuda(p_cuda, part.v.w, bc.radius, _r2 , &e , &f, result);
+        if(*result) {
+            
+            force[0] -= f * _dx[0];
+            force[1] -= f * _dx[1];
+            force[2] -= f * _dx[2];
+            
+            /* tabulate the energy */
+            *epot += e;
+        }
+    }
+}
+
+__device__ inline void boundary_eval_cuda_ex_cuda(MxPotentialCUDA p_cuda, 
+                                                  MxParticleCUDA part, 
+                                                  MxBoundaryConditionCUDA bc, 
+                                                  float *dx, 
+                                                  float r, 
+                                                  float *epot, 
+                                                  float *force, 
+                                                  bool *result) 
+{
+    float r2 = r * r;
+    bool eval_result = false;
+
+    #pragma unroll
+    for(int i = 0; i < p_cuda.nr_dpds; i++) {
+        MxPotentialCUDAData pcd = p_cuda.data[i];
+        if(r > pcd.w.y) 
+            continue;
+
+        bool er = false;
+
+        _boundary_eval_cuda_ex_cuda<POTENTIAL_KIND_DPD>(pcd, part, bc, dx, r2, epot, force, &er);
+        eval_result |= er;
+    }
+
+    #pragma unroll
+    for(int i = p_cuda.nr_dpds; i < p_cuda.nr_pots; i++) {
+        MxPotentialCUDAData pcd = p_cuda.data[i];
+        if(r > pcd.w.y) 
+            continue;
+
+        bool er = false;
+
+        _boundary_eval_cuda_ex_cuda<POTENTIAL_KIND_POTENTIAL>(pcd, part, bc, dx, r2, epot, force, &er);
+        eval_result |= er;
+    }
+    *result = eval_result;
+}
+
+__device__ 
+void boundary_eval_cuda(MxParticleCUDA part, float3 cell_dim, unsigned int cell_flags, float *force, float *epot, bool *result) {
+    
+    MxPotentialCUDA potc;
+    float r;
+    MxBoundaryConditionCUDA bc, *bcs = cuda_bcs.bcs;
+    bool eval_result = false;
+    
+    if(cell_flags & cell_active_left) {
+        bc = bcs[0];
+        potc = bc.pots[part.w.y];
+        if(potc.nr_pots > 0) {
+            r = part.x.x;
+            float dx[] = {r, 0.f, 0.f};
+            boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r, epot, force, &eval_result);
+            *result |= eval_result;
+        }
+    }
+    
+    if(cell_flags & cell_active_right) {
+        bc = bcs[1];
+        potc = bc.pots[part.w.y];
+        if(potc.nr_pots > 0) {
+            r = cell_dim.x - part.x.x;
+            float dx[] = {-r, 0.f, 0.f};
+            boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r, epot, force, &eval_result);
+            *result |= eval_result;
+        }
+    }
+    
+    if(cell_flags & cell_active_front) {
+        bc = bcs[2];
+        potc = bc.pots[part.w.y];
+        if(potc.nr_pots > 0) {
+            r = part.x.y;
+            float dx[] = {0.f, r, 0.f};
+            boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r, epot, force, &eval_result);
+            *result |= eval_result;
+        }
+    }
+    
+    if(cell_flags & cell_active_back) {
+        bc = bcs[3];
+        potc = bc.pots[part.w.y];
+        if(potc.nr_pots > 0) {
+            r = cell_dim.y - part.x.y;
+            float dx[] = {0.f, -r, 0.f};
+            boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r, epot, force, &eval_result);
+            *result |= eval_result;
+        }
+    }
+    
+    if(cell_flags & cell_active_bottom) {
+        bc = bcs[4];
+        potc = bc.pots[part.w.y];
+        if(potc.nr_pots > 0) {
+            r = part.x.z;
+            float dx[] = {0.f, 0.f, r};
+            boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r, epot, force, &eval_result);
+            *result |= eval_result;
+        }
+    }
+    
+    if(cell_flags & cell_active_top) {
+        bc = bcs[5];
+        potc = bc.pots[part.w.y];
+        if(potc.nr_pots > 0) {
+            r = cell_dim.z - part.x.z;
+            float dx[] = {0.f, 0.f, -r};
+            boundary_eval_cuda_ex_cuda(potc, part, bc, dx, r, epot, force, &eval_result);
+            *result |= eval_result;
+        }
+    }
+
+}
+
+
+__device__ inline 
+void flux_fick_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
+    *result *= flux.coef[i] * (si - sj);
+}
+
+__device__ inline 
+void flux_secrete_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
+    float q = flux.coef[i] * (si - flux.target[i]);
+    float scale = q > 0.f;  // forward only, 1 if > 0, 0 if < 0.
+    *result *= scale * q;
+}
+
+__device__ inline 
+void flux_uptake_cuda(MxFluxCUDA flux, int i, float si, float sj, float *result) {
+    float q = flux.coef[i] * (flux.target[i] - sj) * si;
+    float scale = q > 0.f;
+    *result *= scale * q;
+}
+
+__device__ inline 
+void flux_eval_ex_cuda(MxFluxesCUDA fluxes, float r, float *states_i, float *states_j, int type_i, int type_j, float *qvec_i) {
+
+    // Do calculations
+
+    float ssi, ssj;
+    float q;
+    
+    MxFluxCUDA flux = fluxes.fluxes[0];
+    float term = 1. - r / cuda_cutoff;
+    term = term * term;
+
+    int qind;
+    
+    for(int i = 0; i < flux.size; ++i) {
+
+        if(type_i == flux.type_ids[i].a) {
+            qind = flux.indices_a[i];
+            ssi = states_i[qind];
+            ssj = states_j[flux.indices_b[i]];
+            q = - term;
+        }
+        else {
+            qind = flux.indices_b[i];
+            ssi = states_j[flux.indices_a[i]];
+            ssj = states_i[qind];
+            q = term;
+        }
+
+        switch(flux.kinds[i]) {
+            case FLUX_FICK:
+                flux_fick_cuda(flux, i, ssi, ssj, &q);
+                break;
+            case FLUX_SECRETE:
+                flux_secrete_cuda(flux, i, ssi, ssj, &q);
+                break;
+            case FLUX_UPTAKE:
+                flux_uptake_cuda(flux, i, ssi, ssj, &q);
+                break;
+            default:
+                __builtin_unreachable();
+        }
+
+        qvec_i[qind] += q - 0.5 * flux.decay_coef[i] * states_i[qind];
+    }
+}
+
+__device__ inline 
+void flux_eval_ex_cuda(MxFluxesCUDA fluxes, float r, float *states_i, float *states_j, int type_i, int type_j, float *qvec_i, float *qvec_j) {
+
+    // Do calculations
+    
+    MxFluxCUDA flux = fluxes.fluxes[0];
+    float term = 1. - r / cuda_cutoff;
+    term = term * term;
+
+    float *qi, *qj, *si, *sj;
+    
+    for(int i = 0; i < flux.size; ++i) {
+
+        if(type_i == flux.type_ids[i].a) {
+            si = states_i;
+            sj = states_j;
+            qi = qvec_i;
+            qj = qvec_j;
+        }
+        else {
+            si = states_j;
+            sj = states_i;
+            qi = qvec_j;
+            qj = qvec_i;
+        }
+        
+        float ssi = si[flux.indices_a[i]];
+        float ssj = sj[flux.indices_b[i]];
+        float q =  term;
+        float mult;
+        
+        switch(flux.kinds[i]) {
+            case FLUX_FICK:
+                flux_fick_cuda(flux, i, ssi, ssj, &mult);
+                q *= mult;
+                break;
+            case FLUX_SECRETE:
+                flux_secrete_cuda(flux, i, ssi, ssj, &mult);
+                q *= mult;
+                break;
+            case FLUX_UPTAKE:
+                flux_uptake_cuda(flux, i, ssi, ssj, &mult);
+                q *= mult;
+                break;
+            default:
+                __builtin_unreachable();
+        }
+        
+        float half_decay = flux.decay_coef[i] * 0.5;
+        qi[flux.indices_a[i]] -= q + half_decay * ssi;
+        qj[flux.indices_b[i]] += q - half_decay * ssj;
+    }
+}
 
 
 /**
@@ -1031,45 +1604,41 @@ __device__ void runner_dopair_unsorted_cuda ( float4 *parts_i , int count_i , fl
  *
  * @sa #runner_dopair.
  */
-
-#ifdef PARTS_TEX 
-__device__ void runner_dopair4_unsorted_cuda ( int cid , int count_i , int cjd , int count_j , float *forces_i , float *forces_j , float *shift , float *epot_global ) {
-#else
-__device__ void runner_dopair4_unsorted_cuda ( float4 *parts_i , int count_i , float4 *parts_j , int count_j , float *forces_i , float *forces_j , float *shift , float *epot_global ) {
-#endif
-
+__device__ void runner_dopair4_unsorted_cuda ( MxParticleCUDA *parts_i , int count_i , MxParticleCUDA *parts_j , int count_j , float *forces_i , float *forces_j , float *shift , float *epot_global ) {
     int k, pjd, ind, wrap_i, threadID;
     int pjoff;
-    float4 pi[4], pj;
+    MxParticleCUDA pi[4], pj;
+    float4 pjx;
     int4 pot, pid;
     char4 valid;
-    float4 r2, ee, eff;
-    float epot = 0.0f, dx[12], pjf[3], w;
+    float4 r2, ee;
+    float epot = 0.0f, dx[12], pjf[4];
+    bool eval_result;
+    float4 number_density;
+    MxPotentialCUDA *cu_pots[4];
+    int *cu_pind[4];
+    bool iscluster_maybe;
     
     TIMER_TIC
-    
+
     /* Get the size of the frame, i.e. the number of threads in this block. */
     threadID = threadIdx.x;
     
     /* Get the wraps. */
     wrap_i = (count_i < cuda_frame) ? cuda_frame : count_i;
-    
-    /* Make sure everybody is in the same place. */
-    // __threadfence_block();
 
     /* Loop over the particles in cell_j, frame-wise. */
     for ( pjd = threadID ; pjd < count_j ; pjd += cuda_frame ) {
     
         /* Get a direct pointer on the pjdth part in cell_j. */
-        #ifdef PARTS_TEX
-            pj = tex2D( tex_parts , pjd , cjd );
-        #else
-            pj = parts_j[ pjd ];
-        #endif
-        pjoff = pj.w * cuda_maxtype;
-        pj.x += shift[0]; pj.y += shift[1]; pj.z += shift[2];
-        for ( k = 0 ; k < 3 ; k++ )
+        pj = parts_j[ pjd ];
+        pjx = float4(pj.x);
+        pjoff = pj.w.y * cuda_maxtype;
+        pjx.x += shift[0]; pjx.y += shift[1]; pjx.z += shift[2];
+        for ( k = 0 ; k < 4 ; k++ )
             pjf[k] = 0.0f;
+
+        iscluster_maybe = pj.w.w & PARTICLE_CLUSTER;
         
         /* Loop over the particles in cell_i. */
         for ( ind = 0 ; ind < wrap_i ; ind += 4 ) {
@@ -1085,107 +1654,109 @@ __device__ void runner_dopair4_unsorted_cuda ( float4 *parts_i , int count_i , f
                 pid.w -= wrap_i;
                 
             /* Get the particle pointers. */
-            #ifdef PARTS_TEX
-                pi[0] = ( valid.x = ( pid.x < count_i ) ) ? tex2D( tex_parts , pid.x , cid ) : pj;
-                pi[1] = ( valid.y = ( pid.y < count_i ) && ( ind + 1 < wrap_i ) ) ? tex2D( tex_parts , pid.y , cid ) : pj;
-                pi[2] = ( valid.z = ( pid.z < count_i ) && ( ind + 2 < wrap_i ) ) ? tex2D( tex_parts , pid.z , cid ) : pj;
-                pi[3] = ( valid.w = ( pid.w < count_i ) && ( ind + 3 < wrap_i ) ) ? tex2D( tex_parts , pid.w , cid ) : pj;
-            #else
-                pi[0] = ( valid.x = ( pid.x < count_i ) ) ? parts_i[ pid.x] : pj;
-                pi[1] = ( valid.y = ( pid.y < count_i ) && ( ind + 1 < wrap_i ) ) ? parts_i[ pid.y ] : pj;
-                pi[2] = ( valid.z = ( pid.z < count_i ) && ( ind + 2 < wrap_i ) ) ? parts_i[ pid.z ] : pj;
-                pi[3] = ( valid.w = ( pid.w < count_i ) && ( ind + 3 < wrap_i ) ) ? parts_i[ pid.w ] : pj;
-            #endif
+            pi[0] = ( valid.x = ( pid.x < count_i ) ) ? parts_i[ pid.x] : pj;
+            pi[1] = ( valid.y = ( pid.y < count_i ) && ( ind + 1 < wrap_i ) ) ? parts_i[ pid.y ] : pj;
+            pi[2] = ( valid.z = ( pid.z < count_i ) && ( ind + 2 < wrap_i ) ) ? parts_i[ pid.z ] : pj;
+            pi[3] = ( valid.w = ( pid.w < count_i ) && ( ind + 3 < wrap_i ) ) ? parts_i[ pid.w ] : pj;
+            if(iscluster_maybe) {
+                for(k = 0; k < 4; k++) {
+                    if(pi[k].w.w & PARTICLE_CLUSTER && pi[k].w.z == pj.w.z) {
+                        cu_pind[k] = cuda_pind_cluster;
+                        cu_pots[k] = cuda_pots_cluster;
+                    }
+                    else {
+                        cu_pind[k] = cuda_pind;
+                        cu_pots[k] = cuda_pots;
+                    }
+                }
+            }
+            else {
+                for(k = 0; k < 4; k++) {
+                    cu_pind[k] = cuda_pind;
+                    cu_pots[k] = cuda_pots;
+                }
+            }
             
             /* Compute the pairwise distances. */
             r2 = make_float4( 0.0f );
-            dx[0] = pj.x - pi[0].x; r2.x += dx[0] * dx[0];
-            dx[1] = pj.y - pi[0].y; r2.x += dx[1] * dx[1];
-            dx[2] = pj.z - pi[0].z; r2.x += dx[2] * dx[2];
-            dx[3] = pj.x - pi[1].x; r2.y += dx[3] * dx[3];
-            dx[4] = pj.y - pi[1].y; r2.y += dx[4] * dx[4];
-            dx[5] = pj.z - pi[1].z; r2.y += dx[5] * dx[5];
-            dx[6] = pj.x - pi[2].x; r2.z += dx[6] * dx[6];
-            dx[7] = pj.y - pi[2].y; r2.z += dx[7] * dx[7];
-            dx[8] = pj.z - pi[2].z; r2.z += dx[8] * dx[8];
-            dx[9] = pj.x - pi[3].x; r2.w += dx[9] * dx[9];
-            dx[10] = pj.y - pi[3].y; r2.w += dx[10] * dx[10];
-            dx[11] = pj.z - pi[3].z; r2.w += dx[11] * dx[11];
+            dx[0] = pjx.x - pi[0].x.x; r2.x += dx[0] * dx[0];
+            dx[1] = pjx.y - pi[0].x.y; r2.x += dx[1] * dx[1];
+            dx[2] = pjx.z - pi[0].x.z; r2.x += dx[2] * dx[2];
+            dx[3] = pjx.x - pi[1].x.x; r2.y += dx[3] * dx[3];
+            dx[4] = pjx.y - pi[1].x.y; r2.y += dx[4] * dx[4];
+            dx[5] = pjx.z - pi[1].x.z; r2.y += dx[5] * dx[5];
+            dx[6] = pjx.x - pi[2].x.x; r2.z += dx[6] * dx[6];
+            dx[7] = pjx.y - pi[2].x.y; r2.z += dx[7] * dx[7];
+            dx[8] = pjx.z - pi[2].x.z; r2.z += dx[8] * dx[8];
+            dx[9] = pjx.x - pi[3].x.x; r2.w += dx[9] * dx[9];
+            dx[10] = pjx.y - pi[3].x.y; r2.w += dx[10] * dx[10];
+            dx[11] = pjx.z - pi[3].x.z; r2.w += dx[11] * dx[11];
 
-                
             /* Get the potentials. */
             valid.x = ( valid.x && r2.x < cuda_cutoff2 );
             valid.y = ( valid.y && r2.y < cuda_cutoff2 );
             valid.z = ( valid.z && r2.z < cuda_cutoff2 );
             valid.w = ( valid.w && r2.w < cuda_cutoff2 );
-            pot.x = valid.x ? cuda_pind[ pjoff + (int)pi[0].w ] : 0;
-            pot.y = valid.y ? cuda_pind[ pjoff + (int)pi[1].w ] : 0;
-            pot.z = valid.z ? cuda_pind[ pjoff + (int)pi[2].w ] : 0;
-            pot.w = valid.w ? cuda_pind[ pjoff + (int)pi[3].w ] : 0;
-            
-            /* if ( pot.x != 0 )
-                atomicAdd( &cuda_rcount , 1 );
-            if ( pot.y != 0 )
-                atomicAdd( &cuda_rcount , 1 );
-            if ( pot.z != 0 )
-                atomicAdd( &cuda_rcount , 1 );
-            if ( pot.w != 0 )
-                atomicAdd( &cuda_rcount , 1 ); */
-            
-            /* Compute the interaction. */
-            potential_eval4_cuda_tex( pot , r2 , &ee , &eff );
+            pot.x = valid.x ? cu_pind[0][ pjoff + pi[0].w.y ] : 0;
+            pot.y = valid.y ? cu_pind[1][ pjoff + pi[1].w.y ] : 0;
+            pot.z = valid.z ? cu_pind[2][ pjoff + pi[2].w.y ] : 0;
+            pot.w = valid.w ? cu_pind[3][ pjoff + pi[3].w.y ] : 0;
             
             /* Update the forces. */
             if ( valid.x ) {
-                pjf[0] -= ( w = eff.x * dx[0] ); forces_i[ 3*pid.x + 0 ] += w;
-                pjf[1] -= ( w = eff.x * dx[1] ); forces_i[ 3*pid.x + 1 ] += w;
-                pjf[2] -= ( w = eff.x * dx[2] ); forces_i[ 3*pid.x + 2 ] += w;
-                epot += ee.x;
+                w_cubic_spline_cuda(r2.x, cuda_cutoff, &number_density.x);
+                pjf[3] += number_density.x;
+                forces_i[4*pid.x + 3] += number_density.x;
+                if(pot.x != 0) {
+                    potential_eval_super_ex_cuda(cu_pots[0][pot.x], pi[0], pj, &dx[0], r2.x, &ee.x, pjf, &forces_i[4*pid.x], &eval_result);
+                    epot += ee.x;
                 }
-            // __threadfence_block();
+            }
             if ( valid.y ) {
-                pjf[0] -= ( w = eff.y * dx[3] ); forces_i[ 3*pid.y + 0 ] += w;
-                pjf[1] -= ( w = eff.y * dx[4] ); forces_i[ 3*pid.y + 1 ] += w;
-                pjf[2] -= ( w = eff.y * dx[5] ); forces_i[ 3*pid.y + 2 ] += w;
-                epot += ee.y;
+                w_cubic_spline_cuda(r2.y, cuda_cutoff, &number_density.y);
+                pjf[3] += number_density.y;
+                forces_i[4*pid.y + 3] += number_density.y;
+                if(pot.y != 0) {
+                    potential_eval_super_ex_cuda(cu_pots[1][pot.y], pi[1], pj, &dx[3], r2.y, &ee.y, pjf, &forces_i[4*pid.y], &eval_result);
+                    epot += ee.y;
                 }
-            // __threadfence_block();
+            }
             if ( valid.z ) {
-                pjf[0] -= ( w = eff.z * dx[6] ); forces_i[ 3*pid.z + 0 ] += w;
-                pjf[1] -= ( w = eff.z * dx[7] ); forces_i[ 3*pid.z + 1 ] += w;
-                pjf[2] -= ( w = eff.z * dx[8] ); forces_i[ 3*pid.z + 2 ] += w;
-                epot += ee.z;
+                w_cubic_spline_cuda(r2.z, cuda_cutoff, &number_density.z);
+                pjf[3] += number_density.z;
+                forces_i[4*pid.z + 3] += number_density.z;
+                if(pot.z != 0) {
+                    potential_eval_super_ex_cuda(cu_pots[2][pot.z], pi[2], pj, &dx[6], r2.z, &ee.z, pjf, &forces_i[4*pid.z], &eval_result);
+                    epot += ee.z;
                 }
-            // __threadfence_block();
+            }
             if ( valid.w ) {
-                pjf[0] -= ( w = eff.w * dx[9] ); forces_i[ 3*pid.w + 0 ] += w;
-                pjf[1] -= ( w = eff.w * dx[10] ); forces_i[ 3*pid.w + 1 ] += w;
-                pjf[2] -= ( w = eff.w * dx[11] ); forces_i[ 3*pid.w + 2 ] += w;
-                epot += ee.w;
+                w_cubic_spline_cuda(r2.w, cuda_cutoff, &number_density.w);
+                pjf[3] += number_density.w;
+                forces_i[4*pid.w + 3] += number_density.w;
+                if(pot.w != 0) {
+                    potential_eval_super_ex_cuda(cu_pots[3][pot.w], pi[3], pj, &dx[9], r2.w, &ee.w, pjf, &forces_i[4*pid.w], &eval_result);
+                    epot += ee.w;
                 }
-            // __threadfence_block();
+            }
         
-            } /* loop over parts in cell_i. */
-            
-        /* Update the force on pj. */
-        for ( k = 0 ; k < 3 ; k++ )
-            forces_j[ 3*pjd + k ] += pjf[k];
+        } /* loop over parts in cell_i. */
 
-        /* Sync the shared memory values. */
-        // __threadfence_block();
+        /* Update the force on pj. */
+        for ( k = 0 ; k < 4 ; k++ )
+            forces_j[ 4*pjd + k ] += pjf[k];
             
-        } /* loop over the particles in cell_j. */
+    } /* loop over the particles in cell_j. */
         
     /* Store the potential energy. */
     *epot_global += epot;
         
     TIMER_TOC(tid_pair)
         
-    }
+}
 
 
-    
-    /**
+/**
  * @brief Compute the pairwise interactions for the given pair on a CUDA device.
  *
  * @param icid Array of parts in the first cell.
@@ -1199,15 +1770,9 @@ __device__ void runner_dopair4_unsorted_cuda ( float4 *parts_i , int count_i , f
  *
  * @sa #runner_dopair.
  */
- 
-#ifdef PARTS_TEX
-__device__ void runner_dosort_cuda ( int cid , int count_i , unsigned int *sort_i , int sid ) {
-#else
-__device__ inline void runner_dosort_cuda ( float4 *parts_i , int count_i , unsigned int *sort_i , int sid ) {
-#endif
-
+__device__ inline void runner_dosort_cuda ( MxParticleCUDA *parts_i , int count_i , unsigned int *sort_i , int sid ) {
     int k, threadID = threadIdx.x;
-    float4 pi;
+    float4 pix;
     // int4 spid;
     float nshift, shift[3], shiftn[3];
     
@@ -1228,12 +1793,8 @@ __device__ inline void runner_dosort_cuda ( float4 *parts_i , int count_i , unsi
 
     /* Pack the parts into the sort arrays. */
     for ( k = threadID ; k < count_i ; k += blockDim.x ) {
-        #ifdef PARTS_TEX
-            pi = tex2D( tex_parts , k , cid );
-        #else
-            pi = parts_i[ k ];
-        #endif
-        sort_i[k] = ( k << 16 ) | (unsigned int)( cuda_dscale * (nshift + pi.x*shiftn[0] + pi.y*shiftn[1] + pi.z*shiftn[2]) );
+        pix = parts_i[ k ].x;
+        sort_i[k] = ( k << 16 ) | (unsigned int)( cuda_dscale * (nshift + pix.x*shiftn[0] + pix.y*shiftn[1] + pix.z*shiftn[2]) );
         }
 
     TIMER_TOC(tid_pack)
@@ -1241,9 +1802,9 @@ __device__ inline void runner_dosort_cuda ( float4 *parts_i , int count_i , unsi
     /* Sort using normalized bitonic sort. */
     cuda_sort_descending( sort_i , count_i );
 
-    }
-    
-    
+}
+
+
 /**
  * @brief Compute the pairwise interactions for the given pair on a CUDA device.
  *
@@ -1258,245 +1819,111 @@ __device__ inline void runner_dosort_cuda ( float4 *parts_i , int count_i , unsi
  *
  * @sa #runner_dopair.
  */
- 
-#ifdef PARTS_TEX
-__device__ void runner_dopair_cuda ( int cid , int count_i , int cjd , int count_j , float *forces_i , float *forces_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , float *epot_global ) {
-#else
-__device__ void runner_dopair_cuda ( float4 *parts_i , int count_i , float4 *parts_j , int count_j , float *forces_i , float *forces_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , float *epot_global ) {
-#endif
-
-    int k, pid, pjd, spid, spjd, pjdid, threadID, wrap, cj;
-    int pioff;
-    unsigned int dmaxdist;
-    float4 pi, pj;
-    int pot;
-    float epot = 0.0f, r2, w, ee = 0.0f, eff = 0.0f;
-    float dx[3], pif[3];
-    
-    TIMER_TIC
-    
-    /* Get the size of the frame, i.e. the number of threads in this block. */
-    threadID = threadIdx.x;
-    
-    /* Pre-compute the inverse norm of the shift. */
-    dmaxdist = 2 + cuda_dscale * cuda_maxdist;
-       
-
-    /* Loop over the particles in cell_j, frame-wise. */
-    cj = count_j;
-    for ( pid = threadID ; pid < count_i ; pid += cuda_frame ) {
-    
-        /* Get the wrap. */
-        while ( cj > 0 && ( sort_j[count_j-cj] & 0xffff ) + dshift - ( sort_i[pid & ~(cuda_frame - 1)] & 0xffff ) > dmaxdist )
-            cj -= 1;
-        if ( cj == 0 )
-            break;
-        else if ( cj < cuda_frame )
-            wrap = max( cj , min( count_i - (pid & ~(cuda_frame - 1)) , cuda_frame ) );
-        else
-            wrap = cj;
-            
-        /* Get a direct pointer on the pjdth part in cell_j. */
-        spid = sort_i[pid] >> 16;
-        #ifdef PARTS_TEX
-            pi = tex2D( tex_parts , spid , cid );
-        #else
-            pi = parts_i[ spid ];
-        #endif
-        pioff = pi.w * cuda_maxtype;
-        pi.x -= shift[0]; pi.y -= shift[1]; pi.z -= shift[2];
-        pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f;
-        
-        /* Loop over the particles in cell_i. */
-
-        for ( pjdid = 0 ; pjdid < wrap ; pjdid++ ) {
-        
-            /* Wrap the particle index correctly. */
-            if ( ( pjd = pjdid + threadID ) >= wrap )
-                pjd -= wrap;
-            
-            /* Do we have a pair? */
-            if ( pjd < cj ) {
-            
-                /* Get a handle on the wrapped particle pid in cell_i. */
-                spjd = sort_j[count_j-1-pjd] >> 16;
-                #ifdef PARTS_TEX
-                    pj = tex2D( tex_parts , spjd , cjd );
-                #else
-                    pj = parts_j[ spjd ];
-                #endif
-
-                /* Compute the radius between pi and pj. */
-                r2 = 0.0f;
-                dx[0] = pi.x - pj.x; r2 += dx[0]*dx[0];
-                dx[1] = pi.y - pj.y; r2 += dx[1]*dx[1];
-                dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
-                    
-                /* Set the null potential if anything is bad. */
-	        
-                 if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
-
-                    /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
-                        threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
-
-                    // atomicAdd( &cuda_pairs_done , 1 );
-                    
-                    /* Interact particles pi and pj. */
-                    potential_eval_cuda_tex( pot , r2 , &ee , &eff );
-
-                    /* Store the interaction force and energy. */
-                    epot += ee;
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        w = eff * dx[k];
-                        pif[k] -= w;
-                        forces_j[ 3*spjd + k ] += w;
-                        }
-
-                    /* Sync the shared memory values. */
-                    // __threadfence_block();
-                
-                     } /* in range and potential. */
-
-                } /* do we have a pair? */
-        
-            } /* loop over parts in cell_i. */
-            
-        /* Update the force on pj. */
-        for ( k = 0 ; k < 3 ; k++ )
-            forces_i[ 3*spid + k ] += pif[k];
-    
-        /* Sync the shared memory values. */
-        // __threadfence_block();
-        
-        } /* loop over the particles in cell_j. */
-        
-    /* Store the potential energy. */
-    *epot_global += epot;
-        
-    TIMER_TOC(tid_pair)
-    
-    }
-    
-    
-    /**
- * @brief Compute the pairwise interactions for the given pair on a CUDA device.
- *
- * @param icid Array of parts in the first cell.
- * @param count_i Number of parts in the first cell.
- * @param icjd Array of parts in the second cell.
- * @param count_j Number of parts in the second cell.
- * @param pshift A pointer to an array of three floating point values containing
- *      the vector separating the centers of @c cell_i and @c cell_j.
- * @param cid Part buffer in local memory.
- * @param cjd Part buffer in local memory.
- *
- * @sa #runner_dopair.
- */
- 
-#ifdef PARTS_TEX
-__device__ void runner_dopair_left_cuda ( int cid , int count_i , int cjd , int count_j , float *forces_i , float *forces_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , float *epot_global ) {
-#else
-__device__  void runner_dopair_left_cuda ( float4 *parts_i , int count_i , float4 *parts_j , int count_j , float *forces_i , float *forces_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , float *epot_global ) {
-#endif
-
-    int k, pjd, spid, spjd, threadID;
-    int pioff;
+template<bool is_stateful> 
+__device__  void runner_dopair_left_cuda ( MxParticleCUDA * parts_i , float *states_i , int count_i , MxParticleCUDA *parts_j , float *states_j , int count_j , float *forces_i , float *forces_j , float *fluxes_i , float *fluxes_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , unsigned int nr_states , float *epot_global ) {
+    int k, spid, spjd;
     unsigned int dmaxdist, di;
-    float4 pi, pj;
-    int pot;
-    int i;
-    float epot = 0.0f, r2, w, ee = 0.0f, eff = 0.0f;
-    float dx[3], pif[3];
+    MxParticleCUDA pi, pj;
+    float4 pix;
+    int pind, i;
+    float epot = 0.0f, r2, r, ee = 0.0f;
+    float dx[3], pif[4], pjf[4], pifx[MX_SIMD_SIZE];
+    bool eval_result;
+    float number_density;
+    float *pis;
+    MxPotentialCUDA *cu_pots;
+    bool iscluster_maybe;
+    unsigned int fxind;
     
     TIMER_TIC
     
-    /* Get the size of the frame, i.e. the number of threads in this block. */
-    threadID = threadIdx.x;
-    
     /* Pre-compute the inverse norm of the shift. */
     dmaxdist = 2 + cuda_dscale * cuda_maxdist;
-
-	/* nr_threads >= count_i */
     
-    for ( i = threadID ; i < count_i ;  i += blockDim.x  ) {
-    /*cj = count_j-1;
-    while ( cj > 0 && ( sort_j[cj] & 0xffff ) + dshift  <= dmaxdist +( sort_i[threadID] & 0xffff ) )
-            cj -= 1;*/
-    di= sort_i[i]&0xffff;      
+    for ( i = threadIdx.x ; i < count_i ;  i += blockDim.x  ) {
+
+        di = sort_i[i]&0xffff;
         /* Get a direct pointer on the pjdth part in cell_j. */
         spid = sort_i[i] >> 16;
-        #ifdef PARTS_TEX
-            pi = tex2D( tex_parts , spid , cid );
-        #else
-            pi = parts_i[ spid ];
-        #endif
-        pioff = pi.w * cuda_maxtype;
-        pi.x -= shift[0]; pi.y -= shift[1]; pi.z -= shift[2];
-        pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f;
+        pi = parts_i[ spid ];
+        pix = float4(pi.x);
+        iscluster_maybe = pi.w.w & PARTICLE_CLUSTER;
+        pix.x -= shift[0]; pix.y -= shift[1]; pix.z -= shift[2];
+        pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f; pif[3] = 0.0f;
+
+        if(is_stateful) {
+            memset(pifx, 0.f, nr_states * sizeof(float));
+            pis = &states_i[nr_states * spid];
+        }
+
         /* Loop over the particles in cell_j. */
-        for ( pjd = count_j-1 ; pjd >=0 && (sort_j[pjd]&0xffff)+dshift<=dmaxdist+di ; pjd-- ) {
+        for ( k = count_j-1 ; k >=0 && (sort_j[k]&0xffff)+dshift<=dmaxdist+di ; k-- ) {
                  
-                /* Get a handle on the wrapped particle pid in cell_i. */
+            /* Get a handle on the wrapped particle pid in cell_i. */
 
-                spjd = sort_j[pjd] >> 16;
-                #ifdef PARTS_TEX
-                    pj = tex2D( tex_parts , spjd , cjd );
-                #else
-                    pj = parts_j[ spjd ];
-                #endif
+            spjd = sort_j[k] >> 16;
+            pj = parts_j[ spjd ];
 
-                /* Compute the radius between pi and pj. */
-                r2 = 0.0f;
-                dx[0] = pi.x - pj.x; r2 += dx[0]*dx[0];
-                dx[1] = pi.y - pj.y; r2 += dx[1]*dx[1];
-                dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
-                    
-                /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
+            /* Compute the radius between pi and pj. */
+            r2 = 0.0f;
+            dx[0] = pix.x - pj.x.x; r2 += dx[0]*dx[0];
+            dx[1] = pix.y - pj.x.y; r2 += dx[1]*dx[1];
+            dx[2] = pix.z - pj.x.z; r2 += dx[2]*dx[2];
 
-                    /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
-                        threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
+            if ( r2 >= cuda_cutoff2 ) {
+                continue;
+            }
 
-                    // atomicAdd( &cuda_pairs_done , 1 );
-                    
-                    /* Interact particles pi and pj. */
-                    potential_eval_cuda_tex( pot , r2 , &ee , &eff );
+            w_cubic_spline_cuda(r2, cuda_cutoff, &number_density, &r);
 
-                    /* Store the interaction force and energy. */
-                    epot += ee;
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        w = eff * dx[k];
-                        pif[k] -= w;
-                        }
+            pif[3] += number_density;
 
-                    /* Sync the shared memory values. */
-                    // __threadfence_block();
-                
-                    } /* in range and potential. */
+            if(iscluster_maybe && pj.w.w & PARTICLE_CLUSTER && pi.w.z == pj.w.z) {
+                cu_pots = cuda_pots_cluster;
+                pind = cuda_pind_cluster[ pi.w.y * cuda_maxtype + pj.w.y ];
+            }
+            else {
+                cu_pots = cuda_pots;
+                pind = cuda_pind[ pi.w.y * cuda_maxtype + pj.w.y ];
+            }
 
-            } /* loop over parts in cell_i. */
+            if(pind != 0) {
+                /* Interact particles pi and pj. */
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, &ee, pif, pjf, &eval_result);
+
+                /* Store the interaction energy. */
+                epot += ee;
+            }
+
+            if(is_stateful) { 
+                fxind = cuda_fxind[pi.w.y * cuda_maxtype + pj.w.y];
+                if(fxind != 0)
+                    flux_eval_ex_cuda(cuda_fluxes[fxind], r, pis, &states_j[nr_states * spjd], pi.w.y, pj.w.y, pifx);
+            }
+
+        } /* loop over parts in cell_i. */
             
         /* Update the force on pj. */
-        for ( k = 0 ; k < 3 ; k++ )
-        	atomicAdd( &forces_i[ 3*spid + k], pif[k] );
-            //forces_i[ 3*spid + k ] += pif[k];
-    	
-        /* Sync the shared memory values. */
-        // __threadfence_block();
+        for ( k = 0 ; k < 4 ; k++ )
+        	atomicAdd( &forces_i[ 4*spid + k], pif[k] );
+
+        if(is_stateful) 
+            for(k = 0; k < nr_states; k++)
+                atomicAdd(&fluxes_i[nr_states*spid + k], pifx[k]);
         
-        } /* loop over the particles in cell_j. */
+    } /* loop over the particles in cell_j. */
         
     /* Store the potential energy. */
     *epot_global += epot;
         
     TIMER_TOC(tid_pair)
     
-    }
+}
 
 
-    
-    
-       /**
+
+
+/**
  * @brief Compute the pairwise interactions for the given pair on a CUDA device.
  *
  * @param icid Array of parts in the first cell.
@@ -1510,107 +1937,107 @@ __device__  void runner_dopair_left_cuda ( float4 *parts_i , int count_i , float
  *
  * @sa #runner_dopair.
  */
- 
-#ifdef PARTS_TEX
-__device__ void runner_dopair_right_cuda ( int cid , int count_i , int cjd , int count_j , float *forces_i , float *forces_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , float *epot_global ) {
-#else
-__device__ void runner_dopair_right_cuda ( float4 *parts_i , int count_i , float4 *parts_j , int count_j , float *forces_i , float *forces_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , float *epot_global ) {
-#endif
-
-    int k, pjd, spid, spjd, threadID;
-    int pioff;
+template<bool is_stateful> 
+__device__ void runner_dopair_right_cuda ( MxParticleCUDA *parts_i , float *states_i , int count_i , MxParticleCUDA *parts_j , float *states_j , int count_j , float *forces_i , float *forces_j , float *fluxes_i , float *fluxes_j , unsigned int *sort_i , unsigned int *sort_j , float *shift , unsigned int dshift , unsigned int nr_states , float *epot_global ) {
+    int k, spid, spjd;
     unsigned int dmaxdist, dj;
-    float4 pi, pj;
-    int pot, i;
-    float epot = 0.0f, r2, w, ee = 0.0f, eff = 0.0f;
-    float dx[3], pif[3];
+    MxParticleCUDA pi, pj;
+    float4 pix;
+    int pind, i;
+    float epot = 0.0f, r2, r, ee = 0.0f;
+    float dx[3], pif[4], pjf[4], pifx[MX_SIMD_SIZE];
+    bool eval_result;
+    float number_density;
+    float *pis;
+    MxPotentialCUDA *cu_pots;
+    bool iscluster_maybe;
+    unsigned int fxind;
     
     TIMER_TIC
     
-    /* Get the size of the frame, i.e. the number of threads in this block. */
-    threadID = threadIdx.x;
-    
     /* Pre-compute the inverse norm of the shift. */
     dmaxdist = 2 + cuda_dscale * cuda_maxdist;
-       
 
-	/* nr_threads >= count_i */
+    for ( i = threadIdx.x ; i < count_i ;  i += blockDim.x  ) {
 
-    for ( i = threadID ; i < count_i ;  i += blockDim.x  ) {
-    /*cj = 0;
-    while ( cj < count_j && ( sort_i[threadID] & 0xffff ) + dshift  <= dmaxdist +( sort_j[cj] & 0xffff ) )
-            cj += 1;*/
-    dj = sort_i[i]&0xffff;      
+        dj = sort_i[i]&0xffff;
         /* Get a direct pointer on the pjdth part in cell_j. */
         spid = sort_i[i] >> 16;
-        #ifdef PARTS_TEX
-            pi = tex2D( tex_parts , spid , cid );
-        #else
-            pi = parts_i[ spid ];
-        #endif
-        pioff = pi.w * cuda_maxtype;
-        pi.x += shift[0]; pi.y += shift[1]; pi.z += shift[2];
-        pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f;
+        pi = parts_i[ spid ];
+        pix = float4(pi.x);
+        pix.x += shift[0]; pix.y += shift[1]; pix.z += shift[2];
+        pif[0] = 0.0f; pif[1] = 0.0f; pif[2] = 0.0f; pif[3] = 0.0f;
+        iscluster_maybe = pi.w.w & PARTICLE_CLUSTER;
+
+        if(is_stateful) {
+            memset(pifx, 0.f, nr_states * sizeof(float));
+            pis = &states_i[nr_states * spid];
+        }
         
         /* Loop over the particles in cell_j. */
-        for ( pjd = 0 ; pjd < count_j && dj+ dshift <= dmaxdist+(sort_j[pjd]&0xffff) ; pjd++ ) {
-  				/*if((sort_i[threadID]&0xffff + dshift < dmaxdist))
-		 			break;		               */
-                /* Get a handle on the wrapped particle pid in cell_i. */
-                spjd = sort_j[pjd] >> 16;
-                #ifdef PARTS_TEX
-                    pj = tex2D( tex_parts , spjd , cjd );
-                #else
-                    pj = parts_j[ spjd ];
-                #endif
+        for ( k = 0 ; k < count_j && dj+ dshift <= dmaxdist+(sort_j[k]&0xffff) ; k++ ) {
 
-                /* Compute the radius between pi and pj. */
-                r2 = 0.0f;
-                dx[0] = pi.x - pj.x; r2 += dx[0]*dx[0];
-                dx[1] = pi.y - pj.y; r2 += dx[1]*dx[1];
-                dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
-                    
-                /* Set the null potential if anything is bad. */
-                if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pioff + (int)pj.w ] ) != 0 ) {
+            /* Get a handle on the wrapped particle pid in cell_i. */
+            spjd = sort_j[k] >> 16;
+            pj = parts_j[ spjd ];
 
-                    /* printf( "runner_dopair_cuda[%i]: doing pair [%i,%i] with r=%i (d=%i).\n" ,
-                        threadID , sort_i[pid].ind , sort_j[pjd].ind , (int)(sqrtf(r2)*1000.0) , (int)((sort_j[pjd].d - sort_i[pid].d)*1000) ); */
+            /* Compute the radius between pi and pj. */
+            r2 = 0.0f;
+            dx[0] = pix.x - pj.x.x; r2 += dx[0]*dx[0];
+            dx[1] = pix.y - pj.x.y; r2 += dx[1]*dx[1];
+            dx[2] = pix.z - pj.x.z; r2 += dx[2]*dx[2];
+            
+            if ( r2 >= cuda_cutoff2 ) {
+                continue;
+            }
 
-                    // atomicAdd( &cuda_pairs_done , 1 );
-                    
-                    /* Interact particles pi and pj. */
-                    potential_eval_cuda_tex( pot , r2 , &ee , &eff );
+            w_cubic_spline_cuda(r2, cuda_cutoff, &number_density, &r);
 
-                    /* Store the interaction force and energy. */
-                    epot += ee;
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        w = eff * dx[k];
-                        pif[k] -= w;
-                        }
+            pif[3] += number_density;
 
-                    /* Sync the shared memory values. */
-                    // __threadfence_block();
-                
-                    } /* in range and potential. */
-            } /* loop over parts in cell_i. */
+            if(iscluster_maybe && pj.w.w & PARTICLE_CLUSTER && pi.w.z == pj.w.z) {
+                cu_pots = cuda_pots_cluster;
+                pind = cuda_pind_cluster[pi.w.y * cuda_maxtype + pj.w.y];
+            }
+            else {
+                cu_pots = cuda_pots;
+                pind = cuda_pind[pi.w.y * cuda_maxtype + pj.w.y];
+            }
+
+            if(pind != 0) {
+                /* Interact particles pi and pj. */
+                potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, &ee, pif, pjf, &eval_result);
+
+                /* Store the interaction force and energy. */
+                epot += ee;
+            }
+
+            if(is_stateful) { 
+                fxind = cuda_fxind[pi.w.y * cuda_maxtype + pj.w.y];
+                if(fxind != 0)
+                    flux_eval_ex_cuda(cuda_fluxes[fxind], r, pis, &states_j[nr_states * spjd], pi.w.y, pj.w.y, pifx);
+            }
+
+        } /* loop over parts in cell_i. */
             
         /* Update the force on pj. */
-        for ( k = 0 ; k < 3 ; k++ )
-        	atomicAdd( &forces_i[ 3*spid + k] , pif[k]);
-    		//forces_i[ 3*spid + k] += pif[k];
-        /* Sync the shared memory values. */
-        // __threadfence_block();
+        for ( k = 0 ; k < 4 ; k++ )
+        	atomicAdd( &forces_i[ 4*spid + k] , pif[k]);
+
+        if(is_stateful) 
+            for(k = 0; k < nr_states; k++)
+                atomicAdd(&fluxes_i[nr_states*spid + k], pifx[k]);
         
-        } /* loop over the particles in cell_j. */
+    } /* loop over the particles in cell_j. */
         
     /* Store the potential energy. */
     *epot_global += epot;
         
     TIMER_TOC(tid_pair)
     
-    }
-    
-    /**
+}
+
+/**
  * @brief Compute the self interactions for the given cell on a CUDA device.
  *
  * @param iparts Array of parts in this cell.
@@ -1619,92 +2046,105 @@ __device__ void runner_dopair_right_cuda ( float4 *parts_i , int count_i , float
  *
  * @sa #runner_dopair.
  */
- 
-#ifdef PARTS_TEX
-__device__ void runner_doself_cuda ( int cid , int count , float *forces , float *epot_global ) {
-#else
-__device__ void runner_doself_cuda ( float4 *parts , int count , float *forces , float *epot_global ) {
-#endif
-
-    int k, pid, threadID;
+template<bool is_stateful> 
+__device__ void runner_doself_cuda (MxParticleCUDA *parts, float *states, int count, int cell_id, float *forces, float *fluxes, unsigned int nr_states, float *epot_global) {
+    int k;
     int pjoff;
-    float4 pi, pj;
-    int pot, i;
-    float epot = 0.0f, dx[3], pjf[3], r2, w, ee, eff;
+    MxParticleCUDA pi, pj;
+    int pind, i;
+    float epot = 0.0f, dx[3], pif[4], pjf[4], r2, r, ee, pjfx[MX_SIMD_SIZE];
+    bool eval_result;
+    float number_density;
+    unsigned int cell_flags = cuda_cflags[cell_id];
+    bool boundary = cell_flags & cell_active_any;
+    float3 cdims = cuda_cdims[cell_id];
+    float *pjs;
+    MxPotentialCUDA *cu_pots;
+    bool iscluster_maybe;
+    unsigned int fxind;
     
     TIMER_TIC
-    
-    /* Get the size of the frame, i.e. the number of threads in this block. */
-    threadID = threadIdx.x;
-    
-    /* Make sure everybody is in the same place. */
-    // __threadfence_block();
 
     /* Loop over the particles in the cell, frame-wise. */
-    for ( i = threadID ; i < count ;  i += blockDim.x  ) {
+    for ( i = threadIdx.x ; i < count ;  i += blockDim.x  ) {
     
         /* Get a direct pointer on the pjdth part in cell_j. */
-        #ifdef PARTS_TEX
-            pj = tex2D( tex_parts , threadID , cid );
-        #else
-            pj = parts[ i ];
-        #endif
-        pjoff = pj.w * cuda_maxtype;
-        pjf[0] = 0.0f; pjf[1] = 0.0f; pjf[2] = 0.0f;
-            
+        pj = parts[ i ];
+        pjoff = pj.w.y * cuda_maxtype;
+        pjf[0] = 0.0f; pjf[1] = 0.0f; pjf[2] = 0.0f; pjf[3] = 0.0f;
+        iscluster_maybe = pj.w.w & PARTICLE_CLUSTER;
+
+        if(is_stateful) {
+            memset(pjfx, 0.f, nr_states * sizeof(float));
+            pjs = &states[nr_states * i];
+        }
+
+        if(boundary) {
+            boundary_eval_cuda(pj, cdims, cell_flags, pjf, &epot, &eval_result);
+        }
+        
         /* Loop over the particles in cell_i. */
-        for ( pid = 0 ; pid < count ; pid++ ) {
-        	if(i != pid ) {
-            /* Get a handle on the wrapped particle pid in cell_i. */
-            #ifdef PARTS_TEX
-                pi = tex2D( tex_parts , pid , cid );
-            #else
-                pi = parts[ pid ];
-            #endif
+        for ( k = 0 ; k < count ; k++ ) {
+        	if(i != k ) {
+                /* Get a handle on the wrapped particle k in cell_i. */
+                pi = parts[ k ];
 
-            /* Compute the radius between pi and pj. */
-            r2 = 0.0f;
-            dx[0] = pi.x - pj.x; r2 += dx[0]*dx[0];
-            dx[1] = pi.y - pj.y; r2 += dx[1]*dx[1];
-            dx[2] = pi.z - pj.z; r2 += dx[2]*dx[2];
+                /* Compute the radius between pi and pj. */
+                r2 = 0.0f;
+                dx[0] = pi.x.x - pj.x.x; r2 += dx[0]*dx[0];
+                dx[1] = pi.x.y - pj.x.y; r2 += dx[1]*dx[1];
+                dx[2] = pi.x.z - pj.x.z; r2 += dx[2]*dx[2];
 
-            /* Set the null potential if anything is bad. */
-            if ( r2 < cuda_cutoff2 && ( pot = cuda_pind[ pjoff + (int)pi.w ] ) != 0 ) {
+                if ( r2 >= cuda_cutoff2 ) {
+                    continue;
+                }
 
-                /* Interact particles pi and pj. */
-                potential_eval_cuda_tex( pot , r2 , &ee , &eff );
+                w_cubic_spline_cuda(r2, cuda_cutoff, &number_density, &r);
 
-                /* Store the interaction force and energy. */
-                epot += ee;
-                for ( k = 0 ; k < 3 ; k++ ) {
-                    w = eff * dx[k];
-//                    forces[ 3*pid + k ] -= w;
-                    //atomicAdd( &forces[ 3*pid + k] , -w );
-                    pjf[k] += w;
-                    }
+                pjf[3] += number_density;
 
-                /* Sync the shared memory values. */
-                // __threadfence_block();
-            
-                } /* in range and potential. */
+                if(iscluster_maybe && pi.w.w & PARTICLE_CLUSTER && pi.w.z == pj.w.z) {
+                    cu_pots = cuda_pots_cluster;
+                    pind = cuda_pind_cluster[pjoff + pi.w.y];
+                }
+                else {
+                    cu_pots = cuda_pots;
+                    pind = cuda_pind[pjoff + pi.w.y];
+                }
+
+                if(pind != 0) {
+                    /* Interact particles pi and pj. */
+                    potential_eval_super_ex_cuda(cu_pots[pind], pi, pj, dx, r2, &ee, pif, pjf, &eval_result);
+
+                    /* Store the interaction force and energy. */
+                    epot += ee;
+                }
+
+                if(is_stateful) { 
+                    fxind = cuda_fxind[pjoff + pi.w.y];
+                    if(fxind != 0)
+                        flux_eval_ex_cuda(cuda_fluxes[fxind], r, pjs, &states[nr_states * k], pj.w.y, pi.w.y, pjfx);
+                }
+
 			}
-            } /* loop over parts in cell_i. */
+        } /* loop over parts in cell_i. */
             
         /* Update the force on pj. */
-        for ( k = 0 ; k < 3 ; k++ )
-        	atomicAdd( &forces[ 3*i + k], pjf[k] );
-			//forces[ 3*threadID + k] += pjf[k];
-        /* Sync the shared memory values. */
-        // __threadfence_block();
+        for ( k = 0 ; k < 4 ; k++ )
+        	atomicAdd( &forces[ 4*i + k], pjf[k] );
 
-        } /* loop over the particles in cell_j. */
-        
+        if(is_stateful) 
+            for(k = 0; k < nr_states; k++)
+                atomicAdd(&fluxes[nr_states*i + k], pjfx[k]);
+
+    } /* loop over the particles in cell_j. */
+
     /* Store the potential energy. */
     *epot_global += epot;
         
     TIMER_TOC(tid_self)
     
-    }
+}
 
 
 
@@ -1789,9 +2229,66 @@ __global__ void cuda_memset_float ( float *data , float val , int N ) {
     #include "runner_cuda_main.h"
 #undef cuda_nparts
 
-// #define cuda_nparts 512
-//     #include "runner_cuda_main.h"
+#define cuda_nparts 512
+    #include "runner_cuda_main.h"
+#undef cuda_nparts
 
+
+template<bool is_stateful> 
+void engine_nonbond_cuda_kernel_launch(int maxcount, dim3 nr_blocks, dim3 nr_threads, cudaStream_t stream, 
+    float *forces_cuda, float *fluxes_next_cuda, int *counts_cuda, int *ind_cuda, int verlet_rebuild, unsigned int nr_states) 
+{
+    switch ( (maxcount + 31) / 32 ) {
+        case 1:
+            runner_run_cuda_32<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 2:
+            runner_run_cuda_64<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 3:
+            runner_run_cuda_96<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 4:
+            runner_run_cuda_128<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 5:
+            runner_run_cuda_160<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 6:
+            runner_run_cuda_192<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 7:
+            runner_run_cuda_224<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 8:
+            runner_run_cuda_256<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 9:
+            runner_run_cuda_288<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 10:
+            runner_run_cuda_320<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 11:
+            runner_run_cuda_352<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 12:
+            runner_run_cuda_384<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 13:
+            runner_run_cuda_416<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 14:
+            runner_run_cuda_448<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 15:
+            runner_run_cuda_480<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        case 16:
+            runner_run_cuda_512<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
+            break;
+        }
+}
 
 
 /**
@@ -1804,18 +2301,18 @@ __global__ void cuda_memset_float ( float *data , float val , int N ) {
  
 extern "C" int engine_nonbond_cuda ( struct engine *e ) {
 
-    dim3 nr_threads( 4*cuda_frame , 1 );
-    dim3 nr_blocks( e->nr_runners , 1 );
-    int k, cid, did, pid, maxcount = 0;
+    int k, cid, did, pid, fid, maxcount = 0;
     cudaStream_t stream;
     cudaEvent_t tic, toc_load, toc_run, toc_unload;
     float ms_load, ms_run, ms_unload;
-    struct part *p;
-    float4 *parts_cuda = (float4 *)e->parts_cuda_local, *buff4;
+    struct MxParticle *p;
+    MxParticleCUDA *parts_cuda = (MxParticleCUDA *)e->parts_cuda_local, *buff_part;
+    float *part_states_cuda = (float *)e->part_states_cuda_local, *buff_part_states;
     struct space *s = &e->s;
     FPTYPE maxdist = s->cutoff + 2*s->maxdx;
     int *counts = e->counts_cuda_local[ 0 ], *inds = e->ind_cuda_local[ 0 ];
-    float *forces_cuda[ engine_maxgpu ], epot[ engine_maxgpu ], *buff;
+    float *forces_cuda[ engine_maxgpu ], *fluxes_next_cuda[engine_maxgpu], epot[ engine_maxgpu ], *buff_force, *buff_flux;
+    unsigned int nr_states = e->nr_fluxes_cuda - 1;
     #ifdef TIMERS
         float timers[ tid_count ];
         double icpms = 1000.0 / 1.4e9; 
@@ -1851,62 +2348,58 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
 
         /* Get the stream. */
         stream = (cudaStream_t)e->streams[did];
-    /* Load the particle data onto the device. */
-    // tic = getticks();
-    // if ( ( maxcount = engine_cuda_load_parts( e ) ) < 0 )
-    //     return error(engine_err);
-    // e->timers[ engine_timer_cuda_load ] += getticks() - tic;
-    counts = e->counts_cuda_local[ did ];
-    inds = e->ind_cuda_local[ did ];
-    /* Clear the counts array. */
-    bzero( counts , sizeof(int) * s->nr_cells );
+        /* Load the particle data onto the device. */
+        // tic = getticks();
+        // if ( ( maxcount = engine_cuda_load_parts( e ) ) < 0 )
+        //     return error(engine_err);
+        // e->timers[ engine_timer_cuda_load ] += getticks() - tic;
+        counts = e->counts_cuda_local[ did ];
+        inds = e->ind_cuda_local[ did ];
+        /* Clear the counts array. */
+        bzero( counts , sizeof(int) * s->nr_cells );
 
-    /* Load the counts. */
-    for( maxcount = 0, k = 0; k < e->cells_cuda_nr[did] ; k++ )
-	if( ( counts[e->cells_cuda_local[did][k]] = s->cells[e->cells_cuda_local[did][k]].count ) > maxcount )
-	    maxcount = counts[ e->cells_cuda_local[did][k]];
-/*    for ( maxcount = 0 , k = 0 ; k < s->nr_marked ; k++ )
-        if ( ( counts[ s->cid_marked[k] ] = s->cells[ s->cid_marked[k] ].count ) > maxcount )
-            maxcount = counts[ s->cid_marked[k] ];*/
+        /* Load the counts. */
+        for( maxcount = 0, k = 0; k < e->cells_cuda_nr[did] ; k++ )
+        if( ( counts[e->cells_cuda_local[did][k]] = s->cells[e->cells_cuda_local[did][k]].count ) > maxcount )
+            maxcount = counts[ e->cells_cuda_local[did][k]];
+    /*    for ( maxcount = 0 , k = 0 ; k < s->nr_marked ; k++ )
+            if ( ( counts[ s->cid_marked[k] ] = s->cells[ s->cid_marked[k] ].count ) > maxcount )
+                maxcount = counts[ s->cid_marked[k] ];*/
 
-    /* Raise maxcount to the next multiple of 32. */
-    maxcount = ( maxcount + (cuda_frame - 1) ) & ~(cuda_frame - 1);
-    // printf( "engine_cuda_load_parts: maxcount=%i.\n" , maxcount );
+        /* Raise maxcount to the next multiple of 32. */
+        maxcount = ( maxcount + (cuda_frame - 1) ) & ~(cuda_frame - 1);
+        // printf( "engine_cuda_load_parts: maxcount=%i.\n" , maxcount );
 
-    /* Compute the indices. */
-    inds[0] = 0;
-    for ( k = 1 ; k < e->cells_cuda_nr[did] ; k++ )
-        inds[k] = inds[k-1] + counts[k-1];
+        /* Compute the indices. */
+        inds[0] = 0;
+        for ( k = 1 ; k < e->cells_cuda_nr[did] ; k++ )
+            inds[k] = inds[k-1] + counts[k-1];
 
-    /* Loop over the marked cells. */
-    for ( k = 0 ; k < e->cells_cuda_nr[did] ; k++ ) {
+        /* Loop over the marked cells. */
+        for ( k = 0 ; k < e->cells_cuda_nr[did] ; k++ ) {
 
-        /* Get the cell id. */
-        cid = e->cells_cuda_local[did][k];
+            /* Get the cell id. */
+            cid = e->cells_cuda_local[did][k];
 
-        /* Copy the particle data to the device. */
-        #ifdef PARTS_TEX
-            buff4 = (float4 *)&parts_cuda[ maxcount * cid ];
-        #else
-            buff4 = (float4 *)&parts_cuda[ inds[cid] ];
-        #endif
-        for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
-            p = &s->cells[cid].parts[pid];
-            buff4[ pid ].x = p->x[0];
-            buff4[ pid ].y = p->x[1];
-            buff4[ pid ].z = p->x[2];
-            buff4[ pid ].w = p->type;
+            /* Copy the particle data to the device. */
+            buff_part = (MxParticleCUDA *)&parts_cuda[ inds[cid] ];
+
+            if(nr_states > 0) {
+                buff_part_states = &part_states_cuda[nr_states * inds[cid]];
+                for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
+                    MxParticle *part = &s->cells[cid].parts[pid];
+                    buff_part[ pid ] = MxParticleCUDA(part, nr_states);
+                    for(int ks = 0; ks < nr_states; ks++) 
+                        buff_part_states[nr_states * pid + ks] = part->state_vector->fvec[ks];
+                }
+            } 
+            else {
+                for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
+                    buff_part[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid]);
+                }
             }
 
         }
-
-    #ifdef PARTS_TEX
-        /* Set the texture properties. */
-        tex_parts.addressMode[0] = cudaAddressModeClamp;
-        tex_parts.addressMode[1] = cudaAddressModeClamp;
-        tex_parts.filterMode = cudaFilterModePoint;
-        tex_parts.normalized = false;
-    #endif
 
 	/* Start by setting the maxdist on the device. */
         if ( cudaMemcpyToSymbolAsync( cuda_maxdist , &maxdist , sizeof(float) , 0 , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
@@ -1920,14 +2413,16 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         if ( cudaMemcpyAsync( e->ind_cuda[did] , inds , sizeof(int) * s->nr_cells , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
 
-        /* Bind the particle positions to a texture. */
-        #ifdef PARTS_TEX
-            if ( cudaMemcpyToArrayAsync( (cudaArray *)s->cuArray_parts , 0 , 0 , parts_cuda , sizeof(float4) * s->nr_cells * maxcount , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
+        /* Bind the particle positions. */
+        if ( cudaMemcpyAsync( e->parts_cuda[did] , parts_cuda , sizeof(MxParticleCUDA) * s->nr_parts , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+
+        if(nr_states > 0) {
+            /* Bind the particle states. */
+            if ( cudaMemcpyAsync( e->part_states_cuda[did] , part_states_cuda , sizeof(float) * s->nr_parts * nr_states , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
                 return cuda_error(engine_err_cuda);
-        #else
-            if ( cudaMemcpyAsync( e->parts_cuda[did] , parts_cuda , sizeof(float4) * s->nr_parts , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-        #endif
+        }
+
     /* Start the clock. */
     // tic = getticks();
 	}
@@ -1943,7 +2438,7 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
 	/* Loop over the devices and call the different kernels on each stream. */
     for ( did = 0 ; did < e->nr_devices ; did++ ) {
 
-	/* Set the device ID. */
+	    /* Set the device ID. */
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
 
@@ -1952,61 +2447,22 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         /* Clear the force array. */
         // if ( cudaMemsetAsync( e->forces_cuda[did] , 0 , sizeof( float ) * 3 * s->nr_parts , stream ) != cudaSuccess )
         //     return cuda_error(engine_err_cuda);
-        cuda_memset_float <<<8,512,0,stream>>> ( e->forces_cuda[did] , 0.0f , 3 * s->nr_parts );
-            
+        cuda_memset_float <<<8,512,0,stream>>> ( e->forces_cuda[did] , 0.0f , 4 * s->nr_parts );
+        if(nr_states > 0) 
+            cuda_memset_float<<<8,512,0,stream>>>( e->fluxes_next_cuda[did] , 0.0f , nr_states * s->nr_parts );
+
+        dim3 nr_threads(e->nr_threads[did], 1, 1);
+        dim3 nr_blocks(std::min(e->nrtasks_cuda[did], e->nr_blocks[did]), 1, 1);
+        
         /* Start the appropriate kernel. */
-        switch ( (maxcount + 31) / 32 ) {
-            case 1:
-                runner_run_cuda_32 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 2:
-                runner_run_cuda_64 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 3:
-                runner_run_cuda_96 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 4:
-                runner_run_cuda_128 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 5:
-                runner_run_cuda_160 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 6:
-                runner_run_cuda_192 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 7:
-                runner_run_cuda_224 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 8:
-                runner_run_cuda_256 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 9:
-                runner_run_cuda_288 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 10:
-                runner_run_cuda_320 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 11:
-                runner_run_cuda_352 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 12:
-                runner_run_cuda_384 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 13:
-                runner_run_cuda_416 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 14:
-                runner_run_cuda_448 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            case 15:
-                runner_run_cuda_480 <<<nr_blocks,nr_threads,0,stream>>> ( e->forces_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild );
-                break;
-            // case 16:
-            //     runner_run_verlet_cuda_512 <<<nr_blocks,nr_threads>>> ( e->forces_cuda , e->counts_cuda , e->ind_cuda , e->s.verlet_rebuild );
-            //     break;
-            default:
-                return error(engine_err_maxparts);
-            }
+        if(nr_states > 0) {
+            engine_nonbond_cuda_kernel_launch<true>(maxcount, nr_blocks, nr_threads, stream, 
+                e->forces_cuda[did] , e->fluxes_next_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild, nr_states);
+        }
+        else {
+            engine_nonbond_cuda_kernel_launch<false>(maxcount, nr_blocks, nr_threads, stream, 
+                e->forces_cuda[did] , e->fluxes_next_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild, nr_states);
+        }
 }
 
 	for( did = 0; did < e->nr_devices ; did ++ ) {
@@ -2019,16 +2475,24 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         stream = (cudaStream_t)e->streams[did];
         
         /* Get the forces from the device. */
-        if ( ( forces_cuda[did] = (float *)malloc( sizeof(float) * 3 * s->nr_parts ) ) == NULL )
+        if ( ( forces_cuda[did] = (float *)malloc( sizeof(float) * 4 * s->nr_parts ) ) == NULL )
             return error(engine_err_malloc);
-        if ( cudaMemcpyAsync( forces_cuda[did] , e->forces_cuda[did] , sizeof(float) * 3 * s->nr_parts , cudaMemcpyDeviceToHost , stream ) != cudaSuccess )
+        if ( cudaMemcpyAsync( forces_cuda[did] , e->forces_cuda[did] , sizeof(float) * 4 * s->nr_parts , cudaMemcpyDeviceToHost , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
 
         /* Get the potential energy. */
         if ( cudaMemcpyFromSymbolAsync( &epot[did] , cuda_epot_out , sizeof(float) , 0 , cudaMemcpyDeviceToHost , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        
+
+        if(nr_states > 0) {
+            // Get the flux data
+            if ( ( fluxes_next_cuda[did] = (float *)malloc( sizeof(float) * nr_states * s->nr_parts ) ) == NULL )
+                return error(engine_err_malloc);
+            if ( cudaMemcpyAsync( fluxes_next_cuda[did] , e->fluxes_next_cuda[did] , sizeof(float) * nr_states * s->nr_parts , cudaMemcpyDeviceToHost , stream ) != cudaSuccess )
+                return cuda_error(engine_err_cuda);
         }
+        
+    }
         
     // e->timers[ engine_timer_cuda_dopairs ] += getticks() - tic;
     
@@ -2084,20 +2548,39 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
             cid = e->cells_cuda_local[did][k];
 
             /* Copy the particle data from the device. */
-            buff = &forces_cuda[did][ 3*e->ind_cuda_local[did][cid] ];
-            for ( pid = 0 ; pid < s->cells[cid].count ; pid++ ) {
-                p = &s->cells[cid].parts[pid];
-                p->f[0] += buff[ 3*pid ];
-                p->f[1] += buff[ 3*pid + 1 ];
-                p->f[2] += buff[ 3*pid + 2 ];
-                }
+            buff_force = &forces_cuda[did][ 4*e->ind_cuda_local[did][cid] ];
+            if(nr_states > 0) {
+                buff_flux = &fluxes_next_cuda[did][nr_states * e->ind_cuda_local[did][cid] ];
 
+                for ( pid = 0 ; pid < s->cells[cid].count ; pid++ ) {
+                    p = &s->cells[cid].parts[pid];
+                    p->f[0] += buff_force[ 4*pid ];
+                    p->f[1] += buff_force[ 4*pid + 1 ];
+                    p->f[2] += buff_force[ 4*pid + 2 ];
+                    p->f[3] += buff_force[ 4*pid + 3 ];
+
+                    for(fid = 0; fid < nr_states; fid++) 
+                        p->state_vector->q[fid] += buff_flux[nr_states * pid + fid];
+                }
             }
+            else {
+                for ( pid = 0 ; pid < s->cells[cid].count ; pid++ ) {
+                    p = &s->cells[cid].parts[pid];
+                    p->f[0] += buff_force[ 4*pid ];
+                    p->f[1] += buff_force[ 4*pid + 1 ];
+                    p->f[2] += buff_force[ 4*pid + 2 ];
+                    p->f[3] += buff_force[ 4*pid + 3 ];
+                }
+            }
+
+        }
 
         /* Deallocate the parts array and counts array. */
         free( forces_cuda[did] );
+        if(nr_states > 0)
+            free(fluxes_next_cuda[did]);
         
-        }
+    }
         
     /* Check for any missed CUDA errors. */
     if ( cudaPeekAtLastError() != cudaSuccess )
@@ -2124,7 +2607,7 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
     /* Go away. */
     return engine_err_ok;
     
-    }
+}
 
 
 
@@ -2140,8 +2623,7 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
 extern "C" int engine_cuda_load_parts ( struct engine *e ) {
     
     int k, did, cid, pid, maxcount = 0;
-    struct part *p;
-    float4 *parts_cuda = (float4 *)e->parts_cuda_local, *buff;
+    MxParticleCUDA *parts_cuda = (MxParticleCUDA *)e->parts_cuda_local, *buff;
     struct space *s = &e->s;
     FPTYPE maxdist = s->cutoff + 2*s->maxdx;
     int *counts = e->counts_cuda_local[0], *inds = e->ind_cuda_local[0];
@@ -2171,28 +2653,12 @@ extern "C" int engine_cuda_load_parts ( struct engine *e ) {
         cid = s->cid_marked[k];
 
         /* Copy the particle data to the device. */
-        #ifdef PARTS_TEX
-            buff = (float4 *)&parts_cuda[ maxcount * cid ];
-        #else
-            buff = (float4 *)&parts_cuda[ inds[cid] ];
-        #endif
+        buff = (MxParticleCUDA *)&parts_cuda[ inds[cid] ];
         for ( pid = 0 ; pid < counts[cid] ; pid++ ) {
-            p = &s->cells[cid].parts[pid];
-            buff[ pid ].x = p->x[0];
-            buff[ pid ].y = p->x[1];
-            buff[ pid ].z = p->x[2];
-            buff[ pid ].w = p->type;
-            }
-
+            buff[ pid ] = MxParticleCUDA(&s->cells[cid].parts[pid]);
         }
 
-    #ifdef PARTS_TEX
-        /* Set the texture properties. */
-        tex_parts.addressMode[0] = cudaAddressModeClamp;
-        tex_parts.addressMode[1] = cudaAddressModeClamp;
-        tex_parts.filterMode = cudaFilterModePoint;
-        tex_parts.normalized = false;
-    #endif
+    }
 
     // printf( "engine_cuda_load_parts: packed %i cells with %i parts each (%i kB).\n" , s->nr_cells , maxcount , (sizeof(float4)*maxcount*s->nr_cells)/1024 );
 
@@ -2218,26 +2684,20 @@ extern "C" int engine_cuda_load_parts ( struct engine *e ) {
         if ( cudaMemcpyAsync( e->ind_cuda[did] , inds , sizeof(int) * s->nr_cells , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
 
-        /* Bind the particle positions to a texture. */
-        #ifdef PARTS_TEX
-            if ( cudaMemcpyToArrayAsync( (cudaArray *)s->cuArray_parts , 0 , 0 , parts_cuda , sizeof(float4) * s->nr_cells * maxcount , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-        #else
-            if ( cudaMemcpyAsync( e->parts_cuda[did] , parts_cuda , sizeof(float4) * s->nr_parts , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-        #endif
+        /* Bind the particle positions. */
+        if ( cudaMemcpyAsync( e->parts_cuda[did] , parts_cuda , sizeof(MxParticleCUDA) * s->nr_parts , cudaMemcpyHostToDevice , stream ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
 
         /* Clear the force array. */
-        if ( cudaMemsetAsync( e->forces_cuda[did] , 0 , sizeof( float ) * 3 * s->nr_parts , stream ) != cudaSuccess )
+        if ( cudaMemsetAsync( e->forces_cuda[did] , 0 , sizeof( float ) * 4 * s->nr_parts , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        // cuda_memset_float <<<8,512,0,stream>>> ( e->forces_cuda[did] , 0.0f , 3 * s->nr_parts );
             
-        }
+    }
     
     /* Our work is done here. */
     return maxcount;
 
-    }
+}
     
     
 
@@ -2250,9 +2710,9 @@ extern "C" int engine_cuda_load_parts ( struct engine *e ) {
  */
  
 extern "C" int engine_cuda_unload_parts ( struct engine *e ) {
-    
+
     int k, did, cid, pid;
-    struct part *p;
+    struct MxParticle *p;
     float *forces_cuda[ engine_maxgpu ], *buff, epot[ engine_maxgpu ];
     struct space *s = &e->s;
     cudaStream_t stream;
@@ -2268,16 +2728,16 @@ extern "C" int engine_cuda_unload_parts ( struct engine *e ) {
         stream = (cudaStream_t)e->streams[did];
     
         /* Get the forces from the device. */
-        if ( ( forces_cuda[did] = (float *)malloc( sizeof(float) * 3 * s->nr_parts ) ) == NULL )
+        if ( ( forces_cuda[did] = (float *)malloc( sizeof(float) * 4 * s->nr_parts ) ) == NULL )
             return error(engine_err_malloc);
-        if ( cudaMemcpyAsync( forces_cuda[did] , e->forces_cuda[did] , sizeof(float) * 3 * s->nr_parts , cudaMemcpyDeviceToHost , stream ) != cudaSuccess )
+        if ( cudaMemcpyAsync( forces_cuda[did] , e->forces_cuda[did] , sizeof(float) * 4 * s->nr_parts , cudaMemcpyDeviceToHost , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
 
         /* Get the potential energy. */
         if ( cudaMemcpyFromSymbolAsync( &epot[did] , cuda_epot_out , sizeof(float) , 0 , cudaMemcpyDeviceToHost , stream ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         
-        }
+    }
 
     /* Loop over the devices. */
     for ( did = 0 ; did < e->nr_devices ; did++ ) {
@@ -2303,12 +2763,13 @@ extern "C" int engine_cuda_unload_parts ( struct engine *e ) {
             cid = s->cid_marked[k];
 
             /* Copy the particle data from the device. */
-            buff = &forces_cuda[did][ 3*e->ind_cuda_local[did][cid] ];
+            buff = &forces_cuda[did][ 4*e->ind_cuda_local[did][cid] ];
             for ( pid = 0 ; pid < s->cells[cid].count ; pid++ ) {
                 p = &s->cells[cid].parts[pid];
-                p->f[0] += buff[ 3*pid ];
-                p->f[1] += buff[ 3*pid + 1 ];
-                p->f[2] += buff[ 3*pid + 2 ];
+                p->f[0] += buff[ 4*pid ];
+                p->f[1] += buff[ 4*pid + 1 ];
+                p->f[2] += buff[ 4*pid + 2 ];
+                p->f[3] += buff[ 4*pid + 3 ];
                 }
 
             }
@@ -2316,12 +2777,12 @@ extern "C" int engine_cuda_unload_parts ( struct engine *e ) {
         /* Deallocate the parts array and counts array. */
         free( forces_cuda[did] );
         
-        }
+    }
         
     /* Our work is done here. */
     return engine_err_ok;
 
-    }
+}
 
 /**
  * @brief Load the queues onto the CUDA device.
@@ -2365,8 +2826,7 @@ int engine_cuda_queues_load ( struct engine *e ) {
             return error(engine_err_malloc);
 
         /* Set the number of queues. */
-        if ( cudaMemcpyToSymbol( cuda_nrqueues , &nr_queues , sizeof(int) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
+        e->nr_queues_cuda = nr_queues;
 
         /* Init each queue separately. */
         for ( qid = 0 ; qid < nr_queues ; qid++ ) {
@@ -2397,7 +2857,7 @@ int engine_cuda_queues_load ( struct engine *e ) {
             queues[qid].last = queues[qid].count;
             queues[qid].rec_count = 0;
 
-            }
+        }
 
         /* Copy the queue structures to the device. */
         if ( cudaMemcpyToSymbol( cuda_queues , queues , sizeof(struct queue_cuda) * nr_queues , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
@@ -2410,70 +2870,108 @@ int engine_cuda_queues_load ( struct engine *e ) {
         /* Clean up. */
         free( data );
         
-        }
+    }
         
     /* Fade to grey. */
     return engine_err_ok;
 
+}
+
+
+__global__ void engine_cuda_queues_finalize_device(int nr_queues) {
+    if(threadIdx.x != 0 || blockIdx.x != 0) {
+        return;
     }
 
-    
+    for(int qid = 0; qid < nr_queues; qid++) {
+
+        if(cudaFree(&cuda_queues[qid].data) != cudaSuccess) {
+            printf("%s\n", "engine_cuda_queues_finalize_device failed (data)!");
+            return;
+        }
+
+        if(cudaFree(&cuda_queues[qid].rec_data) != cudaSuccess) {
+            printf("%s\n", "engine_cuda_queues_finalize_device failed (rec_data)!");
+            return;
+        }
+
+    }
+
+    if(cudaFree(cuda_queues) != cudaSuccess) {
+        printf("%s\n", "engine_cuda_queues_finalize_device failed (cuda_queues)!");
+        return;
+    }
+}
 
 /**
- * @brief Load the potentials and cell pairs onto the CUDA device.
+ * @brief Close the run configuration on the CUDA device.
  *
  * @param e The #engine.
  *
  * @return #engine_err_ok or < 0 on error (see #engine_err).
  */
  
-extern "C" int engine_cuda_load ( struct engine *e ) {
+int engine_cuda_queues_finalize ( struct engine *e ) {
 
-    
-    int i, j, k, nr_pots, nr_coeffs, nr_tasks, max_coeffs = 0, c1 ,c2;
-    int did, *cellsorts;
-    int pind[ e->max_type * e->max_type ], *pind_cuda[ engine_maxgpu ];
-    struct space *s = &e->s;
+    /* Loop over the devices. */
+    for(int did = 0 ; did < e->nr_devices ; did++ ) {
+        
+        // Set the device ID
+        
+        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+
+        // Free queues
+        
+        engine_cuda_queues_finalize_device<<<1, 1>>>(e->nr_queues_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Load the potentials onto the CUDA device
+ *
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_load_pots(struct engine *e) {
+    int i, j, nr_pots, nr_pots_cluster;
+    int did;
     int nr_devices = e->nr_devices;
-    struct potential *pots[ e->nr_types * (e->nr_types + 1) / 2 + 1 ];
-    struct task_cuda *tasks_cuda, *tc, *ts;
-    struct task *t;
-    float *finger, *coeffs_cuda;
-    float cutoff = e->s.cutoff, cutoff2 = e->s.cutoff2, dscale; //, buff[ e->nr_types ];
-    cudaArray *cuArray_coeffs[ engine_maxgpu ], *cuArray_pind[ engine_maxgpu ];
-    cudaChannelFormatDesc channelDesc_int = cudaCreateChannelDesc<int>();
-    cudaChannelFormatDesc channelDesc_float = cudaCreateChannelDesc<float>();
-    cudaChannelFormatDesc channelDesc_float4 = cudaCreateChannelDesc<float4>();
-    float h[3], dim[3], *corig;
-    void *dummy[ engine_maxgpu ];
-
-    /*Split the space over the available GPUs*/
-    engine_split_METIS( e , nr_devices , engine_split_GPU  );
-    
-    /* Set the coeff properties. */
-    tex_coeffs.addressMode[0] = cudaAddressModeClamp;
-    tex_coeffs.addressMode[1] = cudaAddressModeClamp;
-    tex_coeffs.filterMode = cudaFilterModePoint;
-    tex_coeffs.normalized = false;
-
-    /* Set the pind properties. */
-    tex_pind.addressMode[0] = cudaAddressModeClamp;
-    tex_pind.filterMode = cudaFilterModePoint;
-    tex_pind.normalized = false;
+    int *pind = (int*)malloc(sizeof(int) * e->max_type * e->max_type);
+    int *pind_cluster = (int*)malloc(sizeof(int) * e->max_type * e->max_type);
+    struct MxPotential **pots = (MxPotential**)malloc(sizeof(MxPotential*) * e->nr_types * (e->nr_types + 1) / 2 + 1);
+    struct MxPotential **pots_cluster = (MxPotential**)malloc(sizeof(MxPotential*) * e->nr_types * (e->nr_types + 1) / 2 + 1);
 
     /* Init the null potential. */
-    if ( ( pots[0] = (struct potential *)alloca( sizeof(struct potential) ) ) == NULL )
+    if ( ( pots[0] = (struct MxPotential *)alloca( sizeof(struct MxPotential) ) ) == NULL )
         return error(engine_err_malloc);
     pots[0]->alpha[0] = pots[0]->alpha[1] = pots[0]->alpha[2] = pots[0]->alpha[3] = 0.0f;
-    pots[0]->a = 0.0; pots[0]->b = DBL_MAX;
-    pots[0]->flags = potential_flag_none;
+    pots[0]->a = 0.0; pots[0]->b = FLT_MAX;
+    pots[0]->flags = POTENTIAL_NONE;
     pots[0]->n = 0;
     if ( ( pots[0]->c = (FPTYPE *)alloca( sizeof(float) * potential_chunk ) ) == NULL )
         return error(engine_err_malloc);
     bzero( pots[0]->c , sizeof(float) * potential_chunk );
-    nr_pots = 1; nr_coeffs = 1;
+
+    if ( ( pots_cluster[0] = (struct MxPotential *)alloca( sizeof(struct MxPotential) ) ) == NULL )
+        return error(engine_err_malloc);
+    pots_cluster[0]->alpha[0] = pots_cluster[0]->alpha[1] = pots_cluster[0]->alpha[2] = pots_cluster[0]->alpha[3] = 0.0f;
+    pots_cluster[0]->a = 0.0; pots_cluster[0]->b = FLT_MAX;
+    pots_cluster[0]->flags = POTENTIAL_NONE;
+    pots_cluster[0]->n = 0;
+    if ( ( pots_cluster[0]->c = (FPTYPE *)alloca( sizeof(float) * potential_chunk ) ) == NULL )
+        return error(engine_err_malloc);
+    bzero( pots_cluster[0]->c , sizeof(float) * potential_chunk );
     
     /* Start by identifying the unique potentials in the engine. */
+    nr_pots = 1;
     for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
     
         /* Skip if there is no potential or no parts of this type. */
@@ -2488,59 +2986,372 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
         /* Store this potential and the number of coefficient entries it has. */
         pots[nr_pots] = e->p[i];
         nr_pots += 1;
-        nr_coeffs += e->p[i]->n + 1;
-        if ( e->p[i]->n + 1 > max_coeffs )
-            max_coeffs = e->p[i]->n + 1;
     
-        }
-       
-    /* Copy eps and rmin to the device. */
-    /* for ( i = 0 ; i < e->nr_types ; i++ )
-        buff[i] = sqrt( fabs( e->types[i].eps ) );
-    if ( cudaMemcpyToSymbol( "cuda_eps" , buff , sizeof(float) * e->nr_types , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-        return cuda_error(engine_err_cuda);
-    for ( i = 0 ; i < e->nr_types ; i++ )
-        buff[i] = e->types[i].rmin;
-    if ( cudaMemcpyToSymbol( "cuda_rmin" , buff , sizeof(float) * e->nr_types , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-        return cuda_error(engine_err_cuda); */
+    }
 
-    /* Pack the potential matrix. */
+    nr_pots_cluster = 1;
+    for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
+    
+        /* Skip if there is no potential or no parts of this type. */
+        if ( e->p_cluster[i] == NULL )
+            continue;
+            
+        /* Check this potential against previous potentials. */
+        for ( j = 0 ; j < nr_pots_cluster && e->p_cluster[i] != pots_cluster[j] ; j++ );
+        if ( j < nr_pots_cluster )
+            continue;
+            
+        /* Store this potential and the number of coefficient entries it has. */
+        pots_cluster[nr_pots_cluster] = e->p_cluster[i];
+        nr_pots_cluster += 1;
+    
+    }
+
+    /* Pack the potential matrices. */
     for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
         if ( e->p[i] == NULL ) {
             pind[i] = 0;
-            }
+        }
         else {
             for ( j = 0 ; j < nr_pots && pots[j] != e->p[i] ; j++ );
             pind[i] = j;
-            }
         }
-        
-    /* Pack the coefficients before shipping them off to the device. */
-    if ( ( coeffs_cuda = (float *)malloc( sizeof(float4) * (2*max_coeffs + 2) * nr_pots ) ) == NULL )
-        return error(engine_err_malloc);
-    for ( i = 0 ; i < nr_pots ; i++ ) {
-        finger = &coeffs_cuda[ i*4*(2*max_coeffs + 2) ];
-        finger[0] = pots[i]->alpha[0];
-        finger[1] = pots[i]->alpha[1];
-        finger[2] = pots[i]->alpha[2];
-        memcpy( &finger[8] , pots[i]->c , sizeof(float) * potential_chunk * (pots[i]->n + 1) );
+    }
+    for ( i = 0 ; i < e->max_type * e->max_type ; i++ ) {
+        if ( e->p_cluster[i] == NULL ) {
+            pind_cluster[i] = 0;
         }
-    /* for ( finger = coeffs_cuda , i = 0 ; i < nr_pots ; i++ ) {
-        memcpy( finger , pots[i]->c , sizeof(float) * potential_chunk * (pots[i]->n + 1) );
-        finger = &finger[ (pots[i]->n + 1) * potential_chunk ];
-        } */
-    printf( "engine_cuda_load: packed %i potentials with %i coefficient chunks (%i kB).\n" , nr_pots , max_coeffs , (int)(sizeof(float4)*(2*max_coeffs+2)*nr_pots)/1024 ); fflush(stdout);
-        
-    /* Bind the potential coefficients to a texture. */
+        else {
+            for ( j = 0 ; j < nr_pots_cluster && pots_cluster[j] != e->p_cluster[i] ; j++ );
+            pind_cluster[i] = j;
+        }
+    }
+
+    // Pack the potentials
+    MxPotentialCUDA *pots_cuda = (MxPotentialCUDA*)malloc(sizeof(MxPotentialCUDA) * nr_pots);
+    for(i = 1; i < nr_pots; i++) {
+        pots_cuda[i] = MxPotentialCUDA(pots[i]);
+    }
+
+    MxPotentialCUDA *pots_cluster_cuda = (MxPotentialCUDA*)malloc(sizeof(MxPotentialCUDA) * nr_pots_cluster);
+    for(i = 1; i < nr_pots_cluster; i++) {
+        pots_cluster_cuda[i] = MxPotentialCUDA(pots_cluster[i]);
+    }
+    
+    /* Store pind as a constant. */
     for ( did = 0 ; did < nr_devices ; did++ ) {
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMallocArray( &cuArray_coeffs[did] , &channelDesc_float4 , 2*max_coeffs + 2 , nr_pots ) != cudaSuccess )
+        if ( cudaMalloc( &e->pind_cuda[did] , sizeof(int) * e->max_type * e->max_type ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToArray( cuArray_coeffs[did] , 0 , 0 , coeffs_cuda , sizeof(float4) * (2*max_coeffs + 2) * nr_pots , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpy( e->pind_cuda[did] , pind , sizeof(int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
-    free( coeffs_cuda );
+        if ( cudaMemcpyToSymbol( cuda_pind , &e->pind_cuda[did] , sizeof(int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+    }
+    free(pind);
+    
+    for ( did = 0 ; did < nr_devices ; did++ ) {
+        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMalloc( &e->pind_cluster_cuda[did] , sizeof(int) * e->max_type * e->max_type ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpy( e->pind_cluster_cuda[did] , pind_cluster , sizeof(int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpyToSymbol( cuda_pind_cluster , &e->pind_cluster_cuda[did] , sizeof(int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+    }
+    free(pind_cluster);
+
+    // Store the potentials
+    for(did = 0; did < nr_devices; did++) {
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMalloc(&e->pots_cuda[did], sizeof(MxPotentialCUDA) * nr_pots) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpy(e->pots_cuda[did], pots_cuda, sizeof(MxPotentialCUDA) * nr_pots, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpyToSymbol(cuda_pots, &e->pots_cuda[did], sizeof(MxPotentialCUDA*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+    free(pots);
+    free(pots_cuda);
+    e->nr_pots_cuda = nr_pots;
+    
+    for(did = 0; did < nr_devices; did++) {
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMalloc(&e->pots_cluster_cuda[did], sizeof(MxPotentialCUDA) * nr_pots_cluster) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpy(e->pots_cluster_cuda[did], pots_cluster_cuda, sizeof(MxPotentialCUDA) * nr_pots_cluster, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if(cudaMemcpyToSymbol(cuda_pots_cluster, &e->pots_cluster_cuda[did], sizeof(MxPotentialCUDA*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+    free(pots_cluster);
+    free(pots_cluster_cuda);
+    e->nr_pots_cluster_cuda = nr_pots_cluster;
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Unload the potentials on the CUDA device
+ *
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_unload_pots(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        // Free the potentials.
+        
+        if(cudaFree(e->pind_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        
+        if(cudaFree(e->pind_cluster_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        
+        if(cudaFree((MxPotentialCUDA*)e->pots_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        
+        if(cudaFree((MxPotentialCUDA*)e->pots_cluster_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    e->nr_pots_cuda = 0;
+    e->nr_pots_cluster_cuda = 0;
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Refresh the potentials on the CUDA device. 
+ * 
+ * Can be safely called while on the CUDA device to reload all potential data from the engine. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err)
+ */
+extern "C" int engine_cuda_refresh_pots(struct engine *e) {
+    
+    if(engine_cuda_unload_pots(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_load_pots(e) < 0)
+        return error(engine_err);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+
+/**
+ * @brief Allocates particle buffers. Must be called before running on a CUDA device. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+int engine_cuda_allocate_particles(struct engine *e) {
+
+    /* Allocate the particle buffer. */
+    if((e->parts_cuda_local = (MxParticleCUDA*)malloc(sizeof(MxParticleCUDA) * e->s.size_parts)) == NULL)
+        return error(engine_err_malloc);
+
+    /* Allocate the particle and force data. */
+    for(int did = 0; did < e->nr_devices; did++) {
+        if (cudaSetDevice( e->devices[did] ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if (cudaMalloc(&e->parts_cuda[did], sizeof(MxParticleCUDA) * e->s.size_parts) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if (cudaMemcpyToSymbol(cuda_parts, &e->parts_cuda[did], sizeof(MxParticleCUDA *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        if (cudaMalloc(&e->forces_cuda[did], sizeof(float) * 4 * e->s.size_parts) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+    }
+
+    return engine_err_ok;
+}
+
+
+/**
+ * @brief Closes particle buffers. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+int engine_cuda_finalize_particles(struct engine *e) {
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        // Free the particle and force data
+
+        if(cudaFree(e->parts_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaFree(e->forces_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    // Free the particle buffer
+
+    free(e->parts_cuda_local);
+
+    return engine_err_ok;
+}
+
+
+/**
+ * @brief Refreshes particle buffers. Can be safely used to resize buffers while running on CUDA device. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_cuda_refresh_particles(struct engine *e) {
+
+    if(engine_cuda_finalize_particles(e) < 0)
+        return cuda_error(engine_err_cuda);
+
+    if(engine_cuda_allocate_particles(e) < 0)
+        return cuda_error(engine_err_cuda);
+
+    bool is_stateful = e->nr_fluxes_cuda > 1;
+
+    if(is_stateful && engine_cuda_refresh_particle_states(e) < 0) 
+        return error(engine_err_cuda);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+extern "C" int engine_cuda_allocate_particle_states(struct engine *e) {
+    int nr_states = e->nr_fluxes_cuda - 1;
+
+    if(nr_states <= 0 || nr_states == engine_cuda_nr_states) 
+        return engine_err_ok;
+
+    if(engine_cuda_nr_states > 0) 
+        if(engine_cuda_finalize_particle_states(e) < 0) 
+            return error(engine_err);
+    
+    if((e->part_states_cuda_local = (float*)malloc(sizeof(float) * e->s.size_parts * nr_states)) == NULL)
+        return error(engine_err_malloc);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if (cudaMalloc(&e->part_states_cuda[did], sizeof(float) * e->s.size_parts * nr_states) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+        
+        if (cudaMemcpyToSymbol(cuda_part_states, &e->part_states_cuda[did], sizeof(float *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    engine_cuda_nr_states = nr_states;
+
+    return engine_err_ok;
+}
+
+extern "C" int engine_cuda_finalize_particle_states(struct engine *e) {
+    if(engine_cuda_nr_states == 0) 
+        return engine_err_ok;
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaFree(e->part_states_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    // Free the particle buffer
+
+    free(e->part_states_cuda_local);
+
+    engine_cuda_nr_states = 0;
+
+    return engine_err_ok;
+}
+
+extern "C" int engine_cuda_refresh_particle_states ( struct engine *e ) {
+    if(engine_cuda_finalize_particle_states(e) < 0)
+        return cuda_error(engine_err_cuda);
+
+    if(engine_cuda_allocate_particle_states(e) < 0)
+        return cuda_error(engine_err_cuda);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}
+
+
+/**
+ * @brief Load the potentials and cell pairs onto the CUDA device.
+ *
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+ 
+extern "C" int engine_cuda_load ( struct engine *e ) {
+
+    int i, k, nr_tasks, c1 ,c2;
+    int did, *cellsorts;
+    struct space *s = &e->s;
+    int nr_devices = e->nr_devices;
+    struct task_cuda *tasks_cuda, *tc, *ts;
+    struct task *t;
+    float dt = e->dt, cutoff = e->s.cutoff, cutoff2 = e->s.cutoff2, dscale; //, buff[ e->nr_types ];
+    float h[3], dim[3], *corig;
+    void *dummy[ engine_maxgpu ];
+    unsigned int *cflags;
+    float3 *cdims;
+
+    /*Split the space over the available GPUs*/
+    engine_split_gpu( e , nr_devices , engine_split_GPU  );
     
     /* Copy the cell edge lengths to the device. */
     h[0] = s->h[0]*s->span[0];
@@ -2554,7 +3365,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_dim , dim , sizeof(float) * 3 , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
         
     /* Copy the cell origins to the device. */
     if ( ( corig = (float *)malloc( sizeof(float) * s->nr_cells * 3 ) ) == NULL )
@@ -2563,7 +3374,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
         corig[ 3*i + 0 ] = s->cells[i].origin[0];
         corig[ 3*i + 1 ] = s->cells[i].origin[1];
         corig[ 3*i + 2 ] = s->cells[i].origin[2];
-        }
+    }
     for ( did = 0 ; did < nr_devices ; did++ ) {
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
@@ -2571,63 +3382,64 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpy( dummy[did] , corig , sizeof(float) * s->nr_cells * 3 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_corig , &dummy[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpyToSymbol( cuda_corig , &dummy[did] , sizeof(float *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
     free( corig );
-    
-    /* Copy the potential indices to the device. */
-    for ( did = 0 ;did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+
+    // Copy the cell dimensions to devices
+    if((cdims = (float3*)malloc(sizeof(float3) * s->nr_cells)) == NULL)
+        return error(engine_err_malloc);
+    for(i = 0; i < s->nr_cells; i++) {
+        cdims[i] = make_float3(s->cells[i].dim[0], s->cells[i].dim[1], s->cells[i].dim[2]);
+    }
+    for(did = 0; did < nr_devices; did++) {
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if ( cudaMallocArray( &cuArray_pind[did] , &channelDesc_int , e->max_type * e->max_type , 1 ) != cudaSuccess )
+        if(cudaMalloc(&dummy[did], sizeof(float3) * s->nr_cells) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToArray( cuArray_pind[did] , 0 , 0 , pind , sizeof(int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if(cudaMemcpy(dummy[did], cdims, sizeof(float3) * s->nr_cells, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        }
-    
-    /* Store pind as a constant too. */
-    for ( did = 0 ;did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+        if(cudaMemcpyToSymbol(cuda_cdims, &dummy[did], sizeof(float3 *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if ( cudaMalloc( &pind_cuda[did] , sizeof(unsigned int) * e->max_type * e->max_type ) != cudaSuccess )
+    }
+    free(cdims);
+
+    // Copy the cell flags to devices
+    if((cflags = (unsigned int*)malloc(sizeof(unsigned int) * s->nr_cells)) == NULL)
+        return error(engine_err_malloc);
+    for(i = 0; i < s->nr_cells; i++)
+        cflags[i] = s->cells[i].flags;
+    for(did = 0; did < nr_devices; did++) {
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpy( pind_cuda[did] , pind , sizeof(unsigned int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if(cudaMalloc(&dummy[did], sizeof(unsigned int) * s->nr_cells) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_pind , &pind_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if(cudaMemcpy(dummy[did], cflags, sizeof(unsigned int) * s->nr_cells, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        }
-            
-    /* Bind the textures on the device. */
-    for ( did = 0 ;did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
+        if(cudaMemcpyToSymbol(cuda_cflags, &dummy[did], sizeof(unsigned int *), 0, cudaMemcpyHostToDevice) != cudaSuccess)
             return cuda_error(engine_err_cuda);
-        if ( cudaBindTextureToArray( tex_coeffs , cuArray_coeffs[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaBindTextureToArray( tex_pind , cuArray_pind[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        }
-        
+    }
+    free(cflags);
         
     /* Set the constant pointer to the null potential and other useful values. */
     dscale = ((float)SHRT_MAX) / ( 3.0 * sqrt( s->h[0]*s->h[0]*s->span[0]*s->span[0] + s->h[1]*s->h[1]*s->span[1]*s->span[1] + s->h[2]*s->h[2]*s->span[2]*s->span[2] ) );
     for ( did = 0 ;did < nr_devices ; did++ ) {
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_cutoff2 , &cutoff2 , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpyToSymbol( cuda_dt , &dt , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_cutoff , &cutoff , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+            return cuda_error(engine_err_cuda);
+        if ( cudaMemcpyToSymbol( cuda_cutoff2 , &cutoff2 , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_maxdist , &cutoff , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_maxtype , &(e->max_type) , sizeof(int) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-	printf("%i \n", e->max_type);
         if ( cudaMemcpyToSymbol( cuda_dscale , &dscale , sizeof(float) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_nr_cells , &(s->nr_cells) , sizeof(int) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        }
+    }
         
     /* Allocate and fill the task list. */
     if ( ( tasks_cuda = (struct task_cuda *)malloc( sizeof(struct task_cuda) * s->nr_tasks ) ) == NULL )
@@ -2665,26 +3477,25 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             if ( t->type == task_type_sort ) {
                 tc->flags = 0;
                 cellsorts[ t->i ] = nr_tasks;
-                }
+            }
 
-	    /*Add the cell to list of cells for this GPU if needed*/
-  	    c1=1; c2=1;
-	    for(int i = 0; i < e->cells_cuda_nr[did] ; i++ )
-	    {
-	    /* Check cell is valid */
-		if(t->i < 0 || t->i == e->cells_cuda_local[did][i])
-		    c1 = 0;
-		if(t->j < 0 || t->j == e->cells_cuda_local[did][i])
-		    c2 = 0;
-   	    }
-	    if( c1 )
-		e->cells_cuda_local[did][e->cells_cuda_nr[did]++] = t->i;
-	    if( c2 )
-		e->cells_cuda_local[did][e->cells_cuda_nr[did]++] = t->j;	                
+            /*Add the cell to list of cells for this GPU if needed*/
+            c1=1; c2=1;
+            for(int i = 0; i < e->cells_cuda_nr[did] ; i++ ) {
+                /* Check cell is valid */
+                if(t->i < 0 || t->i == e->cells_cuda_local[did][i])
+                    c1 = 0;
+                if(t->j < 0 || t->j == e->cells_cuda_local[did][i])
+                    c2 = 0;
+            }
+            if( c1 )
+                e->cells_cuda_local[did][e->cells_cuda_nr[did]++] = t->i;
+            if( c2 )
+                e->cells_cuda_local[did][e->cells_cuda_nr[did]++] = t->j;	                
             /* Add one task. */
             nr_tasks += 1;
 		
-            }
+        }
 
         /* Link each pair task to its sorts. */
         for ( i = 0 ; i < nr_tasks ; i++ ) {
@@ -2699,8 +3510,8 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
                 ts->flags |= (1 << tc->flags);
                 ts->unlock[ ts->nr_unlock ] = i;
                 ts->nr_unlock += 1;
-                }
             }
+        }
         
         /* Set the waits. */
         for ( i = 0 ; i < nr_tasks ; i++ )
@@ -2720,7 +3531,7 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
         /* Remember the number of tasks. */
         e->nrtasks_cuda[did] = nr_tasks;
             
-        }
+    }
     
 	/* Clean up */
     free( tasks_cuda );
@@ -2732,23 +3543,23 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMalloc( &e->sortlists_cuda[did] , sizeof(unsigned int) * s->nr_parts * 13 ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_sortlists , &e->sortlists_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
+        if ( cudaMemcpyToSymbol( cuda_sortlists , &e->sortlists_cuda[did] , sizeof(unsigned int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
 
 
     for ( did = 0 ;did < nr_devices ; did++ ) {
 	    /* Allocate the cell counts and offsets. */
-    if ( ( e->counts_cuda_local[did] = (int *)malloc( sizeof(int) * s->nr_cells ) ) == NULL ||
-         ( e->ind_cuda_local[did] = (int *)malloc( sizeof(int) * s->nr_cells ) ) == NULL )
-        return error(engine_err_malloc);
+        if ( ( e->counts_cuda_local[did] = (int *)malloc( sizeof(int) * s->nr_cells ) ) == NULL ||
+            ( e->ind_cuda_local[did] = (int *)malloc( sizeof(int) * s->nr_cells ) ) == NULL )
+            return error(engine_err_malloc);
         if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMalloc( &e->counts_cuda[did] , sizeof(int) * s->nr_cells ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
         if ( cudaMalloc( &e->ind_cuda[did] , sizeof(int) * s->nr_cells ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
         
     /* Allocate and init the taboo list on the device. */
     for ( did = 0 ;did < nr_devices ; did++ ) {
@@ -2760,42 +3571,28 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
             return cuda_error(engine_err_cuda);
         if ( cudaMemcpyToSymbol( cuda_taboo , &dummy[did] , sizeof(int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
             return cuda_error(engine_err_cuda);
-        }
+    }
+
+    // Allocate random number generators
+    if(engine_cuda_rand_norm_init(e) < 0)
+        return error(engine_err);
+
+    // Allocate boundary conditions
+    if(engine_cuda_boundary_conditions_load(e) < 0)
+        return error(engine_err);
         
-    /* Allocate the particle buffer. */
-    #ifdef PARTS_TEX
-        if ( ( e->parts_cuda_local = (float4 *)malloc( sizeof( float4 ) * s->nr_cells * 512 ) ) == NULL )
-            return error(engine_err_malloc);
-    #else
-        if ( ( e->parts_cuda_local = (float4 *)malloc( sizeof( float4 ) * s->nr_parts ) ) == NULL )
-            return error(engine_err_malloc);
-    #endif
+    if(engine_cuda_allocate_particles(e) < 0)
+        return error(engine_err);
 
-    /* Allocate the particle and force data. */
-    for ( did = 0 ;did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_nr_parts , &s->nr_parts , sizeof(int *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        #ifdef PARTS_TEX
-            tex_parts.addressMode[0] = cudaAddressModeClamp;
-            tex_parts.addressMode[1] = cudaAddressModeClamp;
-            tex_parts.filterMode = cudaFilterModePoint;
-            tex_parts.normalized = false;
-            if ( cudaMallocArray( (cudaArray **)&e->cuArray_parts[did] , &channelDesc_float4 , 512 , s->nr_cells ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-            if ( cudaBindTextureToArray( tex_parts , (cudaArray *)e->cuArray_parts[did] ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-        #else
-            if ( cudaMalloc( &e->parts_cuda[did] , sizeof( float4 ) * s->nr_parts ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-            if ( cudaMemcpyToSymbol( cuda_parts , &e->parts_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-                return cuda_error(engine_err_cuda);
-        #endif
-        if ( cudaMalloc( &e->forces_cuda[did] , sizeof( float ) * 3 * s->nr_parts ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        }
+    if(engine_cuda_load_pots(e) < 0)
+        return error(engine_err);
 
+    if(engine_cuda_load_fluxes(e) < 0)
+        return error(engine_err);
+        
+    if(engine_cuda_allocate_particle_states(e) < 0)
+        return error(engine_err);
+    
     /* Init the pair queue on the device. */
     if ( engine_cuda_queues_load( e ) < 0 )
         return error(engine_err);
@@ -2803,10 +3600,103 @@ extern "C" int engine_cuda_load ( struct engine *e ) {
     /* He's done it! */
     return engine_err_ok;
     
+}
+
+
+/**
+ * @brief Removes the potentials and cell pairs on the CUDA device.
+ *
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+extern "C" int engine_parts_finalize(struct engine *e) {
+
+    if(engine_cuda_rand_norm_finalize(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_boundary_conditions_finalize(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_unload_pots(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_finalize_particles(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_finalize_particle_states(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_unload_fluxes(e) < 0)
+        return error(engine_err);
+
+    for(int did = 0; did < e->nr_devices; did++) {
+
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        e->nrtasks_cuda[did] = 0;
+
+        // Free the sort list, counts and indices
+
+        if(cudaFree(e->sortlists_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaFree(e->counts_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+        if(cudaFree(e->ind_cuda[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
     }
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Unload the potentials and cell pairs on the CUDA device.
+ *
+ * @param e The #engine.
+ *
+ * @return #engine_err_ok or < 0 on error (see #engine_err).
+ */
+ 
+extern "C" int engine_cuda_finalize ( struct engine *e ) {
+    if(engine_parts_finalize(e) < 0)
+        return error(engine_err);
+
+    if(engine_cuda_queues_finalize(e) < 0)
+        return error(engine_err);
+
+    return engine_err_ok;
+}
+
+/**
+ * @brief Refresh the engine image on the CUDA device. 
+ * 
+ * Can be safely called while on the CUDA device to reload all data from the engine. 
+ * 
+ * @param e The #engine
+ * 
+ * @return #engine_err_ok or < 0 on error (see #engine_err)
+ */
+extern "C" int engine_cuda_refresh(struct engine *e) {
     
-    
+    if(engine_cuda_finalize(e) < 0)
+        return error(engine_err);
 
+    if(engine_cuda_load(e) < 0)
+        return error(engine_err);
 
+    for(int did = 0; did < e->nr_devices; did++) {
 
+        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
+            return cuda_error(engine_err_cuda);
 
+        if(cudaDeviceSynchronize() != cudaSuccess)
+            return cuda_error(engine_err_cuda);
+
+    }
+
+    return engine_err_ok;
+}

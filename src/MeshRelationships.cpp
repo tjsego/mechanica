@@ -8,6 +8,8 @@
 #include <MeshRelationships.h>
 #include <MxEdge.h>
 #include "MxMesh.h"
+#include <mx_error.h>
+
 #include <algorithm>
 #include <iostream>
 
@@ -212,7 +214,7 @@ HRESULT insertPolygonEdge(PolygonPtr poly, EdgePtr edge)
     // push all the items down one, and insert the new values.
     poly->vertices.insert(poly->vertices.begin() + nextPos, newVert);
     poly->edges.insert(poly->edges.begin() + refVertPolyIndex, edge);
-    poly->_vertexNormals.insert(poly->_vertexNormals.begin() + nextPos, Vector3{});
+    poly->_vertexNormals.insert(poly->_vertexNormals.begin() + nextPos, MxVector3f{});
     poly->_vertexAreas.insert(poly->_vertexAreas.begin() + nextPos, 0);
 
     return S_OK;
@@ -401,7 +403,7 @@ HRESULT splitPolygonEdge(PolygonPtr poly, EdgePtr newEdge, EdgePtr refEdge)
     // push all the items down one, and insert the new values.
     poly->vertices.insert(poly->vertices.begin() + vertInsertPos, newVert);
     poly->edges.insert(poly->edges.begin() + edgeInsertPos, newEdge);
-    poly->_vertexNormals.insert(poly->_vertexNormals.begin() + vertInsertPos, Vector3{});
+    poly->_vertexNormals.insert(poly->_vertexNormals.begin() + vertInsertPos, MxVector3f{});
     poly->_vertexAreas.insert(poly->_vertexAreas.begin() + vertInsertPos, 0);
 
     std::cout << "updated polygon: " << poly << std::endl;
@@ -455,7 +457,7 @@ HRESULT replacePolygonVertexWithEdgeAndVertices(PolygonPtr poly, CVertexPtr vert
         std::vector<EdgePtr>::iterator ei = poly->edges.begin() + e1Index;
         poly->edges.insert(ei, edge);
 
-        poly->_vertexNormals.insert(poly->_vertexNormals.begin() + vIndex, Vector3{});
+        poly->_vertexNormals.insert(poly->_vertexNormals.begin() + vIndex, MxVector3f{});
         poly->_vertexAreas.insert(poly->_vertexAreas.begin() + vIndex, 0);
 
         std::cout << "poly after insert: " << poly << std::endl;
@@ -481,7 +483,7 @@ HRESULT replacePolygonVertexWithEdgeAndVertices(PolygonPtr poly, CVertexPtr vert
   
         poly->edges.insert(ei, edge);
 
-        poly->_vertexNormals.insert(poly->_vertexNormals.begin() + vIndex, Vector3{});
+        poly->_vertexNormals.insert(poly->_vertexNormals.begin() + vIndex, MxVector3f{});
         poly->_vertexAreas.insert(poly->_vertexAreas.begin() + vIndex, 0);
 
         std::cout << "poly after insert: " << poly << std::endl;

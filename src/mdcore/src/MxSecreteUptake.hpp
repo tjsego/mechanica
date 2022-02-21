@@ -8,21 +8,28 @@
 #ifndef SRC_MDCORE_SRC_MXSECRETEUPTAKE_HPP_
 #define SRC_MDCORE_SRC_MXSECRETEUPTAKE_HPP_
 
-#include "carbon.h"
+#include "../../state/MxSpeciesValue.h"
+#include "MxParticleList.hpp"
+
 #include <set>
 
+// Simple methods container
+struct MxSecreteUptake {
 
-HRESULT MxSecrete_AmountToParticles(struct CSpeciesValue* species,
-                                    float amount,
+    static double secrete(MxSpeciesValue *species, const double &amount, const MxParticleList &to);
+    static double secrete(MxSpeciesValue *species, const double &amount, const double &distance);
+
+};
+
+HRESULT MxSecrete_AmountToParticles(struct MxSpeciesValue* species,
+                                    double amount,
                                     uint16_t nr_parts, int32_t *parts,
-                                    float *secreted);
+                                    double *secreted);
 
-HRESULT MxSecrete_AmountWithinDistance(struct CSpeciesValue* species,
-                                       float amount,
-                                       float radius,
+HRESULT MxSecrete_AmountWithinDistance(struct MxSpeciesValue* species,
+                                       double amount,
+                                       double radius,
                                        const std::set<short int> *typeIds,
-                                       float *secreted);
-
-HRESULT _MxSecreteUptake_Init(PyObject *m);
+                                       double *secreted);
 
 #endif /* SRC_MDCORE_SRC_MXSECRETEUPTAKE_HPP_ */

@@ -19,27 +19,27 @@ HRESULT MxPolygonAreaConstraint::setTime(float time)
     return S_OK;
 }
 
-float MxPolygonAreaConstraint::energy(const CObject** objs, int32_t len)
+float MxPolygonAreaConstraint::energy(const std::vector<MxConstrainable*> &objs)
 {
     float e = 0;
-    for(int i = 0; i < len; ++i) {
-        e += energy(objs[i]);
+    for(auto o : objs) {
+        e += energy(o);
     }
     return e;
 }
 
-HRESULT MxPolygonAreaConstraint::project(CObject** obj, int32_t len)
+HRESULT MxPolygonAreaConstraint::project(const std::vector<MxConstrainable*> &objs)
 {
 
-    for(int i = 0; i < len; ++i) {
+    for(auto o : objs) {
 
-        MxPolygon *poly = static_cast<MxPolygon*>(obj[i]);
+        MxPolygon *poly = static_cast<MxPolygon*>(o);
 
         float k = energy(poly);
 
         for(uint i = 0; i < poly->vertices.size(); ++i) {
             VertexPtr vi = poly->vertices[i];
-            Vector3 vec = vi->position - poly->centroid;
+            MxVector3f vec = vi->position - poly->centroid;
             vi->position -= k * vec.normalized();
         }
 
@@ -55,7 +55,7 @@ HRESULT MxPolygonAreaConstraint::project(CObject** obj, int32_t len)
     return S_OK;
 }
 
-float MxPolygonAreaConstraint::energy(const CObject* obj)
+float MxPolygonAreaConstraint::energy(const MxConstrainable* obj)
 {
     const MxPolygon *poly = static_cast<const MxPolygon*>(obj);
     return lambda * (poly->area - targetArea);

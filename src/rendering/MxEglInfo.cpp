@@ -24,8 +24,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "MxGlInfo.h"
-#include "CConvert.hpp"
+#include "MxEglInfo.h"
 
 #include <sstream>
 #include <iomanip>
@@ -260,10 +259,13 @@ std::string print_eglinfo()
 					      EGL_DEFAULT_DISPLAY,
 					      NULL), "X11 platform");
      
+     #ifdef EGL_PLATFORM_SURFACELESS_MESA
      if (strstr(clientext, "EGL_MESA_platform_surfaceless"))
        ret += doOneDisplay(ss, getPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA,
 					      EGL_DEFAULT_DISPLAY,
 					      NULL), "Surfaceless platform");
+     #endif
+     
      if (strstr(clientext, "EGL_EXT_platform_device"))
        ret += doOneDisplay(ss, getPlatformDisplay(EGL_PLATFORM_DEVICE_EXT,
 					      EGL_DEFAULT_DISPLAY,
@@ -280,18 +282,14 @@ std::string print_eglinfo()
 
 #endif
 
-PyObject *Mx_EglInfo(PyObject *args, PyObject *kwds) {
-
+const std::string MxEGLInfo::getInfo() {
 #ifdef MX_LINUX
-  std::string info = print_eglinfo();
+   return print_eglinfo();
 #else
-  
-  std::string info = "Not a Linux system, no EGL";
+   return "Not a Linux system, no EGL";
 #endif
-  
-  PyObject *result = carbon::cast(info);
-
-  return result;
 }
 
-
+std::string Mx_EglInfo() {
+   return MxEGLInfo::getInfo();
+}

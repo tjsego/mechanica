@@ -134,11 +134,44 @@ MX_ALWAYS_INLINE bool boundary_potential_eval_ex(const struct space_cell *cell,
         dx[2] = bc->normal[2] * pot->a;
     }
 
+    // if distance is less that potential min distance, define random
+    // for repulsive force.
+    if(r2 < pot->a * pot->a) {
+        dx[0] = space_cell_gaussian(cell->id);
+        dx[1] = space_cell_gaussian(cell->id);
+        dx[2] = space_cell_gaussian(cell->id);
+        float len = std::sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
+        dx[0] = dx[0] * pot->a / len;
+        dx[1] = dx[1] * pot->a / len;
+        dx[2] = dx[2] * pot->a / len;
+        r2 = pot->a * pot->a;
+    }
+    
     if(pot->kind == POTENTIAL_KIND_DPD) {
         /* update the forces if part in range */
         if (dpd_boundary_eval((DPDPotential*)pot, space_cell_gaussian(cell->id), part, bc->velocity.data(), dx, r2 , &e)) {
             /* tabulate the energy */
             *epot += e;
+            result = true;
+        }
+    }
+    else if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+        FPTYPE fv[3] = {0., 0., 0.};
+
+        pot->eval_bypart(pot, part, dx, r2, &e, fv);
+
+        for (int k = 0 ; k < 3 ; k++ ) {
+            part->f[k] += fv[k];
+        }
+        
+        /* tabulate the energy */
+        *epot += e;
+        result = true;
+    }
+    else if(pot->kind == POTENTIAL_KIND_COMBINATION) {
+        if(pot->flags & POTENTIAL_SUM) {
+            boundary_potential_eval_ex(cell, pot->pca, part, bc, dx, r2, epot);
+            boundary_potential_eval_ex(cell, pot->pcb, part, bc, dx, r2, epot);
             result = true;
         }
     }

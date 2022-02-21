@@ -13,9 +13,10 @@
 #include "MxCellVolumeConstraint.h"
 #include "MxPolygonAreaConstraint.h"
 #include <MxPolygonSurfaceTensionForce.h>
+#include <mx_error.h>
 
-MxPolygonType basicPolygonType{"BasicPolygon", MxPolygon_Type};
-MxPolygonType growingPolygonType{"GrowingPolygon", MxPolygon_Type};
+MxPolygonType basicPolygonType{"BasicPolygon"};
+MxPolygonType growingPolygonType{"GrowingPolygon"};
 
 MxCellVolumeConstraint cellVolumeConstraint{0., 0.};
 MxPolygonAreaConstraint areaConstraint{0.1, 0.01};
@@ -32,19 +33,19 @@ static struct CylinderCellType : MxCellType
 
     virtual ~CylinderCellType() {};
 
-    CylinderCellType() : MxCellType{"CylinderCell", MxCell_Type} {};
+    CylinderCellType() : MxCellType{"CylinderCell"} {};
 } cylinderCellType;
 
 static struct MeshObjectTypeHandler : IMeshObjectTypeHandler {
-    virtual CType *cellType(const char* cellName, int cellIndex) {
+    virtual MxCellType *cellType(const char* cellName, int cellIndex) {
         return &cylinderCellType;
     }
 
-    virtual CType *polygonType(int polygonIndex) {
+    virtual MxPolygonType *polygonType(int polygonIndex) {
         return &basicPolygonType;
     }
 
-    virtual CType *partialPolygonType(const CType *cellType, const CType *polyType) {
+    virtual MxPartialPolygonType *partialPolygonType(const MxCellType *cellType, const MxPolygonType *polyType) {
         return nullptr;
     }
 
@@ -91,7 +92,7 @@ void MxCylinderModel::loadAssImpModel(const char* fileName) {
 
     propagator->bindForce(&growingPolygonForce, &growingPolygonType);
 
-    mesh->selectObject(MxPolygon_Type, 367);
+    mesh->selectObject(MxMesh_TYPESEL::MxMesh_TYPEPOLYGON, 367);
 
     CellPtr cell = mesh->cells[1];
 
@@ -129,48 +130,43 @@ void MxCylinderModel::setTargetVolume(float tv)
 }
 
 HRESULT MxCylinderModel::applyT1Edge2TransitionToSelectedEdge() {
-    CObject *obj = mesh->selectedObject();
-    if(obj && dyn_cast<MxEdge>(obj)) {
-        return Mx_FlipEdge(mesh, EdgePtr(obj));
-    }
-    return mx_error(E_FAIL, "no selected object, or selected object is not an edge");
+    if(!mesh->selectedEdge()) return mx_error(E_FAIL, "no selected object, or selected object is not an edge");
+
+    return Mx_FlipEdge(mesh, mesh->selectedObject<MxEdge>());
 }
 
 HRESULT MxCylinderModel::applyT2PolygonTransitionToSelectedPolygon()
 {
-    CObject *obj = mesh->selectedObject();
-    if(obj && dyn_cast<MxPolygon>(obj)) {
-        HRESULT result = Mx_CollapsePolygon(mesh, (PolygonPtr)obj);
+    if(!mesh->selectedPolygon()) return mx_error(E_FAIL, "no selected object, or selected object is not a polygon");
+    
+    HRESULT result = Mx_CollapsePolygon(mesh, mesh->selectedObject<MxPolygon>());
 
-        if(SUCCEEDED(result)) {
+    if(SUCCEEDED(result)) {
 
-        }
-
-        return result;
     }
-    return mx_error(E_FAIL, "no selected object, or selected object is not a polygon");
+
+    return result;
 }
 
 HRESULT MxCylinderModel::applyT3PolygonTransitionToSelectedPolygon() {
-    MxPolygon *poly = dyn_cast<MxPolygon>(mesh->selectedObject());
-    if(poly) {
+    if(!mesh->selectedPolygon()) return mx_error(E_FAIL, "no selected object, or selected object is not a polygon");
 
-        // make an cut plane perpendicular to the zeroth vertex
-        Magnum::Vector3 normal = poly->vertices[0]->position - poly->centroid;
+    MxPolygon *poly = mesh->selectedObject<MxPolygon>();
 
-        MxPolygon *p1, *p2;
+    // make an cut plane perpendicular to the zeroth vertex
+    MxVector3f normal = poly->vertices[0]->position - poly->centroid;
 
-        HRESULT result = Mx_SplitPolygonBisectPlane(mesh, poly, &normal, &p1, &p2);
+    MxPolygon *p1, *p2;
 
-        if(SUCCEEDED(result)) {
+    HRESULT result = Mx_SplitPolygonBisectPlane(mesh, poly, &normal, &p1, &p2);
 
-        }
-        
-        VERIFY(propagator->structureChanged());
+    if(SUCCEEDED(result)) {
 
-        return result;
     }
-    return mx_error(E_FAIL, "no selected object, or selected object is not a polygon");
+    
+    VERIFY(propagator->structureChanged());
+
+    return result;
 }
 
 float MxCylinderModel::minTargetVolume()
@@ -232,15 +228,15 @@ static float PolyDistance = 1;
 
 HRESULT MxCylinderModel::changePolygonTypes()
 {
-    CObject *obj = mesh->selectedObject();
-    MxPolygon *poly = dyn_cast<MxPolygon>(obj);
+    if(mesh->selectedPolygon()) {
+        MxPolygon *poly = mesh->selectedObject<MxPolygon>();
 
-    if(CType_IsSubtype(obj->ob_type, MxPolygon_Type)) {
         for(PolygonPtr p : mesh->polygons) {
             
             float distance = (poly->centroid - p->centroid).length();
             if(distance <= PolyDistance) {
-                VERIFY(CObject_ChangeType(p, &growingPolygonType));
+                p->forceType = &growingPolygonType;
+                p->constraintType = &growingPolygonType;
             }
         }
         VERIFY(propagator->structureChanged());
@@ -253,8 +249,6 @@ HRESULT MxCylinderModel::changePolygonTypes()
 
 HRESULT MxCylinderModel::activateAreaConstraint()
 {
-    CObject *obj = mesh->selectedObject();
- 
     propagator->bindConstraint(&areaConstraint, &growingPolygonType);
     return propagator->structureChanged();
 }
@@ -297,85 +291,4 @@ float MxCylinderModel::growSurfaceTensionMin()
 float MxCylinderModel::growSurfaceTensionMax()
 {
     return 5 * growingPolygonForce.surfaceTension;
-}
-
-
-
-static void _dealloc(MxCylinderModel *app) {
-    std::cout << MX_FUNCTION << std::endl;
-}
-
-static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    std::cout << MX_FUNCTION << std::endl;
-    Py_RETURN_NONE;
-}
-
-static PyMethodDef _methods[] = {
-    //{"testImage", (PyCFunction)_testImage, METH_VARARGS,  "make a test image" },
-    {NULL}  /* Sentinel */
-};
-
-static PyTypeObject _type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
-    .tp_name = "mechanica.CylinderModel",
-    .tp_basicsize = sizeof(MxCylinderModel),
-    .tp_itemsize = 0,
-    .tp_dealloc = (destructor)_dealloc,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr = 0,
-    .tp_setattr = 0,
-    .tp_as_async = 0,
-    .tp_repr = 0,
-    .tp_as_number = 0,
-    .tp_as_sequence = 0,
-    .tp_as_mapping = 0,
-    .tp_hash = 0,
-    .tp_call = 0,
-    .tp_str = 0,
-    .tp_getattro = 0,
-    .tp_setattro = 0,
-    .tp_as_buffer = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_doc = 0,
-    .tp_traverse = 0,
-    .tp_clear = 0,
-    .tp_richcompare = 0,
-    .tp_weaklistoffset = 0,
-    .tp_iter = 0,
-    .tp_iternext = 0,
-    .tp_methods = _methods,
-    .tp_members = 0,
-    .tp_getset = 0,
-    .tp_base = 0,
-    .tp_dict = 0,
-    .tp_descr_get = 0,
-    .tp_descr_set = 0,
-    .tp_dictoffset = 0,
-    .tp_init = 0,
-    .tp_alloc = 0,
-    .tp_new = _new,
-    .tp_free = 0,
-    .tp_is_gc = 0,
-    .tp_bases = 0,
-    .tp_mro = 0,
-    .tp_cache = 0,
-    .tp_subclasses = 0,
-    .tp_weaklist = 0,
-    .tp_del = 0,
-    .tp_version_tag = 0,
-    .tp_finalize = 0,
-};
-
-PyTypeObject *MxCylinderModel_Type = &_type;
-
-HRESULT MxCylinderModel_init(PyObject* m) {
-
-    if (PyType_Ready((PyTypeObject *)MxCylinderModel_Type) < 0)
-        return E_FAIL;
-
-
-    Py_INCREF(MxCylinderModel_Type);
-    PyModule_AddObject(m, "CylinderModel", (PyObject *) MxCylinderModel_Type);
-
-    return 0;
 }

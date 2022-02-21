@@ -30,6 +30,7 @@
 #include <float.h>
 #include <string.h>
 #include <limits.h>
+#include <unordered_set>
 
 /* Include some conditional headers. */
 #include "mdcore_config.h"
@@ -41,20 +42,27 @@
 #endif
 
 /* Include local headers */
+#include "../../mx_error.h"
+#include "../../MxUtil.h"
+#include "../../MxLogger.h"
 #include "cycle.h"
 #include "errs.h"
 #include "fptype.h"
 #include "lock.h"
-#include <MxParticle.h>
-#include <MxPotential.h>
 #include "potential_eval.hpp"
 #include <space_cell.h>
 #include "space.h"
 #include "engine.h"
-#include "MxConvert.hpp"
+#include <../../io/MxFIO.h>
+#include <../../rendering/MxStyle.hpp>
+
+#ifdef HAVE_CUDA
+#include "angle_cuda.h"
+#endif
 
 #include <iostream>
 
+MxStyle *MxAngle_StylePtr = new MxStyle("aqua");
 
 
 /* Global variables. */
@@ -70,12 +78,6 @@ const char *angle_err_msg[2] = {
 	"Nothing bad happened.",
     "An unexpected NULL pointer was encountered."
 	};
-
-
-static int angle_init(MxAngle*, PyObject *, PyObject *);
-
-static MxAngle *angle_alloc(PyTypeObject *type, Py_ssize_t);
-
     
 
 /**
@@ -88,29 +90,40 @@ static MxAngle *angle_alloc(PyTypeObject *type, Py_ssize_t);
  * 
  * @return #angle_err_ok or <0 on error (see #angle_err)
  */
- 
-int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out ) {
+int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out ) { 
 
+    #ifdef HAVE_CUDA
+    if(e->angles_cuda) {
+        return engine_angle_eval_cuda(a, N, e, epot_out);
+    }
+    #endif
+
+    MxAngle *angle;
     int aid, pid, pjd, pkd, k, *loci, *locj, *lock, shift;
     double h[3], epot = 0.0;
     struct space *s;
     struct MxParticle *pi, *pj, *pk, **partlist;
     struct space_cell **celllist;
-    struct MxPotential *pot;
+    struct MxPotential *pot, *pota;
+    std::vector<struct MxPotential *> pots;
     Magnum::Vector3 xi, xj, xk, dxi, dxk;
-    FPTYPE ctheta, wi, wk;
+    FPTYPE ctheta, wi, wk, fi[3], fk[3], fic, fkc;
     Magnum::Vector3 rji, rjk;
-    FPTYPE inji, injk, dprod;
+    FPTYPE ee, inji, injk, dprod;
+    std::unordered_set<struct MxAngle*> toDestroy;
+    toDestroy.reserve(N);
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0;
     FPTYPE *effi[VEC_SIZE], *effj[VEC_SIZE], *effk[VEC_SIZE];
     FPTYPE cthetaq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
-    FPTYPE ee[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
+    FPTYPE eeq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE eff[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE diq[VEC_SIZE*3], dkq[VEC_SIZE*3];
+    struct MxAngle *angleq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
 #else
-    FPTYPE ee, eff;
+    FPTYPE eff;
 #endif
     
     /* Check inputs. */
@@ -126,9 +139,19 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
         
     /* Loop over the angles. */
     for ( aid = 0 ; aid < N ; aid++ ) {
+        angle = &a[aid];
+        angle->potential_energy = 0.0;
+
+        if(MxAngle_decays(angle)) {
+            toDestroy.insert(angle);
+            continue;
+        }
+
+        if(!(a->flags & ANGLE_ACTIVE))
+            continue;
     
         /* Get the particles involved. */
-        pid = a[aid].i; pjd = a[aid].j; pkd = a[aid].k;
+        pid = angle->i; pjd = angle->j; pkd = angle->k;
         if ( ( pi = partlist[ pid] ) == NULL )
             continue;
         if ( ( pj = partlist[ pjd ] ) == NULL )
@@ -141,9 +164,15 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
             continue;
             
         /* Get the potential. */
-        if ( ( pot = a[aid].potential) == NULL )
+        if ( ( pota = angle->potential) == NULL )
             continue;
     
+        if(pota->kind == POTENTIAL_KIND_COMBINATION && pota->flags & POTENTIAL_SUM) {
+            pots = pota->constituents();
+            if(pots.size() == 0) pots = {pota};
+        }
+        else pots = {pota};
+        
         /* get the particle positions relative to pj's cell. */
         loci = celllist[ pid ]->loc;
         locj = celllist[ pjd ]->loc;
@@ -184,7 +213,8 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
         if(ctheta == 0 || ctheta == -1) {
             std::uniform_real_distribution<float> dist{-1, 1};
             // make a random vector
-            Magnum::Vector3 x{dist(CRandom), dist(CRandom), dist(CRandom)};
+            MxRandomType &MxRandom = MxRandomEngine();
+            Magnum::Vector3 x{dist(MxRandom), dist(MxRandom), dist(MxRandom)};
             
             // vector between outer particles
             Magnum::Vector3 vik = xi - xk;
@@ -200,95 +230,124 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
                 dxk[k] = ( rji[k]*inji - ctheta * rjk[k]*injk ) * injk;
             }
         }
+
+        for(int i = 0; i < pots.size(); i++) {
+            pot = pots[i];
         
-        /* printf( "angle_eval: cos of angle %i (%s-%s-%s) is %e.\n" , aid ,
-            e->types[pi->type].name , e->types[pj->type].name , e->types[pk->type].name , ctheta ); */
-        /* printf( "angle_eval: ids are ( %i , %i , %i ).\n" , pi->id , pj->id , pk->id );
-        if ( e->s.celllist[pid] != e->s.celllist[pjd] )
-            printf( "angle_eval: pi and pj are in different cells!\n" );
-        if ( e->s.celllist[pkd] != e->s.celllist[pjd] )
-            printf( "angle_eval: pk and pj are in different cells!\n" );
-        printf( "angle_eval: xi-xj is [ %e , %e , %e ], ||xi-xj||=%e.\n" ,
-            xi[0]-xj[0] , xi[1]-xj[1] , xi[2]-xj[2] , sqrt( (xi[0]-xj[0])*(xi[0]-xj[0]) + (xi[1]-xj[1])*(xi[1]-xj[1]) + (xi[2]-xj[2])*(xi[2]-xj[2]) ) );
-        printf( "angle_eval: xk-xj is [ %e , %e , %e ], ||xk-xj||=%e.\n" ,
-            xk[0]-xj[0] , xk[1]-xj[1] , xk[2]-xj[2] , sqrt( (xk[0]-xj[0])*(xk[0]-xj[0]) + (xk[1]-xj[1])*(xk[1]-xj[1]) + (xk[2]-xj[2])*(xk[2]-xj[2]) ) ); */
-        /* printf( "angle_eval: dxi is [ %e , %e , %e ], ||dxi||=%e.\n" ,
-            dxi[0] , dxi[1] , dxi[2] , sqrt( dxi[0]*dxi[0] + dxi[1]*dxi[1] + dxi[2]*dxi[2] ) );
-        printf( "angle_eval: dxk is [ %e , %e , %e ], ||dxk||=%e.\n" ,
-            dxk[0] , dxk[1] , dxk[2] , sqrt( dxk[0]*dxk[0] + dxk[1]*dxk[1] + dxk[2]*dxk[2] ) ); */
-        if ( ctheta < pot->a || ctheta > pot->b ) {
-            printf( "angle_eval[%i]: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
-                e->nodeID , aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
-            ctheta = FPTYPE_FMAX( pot->a , FPTYPE_FMIN( pot->b , ctheta ) );
-        }
-
-        #ifdef VECTORIZE
-            /* add this angle to the interaction queue. */
-            cthetaq[icount] = ctheta;
-            diq[icount*3] = dxi[0];
-            diq[icount*3+1] = dxi[1];
-            diq[icount*3+2] = dxi[2];
-            dkq[icount*3] = dxk[0];
-            dkq[icount*3+1] = dxk[1];
-            dkq[icount*3+2] = dxk[2];
-            effi[icount] = pi->f;
-            effj[icount] = pj->f;
-            effk[icount] = pk->f;
-            potq[icount] = pot;
-            icount += 1;
-
-            /* evaluate the interactions if the queue is full. */
-            if ( icount == VEC_SIZE ) {
-
-                #if defined(FPTYPE_SINGLE)
-                    #if VEC_SIZE==8
-                    potential_eval_vec_8single_r( potq , cthetaq , ee , eff );
-                    #else
-                    potential_eval_vec_4single_r( potq , cthetaq , ee , eff );
-                    #endif
-                #elif defined(FPTYPE_DOUBLE)
-                    #if VEC_SIZE==4
-                    potential_eval_vec_4double_r( potq , cthetaq , ee , eff );
-                    #else
-                    potential_eval_vec_2double_r( potq , cthetaq , ee , eff );
-                    #endif
-                #endif
-
-                /* update the forces and the energy */
-                for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                    epot += ee[l];
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
-                        effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
-                        effj[l][k] += wi + wk;
-                        }
-                    }
-
-                /* re-set the counter. */
-                icount = 0;
-
-                }
-        #else
-            /* evaluate the angle */
-            #ifdef EXPLICIT_POTENTIALS
-                potential_eval_expl( pot , ctheta , &ee , &eff );
-            #else
-                potential_eval_r( pot , ctheta , &ee , &eff );
-            #endif
-            
-            /* update the forces */
-            for ( k = 0 ; k < 3 ; k++ ) {
-                pi->f[k] -= ( wi = eff * dxi[k] );
-                pk->f[k] -= ( wk = eff * dxk[k] );
-                pj->f[k] += wi + wk;
+            /* printf( "angle_eval: cos of angle %i (%s-%s-%s) is %e.\n" , aid ,
+                e->types[pi->type].name , e->types[pj->type].name , e->types[pk->type].name , ctheta ); */
+            /* printf( "angle_eval: ids are ( %i , %i , %i ).\n" , pi->id , pj->id , pk->id );
+            if ( e->s.celllist[pid] != e->s.celllist[pjd] )
+                printf( "angle_eval: pi and pj are in different cells!\n" );
+            if ( e->s.celllist[pkd] != e->s.celllist[pjd] )
+                printf( "angle_eval: pk and pj are in different cells!\n" );
+            printf( "angle_eval: xi-xj is [ %e , %e , %e ], ||xi-xj||=%e.\n" ,
+                xi[0]-xj[0] , xi[1]-xj[1] , xi[2]-xj[2] , sqrt( (xi[0]-xj[0])*(xi[0]-xj[0]) + (xi[1]-xj[1])*(xi[1]-xj[1]) + (xi[2]-xj[2])*(xi[2]-xj[2]) ) );
+            printf( "angle_eval: xk-xj is [ %e , %e , %e ], ||xk-xj||=%e.\n" ,
+                xk[0]-xj[0] , xk[1]-xj[1] , xk[2]-xj[2] , sqrt( (xk[0]-xj[0])*(xk[0]-xj[0]) + (xk[1]-xj[1])*(xk[1]-xj[1]) + (xk[2]-xj[2])*(xk[2]-xj[2]) ) ); */
+            /* printf( "angle_eval: dxi is [ %e , %e , %e ], ||dxi||=%e.\n" ,
+                dxi[0] , dxi[1] , dxi[2] , sqrt( dxi[0]*dxi[0] + dxi[1]*dxi[1] + dxi[2]*dxi[2] ) );
+            printf( "angle_eval: dxk is [ %e , %e , %e ], ||dxk||=%e.\n" ,
+                dxk[0] , dxk[1] , dxk[2] , sqrt( dxk[0]*dxk[0] + dxk[1]*dxk[1] + dxk[2]*dxk[2] ) ); */
+            if ( ctheta < pot->a || ctheta > pot->b ) {
+                printf( "angle_eval[%i]: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
+                    e->nodeID , aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
+                ctheta = FPTYPE_FMAX( pot->a , FPTYPE_FMIN( pot->b , ctheta ) );
             }
 
-            /* tabulate the energy */
-            epot += ee;
-        #endif
+            if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+                std::fill(std::begin(fi), std::end(fi), 0.0);
+                std::fill(std::begin(fk), std::end(fk), 0.0);
+                pot->eval_byparts3(pot, pi, pj, pk, ctheta, &ee, fi, fk);
+                for (int i = 0; i < 3; ++i) {
+                    pi->f[i] += (fic = fi[i]);
+                    pk->f[i] += (fkc = fk[i]);
+                    pj->f[i] -= fic + fkc;
+                }
+                epot += ee;
+                angle->potential_energy += ee;
+                if(angle->potential_energy >= angle->dissociation_energy)
+                    toDestroy.insert(angle);
+            }
+            else {
+            
+                #ifdef VECTORIZE
+                    /* add this angle to the interaction queue. */
+                    cthetaq[icount] = ctheta;
+                    diq[icount*3] = dxi[0];
+                    diq[icount*3+1] = dxi[1];
+                    diq[icount*3+2] = dxi[2];
+                    dkq[icount*3] = dxk[0];
+                    dkq[icount*3+1] = dxk[1];
+                    dkq[icount*3+2] = dxk[2];
+                    effi[icount] = pi->f;
+                    effj[icount] = pj->f;
+                    effk[icount] = pk->f;
+                    potq[icount] = pot;
+                    angleq[icount] = angle;
+                    icount += 1;
+
+                    /* evaluate the interactions if the queue is full. */
+                    if ( icount == VEC_SIZE ) {
+
+                        #if defined(FPTYPE_SINGLE)
+                            #if VEC_SIZE==8
+                            potential_eval_vec_8single_r( potq , cthetaq , eeq , eff );
+                            #else
+                            potential_eval_vec_4single_r( potq , cthetaq , eeq , eff );
+                            #endif
+                        #elif defined(FPTYPE_DOUBLE)
+                            #if VEC_SIZE==4
+                            potential_eval_vec_4double_r( potq , cthetaq , eeq , eff );
+                            #else
+                            potential_eval_vec_2double_r( potq , cthetaq , eeq , eff );
+                            #endif
+                        #endif
+
+                        /* update the forces and the energy */
+                        for ( l = 0 ; l < VEC_SIZE ; l++ ) {
+                            for ( k = 0 ; k < 3 ; k++ ) {
+                                effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
+                                effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
+                                effj[l][k] += wi + wk;
+                            }
+                            epot += eeq[l];
+                            angleq[l]->potential_energy += eeq[l];
+                            if(angleq[l]->potential_energy >= angleq[l]->dissociation_energy)
+                                toDestroy.insert(angleq[l]);
+                        }
+
+                        /* re-set the counter. */
+                        icount = 0;
+
+                        }
+                #else
+                    /* evaluate the angle */
+                    #ifdef EXPLICIT_POTENTIALS
+                        potential_eval_expl( pot , ctheta , &ee , &eff );
+                    #else
+                        potential_eval_r( pot , ctheta , &ee , &eff );
+                    #endif
+                    
+                    /* update the forces */
+                    for ( k = 0 ; k < 3 ; k++ ) {
+                        pi->f[k] -= ( wi = eff * dxi[k] );
+                        pk->f[k] -= ( wk = eff * dxk[k] );
+                        pj->f[k] += wi + wk;
+                    }
+
+                    /* tabulate the energy */
+                    epot += ee;
+                    angle->potential_energy += ee;
+                    if(angle->potential_energy >= angle->dissociation_energy)
+                        toDestroy.insert(angle);
+                #endif
+
+            }
+
+        }
         
-        } /* loop over angles. */
-        
+    } /* loop over angles. */
         
     #if defined(VECTORIZE)
         /* are there any leftovers? */
@@ -298,35 +357,42 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
             for ( k = icount ; k < VEC_SIZE ; k++ ) {
                 potq[k] = potq[0];
                 cthetaq[k] = cthetaq[0];
-                }
+            }
 
             /* evaluate the potentials */
             #if defined(FPTYPE_SINGLE)
                 #if VEC_SIZE==8
-                potential_eval_vec_8single_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_8single_r( potq , cthetaq , eeq , eff );
                 #else
-                potential_eval_vec_4single_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_4single_r( potq , cthetaq , eeq , eff );
                 #endif
             #elif defined(FPTYPE_DOUBLE)
                 #if VEC_SIZE==4
-                potential_eval_vec_4double_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_4double_r( potq , cthetaq , eeq , eff );
                 #else
-                potential_eval_vec_2double_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_2double_r( potq , cthetaq , eeq , eff );
                 #endif
             #endif
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += ee[l];
                 for ( k = 0 ; k < 3 ; k++ ) {
                     effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
                     effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
                     effj[l][k] += wi + wk;
-                    }
                 }
-
+                epot += eeq[l];
+                angleq[l]->potential_energy += eeq[l];
+                if(angleq[l]->potential_energy >= angleq[l]->dissociation_energy)
+                    toDestroy.insert(angleq[l]);
             }
+
+        }
     #endif
+
+    // Destroy every bond scheduled for destruction
+    for(auto ai : toDestroy)
+        MxAngle_Destroy(ai);
     
     /* Store the potential energy. */
     *epot_out += epot;
@@ -334,7 +400,7 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
     /* We're done here. */
     return angle_err_ok;
     
-    }
+}
 
 
 /**
@@ -350,29 +416,33 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
  * 
  * @return #angle_err_ok or <0 on error (see #angle_err)
  */
- 
 int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , double *epot_out ) {
 
+    MxAngle *angle;
     int aid, pid, pjd, pkd, k, *loci, *locj, *lock, shift;
     double h[3], epot = 0.0;
     struct space *s;
     struct MxParticle *pi, *pj, *pk, **partlist;
     struct space_cell **celllist;
-    struct MxPotential *pot;
-    FPTYPE xi[3], xj[3], xk[3], dxi[3] , dxk[3], ctheta, wi, wk;
+    struct MxPotential *pot, *pota;
+    std::vector<struct MxPotential *> pots;
+    FPTYPE ee, xi[3], xj[3], xk[3], dxi[3] , dxk[3], ctheta, wi, wk, fi[3], fk[3], fic, fkc;
     FPTYPE t1, t10, t11, t12, t13, t21, t22, t23, t24, t25, t26, t27, t3,
         t5, t6, t7, t8, t9, t4, t14, t2;
-
+    std::unordered_set<struct MxAngle*> toDestroy;
+    toDestroy.reserve(N);
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
     FPTYPE *effi[VEC_SIZE], *effj[VEC_SIZE], *effk[VEC_SIZE];
     FPTYPE cthetaq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
-    FPTYPE ee[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
+    FPTYPE eeq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE eff[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE diq[VEC_SIZE*3], dkq[VEC_SIZE*3];
+    struct MxAngle *angleq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
 #else
-    FPTYPE ee, eff;
+    FPTYPE eff;
 #endif
     
     /* Check inputs. */
@@ -388,9 +458,16 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
         
     /* Loop over the angles. */
     for ( aid = 0 ; aid < N ; aid++ ) {
+        angle = &a[aid];
+        angle->potential_energy = 0.0;
+
+        if(MxAngle_decays(angle)) {
+            toDestroy.insert(angle);
+            continue;
+        }
     
         /* Get the particles involved. */
-        pid = a[aid].i; pjd = a[aid].j; pkd = a[aid].k;
+        pid = angle->i; pjd = angle->j; pkd = angle->k;
         if ( ( pi = partlist[ pid] ) == NULL )
             continue;
         if ( ( pj = partlist[ pjd ] ) == NULL )
@@ -403,9 +480,15 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
             continue;
             
         /* Get the potential. */
-        if ( ( pot = a[aid].potential ) == NULL )
+        if ( ( pota = angle->potential ) == NULL )
             continue;
     
+        if(pota->kind == POTENTIAL_KIND_COMBINATION && pota->flags & POTENTIAL_SUM) {
+            pots = pota->constituents();
+            if(pots.size() == 0) pots = {pota};
+        }
+        else pots = {pota};
+        
         /* get the particle positions relative to pj's cell. */
         loci = celllist[ pid ]->loc;
         locj = celllist[ pjd ]->loc;
@@ -424,7 +507,7 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
             else if ( shift < -1 )
                 shift = 1;
             xk[k] = pk->x[k] + h[k]*shift;
-            }
+        }
             
         /* This is Maple-generated code, see "angles.maple" for details. */
         t2 = xj[2]*xj[2];
@@ -455,80 +538,110 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
         dxk[1] = (t12*t1-t9*t23)*t3;
         dxk[2] = (t11*t1-t8*t23)*t3;
         ctheta = FPTYPE_FMAX( -FPTYPE_ONE , FPTYPE_FMIN( FPTYPE_ONE , t1*t27 ) );
+
+        for(int i = 0; i < pots.size(); i++) {
+            pot = pots[i];
         
-        /* printf( "angle_eval: angle %i is %e rad.\n" , aid , ctheta ); */
-        if ( ctheta < pot->a || ctheta > pot->b ) {
-            printf( "angle_evalf: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
-                aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
-            ctheta = fmax( pot->a , fmin( pot->b , ctheta ) );
+            /* printf( "angle_eval: angle %i is %e rad.\n" , aid , ctheta ); */
+            if ( ctheta < pot->a || ctheta > pot->b ) {
+                printf( "angle_evalf: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
+                    aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
+                ctheta = fmax( pot->a , fmin( pot->b , ctheta ) );
             }
 
-        #ifdef VECTORIZE
-            /* add this angle to the interaction queue. */
-            cthetaq[icount] = ctheta;
-            diq[icount*3] = dxi[0];
-            diq[icount*3+1] = dxi[1];
-            diq[icount*3+2] = dxi[2];
-            dkq[icount*3] = dxk[0];
-            dkq[icount*3+1] = dxk[1];
-            dkq[icount*3+2] = dxk[2];
-            effi[icount] = &f[ 4*pid ];
-            effj[icount] = &f[ 4*pjd ];
-            effk[icount] = &f[ 4*pkd ];
-            potq[icount] = pot;
-            icount += 1;
+            if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+                std::fill(std::begin(fi), std::end(fi), 0.0);
+                std::fill(std::begin(fk), std::end(fk), 0.0);
+                pot->eval_byparts3(pot, pi, pj, pk, ctheta, &ee, fi, fk);
+                for (int i = 0; i < 3; ++i) {
+                    pi->f[i] += (fic = fi[i]);
+                    pk->f[i] += (fkc = fk[i]);
+                    pj->f[i] -= fic + fkc;
+                }
+                epot += ee;
+                angle->potential_energy += ee;
+                if(angle->potential_energy >= angle->dissociation_energy)
+                    toDestroy.insert(angle);
+            }
+            else {
 
-            /* evaluate the interactions if the queue is full. */
-            if ( icount == VEC_SIZE ) {
+                #ifdef VECTORIZE
+                    /* add this angle to the interaction queue. */
+                    cthetaq[icount] = ctheta;
+                    diq[icount*3] = dxi[0];
+                    diq[icount*3+1] = dxi[1];
+                    diq[icount*3+2] = dxi[2];
+                    dkq[icount*3] = dxk[0];
+                    dkq[icount*3+1] = dxk[1];
+                    dkq[icount*3+2] = dxk[2];
+                    effi[icount] = &f[ 4*pid ];
+                    effj[icount] = &f[ 4*pjd ];
+                    effk[icount] = &f[ 4*pkd ];
+                    potq[icount] = pot;
+                    angleq[icount] = angle;
+                    icount += 1;
 
-                #if defined(FPTYPE_SINGLE)
-                    #if VEC_SIZE==8
-                    potential_eval_vec_8single_r( potq , cthetaq , ee , eff );
-                    #else
-                    potential_eval_vec_4single_r( potq , cthetaq , ee , eff );
-                    #endif
-                #elif defined(FPTYPE_DOUBLE)
-                    #if VEC_SIZE==4
-                    potential_eval_vec_4double_r( potq , cthetaq , ee , eff );
-                    #else
-                    potential_eval_vec_2double_r( potq , cthetaq , ee , eff );
-                    #endif
-                #endif
+                    /* evaluate the interactions if the queue is full. */
+                    if ( icount == VEC_SIZE ) {
 
-                /* update the forces and the energy */
-                for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                    epot += ee[l];
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
-                        effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
-                        effj[l][k] += wi + wk;
+                        #if defined(FPTYPE_SINGLE)
+                            #if VEC_SIZE==8
+                            potential_eval_vec_8single_r( potq , cthetaq , eeq , eff );
+                            #else
+                            potential_eval_vec_4single_r( potq , cthetaq , eeq , eff );
+                            #endif
+                        #elif defined(FPTYPE_DOUBLE)
+                            #if VEC_SIZE==4
+                            potential_eval_vec_4double_r( potq , cthetaq , eeq , eff );
+                            #else
+                            potential_eval_vec_2double_r( potq , cthetaq , eeq , eff );
+                            #endif
+                        #endif
+
+                        /* update the forces and the energy */
+                        for ( l = 0 ; l < VEC_SIZE ; l++ ) {
+                            for ( k = 0 ; k < 3 ; k++ ) {
+                                effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
+                                effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
+                                effj[l][k] += wi + wk;
+                            }
+                            epot += eeq[l];
+                            angleq[l] += eeq[l];
+                            if(angleq[l]->potential_energy >= angleq[l]->dissociation_energy)
+                                toDestroy.insert(angleq[l]);
                         }
+
+                        /* re-set the counter. */
+                        icount = 0;
+
+                    }
+                #else
+                    /* evaluate the angle */
+                    #ifdef EXPLICIT_POTENTIALS
+                        potential_eval_expl( pot , ctheta , &ee , &eff );
+                    #else
+                        potential_eval_r( pot , ctheta , &ee , &eff );
+                    #endif
+                    
+                    /* update the forces */
+                    for ( k = 0 ; k < 3 ; k++ ) {
+                        f[4*pid+k] -= ( wi = eff * dxi[k] );
+                        f[4*pkd+k] -= ( wk = eff * dxk[k] );
+                        f[4*pjd+k] += wi + wk;
                     }
 
-                /* re-set the counter. */
-                icount = 0;
+                    /* tabulate the energy */
+                    epot += ee;
+                    angle->potential_energy += ee;
+                    if(angle->potential_energy >= angle->dissociation_energy)
+                        toDestroy.insert(angle);
+                #endif
 
-                }
-        #else
-            /* evaluate the angle */
-            #ifdef EXPLICIT_POTENTIALS
-                potential_eval_expl( pot , ctheta , &ee , &eff );
-            #else
-                potential_eval_r( pot , ctheta , &ee , &eff );
-            #endif
-            
-            /* update the forces */
-            for ( k = 0 ; k < 3 ; k++ ) {
-                f[4*pid+k] -= ( wi = eff * dxi[k] );
-                f[4*pkd+k] -= ( wk = eff * dxk[k] );
-                f[4*pjd+k] += wi + wk;
-                }
+            }
 
-            /* tabulate the energy */
-            epot += ee;
-        #endif
+        }
         
-        } /* loop over angles. */
+    } /* loop over angles. */
         
     #if defined(VECTORIZE)
         /* are there any leftovers? */
@@ -538,35 +651,42 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
             for ( k = icount ; k < VEC_SIZE ; k++ ) {
                 potq[k] = potq[0];
                 cthetaq[k] = cthetaq[0];
-                }
+            }
 
             /* evaluate the potentials */
             #if defined(FPTYPE_SINGLE)
                 #if VEC_SIZE==8
-                potential_eval_vec_8single_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_8single_r( potq , cthetaq , eeq , eff );
                 #else
-                potential_eval_vec_4single_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_4single_r( potq , cthetaq , eeq , eff );
                 #endif
             #elif defined(FPTYPE_DOUBLE)
                 #if VEC_SIZE==4
-                potential_eval_vec_4double_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_4double_r( potq , cthetaq , eeq , eff );
                 #else
-                potential_eval_vec_2double_r( potq , cthetaq , ee , eff );
+                potential_eval_vec_2double_r( potq , cthetaq , eeq , eff );
                 #endif
             #endif
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += ee[l];
                 for ( k = 0 ; k < 3 ; k++ ) {
                     effi[l][k] -= ( wi = eff[l] * diq[3*l+k] );
                     effk[l][k] -= ( wk = eff[l] * dkq[3*l+k] );
                     effj[l][k] += wi + wk;
                     }
                 }
+                epot += eeq[l];
+                angleq[l] += eeq[l];
+                if(angleq[l]->potential_energy >= angleq[l]->dissociation_energy)
+                    toDestroy.insert(angleq[l]);
 
             }
     #endif
+
+    // Destroy every bond scheduled for destruction
+    for(auto ai : toDestroy)
+        MxAngle_Destroy(ai);
     
     /* Store the potential energy. */
     *epot_out += epot;
@@ -576,6 +696,7 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
     
 }
 
+#if 0
 MxAngle* MxAngle_NewFromIds(int i, int j, int k, int pid)
 {
     return NULL;
@@ -586,122 +707,286 @@ MxAngle* MxAngle_NewFromIdsAndPotential(int i, int j, int k,
 {
     return NULL;
 }
+#endif
 
+static bool MxAngle_destroyingAll = false;
 
+HRESULT MxAngle_Destroy(MxAngle *a) {
+    if(!a) return E_FAIL;
 
-PyTypeObject MxAngle_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "Angle",
-    .tp_basicsize = sizeof(MxAngle),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           0,
-    .tp_as_number =      0,
-    .tp_as_sequence =    0,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            0,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        0,
-    .tp_members =        0,
-    .tp_getset =         0,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           (initproc)angle_init,
-    .tp_alloc =          (allocfunc)angle_alloc,
-    .tp_new =            PyType_GenericNew,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
+    if(a->flags & ANGLE_ACTIVE) {
+        #ifdef HAVE_CUDA
+        if(_Engine.angles_cuda && !MxAngle_destroyingAll) 
+            if(engine_cuda_finalize_angle(a->id) < 0) 
+                return E_FAIL;
+        #endif
+
+        bzero(a, sizeof(MxAngle));
+        _Engine.nr_active_angles -= 1;
+    }
+
+    return S_OK;
 };
 
-HRESULT _MxAngle_init(PyObject *module)
-{
-    if (PyType_Ready((PyTypeObject*)&MxAngle_Type) < 0) {
-        return c_error(E_FAIL, "could not initialize MxAngle_Type " );
+HRESULT MxAngle_DestroyAll() {
+    MxAngle_destroyingAll = true;
+
+    #ifdef HAVE_CUDA
+    if(_Engine.angles_cuda) 
+        if(engine_cuda_finalize_angles_all(&_Engine) < 0) 
+            return E_FAIL;
+    #endif
+
+    for(auto ah: MxAngleHandle::items()) ah->destroy();
+
+    MxAngle_destroyingAll = false;
+    return S_OK;
+}
+
+void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3, uint32_t flags) {
+    this->potential = potential;
+    this->i = p1->id;
+    this->j = p2->id;
+    this->k = p3->id;
+    this->flags = flags;
+
+    this->creation_time = _Engine.time;
+    this->dissociation_energy = std::numeric_limits<double>::max();
+    this->half_life = 0.0;
+
+    if(!this->style) this->style = MxAngle_StylePtr;
+}
+
+MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3, uint32_t flags) {
+    MxAngle *angle = NULL;
+
+    auto id = engine_angle_alloc(&_Engine, &angle);
+    
+    if(!angle) return NULL;
+
+    angle->init(potential, p1, p2, p3, flags);
+    if(angle->i >=0 && angle->j >=0 && angle->k >=0) {
+        angle->flags = angle->flags | ANGLE_ACTIVE;
+        _Engine.nr_active_angles++;
+    }
+    
+    MxAngleHandle *handle = new MxAngleHandle(id);
+
+    #ifdef HAVE_CUDA
+    if(_Engine.angles_cuda) 
+        engine_cuda_add_angle(handle);
+    #endif
+
+    Log(LOG_TRACE) << "Created angle: " << angle->id  << ", i: " << angle->i << ", j: " << angle->j << ", k: " << angle->k;
+
+    return handle;
+}
+
+std::string MxAngle::toString() {
+    return mx::io::toString(*this);
+}
+
+MxAngle *MxAngle::fromString(const std::string &str) {
+    return new MxAngle(mx::io::fromString<MxAngle>(str));
+}
+
+MxAngle *MxAngleHandle::get() {
+    if(id >= _Engine.angles_size) throw std::range_error("Angle id invalid");
+    if (id < 0) return NULL;
+    return &_Engine.angles[this->id];
+}
+
+std::string MxAngleHandle::str() {
+    std::stringstream ss;
+    auto *a = this->get();
+    
+    ss << "Bond(i=" << a->i << ", j=" << a->j << ", k=" << a->k << ")";
+    
+    return ss.str();
+}
+
+bool MxAngleHandle::check() {
+    return (bool)this->get();
+}
+
+HRESULT MxAngleHandle::destroy() {
+    #ifdef HAVE_CUDA
+    if(_Engine.angles_cuda && !MxAngle_destroyingAll) 
+        engine_cuda_finalize_angle(this->id);
+    #endif
+
+    return MxAngle_Destroy(this->get());
+}
+
+std::vector<MxAngleHandle*> MxAngleHandle::items() {
+    std::vector<MxAngleHandle*> list;
+
+    for(int i = 0; i < _Engine.nr_angles; ++i)
+        list.push_back(new MxAngleHandle(i));
+
+    return list;
+}
+
+bool MxAngle_decays(MxAngle *a, std::uniform_real_distribution<double> *uniform01) {
+    if(!a || a->half_life <= 0.0) return false;
+
+    bool created = uniform01 == NULL;
+    if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);
+
+    double pr = 1.0 - std::pow(2.0, -_Engine.dt / a->half_life);
+    MxRandomType &MxRandom = MxRandomEngine();
+    bool result = (*uniform01)(MxRandom) < pr;
+
+    if(created) delete uniform01;
+
+    return result;
+}
+
+bool MxAngleHandle::decays() {
+    return MxAngle_decays(&_Engine.angles[this->id]);
+}
+
+MxParticleHandle *MxAngleHandle::operator[](unsigned int index) {
+    auto *a = get();
+    if(!a) {
+        Log(LOG_ERROR) << "Invalid angle handle";
+        return NULL;
     }
 
+    if(index == 0) return MxParticle_FromId(a->i)->py_particle();
+    else if(index == 1) return MxParticle_FromId(a->j)->py_particle();
+    else if(index == 2) return MxParticle_FromId(a->k)->py_particle();
+    
+    mx_exp(std::range_error("Index out of range (must be 0, 1 or 2)"));
+    return NULL;
+}
 
-    Py_INCREF(&MxAngle_Type);
-    if (PyModule_AddObject(module, "Angle", (PyObject *)&MxAngle_Type) < 0) {
-        Py_DECREF(&MxAngle_Type);
+double MxAngleHandle::getEnergy() {
+
+    MxAngle angles[] = {*this->get()};
+    FPTYPE f[] = {0.0, 0.0, 0.0};
+    double epot_out = 0.0;
+    angle_evalf(angles, 1, &_Engine, f, &epot_out);
+    return epot_out;
+}
+
+std::vector<int32_t> MxAngleHandle::getParts() {
+    std::vector<int32_t> result;
+    MxAngle *a = this->get();
+    if(a && a->flags & ANGLE_ACTIVE) {
+        result = std::vector<int32_t>{a->i, a->j, a->k};
+    }
+    return result;
+}
+
+MxPotential *MxAngleHandle::getPotential() {
+    MxAngle *a = this->get();
+    if(a && a->flags & ANGLE_ACTIVE) {
+        return a->potential;
+    }
+    return NULL;
+}
+
+uint32_t MxAngleHandle::getId() {
+    return this->id;
+}
+
+float MxAngleHandle::getDissociationEnergy() {
+    auto *a = this->get();
+    if (a) return a->dissociation_energy;
+    return NULL;
+}
+
+void MxAngleHandle::setDissociationEnergy(const float &dissociation_energy) {
+    auto *a = this->get();
+    if (a) a->dissociation_energy = dissociation_energy;
+}
+
+float MxAngleHandle::getHalfLife() {
+    auto *a = this->get();
+    if (a) return a->half_life;
+    return NULL;
+}
+
+void MxAngleHandle::setHalfLife(const float &half_life) {
+    auto *a = this->get();
+    if (a) a->half_life = half_life;
+}
+
+bool MxAngleHandle::getActive() {
+    auto *a = this->get();
+    if (a) return (bool)(a->flags & ANGLE_ACTIVE);
+    return false;
+}
+
+MxStyle *MxAngleHandle::getStyle() {
+    auto *a = this->get();
+    if (a) return a->style;
+    return NULL;
+}
+
+void MxAngleHandle::setStyle(MxStyle *style) {
+    auto *a = this->get();
+    if (a) a->style = style;
+}
+
+double MxAngleHandle::getAge() {
+    auto *a = this->get();
+    if (a) return (_Engine.time - a->creation_time) * _Engine.dt;
+    return 0;
+}
+
+
+namespace mx { namespace io {
+
+#define MXANGLEIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXANGLEIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
         return E_FAIL;
-    }
+
+template <>
+HRESULT toFile(const MxAngle &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXANGLEIOTOEASY(fe, "flags", dataElement.flags);
+    MXANGLEIOTOEASY(fe, "i", dataElement.i);
+    MXANGLEIOTOEASY(fe, "j", dataElement.j);
+    MXANGLEIOTOEASY(fe, "k", dataElement.k);
+    MXANGLEIOTOEASY(fe, "id", dataElement.id);
+    MXANGLEIOTOEASY(fe, "creation_time", dataElement.creation_time);
+    MXANGLEIOTOEASY(fe, "half_life", dataElement.half_life);
+    MXANGLEIOTOEASY(fe, "dissociation_energy", dataElement.dissociation_energy);
+    MXANGLEIOTOEASY(fe, "potential_energy", dataElement.potential_energy);
+
+    fileElement->type = "Angle";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxAngle *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "flags", &dataElement->flags);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "i", &dataElement->i);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "j", &dataElement->j);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "k", &dataElement->k);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "creation_time", &dataElement->creation_time);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "half_life", &dataElement->half_life);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "dissociation_energy", &dataElement->dissociation_energy);
+    MXANGLEIOFROMEASY(feItr, fileElement.children, metaData, "potential_energy", &dataElement->potential_energy);
 
     return S_OK;
 }
 
-int angle_init(MxAngle *self, PyObject *args, PyObject *kwargs) {
-    
-    Log(LOG_TRACE);
-    
-    try {
-        PyObject *pot  = mx::arg<PyObject*>("potential", 0, args, kwargs);
-        PyObject *p1  = mx::arg<PyObject*>("p1", 1, args, kwargs);
-        PyObject *p2  = mx::arg<PyObject*>("p2", 2, args, kwargs);
-        PyObject *p3  = mx::arg<PyObject*>("p3", 3, args, kwargs);
-        
-        
-        if(PyObject_IsInstance(pot, (PyObject*)&MxPotential_Type) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "potential is not a instance of Potential");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p1) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p1 is not a instance of Particle");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p2) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p2 is not a instance Particle");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p3) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p3 is not a instance Particle");
-            return -1;
-        }
-        
-        self->potential = (MxPotential*)pot;
-        self->i = ((MxParticleHandle*)p1)->id;
-        self->j = ((MxParticleHandle*)p2)->id;
-        self->k = ((MxParticleHandle*)p3)->id;
-        
-        Py_XINCREF(pot);
-    }
-    catch (const std::exception &e) {
-        return C_EXP(e);
-    }
-    return 0;
-}
-
-MxAngle *angle_alloc(PyTypeObject *type, Py_ssize_t) {
-    MxAngle *result = NULL;
-    uint32_t err = engine_angle_alloc(&_Engine, type, &result);
-    return result;
-}
+}};

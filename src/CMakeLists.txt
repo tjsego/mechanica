@@ -14,13 +14,11 @@ include_directories(PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${GLM_INCLUDE_DIRS})
 
-message(STATUS "numpy: ${NUMPY_INCLUDE_DIR}")
 
-
-file(GLOB AST_SRC
-  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-  "ast/*.cpp"
-  )
+# file(GLOB AST_SRC
+#   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+#   "ast/*.cpp"
+#   )
 
 #file(GLOB X3D_SRC
 #  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -76,7 +74,34 @@ set(SRC
   MxCylinderModel.cpp
   MxUniverse.cpp
 
+  MxLogger.cpp
   MxUtil.cpp
+  mx_error.cpp
+  mx_parse.cpp
+
+  io/Mx3DFVertexData.cpp
+  io/Mx3DFEdgeData.cpp
+  io/Mx3DFFaceData.cpp
+  io/Mx3DFMeshData.cpp
+  io/Mx3DFRenderData.cpp
+  io/Mx3DFStructure.cpp
+  io/generators/Mx3DFMeshGenerator.cpp
+  io/generators/Mx3DFAngleMeshGenerator.cpp
+  io/generators/Mx3DFBondMeshGenerator.cpp
+  io/generators/Mx3DFDihedralMeshGenerator.cpp
+  io/generators/Mx3DFPCloudMeshGenerator.cpp
+  io/Mx3DFIO.cpp
+  io/MxFIO.cpp
+  io/MxIO.cpp
+  io/mx_io.cpp
+
+  event/MxEvent.cpp
+  event/MxEventList.cpp
+  event/MxEventPyExecutor.cpp
+  event/MxParticleEvent.cpp
+  event/MxParticleEventSingle.cpp
+  event/MxParticleTimeEvent.cpp
+  event/MxTimeEvent.cpp
 
   rendering/ArcBallInteractor.cpp
   rendering/MxGlfwApplication.cpp
@@ -89,8 +114,14 @@ set(SRC
   rendering/MxGlfwWindow.cpp
   rendering/MxRenderer.cpp
   rendering/MxUniverseRenderer.cpp
+  rendering/MxSubRenderer.cpp
 
+  rendering/MxAngleRenderer.cpp
+  rendering/MxArrowRenderer.cpp
+  rendering/MxBondRenderer.cpp
   rendering/MxMeshRenderer.cpp
+  rendering/MxDihedralRenderer.cpp
+  rendering/MxOrientationRenderer.cpp
   rendering/MxMeshShaderProgram.cpp
   rendering/MxRenderTarget.cpp
   rendering/MxImageView.cpp
@@ -99,7 +130,7 @@ set(SRC
   rendering/MxImageConverters.cpp
 
   rendering/ArcBall.cpp
-  rendering/NOMStyle.cpp
+  rendering/MxStyle.cpp
   rendering/MxKeyEvent.cpp
 
   rendering/MxColorMapper.cpp
@@ -112,15 +143,22 @@ set(SRC
 
   shaders/ParticleSphereShader.cpp
 
+  shaders/MxFlat3D.cpp
   shaders/MxPhong.cpp
 
-  ${AST_SRC}
+  state/MxSpecies.cpp
+  state/MxSpeciesList.cpp
+  state/MxSpeciesValue.cpp
+  state/MxStateVector.cpp
+
+  types/mx_cast.cpp
+
+  # ${AST_SRC}
 #  ${X3D_SRC}
   )
 
 
 set(HEADERS
-  ${MECHANICA_PUBLIC_HEADERS}
   MxDebug.h
   mechanica_llvm.h
   mechanica_private.h
@@ -164,7 +202,34 @@ set(HEADERS
   MxCylinderModel.h
   MxUniverse.h
 
+  MxLogger.h
   MxUtil.h
+  mx_error.h
+  mx_parse.h
+
+  io/Mx3DFVertexData.h
+  io/Mx3DFEdgeData.h
+  io/Mx3DFFaceData.h
+  io/Mx3DFMeshData.h
+  io/Mx3DFRenderData.h
+  io/Mx3DFStructure.h
+  io/generators/Mx3DFMeshGenerator.h
+  io/generators/Mx3DFAngleMeshGenerator.h
+  io/generators/Mx3DFBondMeshGenerator.h
+  io/generators/Mx3DFDihedralMeshGenerator.h
+  io/generators/Mx3DFPCloudMeshGenerator.h
+  io/Mx3DFIO.h
+  io/MxFIO.h
+  io/MxIO.h
+  io/mx_io.h
+
+  event/MxEvent.h
+  event/MxEventList.h
+  event/MxEventPyExecutor.h
+  event/MxParticleEvent.h
+  event/MxParticleEventSingle.h
+  event/MxParticleTimeEvent.h
+  event/MxTimeEvent.h
 
   rendering/ArcBallInteractor.h
   rendering/MxGlfwApplication.h
@@ -178,9 +243,15 @@ set(HEADERS
   rendering/MxGlfwWindow.h
   rendering/MxRenderer.h
   rendering/MxUniverseRenderer.h
+  rendering/MxSubRenderer.h
   rendering/WireframeObjects.h
   rendering/FlatShadeObject.h
+  rendering/MxAngleRenderer.h
+  rendering/MxArrowRenderer.h
+  rendering/MxBondRenderer.h
   rendering/MxMeshRenderer.h
+  rendering/MxDihedralRenderer.h
+  rendering/MxOrientationRenderer.h
   rendering/MxMeshShaderProgram.h
   rendering/MxRenderTarget.h
   rendering/MxImageView.h
@@ -190,12 +261,14 @@ set(HEADERS
 
   rendering/ArcBallCamera.h
   rendering/ArcBall.h
-  rendering/NOMStyle.hpp
+  rendering/MxStyle.hpp
   rendering/MxKeyEvent.hpp
 
   rendering/MxColorMapper.hpp
 
   rendering/MxGlInfo.h
+
+  rendering/MxEglInfo.h
 
   rendering/MxClipPlane.hpp
 
@@ -203,11 +276,51 @@ set(HEADERS
 
   shaders/ParticleSphereShader.h
 
+  shaders/MxFlat3D.h
   shaders/MxPhong.h
+
+  state/MxSpecies.h
+  state/MxSpeciesList.h
+  state/MxSpeciesValue.h
+  state/MxStateVector.h
+
+  types/mx_cast.h
+  types/mx_types.h
+  types/MxVector.h
+  types/MxVector2.h
+  types/MxVector3.h
+  types/MxVector4.h
+  types/MxMatrix.h
+  types/MxMatrix3.h
+  types/MxMatrix4.h
+  types/MxQuaternion.h
+)
+
+if(MX_WITHCUDA)
+  list(APPEND SRC 
+    cuda/MxAngleCUDAConfig.cpp 
+    cuda/MxBondCUDAConfig.cpp 
+    cuda/MxEngineCUDAConfig.cpp 
+    cuda/MxSimulatorCUDAConfig.cpp
   )
+  list(APPEND HEADERS 
+    cuda/MxAngleCUDAConfig.h 
+    cuda/MxBondCUDAConfig.h 
+    cuda/MxEngineCUDAConfig.h 
+    cuda/MxSimulatorCUDAConfig.h
+  )
+endif()
 
+set(HEADERS_PRIVATE ${HEADERS})
+foreach(_PSHDR ${MECHANICA_PUBLIC_HEADERS_STATIC})
+  list(APPEND ${HEADERS} ${PROJECT_SOURCE_DIR}/include/${_PSHDR})
+endforeach()
 
-
+include(models/modeltree.cmake)
+add_subdirectory(models)
+MX_MODEL_TREE_INIT()
+MX_MODEL_TREE_PROC(models)
+set(SRC ${SRC} ${MX_MODEL_SRCS_LOCAL})
 
 # For development, for the time being, we won't build the object library
 # because it takes longer to build if we're only building one library,
@@ -226,7 +339,10 @@ set(HEADERS
 #target_include_directories(mechanica_OBJECTS PRIVATE "${PROJECT_SOURCE_DIR}/include")
 #target_include_directories(mechanica_OBJECTS PRIVATE ${NUMPY_INCLUDE_DIR})
 
-
+if(MX_WITHCUDA)
+  list(APPEND HEADERS mx_cuda.h)
+  list(APPEND SRC mx_cuda.cpp)
+endif()
 
 # this is the "object library" target: compiles the sources only once
 # need at least one src file in a project for xcode to build it, xcode
@@ -251,7 +367,9 @@ message("Shader Program Res: ${MxMeshShaderProgramRes}")
 
 target_include_directories(mechanica_obj PRIVATE
   ${PYBIND11_INCLUDE_DIR}
-  ${MX_JPEG_INCLUDE_DIRS}
+  ${JPEG_INCLUDE_DIRS}
+  ${ASSIMP_INCLUDE_DIRS}
+  ${JSON_INCLUDE_DIRS}
   )
 
 # set_target_properties(mechanica PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -260,48 +378,40 @@ target_include_directories(mechanica_obj PRIVATE
 target_include_directories(mechanica_obj PUBLIC
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
-  #${NUMPY_INCLUDE_DIR}
-  #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
+  $<INSTALL_INTERFACE:include/mechanica>
 )
 
-
-message("Carbon Includes:")
-get_target_property(dirs Carbon::Static INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message("carbon include='${dir}'")
-endforeach()
-
-
-message("Carbon Interface Includes:")
-
-get_target_property(dirs Carbon::Static INTERFACE_INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message( "carbon interface include='${dir}'")
-endforeach()
-
-
 target_link_libraries(mechanica_obj
-  Carbon::Static
   DirectXMath
-  glfw
+  glfw 
+  ${GLFW_LIBRARIES} 
+  LibSBML::LibSBML
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
   #voro++
   #sundials_cvode_static
+  assimp::assimp
   ${OPENGL_LIBRARIES}
   mdcore_single
-  )
+)
 
-if(MX_ASSIMP)
-	target_link_libraries(mechanica_obj   Assimp::Assimp)
+if(MX_WITHCUDA)
+  target_link_libraries(mechanica_obj
+    CUDA::cudart 
+    CUDA::cuda_driver 
+    CUDA::nvrtc
+  )
 endif()
 
 source_group("Public Header Files" FILES ${MECHANICA_PUBLIC_HEADERS})
+source_group("Event" REGULAR_EXPRESSION "event/.*")
 source_group("Rendering" REGULAR_EXPRESSION "rendering/.*")
 source_group("Shaders" REGULAR_EXPRESSION "shaders/.*")
+source_group("State" REGULAR_EXPRESSION "state/.*")
 
 
 #message("MECHANICA_PUBLIC_HEADERS: ${MECHANICA_PUBLIC_HEADERS}")
@@ -337,27 +447,62 @@ set_target_properties(mechanica_shared PROPERTIES OUTPUT_NAME mechanica)
 target_include_directories(mechanica_shared PUBLIC
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
-  #${NUMPY_INCLUDE_DIR}
-  #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
+  ${ASSIMP_INCLUDE_DIRS}
+  ${JSON_INCLUDE_DIRS}
+  $<INSTALL_INTERFACE:include/mechanica>
 )
 
 target_include_directories(mechanica_shared PRIVATE ${PYBIND11_INCLUDE_DIR})
 
+if(MX_WITHCUDA)
+  target_include_directories(mechanica_shared PUBLIC
+    ${CUDAToolkit_INCLUDE_DIRS}
+  )
+  set_target_properties(mechanica_shared PROPERTIES 
+    CUDA_SEPARABLE_COMPILATION ON
+  )
+endif()
+
+find_package(SWIG 4.0 REQUIRED COMPONENTS python)
+include(UseSWIG)
 
 # shared and static libraries built from the same object files
-add_library(mechanica_py SHARED
-  mechanica.cpp
-  $<TARGET_OBJECTS:mechanica_obj>
-  $<TARGET_OBJECTS:mdcore_single>
-  )
+
+set_source_files_properties(mechanica.i PROPERTIES CPLUSPLUS ON SWIG_FLAGS "-keyword;-py3;-doxygen")
+
+set(SWIG_COMPILEDEFS_PY )
+
+# Power through int size mess until properly resolved 
+# See https://github.com/swig/swig/issues/1850
+include(CheckTypeSize)
+check_type_size("long" SIZE_LONG)
+message(STATUS "Got size of long: ${SIZE_LONG} (${HAVE_SIZE_LONG})")
+if(NOT MX_APPLE)
+  if(${SIZE_LONG} STREQUAL 8)
+    list(APPEND SWIG_COMPILEDEFS_PY SWIGWORDSIZE64)
+  else()
+    list(APPEND SWIG_COMPILEDEFS_PY SWIGWORDSIZE32)
+  endif()
+endif()
+
+if(MX_APPLE)
+  list(APPEND SWIG_COMPILEDEFS_PY CORRADE_TARGET_APPLE)
+endif()
+
+message(STATUS "SWIG_COMPILEDEFS_PY=${SWIG_COMPILEDEFS_PY}")
+set_property(SOURCE mechanica.i PROPERTY COMPILE_DEFINITIONS ${SWIG_COMPILEDEFS_PY})
+
+swig_add_library(mechanica_py TYPE SHARED LANGUAGE python SOURCES mechanica.i $<TARGET_OBJECTS:mechanica_obj>)
 
 target_compile_definitions(mechanica_py PRIVATE C_BUILDING_DLL)
 
 set_target_properties(mechanica_py PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   VISIBILITY_INLINES_HIDDEN 1
+  SWIG_USE_TARGET_INCLUDE_DIRECTORIES TRUE
   )
 
 
@@ -382,22 +527,28 @@ set_target_properties(mechanica_py PROPERTIES
 target_include_directories(mechanica_py PRIVATE
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${Python_INCLUDE_DIRS}
-  #${NUMPY_INCLUDE_DIR}
-  #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
+  $<INSTALL_INTERFACE:include/mechanica>
 )
+
+if(MX_WITHCUDA)
+  target_include_directories(mechanica_py PUBLIC
+    ${CUDAToolkit_INCLUDE_DIRS}
+  )
+  set_target_properties(mechanica_py PROPERTIES 
+    CUDA_SEPARABLE_COMPILATION ON
+  )
+endif()
 
 target_include_directories(mechanica_py PRIVATE ${PYBIND11_INCLUDE_DIR})
 
-#target_link_libraries(mechanica_py PUBLIC
-#  Carbon::Static
-#  )
-
-target_link_libraries(mechanica_py PRIVATE
-  Carbon::Static
+set(mechanica_py_LIBS
   mdcore_single
-  glfw
+  glfw 
+  ${GLFW_LIBRARIES} 
+  LibSBML::LibSBML 
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
@@ -408,18 +559,37 @@ target_link_libraries(mechanica_py PRIVATE
   Magnum::Primitives
   Magnum::MeshTools
   LibSBML::LibSBML
-  ${MX_JPEG_LIBRARIES}
+  JPEG::JPEG 
   TgaImageConverter
+  assimp::assimp
+)
+
+if(MX_WITHCUDA)
+  list(APPEND mechanica_py_LIBS 
+    CUDA::cudart 
+    CUDA::cuda_driver 
+    CUDA::nvrtc
   )
+endif()
+
+if(MX_APPLE)
+  list(APPEND mechanica_py_LIBS MagnumWindowlessCglApplication)
+elseif(MX_LINUX)
+  list(APPEND mechanica_py_LIBS MagnumWindowlessEglApplication)
+elseif(MX_WINDOWS)
+  list(APPEND mechanica_py_LIBS MagnumWindowlessWglApplication)
+endif()
+
+swig_link_libraries(mechanica_py PRIVATE ${mechanica_py_LIBS})
 
 if(WIN32 OR CYGWIN OR (UNIX AND NOT APPLE))
 
   # weird bug with CMake / clang on windows, need to add link dir here
-  target_link_directories(mechanica_py PUBLIC ${Python_LIBRARY_DIRS})
+  # target_link_directories(mechanica_py PUBLIC ${Python_LIBRARY_DIRS})
 
   # Link against the Python shared library on Windows
   # target_link_libraries(mechanica_py PRIVATE Python::Python)
-  target_link_libraries(mechanica_py PRIVATE ${Python_LIBRARY_RELEASE})
+  swig_link_libraries(mechanica_py PRIVATE ${Python_LIBRARIES})
 
 elseif(APPLE)
   # It's quite common to have multiple copies of the same Python version
@@ -444,18 +614,13 @@ elseif(APPLE)
   endif()
 endif()
 
-if(MX_ASSIMP)
-  target_link_libraries(mechanica_py   Assimp::Assimp)
+# Handle rpath
+if(UNIX)
+  file(RELATIVE_PATH _RPATH2PYLIBS ${MX_SITEPACKAGES}/mechanica ${Python_LIBRARY_DIRS})
+  file(RELATIVE_PATH _RPATH2MXLIBS ${MX_SITEPACKAGES}/mechanica ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+  file(RELATIVE_PATH _RPATH2MXENV  ${MX_SITEPACKAGES}/mechanica ${CMAKE_INSTALL_PREFIX})
+  set_target_properties(mechanica_py PROPERTIES INSTALL_RPATH "${RPATH_PREFIX};${RPATH_PREFIX}/${_RPATH2PYLIBS};${RPATH_PREFIX}/${_RPATH2MXLIBS};${RPATH_PREFIX}/${_RPATH2MXENV}")
 endif()
-
-if(MX_APPLE)
-  target_link_libraries(mechanica_py PRIVATE MagnumWindowlessCglApplication)
-elseif(MX_LINUX)
-  target_link_libraries(mechanica_py PRIVATE MagnumWindowlessEglApplication)
-elseif(MX_WINDOWS)
-  target_link_libraries(mechanica_py PRIVATE MagnumWindowlessWglApplication)
-endif()
-
 
 set_target_properties(mechanica_py PROPERTIES PREFIX "")
 set_target_properties(mechanica_py PROPERTIES OUTPUT_NAME "_mechanica")
@@ -495,17 +660,17 @@ endif()
 
 file(COPY setup.py DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY __init__.py DESTINATION ${MX_PYPKG_DIR})
-file(COPY mechanica.py DESTINATION ${MX_PYPKG_DIR})
 file(COPY lattice.py DESTINATION ${MX_PYPKG_DIR})
 file(COPY jwidget.py DESTINATION ${MX_PYPKG_DIR})
+file(COPY particle_type.py DESTINATION ${MX_PYPKG_DIR})
 
 
 target_link_libraries(mechanica_shared
   PUBLIC
-  Carbon::Static
-  Python::NumPy
   mdcore_single
-  glfw
+  glfw 
+  ${GLFW_LIBRARIES} 
+  LibSBML::LibSBML
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
@@ -516,8 +681,9 @@ target_link_libraries(mechanica_shared
   Magnum::Primitives
   Magnum::MeshTools
   LibSBML::LibSBML
-  ${MX_JPEG_LIBRARIES}
+  JPEG::JPEG 
   TgaImageConverter
+  assimp::assimp
   )
 
 
@@ -535,8 +701,12 @@ if(APPLE)
   endif()
 endif()
 
-if(MX_ASSIMP)
-  target_link_libraries(mechanica_shared   PUBLIC Assimp::Assimp)
+if(MX_WITHCUDA)
+  target_link_libraries(mechanica_shared PUBLIC 
+    CUDA::cudart 
+    CUDA::cuda_driver 
+    CUDA::nvrtc
+  )
 endif()
 
 if(MX_APPLE)
@@ -555,7 +725,7 @@ endif()
 
 #target_link_libraries(mechanica_static
 #  glfw
-#  Assimp::Assimp
+#  assimp::assimp
 #  Magnum::Application
 #  Magnum::Magnum
 #  Magnum::Shaders
@@ -578,3 +748,24 @@ add_library(Mechanica::Mechanica ALIAS mechanica_shared)
 #add_library(Mechanica::Static ALIAS mechanica_static)
 add_library(Mechanica::Shared ALIAS mechanica_shared)
 add_library(Mechanica::PythonLib ALIAS mechanica_py)
+
+install(TARGETS mechanica_shared 
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" 
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" 
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+)
+
+install(TARGETS mechanica_py DESTINATION ${MX_SITEPACKAGES}/mechanica)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mechanica.py DESTINATION ${MX_SITEPACKAGES}/mechanica)
+install(FILES 
+        __init__.py 
+        lattice.py 
+        jwidget.py
+        particle_type.py 
+        DESTINATION 
+        ${MX_SITEPACKAGES}/mechanica
+)
+foreach(_PRHDR ${HEADERS_PRIVATE})
+  cmake_path(GET _PRHDR PARENT_PATH _PRHDR_PARENT)
+  install(FILES ${_PRHDR} DESTINATION include/mechanica/private/${_PRHDR_PARENT})
+endforeach()

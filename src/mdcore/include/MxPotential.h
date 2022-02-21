@@ -23,9 +23,11 @@
 
 #include "platform.h"
 #include "fptype.h"
-#include "carbon.h"
+#include "../../io/mx_io.h"
 
-
+#include <limits>
+#include <utility>
+#include <vector>
 
 /* potential error codes */
 #define potential_err_ok                    0
@@ -95,30 +97,114 @@ enum PotentialFlags {
      * potential is for free particles.
      */
     POTENTIAL_BOUND           = 1 << 13,
+
+    // sum of constituent potentials
+    POTENTIAL_SUM             = 1 << 14, 
+
+    /** unbound potential with long-range periodicity */
+    POTENTIAL_PERIODIC        = 1 << 15, 
+
+    /* Coulomb reciprocated */
+    POTENTIAL_COULOMBR        = 1 << 16
 };
 
 enum PotentialKind {
     // standard interpolated potential kind
     POTENTIAL_KIND_POTENTIAL,
     
-    //
-    POTENTIAL_KIND_DPD
+    // dissipative particle dynamics kind
+    POTENTIAL_KIND_DPD, 
+
+    // explicit potential by particles
+    POTENTIAL_KIND_BYPARTICLES,
+
+    // combination of two constituent potentials
+    POTENTIAL_KIND_COMBINATION
 };
 
 
 /** ID of the last error. */
 CAPI_DATA(int) potential_err;
 
-typedef void (*MxPotentialEval) ( struct MxPotential *p , struct MxParticle *,
-    struct MxParticle *b, FPTYPE r2 , FPTYPE *e , FPTYPE *f );
+/**
+ * @brief Potential function on a particle. 
+ * 
+ * Includes pre-computed relative position and distance of an arbitrary point w.r.t. ith particle. 
+ * 
+ * Computes the potential and force in global frame on the ith particle. 
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticle) (struct MxPotential *p, 
+                                            struct MxParticle *part_i, 
+                                            FPTYPE *dx, 
+                                            FPTYPE r2, 
+                                            FPTYPE *e, 
+                                            FPTYPE *f);
+
+/**
+ * @brief Pair potential function. 
+ * 
+ * Includes pre-computed relative position and distance of jth particle w.r.t. ith particle. 
+ * 
+ * Computes the potential and force in global frame on the ith particle. 
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticles) (struct MxPotential *p, 
+                                             struct MxParticle *part_i, 
+                                             struct MxParticle *part_j, 
+                                             FPTYPE *dx, 
+                                             FPTYPE r2, 
+                                             FPTYPE *e, 
+                                             FPTYPE *f);
+
+/**
+ * @brief Like MxPotentialEval_ByParticles, but with three particles
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticles3)(struct MxPotential *p, 
+                                             struct MxParticle *part_i, 
+                                             struct MxParticle *part_j, 
+                                             struct MxParticle *part_k, 
+                                             FPTYPE ctheta, 
+                                             FPTYPE *e, 
+                                             FPTYPE *fi, 
+                                             FPTYPE *fk);
+
+/**
+ * @brief Like MxPotentialEval_ByParticles, but with four particles
+ * 
+ */
+typedef void (*MxPotentialEval_ByParticles4)(struct MxPotential *p, 
+                                             struct MxParticle *part_i, 
+                                             struct MxParticle *part_j, 
+                                             struct MxParticle *part_k, 
+                                             struct MxParticle *part_l, 
+                                             FPTYPE cphi, 
+                                             FPTYPE *e, 
+                                             FPTYPE *fi, 
+                                             FPTYPE *fl);
 
 typedef struct MxPotential* (*MxPotentialCreate) (
     struct MxPotential *partial_potential,
     struct MxParticleType *a, struct MxParticleType *b );
 
+/**
+ * @brief Callback issues when potential is cleared. 
+ * 
+ */
+typedef void (*MxPotentialClear) (struct MxPotential* p);
 
-/** The #potential structure. */
-typedef struct MxPotential : PyObject {
+
+/**
+ * @brief A Potential object is a compiled interpolation of a given function. The 
+ * Universe applies potentials to particles to calculate the net force on them. 
+ * 
+ * For performance reasons, Mechanica implements potentials as 
+ * interpolations, which can be much faster than evaluating the function directly. 
+ * 
+ * A potential can be treated just like any callable object. 
+ */
+typedef struct MxPotential {
     uint32_t kind;
 
     /** Flags. */
@@ -139,22 +225,497 @@ typedef struct MxPotential : PyObject {
     /** potential scaling constant */
     FPTYPE mu;
 
+    /** coordinate offset */
+    FPTYPE offset[3];
 
     /** Nr of intervals. */
     int n;
 
     MxPotentialCreate create_func;
+    MxPotentialClear clear_func;
 
-    MxPotentialEval eval;
+    MxPotentialEval_ByParticle eval_bypart;
+    MxPotentialEval_ByParticles eval_byparts;
+    MxPotentialEval_ByParticles3 eval_byparts3;
+    MxPotentialEval_ByParticles4 eval_byparts4;
+
+    MxPotential *pca, *pcb;
 
     /**
      * pointer to what kind of potential this is.
      */
     const char* name;
 
-} MxPotential;
+    MxPotential();
 
-CAPI_FUNC(int) MxPotential_Check(PyObject *obj);
+    float operator()(const float &r, const float &r0=-1.0);
+    float operator()(const std::vector<float>& r);
+    float operator()(struct MxParticleHandle* pi, const MxVector3f &pt);
+    float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj);
+    float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk);
+    float operator()(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk, struct MxParticleHandle* pl);
+    float force(double r, double ri=-1.0, double rj=-1.0);
+    std::vector<float> force(const std::vector<float>& r);
+    std::vector<float> force(struct MxParticleHandle* pi, const MxVector3f &pt);
+    std::vector<float> force(struct MxParticleHandle* pi, struct MxParticleHandle* pj);
+    std::pair<std::vector<float>, std::vector<float> > force(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk);
+    std::pair<std::vector<float>, std::vector<float> > force(struct MxParticleHandle* pi, struct MxParticleHandle* pj, struct MxParticleHandle* pk, struct MxParticleHandle* pl);
+
+    std::vector<MxPotential*> constituents();
+
+    MxPotential& operator+(const MxPotential& rhs);
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    virtual std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation
+     * 
+     * @param str 
+     * @return MxPotential* 
+     */
+    static MxPotential *fromString(const std::string &str);
+
+    /**
+     * @brief Creates a 12-6 Lennard-Jones potential. 
+     * 
+     * The Lennard Jones potential has the form:
+     * 
+     * @f[
+     * 
+     *      \left( \frac{A}{r^{12}} - \frac{B}{r^6} \right) 
+     * 
+     * @f]
+     * 
+     * @param min The smallest radius for which the potential will be constructed.
+     * @param max The largest radius for which the potential will be constructed.
+     * @param A The first parameter of the Lennard-Jones potential.
+     * @param B The second parameter of the Lennard-Jones potential.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001 * (max - min). 
+     * @return MxPotential* 
+     */
+    static MxPotential *lennard_jones_12_6(double min, double max, double A, double B, double *tol=NULL);
+
+    /**
+     * @brief Creates a potential of the sum of a 12-6 Lennard-Jones potential and a shifted Coulomb potential. 
+     * 
+     * The 12-6 Lennard Jones - Coulomb potential has the form:
+     * 
+     * @f[
+     * 
+     *      \left( \frac{A}{r^{12}} - \frac{B}{r^6} \right) + q \left( \frac{1}{r} - \frac{1}{max} \right)
+     * 
+     * @f]
+     * 
+     * @param min The smallest radius for which the potential will be constructed.
+     * @param max The largest radius for which the potential will be constructed.
+     * @param A The first parameter of the Lennard-Jones potential.
+     * @param B The second parameter of the Lennard-Jones potential.
+     * @param q The charge scaling of the potential.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001 * (max - min). 
+     * @return MxPotential* 
+     */
+    static MxPotential *lennard_jones_12_6_coulomb(double min, double max, double A, double B, double q, double *tol=NULL);
+
+    /**
+     * @brief Creates a soft sphere interaction potential. 
+     * 
+     * The soft sphere is a generalized Lennard-Jones-type potential, but with settable exponents to create a softer interaction.
+     * 
+     * @param kappa 
+     * @param epsilon 
+     * @param r0 
+     * @param eta 
+     * @param min 
+     * @param max 
+     * @param tol 
+     * @param shift 
+     * @return MxPotential* 
+     */
+    static MxPotential *soft_sphere(double kappa, double epsilon, double r0, int eta, double *min=NULL, double *max=NULL, double *tol=NULL, bool *shift=NULL);
+
+    /**
+     * @brief Creates a real-space Ewald potential. 
+     * 
+     * The Ewald potential has the form:
+     * 
+     * @f[
+     * 
+     *      q \frac{\mathrm{erfc}\, ( \kappa r)}{r}
+     * 
+     * @f]
+     * 
+     * @param min The smallest radius for which the potential will be constructed.
+     * @param max The largest radius for which the potential will be constructed.
+     * @param q The charge scaling of the potential.
+     * @param kappa The screening distance of the Ewald potential.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001 * (max - min). 
+     * @param periodicOrder Order of lattice periodicity along all periodic dimensions. Defaults to 0. 
+     * @return MxPotential* 
+     */
+    static MxPotential *ewald(double min, double max, double q, double kappa, double *tol=NULL, unsigned int *periodicOrder=NULL);
+
+    /**
+     * @brief Creates a Coulomb potential. 
+     * 
+     * The Coulomb potential has the form:
+     * 
+     * @f[
+     * 
+     *      \frac{q}{r}
+     * 
+     * @f]
+     * 
+     * @param q The charge scaling of the potential. 
+     * @param min The smallest radius for which the potential will be constructed. Default is 0.01. 
+     * @param max The largest radius for which the potential will be constructed. Default is 2.0. 
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001 * (max - min). 
+     * @param periodicOrder Order of lattice periodicity along all periodic dimensions. Defaults to 0. 
+     * @return MxPotential* 
+     */
+    static MxPotential *coulomb(double q, double *min=NULL, double *max=NULL, double *tol=NULL, unsigned int *periodicOrder=NULL);
+
+    /**
+     * @brief Creates a Coulomb reciprocal potential. 
+     * 
+     * The Coulomb reciprocal potential has the form: 
+     * 
+     * @f[
+     * 
+     *      \frac{\pi q}{V} \sum_{||\mathbf{m}|| \neq 0} \frac{1}{||\mathbf{m}||^2} \exp \left( \left( i \mathbf{r}_{jk} - \left( \frac{\pi}{\kappa} \right)^{2} \mathbf{m} \right) \cdot \mathbf{m} \right)
+     * 
+     * @f]
+     * 
+     * Here @f$ V @f$ is the volume of the domain and @f$ \mathbf{m} @f$ is a reciprocal vector of the domain. 
+     * 
+     * @param q Charge scaling of the potential. 
+     * @param kappa Screening distance.
+     * @param min Smallest radius for which the potential will be constructed. 
+     * @param max Largest radius for which the potential will be constructed. 
+     * @param modes Number of Fourier modes along each periodic dimension. Default is 1. 
+     * @return MxPotential* 
+     */
+    static MxPotential* coulombR(double q, double kappa, double min, double max, unsigned int* modes=NULL);
+
+    /**
+     * @brief Creates a harmonic bond potential. 
+     * 
+     * The harmonic potential has the form: 
+     * 
+     * @f[
+     * 
+     *      k \left( r-r_0 \right)^2
+     * 
+     * @f]
+     * 
+     * @param k The energy of the bond.
+     * @param r0 The bond rest length.
+     * @param min The smallest radius for which the potential will be constructed. Defaults to @f$ r_0 - r_0 / 2 @f$.
+     * @param max The largest radius for which the potential will be constructed. Defaults to @f$ r_0 + r_0 /2 @f$.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to @f$ 0.01 \abs(max-min) @f$.
+     * @return MxPotential* 
+     */
+    static MxPotential *harmonic(double k, double r0, double *min=NULL, double *max=NULL, double *tol=NULL);
+
+    /**
+     * @brief Creates a linear potential. 
+     * 
+     * The linear potential has the form:
+     * 
+     * @f[
+     * 
+     *      k r
+     * 
+     * @f]
+     * 
+     * @param k interaction strength; represents the potential energy peak value.
+     * @param min The smallest radius for which the potential will be constructed. Defaults to 0.0.
+     * @param max The largest radius for which the potential will be constructed. Defaults to 10.0.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001.
+     * @return MxPotential* 
+     */
+    static MxPotential *linear(double k, double *min=NULL, double *max=NULL, double *tol=NULL);
+
+    /**
+     * @brief Creates a harmonic angle potential. 
+     * 
+     * The harmonic angle potential has the form: 
+     * 
+     * @f[
+     * 
+     *      k \left(\theta-\theta_{0} \right)^2
+     * 
+     * @f]
+     * 
+     * @param k The energy of the angle.
+     * @param theta0 The minimum energy angle.
+     * @param min The smallest angle for which the potential will be constructed. Defaults to zero. 
+     * @param max The largest angle for which the potential will be constructed. Defaults to PI. 
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.005 * (max - min). 
+     * @return MxPotential* 
+     */
+    static MxPotential *harmonic_angle(double k, double theta0, double *min=NULL, double *max=NULL, double *tol=NULL);
+
+    /**
+     * @brief Creates a harmonic dihedral potential. 
+     * 
+     * The harmonic dihedral potential has the form:
+     * 
+     * @f[
+     * 
+     *      k \left( \theta - \delta \right) ^2
+     * 
+     * @f]
+     * 
+     * @param k energy of the dihedral.
+     * @param delta minimum energy dihedral. 
+     * @param min The smallest angle for which the potential will be constructed. Defaults to zero. 
+     * @param max The largest angle for which the potential will be constructed. Defaults to PI. 
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.005 * (max - min). 
+     * @return MxPotential* 
+     */
+    static MxPotential *harmonic_dihedral(double k, double delta, double *min=NULL, double *max=NULL, double *tol=NULL);
+
+    /**
+     * @brief Creates a cosine dihedral potential. 
+     * 
+     * The cosine dihedral potential has the form:
+     * 
+     * @f[
+     * 
+     *      k \left( 1 + \cos( n \theta-\delta ) \right)
+     * 
+     * @f]
+     * 
+     * @param k energy of the dihedral.
+     * @param n multiplicity of the dihedral.
+     * @param delta minimum energy dihedral. 
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.01. 
+     * @return MxPotential* 
+     */
+    static MxPotential *cosine_dihedral(double k, int n, double delta, double *tol=NULL);
+
+    /**
+     * @brief Creates a well potential. 
+     * 
+     * Useful for binding a particle to a region.
+     * 
+     * The well potential has the form: 
+     * 
+     * @f[
+     * 
+     *      \frac{k}{\left(r_0 - r\right)^{n}}
+     * 
+     * @f]
+     * 
+     * @param k potential prefactor constant, should be decreased for larger n.
+     * @param n exponent of the potential, larger n makes a sharper potential.
+     * @param r0 The extents of the potential, length units. Represents the maximum extents that a two objects connected with this potential should come apart.
+     * @param min The smallest radius for which the potential will be constructed. Defaults to zero.
+     * @param max The largest radius for which the potential will be constructed. Defaults to r0.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.01 * abs(min-max).
+     * @return MxPotential* 
+     */
+    static MxPotential *well(double k, double n, double r0, double *min=NULL, double *max=NULL, double *tol=NULL);
+
+    /**
+     * @brief Creates a generalized Lennard-Jones potential.
+     * 
+     * The generalized Lennard-Jones potential has the form:
+     * 
+     * @f[
+     * 
+     *      \frac{\epsilon}{n-m} \left[ m \left( \frac{r_0}{r} \right)^n - n \left( \frac{r_0}{r} \right)^m \right]
+     * 
+     * @f]
+     * 
+     * @param e effective energy of the potential. 
+     * @param m order of potential. Defaults to 3
+     * @param n order of potential. Defaults to 2*m.
+     * @param k mimumum of the potential. Defaults to 1.
+     * @param r0 mimumum of the potential. Defaults to 1. 
+     * @param min The smallest radius for which the potential will be constructed. Defaults to 0.05 * r0.
+     * @param max The largest radius for which the potential will be constructed. Defaults to 5 * r0.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.01.
+     * @param shifted Flag for whether using a shifted potential. Defaults to true. 
+     * @return MxPotential* 
+     */
+    static MxPotential *glj(double e, double *m=NULL, double *n=NULL, double *k=NULL, double *r0=NULL, double *min=NULL, double *max=NULL, double *tol=NULL, bool *shifted=NULL);
+
+    /**
+     * @brief Creates a Morse potential. 
+     * 
+     * The Morse potential has the form:
+     * 
+     * @f[
+     * 
+     *      d \left(1 - e^{ -a \left(r - r_0 \right) } \right)
+     * 
+     * @f]
+     * 
+     * @param d well depth. Defaults to 1.0.
+     * @param a potential width. Defaults to 6.0.
+     * @param r0 equilibrium distance. Defaults to 0.0. 
+     * @param min The smallest radius for which the potential will be constructed. Defaults to 0.0001.
+     * @param max The largest radius for which the potential will be constructed. Defaults to 3.0.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001.
+     * @return MxPotential* 
+     */
+    static MxPotential *morse(double *d=NULL, double *a=NULL, double *r0=NULL, double *min=NULL, double *max=NULL, double *tol=NULL);
+
+    /**
+     * @brief Creates an overlapping-sphere potential from :cite:`Osborne:2017hk`. 
+     * 
+     * The overlapping-sphere potential has the form: 
+     * 
+     * @f[
+     *      \mu_{ij} s_{ij}(t) \hat{\mathbf{r}}_{ij} \log \left( 1 + \frac{||\mathbf{r}_{ij}|| - s_{ij}(t)}{s_{ij}(t)} \right) 
+     *          \text{ if } ||\mathbf{r}_{ij}|| < s_{ij}(t) ,
+     * @f]
+     * 
+     * @f[
+     *      \mu_{ij}\left(||\mathbf{r}_{ij}|| - s_{ij}(t)\right) \hat{\mathbf{r}}_{ij} \exp \left( -k_c \frac{||\mathbf{r}_{ij}|| - s_{ij}(t)}{s_{ij}(t)} \right) 
+     *          \text{ if } s_{ij}(t) \leq ||\mathbf{r}_{ij}|| \leq r_{max} ,
+     * @f]
+     * 
+     * @f[
+     *      0 \text{ otherwise} .
+     * @f]
+     * 
+     * Osborne refers to @f$ \mu_{ij} @f$ as a "spring constant", this 
+     * controls the size of the force, and is the potential energy peak value. 
+     * @f$ \hat{\mathbf{r}}_{ij} @f$ is the unit vector from particle 
+     * @f$ i @f$ center to particle @f$ j @f$ center, @f$ k_C @f$ is a 
+     * parameter that defines decay of the attractive force. Larger values of 
+     * @f$ k_C @f$ result in a shaper peaked attraction, and thus a shorter 
+     * ranged force. @f$ s_{ij}(t) @f$ is the is the sum of the radii of the 
+     * two particles.
+     * 
+     * @param mu interaction strength, represents the potential energy peak value. Defaults to 1.0.
+     * @param kc decay strength of long range attraction. Larger values make a shorter ranged function. Defaults to 1.0.
+     * @param kh Optionally add a harmonic long-range attraction, same as :meth:`glj` function. Defaults to 0.0.
+     * @param r0 Optional harmonic rest length, only used if `kh` is non-zero. Defaults to 0.0.
+     * @param min The smallest radius for which the potential will be constructed. Defaults to 0.001.
+     * @param max The largest radius for which the potential will be constructed. Defaults to 10.0.
+     * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001.
+     * @return MxPotential* 
+     */
+    static MxPotential *overlapping_sphere(double *mu=NULL, double *kc=NULL, double *kh=NULL, double *r0=NULL, double *min=NULL, double *max=NULL, double *tol=NULL);
+    
+    /**
+     * @brief Creates a power potential. 
+     * 
+     * The power potential the general form of many of the potential 
+     * functions, such as :meth:`linear`, etc. power has the form:
+     * 
+     * @f[
+     * 
+     *      k (r-r_0)^{\alpha}
+     * 
+     * @f]
+     * 
+     * @param k interaction strength, represents the potential energy peak value. Defaults to 1
+     * @param r0 potential rest length, zero of the potential, defaults to 0.
+     * @param alpha Exponent, defaults to 1.
+     * @param min minimal value potential is computed for, defaults to r0 / 2.
+     * @param max cutoff distance, defaults to 3 * r0.
+     * @param tol Tolerance, defaults to 0.01.
+     * @return MxPotential* 
+     */
+    static MxPotential *power(double *k=NULL, double *r0=NULL, double *alpha=NULL, double *min=NULL, double *max=NULL, double *tol=NULL);
+
+    /**
+     * @brief Creates a Dissipative Particle Dynamics potential. 
+     * 
+     * The Dissipative Particle Dynamics force has the form: 
+     * 
+     * @f[
+     * 
+     *      \mathbf{F}_{ij} = \mathbf{F}^C_{ij} + \mathbf{F}^D_{ij} + \mathbf{F}^R_{ij}
+     * 
+     * @f]
+     * 
+     * The conservative force is: 
+     * 
+     * @f[
+     * 
+     *      \mathbf{F}^C_{ij} = \alpha \left(1 - \frac{r_{ij}}{r_c}\right) \mathbf{e}_{ij}
+     * 
+     * @f]
+     * 
+     * The dissapative force is:
+     * 
+     * @f[
+     * 
+     *      \mathbf{F}^D_{ij} = -\gamma \left(1 - \frac{r_{ij}}{r_c}\right)^{2}(\mathbf{e}_{ij} \cdot \mathbf{v}_{ij}) \mathbf{e}_{ij}
+     * 
+     * @f]
+     * 
+     * The random force is: 
+     * 
+     * @f[
+     * 
+     *      \mathbf{F}^R_{ij} = \sigma \left(1 - \frac{r_{ij}}{r_c}\right) \xi_{ij}\Delta t^{-1/2}\mathbf{e}_{ij}
+     * 
+     * @f]
+     * 
+     * @param alpha interaction strength of the conservative force. Defaults to 1.0. 
+     * @param gamma interaction strength of dissapative force. Defaults to 1.0. 
+     * @param sigma strength of random force. Defaults to 1.0. 
+     * @param cutoff cutoff distance. Defaults to 1.0. 
+     * @param shifted Flag for whether using a shifted potential. Defaults to false. 
+     * @return MxPotential* 
+     */
+    static MxPotential *dpd(double *alpha=NULL, double *gamma=NULL, double *sigma=NULL, double *cutoff=NULL, bool *shifted=NULL);
+
+    /**
+     * @brief Creates a custom potential. 
+     * 
+     * @param min The smallest radius for which the potential will be constructed.
+     * @param max The largest radius for which the potential will be constructed.
+     * @param f function returning the value of the potential
+     * @param fp function returning the value of first derivative of the potential
+     * @param f6p function returning the value of sixth derivative of the potential
+     * @param tol Tolerance, defaults to 0.001.
+     * @return MxPotential* 
+     */
+    static MxPotential *custom(double min, double max, double (*f)(double), double (*fp)(double), double (*f6p)(double), 
+                               double *tol=NULL, uint32_t *flags=NULL);
+
+    /**
+     * @brief Creates a custom potential. 
+     * 
+     * @param min The smallest radius for which the potential will be constructed.
+     * @param max The largest radius for which the potential will be constructed.
+     * @param f function returning the value of the potential
+     * @param fp function returning the value of first derivative of the potential
+     * @param f6p function returning the value of sixth derivative of the potential
+     * @param tol Tolerance, defaults to 0.001.
+     * @return MxPotential* 
+     */
+    static MxPotential *customPy(double min, double max, PyObject *f, PyObject *fp=Py_None, PyObject *f6p=Py_None, 
+                                 double *tol=NULL, uint32_t *flags=NULL);
+
+    float getMin();
+    float getMax();
+    float getCutoff();
+    std::pair<float, float> getDomain();
+    int getIntervals();
+    bool getBound();
+    void setBound(const bool &_bound);
+    FPTYPE getR0();
+    void setR0(const FPTYPE &_r0);
+    bool getShifted();
+    void setShifted(const bool &_shifted);
+    bool getPeriodic();
+    bool getRSquare();
+    void setRSquare(const bool &_rSquare);
+
+} MxPotential;
 
 
 /** Fictitious null potential. */
@@ -205,8 +766,11 @@ CAPI_FUNC(struct MxPotential *) potential_create_linear ( double a , double b ,
 CAPI_FUNC(struct MxPotential *) potential_create_harmonic_angle ( double a , double b ,
 																  double K , double theta0 ,
 																  double tol );
-CAPI_FUNC(struct MxPotential *) potential_create_harmonic_dihedral ( double K , int n ,
-																	 double delta , double tol );
+CAPI_FUNC(struct MxPotential *) potential_create_harmonic_dihedral ( double a , double b ,
+																     double K , double delta , 
+                                                                     double tol );
+CAPI_FUNC(struct MxPotential *) potential_create_cosine_dihedral ( double K , int n ,
+																   double delta , double tol );
 
 
 CAPI_FUNC(struct MxPotential *) potential_create_SS1(double k, double e, double r0, double a , double b ,double tol);
@@ -267,19 +831,14 @@ CAPI_FUNC(double) potential_switch ( double r , double A , double B );
 CAPI_FUNC(double) potential_switch_p ( double r , double A , double B );
 
 
-/**
- * do an aligned alloc. 
- */
-MxPotential *potential_alloc(PyTypeObject *type);
+namespace mx { namespace io {
 
+template <>
+HRESULT toFile(MxPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
 
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxPotential **dataElement);
 
-/**
- * The type of each individual particle.
- */
-CAPI_DATA(PyTypeObject) MxPotential_Type;
-
-HRESULT _MxPotential_init(PyObject *m);
-
+}};
 
 #endif // INCLUDE_POTENTIAL_H_

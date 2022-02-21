@@ -27,10 +27,7 @@ import numpy
 import math
 from collections import namedtuple
 
-if __name__ == 'mechanica.lattice':
-    from . import _mechanica as m
-else:
-    import mechanica as m
+import mechanica as m
 
 
 # Multiply two quaternions
@@ -47,8 +44,9 @@ def _quatMult(q1, q2):
     w = q2[1:]
     q = numpy.empty((4,), dtype=numpy.float64)
     q[0] = s*t - numpy.dot(v, w)
-    q[1:] = s*w + t*v + numpy.cross(v,w)
+    q[1:] = s*w + t*v + numpy.cross(v, w)
     return q
+
 
 # Rotate a vector by a unit quaternion
 # Quaternion rotation per
@@ -64,8 +62,9 @@ def _quatRot(q, v):
     w = q[0]
     r = q[1:]
     vnew = numpy.empty((3,), dtype=v.dtype)
-    vnew = v + 2*numpy.cross(r, numpy.cross(r,v) + w*v)
+    vnew = v + 2*numpy.cross(r, numpy.cross(r, v) + w*v)
     return vnew
+
 
 # make a types vector of the requested size
 def _make_types(n, types):
@@ -81,6 +80,7 @@ def _make_types(n, types):
 
     return [types] * n
 
+
 # hold bond rule info,
 #
 # *func: function of func(p1, p2) that accepts two particle handles and
@@ -92,6 +92,7 @@ def _make_types(n, types):
 # *cell_offset: offset vector of other unit cell relative to current
 #         unit cell. Must be a tuple
 _BondRule = namedtuple('_BondRule', ['func', 'part_ids', 'cell_offset'])
+
 
 class unitcell(object):
     R""" Define a unit cell.
@@ -136,7 +137,7 @@ class unitcell(object):
                               dimensions = 3,
                               position = [[0,0,0], [0.5, 0.5, 0.5]],
                               types = [A, B],
-                              orientation = [[0.707, 0, 0, 0.707], [1.0, 0, 0, 0]]);
+                              orientation = [[0.707, 0, 0, 0.707], [1.0, 0, 0, 0]])
 
     Note:
         *a1*, *a2*, *a3* must define a right handed coordinate system.
@@ -148,14 +149,14 @@ class unitcell(object):
                  a1,
                  a2,
                  a3,
-                 dimensions = 3,
-                 position = None,
-                 types = None,
-                 diameter = None,
-                 orientation = None,
-                 bonds = None):
+                 dimensions=3,
+                 position=None,
+                 types=None,
+                 diameter=None,
+                 orientation=None,
+                 bonds=None):
 
-        self.N = N;
+        self.N = N
         self.a1 = numpy.asarray(a1, dtype=numpy.float64)
         self.a2 = numpy.asarray(a2, dtype=numpy.float64)
         self.a3 = numpy.asarray(a3, dtype=numpy.float64)
@@ -163,27 +164,25 @@ class unitcell(object):
         self.bonds = bonds
 
         if position is None:
-            self.position = numpy.array([(0,0,0)] * self.N, dtype=numpy.float64);
+            self.position = numpy.array([(0, 0, 0)] * self.N, dtype=numpy.float64)
         else:
-            self.position = numpy.asarray(position, dtype=numpy.float64);
+            self.position = numpy.asarray(position, dtype=numpy.float64)
             if len(self.position) != N:
-                raise ValueError("Particle properties must have length N");
+                raise ValueError("Particle properties must have length N")
 
         if types is None:
             self.types = [m.Particle] * self.N
         else:
-            self.types = types;
+            self.types = types
             if len(self.types) != N:
-                raise ValueError("Particle properties must have length N");
+                raise ValueError("Particle properties must have length N")
 
         if orientation is None:
-            self.orientation = numpy.array([(1,0,0,0)] * self.N, dtype=numpy.float64);
+            self.orientation = numpy.array([(1, 0, 0, 0)] * self.N, dtype=numpy.float64)
         else:
-            self.orientation = numpy.asarray(orientation, dtype=numpy.float64);
+            self.orientation = numpy.asarray(orientation, dtype=numpy.float64)
             if len(self.orientation) != N:
-                raise ValueError("Particle properties must have length N");
-
-
+                raise ValueError("Particle properties must have length N")
 
 
 def sc(a, types=None, bond=None, bond_vector=(True, True, True)):
@@ -221,23 +220,24 @@ def sc(a, types=None, bond=None, bond_vector=(True, True, True)):
         bonds = []
 
         if bond_vector[0]:
-            bonds.append(_BondRule(bond, (0,0), (1, 0, 0)))
+            bonds.append(_BondRule(bond, (0, 0), (1, 0, 0)))
 
         if bond_vector[1]:
-            bonds.append(_BondRule(bond, (0,0), (0, 1, 0)))
+            bonds.append(_BondRule(bond, (0, 0), (0, 1, 0)))
 
         if bond_vector[2]:
-            bonds.append(_BondRule(bond, (0,0), (0, 0, 1)))
+            bonds.append(_BondRule(bond, (0, 0), (0, 0, 1)))
 
     return unitcell(N=1,
                     types=_make_types(1, types),
-                    a1=[a,0,0],
-                    a2=[0,a,0],
-                    a3=[0,0,a],
+                    a1=[a, 0, 0],
+                    a2=[0, a, 0],
+                    a3=[0, 0, a],
                     dimensions=3,
-                    bonds=bonds);
+                    bonds=bonds)
 
-def bcc(a, types = None):
+
+def bcc(a, types=None):
     R""" Create a body centered cubic lattice (3D).
 
     Args:
@@ -269,12 +269,13 @@ def bcc(a, types = None):
     """
 
     return unitcell(N=2,
-                    types = _make_types(2, types),
-                    position=[[0,0,0],[a/2,a/2,a/2]],
-                    a1=[a,0,0],
-                    a2=[0,a,0],
-                    a3=[0,0,a],
-                    dimensions=3);
+                    types=_make_types(2, types),
+                    position=[[0, 0, 0], [a/2, a/2, a/2]],
+                    a1=[a, 0, 0],
+                    a2=[0, a, 0],
+                    a3=[0, 0, a],
+                    dimensions=3)
+
 
 def fcc(a, types=None):
     R""" Create a face centered cubic lattice (3D).
@@ -311,11 +312,12 @@ def fcc(a, types=None):
 
     return unitcell(N=4,
                     types=_make_types(4, types),
-                    position=[[0,0,0],[0,a/2,a/2],[a/2,0,a/2],[a/2,a/2,0]],
-                    a1=[a,0,0],
-                    a2=[0,a,0],
-                    a3=[0,0,a],
-                    dimensions=3);
+                    position=[[0, 0, 0], [0, a/2, a/2], [a/2, 0, a/2], [a/2, a/2, 0]],
+                    a1=[a, 0, 0],
+                    a2=[0, a, 0],
+                    a3=[0, 0, a],
+                    dimensions=3)
+
 
 def sq(a, types=None):
     R""" Create a square lattice (2D).
@@ -346,13 +348,13 @@ def sq(a, types=None):
         \end{eqnarray*}
     """
 
-
     return unitcell(N=1,
                     types=_make_types(1, types),
-                    a1=[a,0,0],
-                    a2=[0,a,0],
-                    a3=[0,0,1],
-                    dimensions=2);
+                    a1=[a, 0, 0],
+                    a2=[0, a, 0],
+                    a3=[0, 0, 1],
+                    dimensions=2)
+
 
 def hex(a, types=None):
     R""" Create a hexagonal lattice (2D).
@@ -388,14 +390,13 @@ def hex(a, types=None):
         \end{eqnarray*}
     """
 
-
     return unitcell(N=2,
                     types=_make_types(2, types),
-                    position=[[0,0,0],[a/2,math.sqrt(3)*a/2,0]],
-                    a1=[a,0,0],
-                    a2=[0,math.sqrt(3)*a,0],
-                    a3=[0,0,1],
-                    dimensions=2);
+                    position=[[0, 0, 0], [a/2, math.sqrt(3)*a/2, 0]],
+                    a1=[a, 0, 0],
+                    a2=[0, math.sqrt(3)*a, 0],
+                    a3=[0, 0, 1],
+                    dimensions=2)
 
 
 def hcp(a, c=None, types=None):
@@ -435,15 +436,13 @@ def hcp(a, c=None, types=None):
     if c is None:
         c = a
 
-
     return unitcell(N=6,
                     types=_make_types(6, types),
-                    position=[[0,0,0],[a/2,math.sqrt(3)*a/2,0]],
-                    a1=[a,0,0],
-                    a2=[a/2,math.sqrt(3)*a/2,0],
-                    a3=[0,0,c],
-                    dimensions=3);
-
+                    position=[[0, 0, 0], [a/2, math.sqrt(3)*a/2, 0]],
+                    a1=[a, 0, 0],
+                    a2=[a/2, math.sqrt(3)*a/2, 0],
+                    a3=[0, 0, c],
+                    dimensions=3)
 
 
 def create_lattice(unitcell, n, origin=None):
@@ -467,53 +466,52 @@ def create_lattice(unitcell, n, origin=None):
 
     Examples::
         mechanica.lattice.create_lattice(unitcell=mechanica.lattice.sc(a=1.0),
-                                  n=[2,4,2]);
+                                  n=[2,4,2])
         mechanica.lattice.create_lattice(unitcell=mechanica.lattice.bcc(a=1.0),
-                                  n=10);
+                                  n=10)
         mechanica.lattice.create_lattice(unitcell=mechanica.lattice.sq(a=1.2),
-                                  n=[100,10]);
+                                  n=[100,10])
         mechanica.lattice.create_lattice(unitcell=mechanica.lattice.hex(a=1.0),
-                                  n=[100,58]);
+                                  n=[100,58])
     """
 
     if origin is None:
         cell_half_size = (unitcell.a1 + unitcell.a2 + unitcell.a3) / 2
         extents = n[0] * unitcell.a1 + n[1] * unitcell.a2 + n[2] * unitcell.a3
-        origin = m.Universe.center - extents / 2  + cell_half_size
-
+        origin = m.Universe.center - extents / 2 + cell_half_size
 
     lattice = numpy.empty(n, dtype=numpy.object)
 
     for i in range(n[0]):
         for j in range(n[1]):
             for k in range(n[2]):
-                pos = origin + unitcell.a1 * i + unitcell.a2 * j + unitcell.a3 * k;
-                parts = [type(pos) for (type,pos) in zip(unitcell.types, unitcell.position + pos)]
-                lattice[i,j,k] = parts
+                pos = origin + unitcell.a1 * i + unitcell.a2 * j + unitcell.a3 * k
+                parts = [type(pos.tolist()) for (type, pos) in zip(unitcell.types, unitcell.position + pos)]
+                lattice[i, j, k] = parts
 
     if unitcell.bonds:
         for i in range(n[0]):
             for j in range(n[1]):
                 for k in range(n[2]):
                     for bond in unitcell.bonds:
-                        ii = (i, j, k) # index of first unit cell, needs to be tuple
+                        ii = (i, j, k)  # index of first unit cell, needs to be tuple
                         jj = (ii[0] + bond.cell_offset[0], ii[1] + bond.cell_offset[1], ii[2] + bond.cell_offset[2])
                         # check if next unit cell index is valid
                         if jj[0] >= n[0] or jj[1] >= n[1] or jj[2] >= n[2]:
                             continue
 
-                        #print("ii, jj: ", ii, jj)
+                        # print("ii, jj: ", ii, jj)
 
-                        #print("lattice[(0,0,0)]: ", lattice[(0, 0, 0)])
+                        # print("lattice[(0,0,0)]: ", lattice[(0, 0, 0)])
 
                         # grap the parts out of the lattice
                         ci = lattice[ii]
                         cj = lattice[jj]
 
-                        #print("ci: ", ci)
-                        #print("cj: ", cj)
+                        # print("ci: ", ci)
+                        # print("cj: ", cj)
 
-                        m.Logger.log(m.Logger.LOG_TRACE, "bonding: ", ci[bond.part_ids[0]], cj[bond.part_ids[1]])
+                        m.Logger.log(m.Logger.TRACE, f"bonding: {ci[bond.part_ids[0]]}, {cj[bond.part_ids[1]]}")
 
                         bond.func(ci[bond.part_ids[0]], cj[bond.part_ids[1]])
 

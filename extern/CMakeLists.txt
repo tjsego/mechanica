@@ -1,5 +1,59 @@
+# build libsbml
+
+set(LIBSBML_SHARED_VERSION OFF CACHE BOOL "dont build shared libsbml")
+
+set(WITH_CPP_NAMESPACE ON CACHE BOOL "Use a C++ namespace for libSBML.")
+
+set(WITH_PYTHON OFF CACHE BOOL "Generate the Python language interface for libSBML." )
+
+set(WITH_SWIG OFF CACHE BOOL "Regenerate the programming language interface code (for Java, Python, etc.) using SWIG.")
+
+set(LIBSBML_ROOT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libsbml" CACHE PATH "Path to the libSBML root source directory" FORCE)
+
+set(LIBSBML_ROOT_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/libsbml" CACHE PATH "Path to the libSBML root build directory" FORCE)
+
+# set(LIBSBML_DEPENDENCY_DIR "${CMAKE_FIND_ROOT_PATH}" CACHE PATH "Directory containing libraries that libSBML depends upon. (Particularly important on Windows.)" FORCE)
+
+set(LIBSBML_SKIP_SHARED_LIBRARY "ON")
+
+# If necessary, confine doc files to share, rather than in install root
+if(NOT UNIX AND NOT CYGWIN)
+  function(libsbml_doc_change variable access value current stack)
+    set(MISC_PREFIX "./share/sbml" PARENT_SCOPE)
+  endfunction()
+
+  variable_watch(MISC_PREFIX libsbml_doc_change)
+endif()
+
+add_subdirectory(libsbml)
+
+# create an interface target for libsbml as a modern cmake target
+
+add_library(libsbml-static-interface INTERFACE)
+
+# libsbml names libs differently, why???
+if(UNIX OR CYGWIN)
+  set(LIBSBML_LIBRARY sbml)
+else()
+  if(MINGW)
+    set(LIBSBML_LIBRARY sbml)
+  else()
+    set(LIBSBML_LIBRARY libsbml)
+  endif()
+endif()
+
+set_property(TARGET ${LIBSBML_LIBRARY}-static PROPERTY C_STANDARD 11)
+set_property(TARGET ${LIBSBML_LIBRARY}-static PROPERTY CXX_STANDARD 14)
+
+target_link_libraries(libsbml-static-interface INTERFACE ${LIBSBML_LIBRARY}-static)
+
+target_compile_definitions(libsbml-static-interface INTERFACE LIBSBML_STATIC)
+
+target_include_directories(libsbml-static-interface INTERFACE "$<TARGET_PROPERTY:${LIBSBML_LIBRARY}-static,INCLUDE_DIRECTORIES>")
+
+add_library(LibSBML::LibSBML ALIAS libsbml-static-interface)
+
 # build glfw here, set up variables so magnum does not try to find it
-# glfw has to come before carbon (and libsbml)
 
 set(WITH_PNGIMPORTER OFF CACHE BOOL "build PNG importer"    FORCE)
 
@@ -7,12 +61,9 @@ set(WITH_PNGIMPORTER OFF CACHE BOOL "build PNG importer"    FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "stuff" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "stuff" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "stuff" FORCE)
-set(GLFW_INSTALL OFF CACHE BOOL "stuff" FORCE)
+set(GLFW_INSTALL ON CACHE BOOL "stuff" FORCE)
 
 add_subdirectory(glfw)
-
-# build core carbon lib
-add_subdirectory(carbon)
 
 
 # glfw does not set it's target include directories, but it turns out we
@@ -26,6 +77,10 @@ target_include_directories(glfw PUBLIC
 target_include_directories(glfw PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/glfw/deps>
   )
+
+if(APPLE)
+  set_property(TARGET glfw PROPERTY INSTALL_NAME_DIR )
+endif()
 
 # magnum likes these names:
 #  GLFW::GLFW               - GLFW imported target

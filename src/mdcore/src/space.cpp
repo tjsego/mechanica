@@ -43,10 +43,12 @@
 #include "task.h"
 #include "space.h"
 #include "engine.h"
-#include "../../rendering/NOMStyle.hpp"
+#include "../../rendering/MxStyle.hpp"
 #include <iostream>
 #include "smoothing_kernel.hpp"
 #include "MxBoundaryConditions.hpp"
+#include "../../MxLogger.h"
+#include "../../mx_error.h"
 
 #include <vector>
 #include <random>
@@ -418,6 +420,11 @@ int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct M
         free( s->celllist );
         s->partlist = temp;
         s->celllist = tempc;
+
+        #if defined(HAVE_CUDA)
+            if(_Engine.flags & engine_flag_cuda && engine_cuda_refresh_particles(&_Engine) < 0)
+                return error(space_err_malloc);
+        #endif
     }
 
     /* Increase the number of parts. */
@@ -461,7 +468,7 @@ int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct M
     }
     
     MxParticleType *type = &_Engine.types[p->typeId];
-    NOMStyle *style = p->style ? p->style : type->style;
+    MxStyle *style = p->style ? p->style : type->style;
     
     if(style->flags & STYLE_VISIBLE) {
         if(p->flags & PARTICLE_LARGE) {
@@ -1503,12 +1510,12 @@ int space_maketuples ( struct space *s ) {
 CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
 {
     if(pid < 0 || pid >= s->size_parts) {
-        return c_error(E_FAIL, "pid out of range");
+        return mx_error(E_FAIL, "pid out of range");
     }
     MxParticle *p = s->partlist[pid];
 
     if(p == NULL) {
-        return c_error(E_FAIL, "particle is already null and deleted");
+        return mx_error(E_FAIL, "particle is already null and deleted");
     }
 
     space_cell *cell = s->celllist[pid];
@@ -1521,10 +1528,6 @@ CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
     size_t cid = p - cell->parts;
 
     assert(p == &cell->parts[cid] && "pointer arithmetic error");
-    
-    // the particle will get overwritten, release the
-    // pyobject ptr now
-    Py_DecRef(p->_pyparticle);
 
     cell->count -= 1;
     if ( cid < cell->count ) {
@@ -1535,7 +1538,7 @@ CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
     s->nr_parts -= 1;
     
     MxParticleType *type = &_Engine.types[p->typeId];
-    NOMStyle *style = p->style ? p->style : type->style;
+    MxStyle *style = p->style ? p->style : type->style;
     
     if(style->flags & STYLE_VISIBLE) {
         if(p->flags & PARTICLE_LARGE) {
@@ -1581,7 +1584,7 @@ HRESULT space_update_style( struct space *s ) {
     for(int i = 0; i < s->nr_parts; ++i) {
         MxParticle *p = s->partlist[i];
         MxParticleType *type = &_Engine.types[p->typeId];
-        NOMStyle *style = p->style ? p->style : type->style;
+        MxStyle *style = p->style ? p->style : type->style;
         
         if(style->flags & STYLE_VISIBLE) {
             if(p->flags & PARTICLE_LARGE) {

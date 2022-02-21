@@ -6,40 +6,54 @@
  */
 
 #include <MxCuboid.hpp>
-#include <MxConvert.hpp>
-#include <Magnum/Math/Matrix4.h>
 #include <engine.h>
 #include <cuboid_eval.hpp>
+#include <../../mx_error.h>
 
 #define CUBOID_SELF(handle) \
     MxCuboid *self = &_Engine.s.cuboids[((MxCuboidHandle*)handle)->id]; \
     if(self == NULL) { \
         PyErr_SetString(PyExc_ReferenceError, "Cuboid has been destroyed or is invalid"); \
-        return NULL; \
     }
 
 #define CUBOID_PROP_SELF(handle) \
     MxCuboid *self = &_Engine.s.cuboids[((MxCuboidHandle*)handle)->id]; \
     if(self == NULL) { \
         PyErr_SetString(PyExc_ReferenceError, "Cuboid has been destroyed or is invalid"); \
-        return -1; \
     }
 
 
 MxCuboid::MxCuboid() {
     bzero(this, sizeof(MxCuboid));
-    orientation = Magnum::Quaternion();
+    orientation = MxQuaternionf();
 }
 
-
-static PyObject* cuboid_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
-    //std::cout << MX_FUNCTION << ", type: " << type->tp_name << std::endl;
-    return PyType_GenericNew(type, args, kwargs);
+MxCuboidHandle *MxCuboid::create(MxVector3f *pos, MxVector3f *size, MxVector3f *orientation) {
+    auto _pos = pos ? *pos : engine_center();
+    auto _size = size ? *size : MxVector3f(1.0, 1.0, 1.0);
+    auto _orientation = orientation ? *orientation : MxVector3f(0.0, 0.0, 0.0);
+    return new MxCuboidHandle(_pos, _size, _orientation);
 }
 
+MxCuboid *MxCuboidHandle::cuboid() {
+    try {
+        CUBOID_SELF(this);
+        return self;
+    }
+    catch(const std::exception &e) {
+        MX_RETURN_EXP(e);
+    }
+}
 
-int cuboid_init(MxCuboidHandle *handle, PyObject *args, PyObject *kwds) {
-    
+MxCuboidHandle::MxCuboidHandle(const MxVector3f &pos, const MxVector3f &size, const MxVector3f &orientation) : 
+    MxBodyHandle()
+{
+    init(pos, size, orientation);
+}
+
+void MxCuboidHandle::init(const MxVector3f &pos, const MxVector3f &size, const MxVector3f &orientation) {
+    if(id > 0) return;
+
     try {
         MxCuboid c;
         
@@ -47,148 +61,49 @@ int cuboid_init(MxCuboidHandle *handle, PyObject *args, PyObject *kwds) {
         
         MxCuboid *p;
         
-        c.position = mx::arg<Magnum::Vector3>("pos", 0, args, kwds, engine_center());
-        c.size = mx::arg<Magnum::Vector3>("size", 1, args, kwds, Magnum::Vector3{1, 1, 1});
+        c.position = pos;
+        c.size = size;
         
-        Magnum::Vector3 angle = mx::arg<Magnum::Vector3>("orientation", 2, args, kwds, Magnum::Vector3{0, 0, 0});
+        MxVector3f angle = orientation;
         
-        Magnum::Quaternion qx = Magnum::Quaternion::rotation(Magnum::Rad(angle[0]), Magnum::Vector3::xAxis());
-        Magnum::Quaternion qy = Magnum::Quaternion::rotation(Magnum::Rad(angle[1]), Magnum::Vector3::yAxis());
-        Magnum::Quaternion qz = Magnum::Quaternion::rotation(Magnum::Rad(angle[2]), Magnum::Vector3::zAxis());
+        MxQuaternionf qx = MxQuaternionf::rotation(angle[0], MxVector3f::xAxis());
+        MxQuaternionf qy = MxQuaternionf::rotation(angle[1], MxVector3f::yAxis());
+        MxQuaternionf qz = MxQuaternionf::rotation(angle[2], MxVector3f::zAxis());
         
         c.orientation = qx * qy * qz;
         
         MxCuboid_UpdateAABB(&c);
         
         if(!SUCCEEDED((err = engine_addcuboid(&_Engine, &c, &p)))) {
-            return err;
+            throw std::runtime_error("Failed to add cuboid");
         }
         
-        p->_handle = handle;
-        
-        Py_INCREF(handle);
-        
-        return 0;
+        p->_handle = this;
+
+        this->id = p->id;
+
     }
     catch (const std::exception &e) {
-        return C_EXP(e);
+        mx_exp(e);
     }
 }
 
-static PyObject* cuboid_scale(MxCuboidHandle *_self, PyObject *args, PyObject *kwargs) {
+void MxCuboidHandle::scale(const MxVector3f &scale) {
     try {
-        CUBOID_SELF(_self);
-        
-        Magnum::Vector3 scale = mx::arg<Magnum::Vector3>("scale", 0, args, kwargs);
-        
-        self->size = Magnum::Matrix4::scaling(scale).transformVector(self->size);
-        
-        Py_RETURN_NONE;
+        CUBOID_SELF(this);
+        self->size = MxMatrix4f::scaling(scale).transformVector(self->size);
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        mx_exp(e);
     }
 }
-
-static PyMethodDef cuboid_methods[] = {
-    { "scale", (PyCFunction)cuboid_scale, METH_VARARGS | METH_KEYWORDS, NULL },
-    { NULL, NULL, 0, NULL }
-};
-
-
-PyGetSetDef cuboid_getsets[] = {
-    {
-        .name = "size",
-        .get = [](PyObject *obj, void *p) -> PyObject* {
-            CUBOID_SELF(obj);
-            return mx::cast(self->size);
-        },
-        .set = [](PyObject *obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {NULL}
-};
-
-PyTypeObject MxCuboid_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name =           "Cuboid",
-    .tp_basicsize =      sizeof(MxCuboidHandle),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           0,
-    .tp_as_number =      0,
-    .tp_as_sequence =    0,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            0,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags =          Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc =            "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        cuboid_methods,
-    .tp_members =        0,
-    .tp_getset =         0,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           (initproc)cuboid_init,
-    .tp_alloc =          0,
-    .tp_new =            cuboid_new,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
-
-
-int MxCuboid_Check(PyObject *obj) {
-    if(obj) {
-        return PyObject_IsInstance(obj, (PyObject*)&MxCuboid_Type);
-    }
-    return 0;
-}
-
-/**
- * check if a object is a cuboid type
- */
-int MxCuboidType_Check(PyObject *obj) {
-    if(obj && PyType_Check(obj)) {
-        return PyObject_IsSubclass(obj, (PyObject*)&MxCuboid_Type);
-    }
-    return 0;
-}
-
 
 void MxCuboid_UpdateAABB(MxCuboid *c) {
-    Magnum::Vector3 min = Magnum::Vector3(std::numeric_limits<float>::max());
-    Magnum::Vector3 max = Magnum::Vector3(std::numeric_limits<float>::min());
-    Magnum::Vector3 halfSize = 0.5 * c->size;
-    Magnum::Vector3 pos = c->position;
-    Magnum::Vector3 points[] =  {
+    MxVector3f min = MxVector3f(std::numeric_limits<float>::max());
+    MxVector3f max = MxVector3f(std::numeric_limits<float>::min());
+    MxVector3f halfSize = 0.5 * c->size;
+    MxVector3f pos = c->position;
+    MxVector3f points[] =  {
         c->orientation.transformVector({ halfSize[0],  halfSize[1],  halfSize[2]}) + pos,
         c->orientation.transformVector({ halfSize[0], -halfSize[1],  halfSize[2]}) + pos,
         c->orientation.transformVector({-halfSize[0], -halfSize[1],  halfSize[2]}) + pos,
@@ -210,26 +125,5 @@ void MxCuboid_UpdateAABB(MxCuboid *c) {
     // TODO: only need to compute if rotation. 
     c->inv_orientation = c->orientation.inverted();
     
-    Magnum::Vector3 p2 = c->orientation.transformVector(Magnum::Vector3{1, 0, 1});
+    MxVector3f p2 = c->orientation.transformVector(MxVector3f{1, 0, 1});
 }
-
-
-HRESULT _MxCuboid_Init(PyObject* m) {
-    
-    // WARNING: make sure MxBody is initialized before cuboid.
-    MxCuboid_Type.tp_base = &MxBody_Type;
-    
-    if (PyType_Ready((PyTypeObject*)&MxCuboid_Type) < 0) {
-        return E_FAIL;
-    }
-
-    Py_INCREF(&MxCuboid_Type);
-    if (PyModule_AddObject(m, "Cuboid", (PyObject *)&MxCuboid_Type) < 0) {
-        Py_DECREF(&MxCuboid_Type);
-        return E_FAIL;
-    }
-
-    return S_OK;
-}
-
-

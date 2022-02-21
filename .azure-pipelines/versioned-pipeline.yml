@@ -1,0 +1,137 @@
+name: mechanica_$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+    - master
+
+pr:
+  branches:
+    include:
+    - master
+
+variables:
+  mx_version: '0.31.0'
+  mx_buildnum: 0
+  mx_buildqual: 'release'
+
+parameters:
+- name: py_minor_versions_win
+  type: object
+  default: [7, 8]
+- name: py_minor_versions_linux
+  type: object
+  default: [7, 8]
+- name: py_minor_versions_osx
+  type: object
+  default: [7, 8]
+
+stages:
+
+  # Windows build: local
+
+  - stage: MechanicaBuildWindowsLocal
+    displayName: Local build for Windows
+    pool:
+      vmImage: 'windows-2019'
+    dependsOn: []
+    jobs:
+      - ${{ each py_minor_version in parameters.py_minor_versions_win }}:
+        - template: job-templates/job-build-test-package-win-local.yml
+          parameters:
+            name: ${{ format('MechanicaBuildWindowsLocal_Python_3_{0}', py_minor_version) }}
+            platform_name: 'win64'
+            mx_buildqual: $(mx_buildqual)
+            py_minor_version: ${{ py_minor_version }}
+            working_dir: $(Agent.BuildDirectory)
+            staging_dir: $(Build.ArtifactStagingDirectory)
+
+  # Linux build: local
+
+  - stage: MechanicaBuildLinuxLocal
+    displayName: Local build for Linux
+    pool: 
+      vmImage: 'ubuntu-20.04'
+    dependsOn: []
+    jobs:
+      - ${{ each py_minor_version in parameters.py_minor_versions_linux }}:
+        - template: job-templates/job-build-test-package-linux-local.yml
+          parameters:
+            name: ${{ format('MechanicaBuildLinuxLocal_Python_3_{0}', py_minor_version) }}
+            platform_name: 'linux64'
+            mx_buildqual: $(mx_buildqual)
+            py_minor_version: ${{ py_minor_version }}
+            working_dir: $(Agent.BuildDirectory)
+            staging_dir: $(Build.ArtifactStagingDirectory)
+
+  # MacOS build: local
+
+  - stage: MechanicaBuildMacLocal
+    displayName: Local build for Mac
+    pool: 
+      vmImage: 'macOS-11'
+    dependsOn: []
+    jobs:
+      - ${{ each py_minor_version in parameters.py_minor_versions_osx }}:
+        - template: job-templates/job-build-test-package-osx-local.yml
+          parameters:
+            name: ${{ format('MechanicaBuildMacLocal_Python_3_{0}', py_minor_version) }}
+            platform_name: 'osx64'
+            mx_buildqual: $(mx_buildqual)
+            py_minor_version: ${{ py_minor_version }}
+            working_dir: $(Agent.BuildDirectory)
+            staging_dir: $(Build.ArtifactStagingDirectory)
+
+  # Windows build: conda
+
+  - stage: MechanicaBuildWindowsConda
+    displayName: Conda build for Windows
+    pool:
+      vmImage: 'windows-2019'
+    dependsOn: []
+    jobs:
+      - template: job-templates/job-build-test-package-win-conda.yml
+        parameters:
+          name: 'MechanicaBuildWindowsConda'
+          platform_name: 'win64'
+          mx_buildqual: $(mx_buildqual)
+          working_dir: $(Agent.BuildDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)
+          mx_version: $(mx_version)
+          mx_buildnum: $(mx_buildnum)
+
+  # Linux build: conda
+
+  - stage: MechanicaBuildLinuxConda
+    displayName: Conda build for Linux
+    pool:
+      vmImage: 'ubuntu-20.04'
+    dependsOn: []
+    jobs:
+      - template: job-templates/job-build-test-package-linux-conda.yml
+        parameters:
+          name: 'MechanicaBuildLinuxConda'
+          platform_name: 'linux64'
+          mx_buildqual: $(mx_buildqual)
+          working_dir: $(Agent.BuildDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)
+          mx_version: $(mx_version)
+          mx_buildnum: $(mx_buildnum)
+
+  # MacOS build: conda
+
+  - stage: MechanicaBuildMacConda
+    displayName: Conda build for Mac
+    pool:
+      vmImage: 'macOS-11'
+    dependsOn: []
+    jobs:
+      - template: job-templates/job-build-test-package-osx-conda.yml
+        parameters:
+          name: 'MechanicaBuildMacConda'
+          platform_name: 'osx64'
+          mx_buildqual: $(mx_buildqual)
+          working_dir: $(Agent.BuildDirectory)
+          staging_dir: $(Build.ArtifactStagingDirectory)
+          mx_version: $(mx_version)
+          mx_buildnum: $(mx_buildnum)

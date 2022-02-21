@@ -21,6 +21,7 @@
 #ifndef INCLUDE_BOND_H_
 #define INCLUDE_BOND_H_
 #include "platform.h"
+#include <random>
 
 /* bond error codes */
 #define bond_err_ok                    0
@@ -42,8 +43,22 @@ typedef enum MxBondFlags {
     BOND_ACTIVE                 = 1 << 0,
 } MxBondFlags;
 
+// list of pairs...
+struct Pair {
+    int32_t i;
+    int32_t j;
+};
 
-/** The bond structure */
+typedef std::vector<Pair> PairList;
+struct MxBondHandle;
+struct MxParticleHandle;
+
+/**
+ * @brief Bonds apply a potential to a particular set of particles. 
+ * 
+ * If you're building a model, you should probably instead be working with a 
+ * MxBondHandle. 
+ */
 typedef struct MxBond {
 
     uint32_t flags;
@@ -63,67 +78,247 @@ typedef struct MxBond {
 	/* potential energy required to break this bond */
 	double dissociation_energy;
 
+	/* potential energy of this bond */
+	double potential_energy;
+
 	struct MxPotential *potential;
     
-    struct NOMStyle *style;
+    struct MxStyle *style;
+
+    /**
+     * @brief Construct a new bond handle and underlying bond. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param potential bond potential
+     * @param i ith particle
+     * @param j jth particle
+     * @param half_life bond half life
+     * @param dissociation_energy dissociation energy
+     * @param flags bond flags
+     */
+    static MxBondHandle *create(struct MxPotential *potential, 
+                                MxParticleHandle *i, 
+                                MxParticleHandle *j, 
+                                double *half_life=NULL, 
+                                double *dissociation_energy=NULL, 
+                                uint32_t flags=0);
+
+    /**
+     * @brief Get a JSON string representation
+     * 
+     * @return std::string 
+     */
+    std::string toString();
+
+    /**
+     * @brief Create from a JSON string representation. 
+     * 
+     * The returned bond is not automatically registered with the engine. 
+     * 
+     * @param str 
+     * @return MxBond* 
+     */
+    static MxBond *fromString(const std::string &str);
 
 } MxBond;
 
-struct MxBondHandle : PyObject {
-    int32_t id;
-    
-    #ifdef INCLUDE_ENGINE_H_
-    inline MxBond *get() {
-        return &_Engine.bonds[this->id];
-    };
-    #endif
-};
-
-CAPI_FUNC(MxBondHandle*) MxBondHandle_FromId(int id);
-
-MxBond *MxBond_Get(PyObject *o);
-
-bool MxBondHandle_Check(PyObject *o);
+struct MxParticleType;
+struct MxParticleList;
 
 /**
- * The type of each individual bond.
- * actually bond handle type.
+ * @brief Handle to a bond
+ * 
+ * This is a safe way to work with a bond. 
  */
-CAPI_DATA(PyTypeObject) MxBondHandle_Type;
+struct MxBondHandle {
+    int32_t id;
+    
+    /**
+     * @brief Gets the underlying bond
+     * 
+     * @return MxBond* 
+     */
+    MxBond *get();
+
+    /**
+     * @brief Construct a new bond handle and do nothing
+     * Subsequent usage will require a call to 'init'
+     * 
+     */
+    MxBondHandle() : id(-1) {};
+
+    /**
+     * @brief Construct a new bond handle from an existing bond id
+     * 
+     * @param id id of existing bond
+     */
+    MxBondHandle(int id);
+
+    /**
+     * @brief Construct a new bond handle and underlying bond. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param potential bond potential
+     * @param i id of ith particle
+     * @param j id of jth particle
+     * @param half_life bond half life
+     * @param bond_energy bond energy
+     * @param flags bond flags
+     */
+    MxBondHandle(struct MxPotential *potential, 
+                 int32_t i, 
+                 int32_t j, 
+                 double half_life, 
+                 double bond_energy, 
+                 uint32_t flags);
+
+    /**
+     * @brief For initializing a bond after constructing with default constructor. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param pot bond potential
+     * @param p1 ith particle
+     * @param p2 jth particle
+     * @param half_life bond half life
+     * @param bond_energy bond energy
+     * @param flags bond flags
+     * @return int 
+     */
+    int init(MxPotential *pot, 
+             MxParticleHandle *p1, 
+             MxParticleHandle *p2, 
+             const double &half_life=std::numeric_limits<double>::max(), 
+             const double &bond_energy=std::numeric_limits<double>::max(), 
+             uint32_t flags=0);
+    
+    /**
+     * @brief Get a summary string of the bond
+     * 
+     * @return std::string 
+     */
+    std::string str();
+
+    /**
+     * @brief Check the validity of the handle
+     * 
+     * @return true if ok
+     * @return false 
+     */
+    bool check();
+    
+    /**
+     * @brief Apply bonds to a list of particles. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @param pot the potential of the created bonds
+     * @param parts list of particles
+     * @param cutoff cutoff distance of particles that are bonded
+     * @param ppairs type pairs of bonds
+     * @param half_life bond half life
+     * @param bond_energy bond energy
+     * @param flags bond flags
+     * @return std::vector<MxBondHandle*>* 
+     */
+    static std::vector<MxBondHandle*>* pairwise(MxPotential* pot,
+                                                MxParticleList *parts,
+                                                const double &cutoff,
+                                                std::vector<std::pair<MxParticleType*, MxParticleType*>* > *ppairs,
+                                                const double &half_life,
+                                                const double &bond_energy,
+                                                uint32_t flags);
+    
+    /**
+     * @brief Destroy the bond. 
+     * 
+     * Automatically updates when running on a CUDA device. 
+     * 
+     * @return HRESULT 
+     */
+    HRESULT destroy();
+    static std::vector<MxBondHandle*> bonds();
+
+    /**
+     * @brief Gets all bonds in the universe
+     * 
+     * @return std::vector<MxBondHandle*> 
+     */
+    static std::vector<MxBondHandle*> items();
+
+    /**
+     * @brief Tests whether this bond decays
+     * 
+     * @return true when the bond should decay
+     */
+    bool decays();
+
+    MxParticleHandle *operator[](unsigned int index);
+    
+    double getEnergy();
+    std::vector<int32_t> getParts();
+    MxPotential *getPotential();
+    uint32_t getId();
+    float getDissociationEnergy();
+    void setDissociationEnergy(const float &dissociation_energy);
+    float getHalfLife();
+    void setHalfLife(const float &half_life);
+    bool getActive();
+    MxStyle *getStyle();
+    void setStyle(MxStyle *style);
+    double getAge();
+
+private:
+
+    int _init(uint32_t flags, 
+              int32_t i, 
+              int32_t j, 
+              double half_life, 
+              double bond_energy, 
+              struct MxPotential *potential);
+};
+
+bool contains_bond(const std::vector<MxBondHandle*> &bonds, int a, int b);
 
 /**
  * shared global bond style
  */
-CAPI_DATA(NOMStyle*) MxBond_StylePtr;
-
-HRESULT _MxBond_init(PyObject *m);
-
-CAPI_FUNC(MxBondHandle*) MxBondHandle_New(uint32_t flags,
-        int32_t i, int32_t j,
-        double half_life,
-        double bond_energy,
-        struct MxPotential* potential);
-
-CAPI_FUNC(PyObject*) MxBond_PairwiseNew(
-        struct MxPotential* potential,
-        struct MxParticleList *parts,
-        float cutoff,
-        PyObject *pairs,
-        PyObject *args,
-        PyObject *kwds);
+CAPI_DATA(MxStyle*) MxBond_StylePtr;
 
 /**
  * deletes, marks a bond ready for deleteion, removes the potential,
  * other vars, clears the bond, and makes is ready to be
- * over-written.
+ * over-written. 
+ * 
+ * Automatically updates when running on a CUDA device. 
  */
-CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b);
+CAPI_FUNC(HRESULT) MxBond_Destroy(MxBond *b);
+
+/**
+ * @brief Deletes all bonds in the universe. 
+ * 
+ * Automatically updates when running on a CUDA device. 
+ * 
+ * @return HRESULT 
+ */
+CAPI_FUNC(HRESULT) MxBond_DestroyAll();
+
+/**
+ * @brief Tests whether a bond decays
+ * 
+ * @param b bond to test
+ * @param uniform01 uniform random distribution; optional
+ * @return true if the bond decays
+ */
+CAPI_FUNC(bool) MxBond_decays(MxBond *b, std::uniform_real_distribution<double> *uniform01=NULL);
 
 HRESULT MxBond_Energy (MxBond *b, double *epot_out);
 
 /* associated functions */
-CAPI_FUNC(int) bond_eval ( struct MxBond *b , int N , struct engine *e , double *epot_out );
-CAPI_FUNC(int) bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , double *epot_out );
+CAPI_FUNC(int) bond_eval (MxBond *b , int N , struct engine *e , double *epot_out );
+CAPI_FUNC(int) bond_evalf (MxBond *b , int N , struct engine *e , FPTYPE *f , double *epot_out );
 
 
 /**
@@ -131,5 +326,18 @@ CAPI_FUNC(int) bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE
  */
 std::vector<int32_t> MxBond_IdsForParticle(int32_t pid);
 
+int insert_bond(std::vector<MxBondHandle*> &bonds, int a, int b,
+                MxPotential *pot, MxParticleList *parts);
+
+
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxBond &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBond *dataElement);
+
+}};
 
 #endif // INCLUDE_BOND_H_

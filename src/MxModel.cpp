@@ -6,9 +6,3 @@
  */
 
 #include "MxModel.h"
-#include "structmember.h"
-
-
-
-void MxModel_init(PyObject* m) {
-}

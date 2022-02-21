@@ -6,7 +6,3 @@
  */
 
 #include <MxPropagator.h>
-
-HRESULT MxPropagator_init(PyObject* m) {
-	return 0;
-}

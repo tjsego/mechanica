@@ -7,7 +7,7 @@
 
 #include <MxTesselator.h>
 
-MxTesselatorResult MxTriangulateFaceSimple(const std::vector<Vector3>& vertices)
+MxTesselatorResult MxTriangulateFaceSimple(const std::vector<MxVector3f>& vertices)
 {
 	return MxTesselatorResult{};
 }

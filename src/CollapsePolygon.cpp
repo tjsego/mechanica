@@ -10,6 +10,8 @@
 #include "MeshRelationships.h"
 #include "MxEdge.h"
 #include "MxMesh.h"
+#include <mx_error.h>
+#include <MxLogger.h>
 
 static inline PolygonPtr otherPolygon(EdgePtr edge, PolygonPtr poly) {
     int index = edge->polygonIndex(poly);
@@ -54,9 +56,7 @@ HRESULT Mx_CollapsePolygon(MeshPtr mesh, PolygonPtr poly)
     // arbitrarily pick vertex zero as the one to keep
     VertexPtr vert = poly->vertices[0];
 
-    Vector3 centroid = poly->centroid;
-
-    std::cout << "poly: " << poly << std::endl;
+    Log(LOG_INFORMATION) << "poly: " << poly;
 
     // grab the neighboring edges from each polygon and make sure they are
     // the same edge in each adjacent polygon -- make sure this is a manifold
@@ -71,18 +71,18 @@ HRESULT Mx_CollapsePolygon(MeshPtr mesh, PolygonPtr poly)
         EdgePtr tmpP3Prev, tmpP3Next;
         VERIFY(getPolygonAdjacentEdges(p3, e3, &tmpP3Prev, &tmpP3Next));
 
-        std::cout << "p1: " << p1 << std::endl;
-        std::cout << "p2: " << p2 << std::endl;
-        std::cout << "p3: " << p3 << std::endl;
+        Log(LOG_INFORMATION) << "p1: " << p1;
+        Log(LOG_INFORMATION) << "p2: " << p2;
+        Log(LOG_INFORMATION) << "p3: " << p3;
 
-        std::cout << "e p1 -: " << tmpP1Prev << std::endl;
-        std::cout << "e p1 +: " << tmpP1Next << std::endl;
+        Log(LOG_INFORMATION) << "e p1 -: " << tmpP1Prev;
+        Log(LOG_INFORMATION) << "e p1 +: " << tmpP1Next;
 
-        std::cout << "e p2 -: " << tmpP2Prev << std::endl;
-        std::cout << "e p2 +: " << tmpP2Next << std::endl;
+        Log(LOG_INFORMATION) << "e p2 -: " << tmpP2Prev;
+        Log(LOG_INFORMATION) << "e p2 +: " << tmpP2Next;
 
-        std::cout << "e p3 -: " << tmpP3Prev << std::endl;
-        std::cout << "e p3 +: " << tmpP3Next << std::endl;
+        Log(LOG_INFORMATION) << "e p3 -: " << tmpP3Prev;
+        Log(LOG_INFORMATION) << "e p3 +: " << tmpP3Next;
 
 
         if(tmpP1Prev != tmpP3Next) {
@@ -118,9 +118,9 @@ HRESULT Mx_CollapsePolygon(MeshPtr mesh, PolygonPtr poly)
 
     VERIFY(reconnectEdgeVertex(e12, vert, poly->vertices[2]));
 
-    std::cout << "p1: " << p1 << std::endl;
-    std::cout << "p2: " << p2 << std::endl;
-    std::cout << "p3: " << p3 << std::endl;
+    Log(LOG_INFORMATION) << "p1: " << p1;
+    Log(LOG_INFORMATION) << "p2: " << p2;
+    Log(LOG_INFORMATION) << "p3: " << p3;
 
     assert(p1->size() >= 3);
     assert(p2->size() >= 3);
@@ -135,8 +135,8 @@ HRESULT Mx_CollapsePolygon(MeshPtr mesh, PolygonPtr poly)
         cell->topologyChanged();
     }
 
-    if(poly == mesh->selectedObject()) {
-        mesh->selectObject(nullptr, 0);
+    if(mesh->isSelected(poly)) {
+        mesh->deselectObject();
     }
 
     mesh->deletePolygon(poly);

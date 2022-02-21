@@ -10,15 +10,13 @@
 
 #include "MxMeshCore.h"
 #include "Magnum/Math/Color.h"
+#include "MxConstraints.h"
+#include "MxForces.h"
 #include <iostream>
 
 enum struct Orientation {
     Inward, Outward, InwardOutward, OutwardInward, Invalid
 };
-
-
-
-CAPI_DATA(CType*) MxPartialPolygon_Type;
 
 /**
  * A partial face data structure, represents 1/2 of a triangular face. This represents the
@@ -69,7 +67,7 @@ CAPI_DATA(CType*) MxPartialPolygon_Type;
  *
  * The centroid
  */
-struct MxPartialPolygon : CObject {
+struct MxPartialPolygon {
 
     //MxPartialPolygon(CType *type, MxPolygon *ti,
     //        float mass = 0, MxReal *scalars = nullptr) :
@@ -107,20 +105,19 @@ struct MxPartialPolygon : CObject {
     bool isValid() const;
 };
 
+// Currently just a placeholder for association with MxPartialPolygon
+struct MxPartialPolygonType {};
 
-struct MxPolygonType : CType {
 
-    MxPolygonType(const char* name, CType *base) : CType{base, name} {};
+struct MxPolygonType : MxConstrainableType, MxForcableType {
 
+    std::string name;
+
+    MxPolygonType(const std::string &name="") : MxConstrainableType(), MxForcableType(), name(name) {}
 
     Magnum::Color4 edgeColor = Magnum::Color4{{98.f/255, 120.f/255, 168.f/255, 0.1f}};
     Magnum::Color4 centerColor = Magnum::Color4{{73.f/255, 169.f/255, 163.f/255, 0.1f}};
 };
-
-
-
-
-CAPI_DATA(MxPolygonType*) MxPolygon_Type;
 
 
 /**
@@ -140,13 +137,7 @@ CAPI_DATA(MxPolygonType*) MxPolygon_Type;
  *     * represent the geometry of a triangle.
  *     *
  */
-struct MxPolygon : CObject {
-
-    static bool classof(const CObject *o) {
-        return o->ob_type == MxPolygon_Type;
-    }
-
-    static CType *type() {return MxPolygon_Type;};
+struct MxPolygon : MxConstrainable, MxForcable {
 
     const uint id;
 
@@ -170,7 +161,7 @@ struct MxPolygon : CObject {
      * if the cell has cellIds[1], then the normal needs to be multiplied by -1 to point
      * point in the correct direction.
      */
-    Vector3 normal;
+    MxVector3f normal;
 
     /**
      * Geometric center (barycenter) of the triangle, computed in positionsChanged()
@@ -178,7 +169,7 @@ struct MxPolygon : CObject {
      * We presently treat polygons as homogeneous patches of material, so centroid
      * is the same as center of mass.
      */
-    Vector3 centroid;
+    MxVector3f centroid;
 
     /**
      * Polygons are stored in CCW winding order, from the zero indexed cell
@@ -223,7 +214,7 @@ struct MxPolygon : CObject {
     /**
      * Get the vertex normal for the i'th vertex in this polygon.
      */
-    Vector3 vertexNormal(uint i, CCellPtr cell) const;
+    MxVector3f vertexNormal(uint i, CCellPtr cell) const;
 
 
     float vertexArea(uint i) const {
@@ -233,7 +224,7 @@ struct MxPolygon : CObject {
     /**
      * Orient the normal in the correct direction for the given cell.
      */
-    inline Vector3 cellNormal(CCellPtr cell) const {
+    inline MxVector3f cellNormal(CCellPtr cell) const {
         assert(cell == cells[0] || cell == cells[1]);
         float dir = cell == cells[0] ? 1.0 : -1.0;
         return dir * normal;
@@ -244,18 +235,14 @@ struct MxPolygon : CObject {
      *
      * Later versions will investigate stack allocation.
      */
-    MxPolygon() :
+    MxPolygon(MxPolygonType *type) : MxConstrainable(type), MxForcable(type), 
         id{ 0 },
         vertices{{nullptr, nullptr, nullptr}},
-        cells{{nullptr,nullptr}},
-        partialPolygons {{
-            {nullptr, nullptr, 0.0, nullptr},
-            {nullptr, nullptr, 0.0, nullptr}
-        }}
+        cells{{nullptr,nullptr}}
     {}
 
 
-    MxPolygon(uint _id, CType *type);
+    MxPolygon(uint _id, MxPolygonType *type);
 
 
     inline int cellIndex(CCellPtr cell) const {
@@ -308,7 +295,7 @@ struct MxPolygon : CObject {
 
 private:
     float _volume = 0.f;
-    std::vector<Vector3> _vertexNormals;
+    std::vector<MxVector3f> _vertexNormals;
     std::vector<float> _vertexAreas;
 
     friend HRESULT connectPolygonVertices(MeshPtr mesh, PolygonPtr poly,
@@ -323,7 +310,7 @@ private:
         VertexPtr newVert, EdgePtr* prevEdge, EdgePtr* nextEdge);
 
     friend HRESULT Mx_SplitPolygonBisectPlane(MeshPtr mesh, PolygonPtr poly,
-            Vector3* normal, PolygonPtr* pn1, PolygonPtr* pn2);
+            MxVector3f* normal, PolygonPtr* pn1, PolygonPtr* pn2);
 
     friend HRESULT splitPolygonEdge(PolygonPtr poly, EdgePtr e, EdgePtr en);
 
@@ -346,16 +333,15 @@ namespace Magnum { namespace Math {
      *
      * TODO: have some global to set CCW winding.
      */
-    inline Vector3<float> triangleNormal(const Vector3<float>& v1,
-            const Vector3<float>& v2, const Vector3<float>& v3) {
-        return Magnum::Math::cross(v2 - v1, v3 - v1);
+    inline MxVector3f triangleNormal(const MxVector3f& v1, const MxVector3f& v2, const MxVector3f& v3) {
+        return (MxVector3f)Magnum::Math::cross(v2 - v1, v3 - v1);
     }
 
-    inline Vector3<float> triangleNormal(const std::array<Vector3<float>, 3> &verts) {
+    inline MxVector3f triangleNormal(const std::array<MxVector3f, 3> &verts) {
         return triangleNormal(verts[0], verts[1], verts[2]);
     }
 
-    inline Vector3<float> triangleNormal(const std::array<VertexPtr, 3> &verts) {
+    inline MxVector3f triangleNormal(const std::array<VertexPtr, 3> &verts) {
         return triangleNormal(verts[0]->position, verts[1]->position, verts[2]->position);
     }
 
@@ -366,19 +352,18 @@ namespace Magnum { namespace Math {
     // multiply by neg 1, CCW winding.
 
 
-    inline float triangleArea(const Vector3<float>& v1,
-            const Vector3<float>& v2, const Vector3<float>& v3) {
-        Vector3<float> abnormal = Math::triangleNormal(v1, v2, v3);
+    inline float triangleArea(const MxVector3f& v1, const MxVector3f& v2, const MxVector3f& v3) {
+        MxVector3f abnormal = Math::triangleNormal(v1, v2, v3);
         float len = abnormal.length();
         return 0.5 * len;
     }
 
-    inline float distance(const Vector3<float>& a, const Vector3<float>& b) {
+    inline float distance(const MxVector3f& a, const MxVector3f& b) {
         return (a - b).length();
     }
 
-    inline float distance_sqr(const Vector3<float>& a, const Vector3<float>& b) {
-        Vector3<float> diff = a - b;
+    inline float distance_sqr(const MxVector3f& a, const MxVector3f& b) {
+        MxVector3f diff = a - b;
         return dot(diff, diff);
     }
 }}

@@ -52,6 +52,7 @@
 #include "exclusion.h"
 #include "reader.h"
 #include "engine.h"
+#include "../../MxLogger.h"
 
 #pragma clang diagnostic ignored "-Wwritable-strings"
 
@@ -966,7 +967,7 @@ int engine_bonded_sets ( struct engine *e , int max_sets ) {
 	for ( k = 0 ; k < nr_sets ; k++ ) {
 		if ( ( e->sets[k].bonds = (struct MxBond *)malloc( sizeof(struct MxBond) * e->sets[k].nr_bonds ) ) == NULL ||
 				( e->sets[k].angles = (struct MxAngle *)malloc( sizeof(struct MxAngle) * e->sets[k].nr_angles ) ) == NULL ||
-				( e->sets[k].dihedrals = (struct dihedral *)malloc( sizeof(struct dihedral) * e->sets[k].nr_dihedrals ) ) == NULL ||
+				( e->sets[k].dihedrals = (struct MxDihedral *)malloc( sizeof(struct MxDihedral) * e->sets[k].nr_dihedrals ) ) == NULL ||
 				( e->sets[k].exclusions = (struct exclusion *)malloc( sizeof(struct exclusion) * e->sets[k].nr_exclusions ) ) == NULL ||
 				( e->sets[k].confl = (int *)malloc( sizeof(int) * bs.nconfl[k] ) ) == NULL )
 			return error(engine_err_malloc);
@@ -1031,102 +1032,99 @@ int engine_bonded_sets ( struct engine *e , int max_sets ) {
 
 }
 
-
-
 /**
- * @brief Add a dihedral interaction to the engine.
- *
- * @param e The #engine.
- * @param i The ID of the first #part.
- * @param j The ID of the second #part.
- * @param k The ID of the third #part.
- * @param l The ID of the fourth #part.
- * @param pid Index of the #potential for this bond.
- *
- * @return #engine_err_ok or < 0 on error (see #engine_err).
+ * allocates a new dihedral, returns its id.
  */
-
-int engine_dihedral_add ( struct engine *e , int i , int j , int k , int l , int pid ) {
-
-	struct dihedral *dummy;
-
-	/* Check inputs. */
-	if ( e == NULL )
+int engine_dihedral_alloc(struct engine *e, MxDihedral **out) {
+    
+    struct MxDihedral *dummy;
+	int dihedral_id = -1;
+    
+    /* Check inputs. */
+    if (e == NULL) 
 		return error(engine_err_null);
-	/* if ( i > e->s.nr_parts || j > e->s.nr_parts )
-        return error(engine_err_range);
-    if ( pid > e->nr_dihedralpots )
-        return error(engine_err_range); */
-
-	/* Do we need to grow the dihedrals array? */
-	if ( e->nr_dihedrals == e->dihedrals_size ) {
-		e->dihedrals_size *= 1.414;
-		if ( ( dummy = (struct dihedral *)malloc( sizeof(struct dihedral) * e->dihedrals_size ) ) == NULL )
-			return error(engine_err_malloc);
-		memcpy( dummy , e->dihedrals , sizeof(struct dihedral) * e->nr_dihedrals );
-		free( e->dihedrals );
-		e->dihedrals = dummy;
+    
+    // first check if we have any deleted dihedrals we can re-use
+	if(e->nr_active_dihedrals < e->nr_dihedrals) {
+        for(int i = 0; i < e->nr_dihedrals; ++i) {
+            if(!(e->dihedrals[i].flags & DIHEDRAL_ACTIVE)) {
+                dihedral_id = i;
+                break;
+            }
+        }
+        assert(dihedral_id > 0 && dihedral_id < e->dihedrals_size);
+	}
+	else {
+		/* Do we need to grow the dihedral array? */
+		if (e->nr_dihedrals == e->dihedrals_size) {
+			e->dihedrals_size *= 1.414;
+			if ((dummy = (struct MxDihedral *)malloc( sizeof(struct MxDihedral) * e->dihedrals_size)) == NULL)
+				return error(engine_err_malloc);
+			memcpy(dummy , e->dihedrals , sizeof(struct MxDihedral) * e->nr_dihedrals);
+			free(e->dihedrals);
+			e->dihedrals = dummy;
+		}
+		dihedral_id = e->nr_dihedrals;
+		e->nr_dihedrals += 1;
 	}
 
-	/* Store this dihedral. */
-	e->dihedrals[ e->nr_dihedrals ].i = i;
-	e->dihedrals[ e->nr_dihedrals ].j = j;
-	e->dihedrals[ e->nr_dihedrals ].k = k;
-	e->dihedrals[ e->nr_dihedrals ].l = l;
-	e->dihedrals[ e->nr_dihedrals ].pid = pid;
-	e->nr_dihedrals += 1;
+	bzero(&e->dihedrals[dihedral_id], sizeof(MxDihedral));
+    
+    int result = e->dihedrals[dihedral_id].id = dihedral_id;
 
-	/* It's the end of the world as we know it. */
-	return engine_err_ok;
+	*out = &e->dihedrals[dihedral_id];
 
+	Log(LOG_TRACE) << "Allocated dihedral: " << dihedral_id;
+    
+    return result;
 }
 
 /**
- * allocates a new angle, returns a pointer to it.
+ * allocates a new angle, returns its id.
  */
-int engine_angle_alloc (struct engine *e , PyTypeObject *type, MxAngle **result ) {
+int engine_angle_alloc (struct engine *e, MxAngle **out) {
     
     struct MxAngle *dummy;
+	int angle_id = -1;
     
     /* Check inputs. */
     if ( e == NULL )
-    return error(engine_err_null);
-    /* if ( i > e->s.nr_parts || j > e->s.nr_parts )
-     return error(engine_err_range);
-     if ( pid > e->nr_anglepots )
-     return error(engine_err_range); */
+    	return error(engine_err_null);
     
-    /* Do we need to grow the angles array? */
-    if ( e->nr_angles == e->angles_size ) {
-        e->angles_size *= 1.414;
-        if ( ( dummy = (struct MxAngle *)malloc( sizeof(struct MxAngle) * e->angles_size ) ) == NULL )
-        return error(engine_err_malloc);
-        memcpy( dummy , e->angles , sizeof(struct MxAngle) * e->nr_angles );
-        free( e->angles );
-        e->angles = dummy;
+	// first check if we have any deleted angles we can re-use
+    if(e->nr_active_angles < e->nr_angles) {
+        for(int i = 0; i < e->nr_angles; ++i) {
+            if(!(e->angles[i].flags & ANGLE_ACTIVE)) {
+                angle_id = i;
+                break;
+            }
+        }
+        assert(angle_id > 0 && angle_id < e->angles_size);
     }
+    else {
+		/* Do we need to grow the angles array? */
+		if ( e->nr_angles == e->angles_size ) {
+			e->angles_size *= 1.414;
+			if ( ( dummy = (struct MxAngle *)malloc( sizeof(struct MxAngle) * e->angles_size ) ) == NULL )
+			return error(engine_err_malloc);
+			memcpy( dummy , e->angles , sizeof(struct MxAngle) * e->nr_angles );
+			free( e->angles );
+			e->angles = dummy;
+		}
+		angle_id = e->nr_angles;
+		e->nr_angles += 1;
+	}
+
+	bzero(&e->angles[angle_id], sizeof(MxAngle));
     
-    ::memset(&e->angles[e->nr_angles], 0, sizeof(MxAngle));
-    
-    if (type->tp_flags & Py_TPFLAGS_HEAPTYPE)
-    Py_INCREF(type);
-    
-    PyObject_INIT(&e->angles[e->nr_angles], type);
-    
-    if (PyType_IS_GC(type)) {
-        assert(0 && "should not get here");
-        //  _PyObject_GC_TRACK(obj);
-    }
-    
-    *result = &e->angles[e->nr_angles];
-    
-    // increase the ref count, as the engine owns it.
-    Py_INCREF(&e->angles[e->nr_angles]);
-    
-    e->nr_angles += 1;
+    int result = e->angles[angle_id].id = angle_id;
+
+	*out = &e->angles[angle_id];
+	
+	Log(LOG_TRACE) << "Allocated angle: " << angle_id;
     
     /* It's the end of the world as we know it. */
-    return engine_err_ok;
+    return result;
 }
 
 
@@ -1353,6 +1351,8 @@ int engine_bond_alloc (struct engine *e , MxBond **out ) {
 
     *out = &e->bonds[bond_id];
 
+	Log(LOG_TRACE) << "Allocated bond: " << bond_id;
+
     /* It's the end of the world as we know it. */
     return result;
 }
@@ -1374,7 +1374,7 @@ int engine_bonded_eval ( struct engine *e ) {
 
 	double epot_bond = 0.0, epot_angle = 0.0, epot_dihedral = 0.0, epot_exclusion = 0.0;
 	struct space *s;
-	struct dihedral dtemp;
+	struct MxDihedral dtemp;
 	struct MxAngle atemp;
 	struct MxBond btemp;
 	struct exclusion etemp;
@@ -1546,7 +1546,7 @@ int engine_dihedral_eval ( struct engine *e ) {
 
 	double epot = 0.0;
 	struct space *s;
-	struct dihedral temp;
+	struct MxDihedral temp;
 	int nr_dihedrals = e->nr_dihedrals, i, j;
 #ifdef HAVE_OPENMP
 	FPTYPE *eff;
@@ -1950,49 +1950,3 @@ int engine_bond_eval ( struct engine *e ) {
 	return engine_err_ok;
 
 }
-
-
-
-
-
-/**
- * @brief Add a dihedral potential.
- *
- * @param e The #engine.
- * @param p The #potential to add to the #engine.
- *
- * @return The ID of the added dihedral potential or < 0 on error (see #engine_err).
- */
-
-int engine_dihedral_addpot ( struct engine *e , struct MxPotential *p ) {
-
-	struct MxPotential **dummy;
-
-	/* check for nonsense. */
-	if ( e == NULL )
-		return error(engine_err_null);
-
-	/* Is there enough room in p_dihedral? */
-	if ( e->nr_dihedralpots == e->dihedralpots_size ) {
-		e->dihedralpots_size += 100;
-		if ( ( dummy = (struct MxPotential **)malloc( sizeof(struct MxPotential *) * e->dihedralpots_size ) ) == NULL )
-			return engine_err_malloc;
-		memcpy( dummy , e->p_dihedral , sizeof(struct MxPotential *) * e->nr_dihedralpots );
-		free( e->p_dihedral );
-		e->p_dihedral = dummy;
-	}
-
-	/* store the potential. */
-	e->p_dihedral[ e->nr_dihedralpots ] = p;
-	e->nr_dihedralpots += 1;
-
-	/* end on a good note. */
-	return e->nr_dihedralpots - 1;
-
-}
-
-
-
-
-
-

@@ -17,15 +17,15 @@ struct MxCellVolumeConstraint : IConstraint
 
     virtual HRESULT setTime(float time);
 
-    virtual float energy(const CObject **objs, int32_t len);
+    virtual float energy(const std::vector<MxConstrainable*> &objs);
 
-    virtual HRESULT project(CObject **obj, int32_t len);
+    virtual HRESULT project(const std::vector<MxConstrainable*> &obj);
 
     float targetVolume;
     float lambda;
 
 private:
-    float energy(const CObject *obj);
+    float energy(const MxConstrainable *obj);
 };
 
 #endif /* SRC_MXCELLVOLUMECONSTRAINT_H_ */

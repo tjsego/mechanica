@@ -16,30 +16,15 @@
 #define CA_STRICT
 #endif
 
-#ifdef CType
-#error CType is macro
-#endif
-
 #ifndef _INCLUDED_MECHANICA_H_
 #include "Mechanica.h"
 #endif
-
-#ifdef CType
-#error CType is macro
-#endif
-
 
 #ifndef _INCLUDED_CAYMAN_PRIVATE_H_
 #define _INCLUDED_CAYMAN_PRIVATE_H_
 
 
-#include <c_port.h>
-
-#ifdef CType
-#error CType is macro
-#endif
-
-
+#include <mx_port.h>
 
 // Games with importing numpy and setting up function pointers.
 // Only the main Mechanica python init module, mechanica.cpp defines
@@ -54,38 +39,7 @@
 
 #include <assert.h>
 
-#ifdef CType
-#error CType is macro
-#endif
-
-
-
-#ifdef CType
-#error CType is macro
-#endif
-
-
-
-#ifdef CType
-#error CType is macro
-#endif
-
-
-#include <cstdint>
-
-#ifdef CType
-#error CType is macro
-#endif
-
-
 #include <algorithm>
-
-#ifdef CType
-#error CType is macro
-#endif
-
-
-
 
 
 typedef uint32_t uint;
@@ -117,13 +71,10 @@ int _CaAstInit();
     assert("Not Implemented" && 0);\
     return 0;
 
+#define MX_NOTIMPLEMENTED_NORET assert("Not Implemented" && 0);
 
-
-
-template <class X, class Y>
-inline X* dyn_cast(const Y &o) {
-    return (CType_IsSubtype((CType*)o->ob_type, (CType*)X::type())) ? reinterpret_cast<X*>(o) : nullptr;
-};
+#include "types/mx_types.h"
+#include "types/mx_cast.h"
 
 /**
  * modulus for negative numbers
@@ -198,8 +149,3 @@ typename ContainerType::value_type wrappedAt(ContainerType &container, SizeType 
 
 
 #endif /* _INCLUDED_CAYMAN_PRIVATE_H_ */
-
-#ifdef CType
-#error CType is macro
-#endif
-

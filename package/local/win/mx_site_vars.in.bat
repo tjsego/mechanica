@@ -1,0 +1,3 @@
+@echo off
+set MXPYSITEDIR=%~dp0@MX_SITEPACKAGES_REL@
+set MXENV=%~dp0@PY_ROOT_DIR_REL@

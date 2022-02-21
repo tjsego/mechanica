@@ -11,11 +11,7 @@
 #include <iostream>
 #include "MxEdge.h"
 
-static CType partialPolygonType{};
-CType *MxPartialPolygon_Type = &partialPolygonType;
-
-static MxPolygonType polygonType{"PolygonType", NULL};
-MxPolygonType *MxPolygon_Type = &polygonType;
+static MxPolygonType polygonType;
 
 static std::string to_string(CCellPtr cell) {
     return cell ? std::to_string(cell->id) : "null";
@@ -44,10 +40,8 @@ std::ostream& operator<<(std::ostream& os, CPolygonPtr tri)
 }
 
 
-MxPolygon::MxPolygon(uint _id, CType* type) :
-            id{_id}, CObject{0, type}, cells{{nullptr, nullptr}},
-            partialPolygons{{{MxPartialPolygon_Type, this}, {MxPartialPolygon_Type, this}}} {
-
+MxPolygon::MxPolygon(uint _id, MxPolygonType *type) : MxConstrainable(type), MxForcable(type), id{_id} 
+{
 
     edges.resize(vertices.size());
     _vertexNormals.resize(vertices.size());
@@ -60,9 +54,9 @@ MxPolygon::MxPolygon(uint _id, CType* type) :
 HRESULT MxPolygon::positionsChanged() {
 
     area = 0.;
-    normal = {{0.f, 0.f, 0.f}};
+    normal = {0.f, 0.f, 0.f};
     _volume = 0.f;
-    centroid = {{0.f, 0.f, 0.f}};
+    centroid = {0.f, 0.f, 0.f};
 
     for (CVertexPtr v : vertices) {
         centroid += v->position;
@@ -90,9 +84,9 @@ HRESULT MxPolygon::positionsChanged() {
         checkVec(v->position);
         checkVec(vn->position);
 
-        Vector3 np = triangleNormal((v->position + vp->position) / 2., v->position, centroid);
-        Vector3 nn = triangleNormal(v->position, (vn->position + v->position) / 2., centroid);
-        Vector3 vertNormal = (np + nn);
+        MxVector3f np = triangleNormal((v->position + vp->position) / 2., v->position, centroid);
+        MxVector3f nn = triangleNormal(v->position, (vn->position + v->position) / 2., centroid);
+        MxVector3f vertNormal = (np + nn);
         float vertLen = vertNormal.length();
 
         checkVec(np);
@@ -104,8 +98,8 @@ HRESULT MxPolygon::positionsChanged() {
 
         checkVec(_vertexNormals[i]);
 
-        Vector3 triCentroid = (v->position + vn->position + centroid) / 3.;
-        Vector3 triNormal = triangleNormal(v->position, vn->position, centroid);
+        MxVector3f triCentroid = (v->position + vn->position + centroid) / 3.;
+        MxVector3f triNormal = triangleNormal(v->position, vn->position, centroid);
 
         // Volume contribution for each triangle is
         // (A/3) * ( N_x*(x1 + x2 + x3) + N_y * (y1 + y2 + y3) + N_z * (z1 + z2 + x3)
@@ -140,8 +134,8 @@ HRESULT MxPolygon::positionsChanged() {
 
     std::cout << "vert area: " << vertArea << ", poly area: " << area << ", diff: " << area - vertArea << std::endl;
 
-    Vector3 vertNormal;
-    for(const Vector3& v : _vertexNormals) {
+    MxVector3 vertNormal;
+    for(const MxVector3& v : _vertexNormals) {
         vertNormal += v;
     }
 
@@ -164,7 +158,7 @@ bool MxPolygon::isConnected() const {
 
 }
 
-Vector3 MxPolygon::vertexNormal(uint i, CCellPtr cell) const
+MxVector3f MxPolygon::vertexNormal(uint i, CCellPtr cell) const
 {
     assert(cells[0] == cell || cells[1] == cell);
     float direction = cells[0] == cell ? 1.0f : -1.0f;

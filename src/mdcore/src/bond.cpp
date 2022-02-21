@@ -30,7 +30,7 @@
 #include <limits.h>
 #include <iostream>
 #include <sstream>
-
+#include <unordered_set>
 
 /* Include some conditional headers. */
 #include "mdcore_config.h"
@@ -46,7 +46,6 @@
 #include "errs.h"
 #include "fptype.h"
 #include "lock.h"
-#include <MxParticle.h>
 #include <MxPotential.h>
 #include "potential_eval.hpp"
 #include <space_cell.h>
@@ -54,11 +53,17 @@
 #include "engine.h"
 #include <bond.h>
 
-#include <MxConvert.hpp>
+#include <../../MxLogger.h>
 #include <../../MxUtil.h>
-#include <../../rendering/NOMStyle.hpp>
+#include <../../mx_error.h>
+#include <../../io/MxFIO.h>
+#include <../../rendering/MxStyle.hpp>
 
-NOMStyle *MxBond_StylePtr = NULL;
+#ifdef HAVE_CUDA
+#include "bond_cuda.h"
+#endif
+
+MxStyle *MxBond_StylePtr = new MxStyle("lime");
 
 /* Global variables. */
 /** The ID of the last error. */
@@ -74,16 +79,11 @@ const char *bond_err_msg[2] = {
     "An unexpected NULL pointer was encountered."
 };
 
-static PyObject* bond_destroy(MxBondHandle *_self, PyObject *args, PyObject *kwargs);
-static PyObject* bond_energy(MxBondHandle *_self);
-static PyObject *bond_bonds(PyObject *self);
-
-
 /**
  * check if a type pair is in a list of pairs
- * pairs has to be a python list of tuples of types
+ * pairs has to be a vector of pairs of types
  */
-static bool pair_check(PyObject *pairs, short a_typeid, short b_typeid);
+static bool pair_check(std::vector<std::pair<MxParticleType*, MxParticleType*>* > *pairs, short a_typeid, short b_typeid);
 
 /**
  * @brief Evaluate a list of bonded interactoins
@@ -98,14 +98,24 @@ static bool pair_check(PyObject *pairs, short a_typeid, short b_typeid);
  
 int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_out ) {
 
+    #ifdef HAVE_CUDA
+    if(e->bonds_cuda) {
+        return engine_bond_eval_cuda(bonds, N, e, epot_out);
+    }
+    #endif
+
     int bid, pid, pjd, k, *loci, *locj, shift[3], ld_pots;
     double h[3], epot = 0.0;
     struct space *s;
     struct MxParticle *pi, *pj, **partlist;
     struct space_cell **celllist;
-    struct MxPotential *pot;
+    struct MxPotential *pot, *potb;
+    std::vector<struct MxPotential *> pots;
     struct MxBond *b;
-    FPTYPE r2, w;
+    FPTYPE ee, r2, w, f[3];
+    std::unordered_set<struct MxBond*> toDestroy;
+    toDestroy.reserve(N);
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -113,11 +123,12 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
     FPTYPE pix[4] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE *effi[VEC_SIZE], *effj[VEC_SIZE];
     FPTYPE r2q[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
-    FPTYPE ee[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
+    FPTYPE eeq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE eff[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE dxq[VEC_SIZE*3];
+    struct MxBond *bondq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
 #else
-    FPTYPE ee, eff, dx[4], pix[4];
+    FPTYPE eff, dx[4], pix[4];
 #endif
     
     /* Check inputs. */
@@ -137,12 +148,18 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
     for ( bid = 0 ; bid < N ; bid++ ) {
 
         b = &bonds[bid];
+        b->potential_energy = 0.0;
+
+        if(MxBond_decays(b, &uniform01)) {
+            toDestroy.insert(b);
+            continue;
+        }
 
         if(!(b->flags & BOND_ACTIVE))
             continue;
     
         /* Get the particles involved. */
-        pid = bonds[bid].i; pjd = bonds[bid].j;
+        pid = b->i; pjd = b->j;
         if ( ( pi = partlist[ pid ] ) == NULL )
             continue;
         if ( ( pj = partlist[ pjd ] ) == NULL )
@@ -154,8 +171,8 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
             continue;
             
         /* Get the potential. */
-        pot = b->potential;
-        if (!pot) {
+        potb = b->potential;
+        if (!potb) {
             continue;
         }
     
@@ -170,80 +187,109 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
             pix[k] = pi->x[k] + h[k]*shift[k];
         }
         r2 = fptype_r2( pix , pj->x , dx );
-        
-        if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
-            //printf( "bond_eval: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
-            //    bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
-            r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
+
+        if(potb->kind == POTENTIAL_KIND_COMBINATION && potb->flags & POTENTIAL_SUM) {
+            pots = potb->constituents();
+            if(pots.size() == 0) pots = {potb};
         }
+        else pots = {potb};
 
-        #ifdef VECTORIZE
-            /* add this bond to the interaction queue. */
-            r2q[icount] = r2;
-            dxq[icount*3] = dx[0];
-            dxq[icount*3+1] = dx[1];
-            dxq[icount*3+2] = dx[2];
-            effi[icount] = pi->f;
-            effj[icount] = pj->f;
-            potq[icount] = pot;
-            icount += 1;
-
-            /* evaluate the interactions if the queue is full. */
-            if ( icount == VEC_SIZE ) {
-
-                #if defined(FPTYPE_SINGLE)
-                    #if VEC_SIZE==8
-                    potential_eval_vec_8single( potq , r2q , ee , eff );
-                    #else
-                    potential_eval_vec_4single( potq , r2q , ee , eff );
-                    #endif
-                #elif defined(FPTYPE_DOUBLE)
-                    #if VEC_SIZE==4
-                    potential_eval_vec_4double( potq , r2q , ee , eff );
-                    #else
-                    potential_eval_vec_2double( potq , r2q , ee , eff );
-                    #endif
-                #endif
-
-                /* update the forces and the energy */
-                for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                    epot += ee[l];
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        w = eff[l] * dxq[l*3+k];
-                        effi[l][k] -= w;
-                        effj[l][k] += w;
-                    }
-                }
-
-                /* re-set the counter. */
-                icount = 0;
-
-            }
-        #else // NOT VECTORIZE
-            /* evaluate the bond */
-            #ifdef EXPLICIT_POTENTIALS
-                potential_eval_expl( pot , r2 , &ee , &eff );
-            #else
-                potential_eval( pot , r2 , &ee , &eff );
-            #endif
+        for(int i = 0; i < pots.size(); i++) {
+            pot = pots[i];
         
-            if(eff >= b->dissociation_energy) {
-                MxBond_Destroy(b);
+            if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
+                //printf( "bond_eval: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
+                //    bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
+                r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
+            }
+
+            if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+                std::fill(std::begin(f), std::end(f), 0.0);
+                pot->eval_byparts(pot, pi, pj, dx, r2, &ee, f);
+                for(int i = 0; i < 3; ++i) {
+                    pi->f[i] += f[i];
+                    pj->f[i] -= f[i];
+                }
+                epot += ee;
+                b->potential_energy += ee;
+                if(b->potential_energy >= b->dissociation_energy)
+                    toDestroy.insert(b);
             }
             else {
 
-                /* update the forces */
-                for ( k = 0 ; k < 3 ; k++ ) {
-                    w = eff * dx[k];
-                    pi->f[k] -= w;
-                    pj->f[k] += w;
-                }
-                /* tabulate the energy */
-                epot += ee;
+                #ifdef VECTORIZE
+                    /* add this bond to the interaction queue. */
+                    r2q[icount] = r2;
+                    dxq[icount*3] = dx[0];
+                    dxq[icount*3+1] = dx[1];
+                    dxq[icount*3+2] = dx[2];
+                    effi[icount] = pi->f;
+                    effj[icount] = pj->f;
+                    potq[icount] = pot;
+                    bondq[icount] = b;
+                    icount += 1;
+
+                    /* evaluate the interactions if the queue is full. */
+                    if ( icount == VEC_SIZE ) {
+
+                        #if defined(FPTYPE_SINGLE)
+                            #if VEC_SIZE==8
+                            potential_eval_vec_8single( potq , r2q , eeq , eff );
+                            #else
+                            potential_eval_vec_4single( potq , r2q , eeq , eff );
+                            #endif
+                        #elif defined(FPTYPE_DOUBLE)
+                            #if VEC_SIZE==4
+                            potential_eval_vec_4double( potq , r2q , eeq , eff );
+                            #else
+                            potential_eval_vec_2double( potq , r2q , eeq , eff );
+                            #endif
+                        #endif
+
+                        /* update the forces and the energy */
+                        for ( l = 0 ; l < VEC_SIZE ; l++ ) {
+                            epot += eeq[l];
+                            bondq[l]->potential_energy += eeq[l];
+                            if(bondq[l]->potential_energy >= bondq[l]->dissociation_energy)
+                                toDestroy.insert(bondq[l]);
+
+                            for ( k = 0 ; k < 3 ; k++ ) {
+                                w = eff[l] * dxq[l*3+k];
+                                effi[l][k] -= w;
+                                effj[l][k] += w;
+                            }
+                        }
+
+                        /* re-set the counter. */
+                        icount = 0;
+
+                    }
+                #else // NOT VECTORIZE
+                    /* evaluate the bond */
+                    #ifdef EXPLICIT_POTENTIALS
+                        potential_eval_expl( pot , r2 , &ee , &eff );
+                    #else
+                        potential_eval( pot , r2 , &ee , &eff );
+                    #endif
+                
+                    /* update the forces */
+                    for ( k = 0 ; k < 3 ; k++ ) {
+                        w = eff * dx[k];
+                        pi->f[k] -= w;
+                        pj->f[k] += w;
+                    }
+                    /* tabulate the energy */
+                    epot += ee;
+                    b->potential_energy += ee;
+                    if(b->potential_energy >= b->dissociation_energy) 
+                        toDestroy.insert(b);
+
+
+                #endif
+
             }
 
-
-        #endif
+        }
 
         } /* loop over bonds. */
         
@@ -260,21 +306,25 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
             /* evaluate the potentials */
             #if defined(VEC_SINGLE)
                 #if VEC_SIZE==8
-                potential_eval_vec_8single( potq , r2q , ee , eff );
+                potential_eval_vec_8single( potq , r2q , eeq , eff );
                 #else
-                potential_eval_vec_4single( potq , r2q , ee , eff );
+                potential_eval_vec_4single( potq , r2q , eeq , eff );
                 #endif
             #elif defined(VEC_DOUBLE)
                 #if VEC_SIZE==4
-                potential_eval_vec_4double( potq , r2q , ee , eff );
+                potential_eval_vec_4double( potq , r2q , eeq , eff );
                 #else
-                potential_eval_vec_2double( potq , r2q , ee , eff );
+                potential_eval_vec_2double( potq , r2q , eeq , eff );
                 #endif
             #endif
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += ee[l];
+                epot += eeq[l];
+                bondq[l]->potential_energy += eeq[l];
+                if(bondq[l]->potential_energy >= bondq[l]->dissociation_energy)
+                    toDestroy.insert(bondq[l]);
+
                 for ( k = 0 ; k < 3 ; k++ ) {
                     w = eff[l] * dxq[l*3+k];
                     effi[l][k] -= w;
@@ -284,6 +334,10 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
 
             }
     #endif
+
+    // Destroy every bond scheduled for destruction
+    for(auto bi : toDestroy)
+        MxBond_Destroy(bi);
     
     /* Store the potential energy. */
     if ( epot_out != NULL )
@@ -299,10 +353,10 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
 /**
  * @brief Evaluate a list of bonded interactoins
  *
- * @param b Pointer to an array of #bond.
+ * @param bonds Pointer to an array of #bond.
  * @param N Nr of bonds in @c b.
  * @param e Pointer to the #engine in which these bonds are evaluated.
- * @param f An array of @c FPTYPE in which to aggregate the resulting forces.
+ * @param forces An array of @c FPTYPE in which to aggregate the resulting forces.
  * @param epot_out Pointer to a double in which to aggregate the potential energy.
  * 
  * This function differs from #bond_eval in that the forces are added to
@@ -311,15 +365,20 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
  * @return #bond_err_ok or <0 on error (see #bond_err)
  */
  
-int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , double *epot_out ) {
+int bond_evalf ( struct MxBond *bonds , int N , struct engine *e , FPTYPE *forces , double *epot_out ) {
 
     int bid, pid, pjd, k, *loci, *locj, shift[3], ld_pots;
     double h[3], epot = 0.0;
     struct space *s;
     struct MxParticle *pi, *pj, **partlist;
     struct space_cell **celllist;
-    struct MxPotential *pot;
-    FPTYPE r2, w;
+    struct MxPotential *pot, *potb;
+    std::vector<struct MxPotential *> pots;
+    struct MxBond *b;
+    FPTYPE ee, r2, w, f[3];
+    std::unordered_set<struct MxBond*> toDestroy;
+    toDestroy.reserve(N);
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -327,15 +386,16 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
     FPTYPE pix[4] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE *effi[VEC_SIZE], *effj[VEC_SIZE];
     FPTYPE r2q[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
-    FPTYPE ee[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
+    FPTYPE eeq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE eff[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE dxq[VEC_SIZE*3];
+    struct MxBond *bondq[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
 #else
-    FPTYPE ee, eff, dx[4], pix[4];
+    FPTYPE eff, dx[4], pix[4];
 #endif
     
     /* Check inputs. */
-    if ( b == NULL || e == NULL || f == NULL )
+    if ( bonds == NULL || e == NULL || forces == NULL )
         return error(bond_err_null);
         
     /* Get local copies of some variables. */
@@ -349,9 +409,16 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
         
     /* Loop over the bonds. */
     for ( bid = 0 ; bid < N ; bid++ ) {
+        b = &bonds[bid];
+        b->potential_energy = 0.0;
+
+        if(MxBond_decays(b, &uniform01)) {
+            toDestroy.insert(b);
+            continue;
+        }
     
         /* Get the particles involved. */
-        pid = b[bid].i; pjd = b[bid].j;
+        pid = b->i; pjd = b->j;
         if ( ( pi = partlist[ pid ] ) == NULL )
             continue;
         if ( ( pj = partlist[ pjd ] ) == NULL )
@@ -362,7 +429,7 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
             continue;
             
         /* Get the potential. */
-        if ( ( pot = b[bid].potential ) == NULL )
+        if ( ( pot = b->potential ) == NULL )
             continue;
     
         /* get the distance between both particles */
@@ -377,74 +444,111 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
             }
         r2 = fptype_r2( pix , pj->x , dx );
 
-        if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
-            printf( "bond_evalf: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
-                bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
-            r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
+        if(potb->kind == POTENTIAL_KIND_COMBINATION && potb->flags & POTENTIAL_SUM) {
+            pots = potb->constituents();
+            if(pots.size() == 0) pots = {potb};
+        }
+        else pots = {potb};
+
+        for(int i = 0; i < pots.size(); i++) {
+            pot = pots[i];
+
+            if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
+                printf( "bond_evalf: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
+                    bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
+                r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
             }
 
-        #ifdef VECTORIZE
-            /* add this bond to the interaction queue. */
-            r2q[icount] = r2;
-            dxq[icount*3] = dx[0];
-            dxq[icount*3+1] = dx[1];
-            dxq[icount*3+2] = dx[2];
-            effi[icount] = &( f[ 4*pid ] );
-            effj[icount] = &( f[ 4*pjd ] );
-            potq[icount] = pot;
-            icount += 1;
+            if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+                std::fill(std::begin(f), std::end(f), 0.0);
+                pot->eval_byparts(pot, pi, pj, dx, r2, &ee, f);
+                for(int i = 0; i < 3; ++i) {
+                    pi->f[i] += f[i];
+                    pj->f[i] -= f[i];
+                }
+                epot += ee;
+                b->potential_energy += ee;
+                if(b->potential_energy >= b->dissociation_energy)
+                    toDestroy.insert(b);
+            }
+            else {
 
-            /* evaluate the interactions if the queue is full. */
-            if ( icount == VEC_SIZE ) {
+                #ifdef VECTORIZE
+                    /* add this bond to the interaction queue. */
+                    r2q[icount] = r2;
+                    dxq[icount*3] = dx[0];
+                    dxq[icount*3+1] = dx[1];
+                    dxq[icount*3+2] = dx[2];
+                    effi[icount] = &( forces[ 4*pid ] );
+                    effj[icount] = &( forces[ 4*pjd ] );
+                    potq[icount] = pot;
+                    bondq[icount] = b;
+                    icount += 1;
 
-                #if defined(FPTYPE_SINGLE)
-                    #if VEC_SIZE==8
-                    potential_eval_vec_8single( potq , r2q , ee , eff );
+                    /* evaluate the interactions if the queue is full. */
+                    if ( icount == VEC_SIZE ) {
+
+                        #if defined(FPTYPE_SINGLE)
+                            #if VEC_SIZE==8
+                            potential_eval_vec_8single( potq , r2q , eeq , eff );
+                            #else
+                            potential_eval_vec_4single( potq , r2q , eeq , eff );
+                            #endif
+                        #elif defined(FPTYPE_DOUBLE)
+                            #if VEC_SIZE==4
+                            potential_eval_vec_4double( potq , r2q , eeq , eff );
+                            #else
+                            potential_eval_vec_2double( potq , r2q , eeq , eff );
+                            #endif
+                        #endif
+
+                        /* update the forces and the energy */
+                        for ( l = 0 ; l < VEC_SIZE ; l++ ) {
+                            epot += eeq[l];
+                            bondq[l]->potential_energy += eeq[l];
+                            if(bondq[l]->potential_energy >= bondq[l]->dissociation_energy)
+                                toDestroy.insert(bondq[l]);
+
+                            for ( k = 0 ; k < 3 ; k++ ) {
+                                w = eff[l] * dxq[l*3+k];
+                                effi[l][k] -= w;
+                                effj[l][k] += w;
+                            }
+                        }
+
+                        /* re-set the counter. */
+                        icount = 0;
+
+                    }
+                #else
+                    /* evaluate the bond */
+                    #ifdef EXPLICIT_POTENTIALS
+                        potential_eval_expl( pot , r2 , &ee , &eff );
                     #else
-                    potential_eval_vec_4single( potq , r2q , ee , eff );
+                        potential_eval( pot , r2 , &ee , &eff );
                     #endif
-                #elif defined(FPTYPE_DOUBLE)
-                    #if VEC_SIZE==4
-                    potential_eval_vec_4double( potq , r2q , ee , eff );
-                    #else
-                    potential_eval_vec_2double( potq , r2q , ee , eff );
-                    #endif
+                    b->potential_energy += ee;
+                
+                    if(b->potential_energy >= b->dissociation_energy) {
+                        toDestroy.insert(b);
+                    }
+                    else {
+                        /* update the forces */
+                        for ( k = 0 ; k < 3 ; k++ ) {
+                            w = eff * dx[k];
+                            forces[ 4*pid + k ] -= w;
+                            forces[ 4*pjd + k ] += w;
+                        }
+                        /* tabulate the energy */
+                        epot += ee;
+                    }
                 #endif
 
-                /* update the forces and the energy */
-                for ( l = 0 ; l < VEC_SIZE ; l++ ) {
-                    epot += ee[l];
-                    for ( k = 0 ; k < 3 ; k++ ) {
-                        w = eff[l] * dxq[l*3+k];
-                        effi[l][k] -= w;
-                        effj[l][k] += w;
-                        }
-                    }
+            }
 
-                /* re-set the counter. */
-                icount = 0;
+        }
 
-                }
-        #else
-            /* evaluate the bond */
-            #ifdef EXPLICIT_POTENTIALS
-                potential_eval_expl( pot , r2 , &ee , &eff );
-            #else
-                potential_eval( pot , r2 , &ee , &eff );
-            #endif
-
-            /* update the forces */
-            for ( k = 0 ; k < 3 ; k++ ) {
-                w = eff * dx[k];
-                f[ 4*pid + k ] -= w;
-                f[ 4*pjd + k ] += w;
-                }
-
-            /* tabulate the energy */
-            epot += ee;
-        #endif
-
-        } /* loop over bonds. */
+    } /* loop over bonds. */
         
     #if defined(VECTORIZE)
         /* are there any leftovers? */
@@ -454,35 +558,43 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
             for ( k = icount ; k < VEC_SIZE ; k++ ) {
                 potq[k] = potq[0];
                 r2q[k] = r2q[0];
-                }
+            }
 
             /* evaluate the potentials */
             #if defined(VEC_SINGLE)
                 #if VEC_SIZE==8
-                potential_eval_vec_8single( potq , r2q , ee , eff );
+                potential_eval_vec_8single( potq , r2q , eeq , eff );
                 #else
-                potential_eval_vec_4single( potq , r2q , ee , eff );
+                potential_eval_vec_4single( potq , r2q , eeq , eff );
                 #endif
             #elif defined(VEC_DOUBLE)
                 #if VEC_SIZE==4
-                potential_eval_vec_4double( potq , r2q , ee , eff );
+                potential_eval_vec_4double( potq , r2q , eeq , eff );
                 #else
-                potential_eval_vec_2double( potq , r2q , ee , eff );
+                potential_eval_vec_2double( potq , r2q , eeq , eff );
                 #endif
             #endif
 
             /* for each entry, update the forces and energy */
             for ( l = 0 ; l < icount ; l++ ) {
-                epot += ee[l];
+                epot += eeq[l];
+                bondq[l]->potential_energy += eeq[l];
+                if(bondq[l]->potential_energy >= bondq[l]->dissociation_energy)
+                    toDestroy.insert(bondq[l]);
+
                 for ( k = 0 ; k < 3 ; k++ ) {
                     w = eff[l] * dxq[l*3+k];
                     effi[l][k] -= w;
                     effj[l][k] += w;
-                    }
                 }
-
             }
+
+        }
     #endif
+
+    // Destroy every bond scheduled for destruction
+    for(auto bi : toDestroy)
+        MxBond_Destroy(bi);
     
     /* Store the potential energy. */
     if ( epot_out != NULL )
@@ -491,27 +603,34 @@ int bond_evalf ( struct MxBond *b , int N , struct engine *e , FPTYPE *f , doubl
     /* We're done here. */
     return bond_err_ok;
     
-    }
+}
 
-
-static int _bond_init(MxBondHandle *self, uint32_t flags, int32_t i, int32_t j,
-        double half_life, double bond_energy, struct MxPotential *potential) {
+int MxBondHandle::_init(uint32_t flags, 
+                        int32_t i, 
+                        int32_t j, 
+                        double half_life, 
+                        double bond_energy, 
+                        struct MxPotential *potential) 
+{
+    // check whether this handle has previously been initialized and return without error if so
+    if (this->id > 0 && _Engine.nr_bonds > 0) return 0;
 
     MxBond *bond = NULL;
     
-    int result = engine_bond_alloc (&_Engine, &bond );
+    int result = engine_bond_alloc(&_Engine, &bond);
     
     if(result < 0) {
-        return c_error(E_FAIL, "could not allocate bond");
+        throw std::runtime_error("could not allocate bond");
+        return E_FAIL;
     }
     
     bond->flags = flags;
     bond->i = i;
     bond->j = j;
+    bond->creation_time = _Engine.time;
     bond->half_life = half_life;
     bond->dissociation_energy = bond_energy;
-    bond->style = MxBond_StylePtr;
-    Py_IncRef(bond->style);
+    if (!bond->style) bond->style = MxBond_StylePtr;
     
     if(bond->i >= 0 && bond->j >= 0) {
         bond->flags = bond->flags | BOND_ACTIVE;
@@ -519,383 +638,188 @@ static int _bond_init(MxBondHandle *self, uint32_t flags, int32_t i, int32_t j,
     }
 
     if(potential) {
-        Py_INCREF(potential);
         bond->potential = potential;
     }
     
-    self->id = result;
+    this->id = result;
+
+    #ifdef HAVE_CUDA
+    if(_Engine.bonds_cuda) 
+        if(engine_cuda_add_bond(bond) < 0) 
+            return error(engine_err);
+    #endif
+
+    Log(LOG_TRACE) << "Created bond: " << this->id  << ", i: " << bond->i << ", j: " << bond->j;
 
     return 0;
 }
 
-static int bond_init(MxBondHandle *self, PyObject *args, PyObject *kwargs) {
+MxBondHandle *MxBond::create(struct MxPotential *potential, 
+                             MxParticleHandle *i, 
+                             MxParticleHandle *j, 
+                             double *half_life, 
+                             double *bond_energy, 
+                             uint32_t flags)
+{
+    if(!potential || !i || !j) return NULL;
+
+    auto _half_life = half_life ? *half_life : std::numeric_limits<double>::max();
+    auto _bond_energy = bond_energy ? *bond_energy : std::numeric_limits<double>::max();
+    return new MxBondHandle(potential, i->id, j->id, _half_life, _bond_energy, flags);
+}
+
+std::string MxBond::toString() {
+    return mx::io::toString(*this);
+}
+
+MxBond *MxBond::fromString(const std::string &str) {
+    return new MxBond(mx::io::fromString<MxBond>(str));
+}
+
+MxBond *MxBondHandle::get() {
+#ifdef INCLUDE_ENGINE_H_
+    return &_Engine.bonds[this->id];
+#else
+    return NULL;
+#endif
+};
+
+MxBondHandle::MxBondHandle(int id) {
+    if(id >= 0 && id < _Engine.nr_bonds) this->id = id;
+    else throw std::range_error("invalid id");
+}
+
+MxBondHandle::MxBondHandle(struct MxPotential *potential, int32_t i, int32_t j,
+        double half_life, double bond_energy, uint32_t flags) : 
+    MxBondHandle()
+{
+    _init(flags, i, j, half_life, bond_energy, potential);
+}
+
+int MxBondHandle::init(MxPotential *pot, 
+                       MxParticleHandle *p1, 
+                       MxParticleHandle *p2, 
+                       const double &half_life, 
+                       const double &bond_energy, 
+                       uint32_t flags) 
+{
 
     Log(LOG_DEBUG);
 
     try {
-        PyObject *pot  = mx::arg<PyObject*>("potential", 0, args, kwargs);
-        PyObject *p1  = mx::arg<PyObject*>("p1", 1, args, kwargs);
-        PyObject *p2  = mx::arg<PyObject*>("p2", 2, args, kwargs);
-        
-        double half_life = mx::arg<double>("half_life", 3, args, kwargs, std::numeric_limits<double>::max());
-        double bond_energy = mx::arg<double>("dissociation_energy", 4, args, kwargs, std::numeric_limits<double>::max());
-        uint32_t flags = mx::arg<uint32_t>("flags", 5, args, kwargs, 0);
-        
-        if(PyObject_IsInstance(pot, (PyObject*)&MxPotential_Type) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "potential is not a instance of Potential");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p1) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p1 is not a instance of Particle");
-            return -1;
-        }
-        
-        if(MxParticle_Check(p2) <= 0) {
-            PyErr_SetString(PyExc_TypeError, "p2 is not a instance Particle");
-            return -1;
-        }
-        
-        return _bond_init(self, flags, ((MxParticleHandle*)p1)->id, ((MxParticleHandle*)p2)->id,
-                   half_life, bond_energy, (MxPotential*)pot);
-
+        return _init(flags, p1->id, p2->id, half_life, bond_energy, pot);
     }
     catch (const std::exception &e) {
-        return C_EXP(e);
+        return mx_exp(e);
     }
 }
 
-static PyObject* bond_str(MxBondHandle *bh) {
+std::string MxBondHandle::str() {
     std::stringstream  ss;
-    MxBond *bond = &_Engine.bonds[bh->id];
+    MxBond *bond = &_Engine.bonds[this->id];
     
+    ss << "Bond(i=" << bond->i << ", j=" << bond->j << ")";
     
-    ss << "Bond(i="
-       << bond->i
-       << ", j="
-       << bond->j
-       << ")";
-    
-    return PyUnicode_FromString(ss.str().c_str());
+    return ss.str();
 }
 
-static PyGetSetDef bond_getset[] = {
-    {
-        .name = "parts",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            if(bond->flags & BOND_ACTIVE) {
-                return MxParticleList_Pack(2, bond->i, bond->j);
-            }
-            Py_RETURN_NONE;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "potential",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            if(bond->flags & BOND_ACTIVE) {
-                PyObject *pot = bond->potential;
-                Py_INCREF(pot);
-                return pot;
-            }
-            Py_RETURN_NONE;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "id",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            if(bond->flags & BOND_ACTIVE) {
-                // WARNING: need the (int) cast here to pick up the
-                // correct mx::cast template specialization, won't build wiht
-                // an int32_specializations, claims it's duplicate for int.
-                return mx::cast((int)bond->id);
-            }
-            Py_RETURN_NONE;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "dissociation_energy",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            return mx::cast(bond->dissociation_energy);
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            try {
-                MxBond *bond = ((MxBondHandle*)_obj)->get();
-                bond->dissociation_energy = mx::cast<float>(val);
-                return 0;
-            }
-            catch (const std::exception &e) {
-                return C_EXP(e);
-            }
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "active",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            return mx::cast((bool)(bond->flags & BOND_ACTIVE));
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "style",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            Py_INCREF(bond->style);
-            return bond->style;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            if(!NOMStyle_Check(val)) {
-                PyErr_SetString(PyExc_TypeError, "style must be a Style object");
-                return -1;
-            }
-            MxBond *bond = ((MxBondHandle*)_obj)->get();
-            Py_DECREF(bond->style);
-            bond->style = (NOMStyle*)val;
-            Py_INCREF(bond->style);
-            return 0;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {NULL}
-};
-
-PyObject *bond_bonds(PyObject *self) {
-    PyObject *list = PyList_New(_Engine.nr_bonds);
-    
-    for(int i = 0; i < _Engine.nr_bonds; ++i) {
-        PyList_SET_ITEM(list, i, MxBondHandle_FromId(i));
-    }
-    
-    return list;
+bool MxBondHandle::check() {
+    return (bool)this->get();
 }
 
-
-static Py_ssize_t bond_length(PyObject *o) {
-    return 2;
+double MxBondHandle::getEnergy()
+{
+    Log(LOG_DEBUG);
+    
+    MxBond *bond = this->get();
+    double energy = 0;
+    
+    MxBond_Energy(bond, &energy);
+    
+    return energy;
 }
 
-static PyObject *bond_item(PyObject *o, Py_ssize_t i) {
- 
-    MxBond *self = MxBond_Get(o);
-    MxParticleHandle *result;
-    
-    if(i == 0) {
-        MxParticle *p = MxParticle_FromId(self->i);
-        result = p->py_particle();
-        Py_INCREF(result);
-        return result;
+std::vector<int32_t> MxBondHandle::getParts() {
+    std::vector<int32_t> result;
+    MxBond *bond = get();
+    if(bond && bond->flags & BOND_ACTIVE) {
+        result = std::vector<int32_t>{bond->i, bond->j};
+    }
+    return result;
+}
 
+MxPotential *MxBondHandle::getPotential() {
+    MxBond *bond = get();
+    if(bond && bond->flags & BOND_ACTIVE) {
+        return bond->potential;
     }
-    else if (i == 1) {
-        MxParticle *p = MxParticle_FromId(self->j);
-        result = p->py_particle();
-        Py_INCREF(result);
-        return result;
-    }
-    PyErr_SetString(PyExc_IndexError, "bond index out of range, index must be 0 or 1");
     return NULL;
 }
 
-static int bond_ass_item(PyObject *o, Py_ssize_t i, PyObject *x) {
-    MxBond *self = MxBond_Get(o);
-    MxParticle *p = MxParticle_Get(x);
-    
-    if(!p) {c_error(E_FAIL, "can only assign particle to bonds"); return -1;}
-    
-    if(i == 0) {
-        self->i = p->id;
-        return 0;
+uint32_t MxBondHandle::getId() {
+    MxBond *bond = get();
+    if(bond && bond->flags & BOND_ACTIVE) {
+        // WARNING: need the (int) cast here to pick up the
+        // correct mx::cast template specialization, won't build wiht
+        // an int32_specializations, claims it's duplicate for int.
+        return bond->id;
     }
-    else if (i == 1) {
-        self->j = p->id;
-        return 0;
-    }
-    PyErr_SetString(PyExc_IndexError, "bond index out of range, index must be 0 or 1");
-    return -1;
+    return NULL;
 }
 
-static int bond_contains(PyObject *o, PyObject *x) {
-    MxBond *self = MxBond_Get(o);
-    MxParticle *p = MxParticle_Get(x);
-    return self && p && (self->i == p->id || self->j == p->id);
+float MxBondHandle::getDissociationEnergy() {
+    float result;
+    MxBond *bond = get();
+    if (bond) result = bond->dissociation_energy;
+    return result;
 }
 
-static PySequenceMethods bond_sequence = {
-     .sq_length = bond_length,
-     .sq_concat = NULL,
-     .sq_repeat = NULL,
-     .sq_item = bond_item,
-     .was_sq_slice = NULL,
-     .sq_ass_item = bond_ass_item,
-     .was_sq_ass_slice = NULL,
-     .sq_contains = bond_contains,
-     .sq_inplace_concat = NULL,
-     .sq_inplace_repeat = NULL,
-};
-
-
-
-static PyMethodDef bond_methods[] = {
-    { "destroy", (PyCFunction)bond_destroy, METH_VARARGS | METH_KEYWORDS, NULL },
-    { "energy", (PyCFunction)bond_energy, METH_NOARGS, NULL },
-    { "bonds", (PyCFunction)bond_bonds, METH_STATIC | METH_NOARGS, NULL },
-    { "items", (PyCFunction)bond_bonds, METH_STATIC | METH_NOARGS, NULL },
-    { NULL, NULL, 0, NULL }
-};
-
-
-PyTypeObject MxBondHandle_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "Bond",
-    .tp_basicsize = sizeof(MxBondHandle),
-    .tp_itemsize =       0,
-    .tp_dealloc =        0,
-                         0, // changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0,
-    .tp_setattr =        0,
-    .tp_as_async =       0,
-    .tp_repr =           (reprfunc)bond_str,
-    .tp_as_number =      0,
-    .tp_as_sequence =    &bond_sequence,
-    .tp_as_mapping =     0,
-    .tp_hash =           0,
-    .tp_call =           0,
-    .tp_str =            (reprfunc)bond_str,
-    .tp_getattro =       0,
-    .tp_setattro =       0,
-    .tp_as_buffer =      0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = "Custom objects",
-    .tp_traverse =       0,
-    .tp_clear =          0,
-    .tp_richcompare =    0,
-    .tp_weaklistoffset = 0,
-    .tp_iter =           0,
-    .tp_iternext =       0,
-    .tp_methods =        bond_methods,
-    .tp_members =        0,
-    .tp_getset =         bond_getset,
-    .tp_base =           0,
-    .tp_dict =           0,
-    .tp_descr_get =      0,
-    .tp_descr_set =      0,
-    .tp_dictoffset =     0,
-    .tp_init =           (initproc)bond_init,
-    .tp_alloc =          0,
-    .tp_new =            PyType_GenericNew,
-    .tp_free =           0,
-    .tp_is_gc =          0,
-    .tp_bases =          0,
-    .tp_mro =            0,
-    .tp_cache =          0,
-    .tp_subclasses =     0,
-    .tp_weaklist =       0,
-    .tp_del =            0,
-    .tp_version_tag =    0,
-    .tp_finalize =       0,
-};
-
-
-static PyMethodDef methods[] = {
-    { NULL, NULL, 0, NULL }
-};
-
-static struct PyModuleDef moduledef = {
-        PyModuleDef_HEAD_INIT,
-        "bonds",   /* name of module */
-        NULL, /* module documentation, may be NULL */
-        -1,       /* size of per-interpreter state of the module,
-                 or -1 if the module keeps state in global variables. */
-        methods
-};
-
-static PyObject *bonds_module = NULL;
-
-HRESULT _MxBond_init(PyObject *m)
-{
-    if (PyType_Ready((PyTypeObject*)&MxBondHandle_Type) < 0) {
-        Log(LOG_ERROR) << "could not initialize MxBondHandle_Type ";
-        return E_FAIL;
-    }
-
-    bonds_module = PyModule_Create(&moduledef);
-
-    Py_INCREF(&MxBondHandle_Type);
-    if (PyModule_AddObject(m, "Bond", (PyObject *)&MxBondHandle_Type) < 0) {
-        Py_DECREF(&MxBondHandle_Type);
-        return E_FAIL;
-    }
-
-    if (PyModule_AddObject(m, "bonds", (PyObject *)bonds_module) < 0) {
-        Py_DECREF(&MxBondHandle_Type);
-        Py_DECREF(&bonds_module);
-        return E_FAIL;
-    }
-    
-    MxBond_StylePtr = NOMStyle_NewEx(Color3_Parse("lime"));
-    
-    if(MxBondHandle_Type.tp_dict) {
-        PyDict_SetItemString(MxBondHandle_Type.tp_dict, "style", MxBond_StylePtr);
-    }
-
-    return S_OK;
+void MxBondHandle::setDissociationEnergy(const float &dissociation_energy) {
+    MxBond *bond = get();
+    if (bond) bond->dissociation_energy = dissociation_energy;
 }
 
-MxBondHandle* MxBondHandle_New(uint32_t flags, int32_t i, int32_t j,
-        double half_life, double bond_energy, struct MxPotential *potential)
-{
-    MxBondHandle *bond = (MxBondHandle*)PyType_GenericAlloc(&MxBondHandle_Type, 0);
-
-    _bond_init(bond, flags, i, j, half_life, bond_energy, potential);
-
-    return bond;
+float MxBondHandle::getHalfLife() {
+    MxBond *bond = get();
+    if (bond) return bond->half_life;
+    return NULL;
 }
 
-// list of pairs...
-struct Pair {
-    int32_t i;
-    int32_t j;
-};
+void MxBondHandle::setHalfLife(const float &half_life) {
+    MxBond *bond = get();
+    if (bond) bond->half_life = half_life;
+}
 
-typedef std::vector<Pair> PairList;
+bool MxBondHandle::getActive() {
+    MxBond *bond = get();
+    if (bond) return (bool)(bond->flags & BOND_ACTIVE);
+    return false;
+}
+
+MxStyle *MxBondHandle::getStyle() {
+    MxBond *bond = get();
+    if (bond) return bond->style;
+    return NULL;
+}
+
+void MxBondHandle::setStyle(MxStyle *style) {
+    MxBond *bond = get();
+    if (bond) bond->style = style;
+}
+
+double MxBondHandle::getAge() {
+    MxBond *bond = get();
+    if (bond) return (_Engine.time - bond->creation_time) * _Engine.dt;
+    return 0;
+}
 
 static void make_pairlist(const MxParticleList *parts,
-                          float cutoff, PyObject *paircheck_list,
+                          float cutoff, std::vector<std::pair<MxParticleType*, MxParticleType*>* > *paircheck_list,
                           PairList& pairs) {
     int i, j;
     struct MxParticle *part_i, *part_j;
-    Magnum::Vector4 dx;
-    Magnum::Vector4 pix, pjx;
+    MxVector4f dx;
+    MxVector4f pix, pjx;
  
     /* get the space and cutoff */
     pix[3] = FPTYPE_ZERO;
@@ -941,69 +865,19 @@ static void make_pairlist(const MxParticleList *parts,
     } /* loop over all particles */
 }
 
-PyObject* MxBond_PairwiseNew(
-    struct MxPotential* pot,
-    struct MxParticleList *parts,
-    float cutoff,
-    PyObject *ppairs,
-    PyObject *args,
-    PyObject *kwds) {
-    
-    PairList pairs;
-    PyObject *bonds = NULL;
-    MxBondHandle *bond = NULL;
-    
-    try {
-        make_pairlist(parts, cutoff, ppairs, pairs);
-        
-        bonds = PyList_New(pairs.size());
-        Log(LOG_DEBUG) << "list size: " << PyList_Size(bonds);
-        
-        double half_life = mx::arg<double>("half_life", 3, args, kwds, std::numeric_limits<double>::max());
-        double bond_energy = mx::arg<double>("bond_energy", 4, args, kwds, std::numeric_limits<double>::max());
-        uint32_t flags = mx::arg<uint32_t>("flags", 5, args, kwds, 0);
-        
-        for(int i = 0; i < pairs.size(); ++i) {
-            bond = (MxBondHandle*)PyType_GenericAlloc(&MxBondHandle_Type, 0);
-            if(!bond) {
-                throw std::logic_error("failed to allocated bond");
-            }
-            
-            if(_bond_init(bond, flags, pairs[i].i, pairs[i].j, half_life, bond_energy, (MxPotential*)pot) != 0) {
-                throw std::logic_error("failed to init bond");
-            }
-                
-            // each new bond has a refcount of 1
-            PyList_SET_ITEM(bonds, i, bond);
-        }
-        
-        return bonds;
-    }
-    catch (const std::exception &e) {
-        if(bonds) {
-            Py_DecRef(bonds);
-        }
-        C_EXP(e);
-    }
-    return NULL;
-}
-
-MxBondHandle* MxBondHandle_FromId(int id) {
-    if(id >= 0 && id < _Engine.nr_bonds) {
-        MxBondHandle *h = (MxBondHandle*)PyType_GenericAlloc(&MxBondHandle_Type, 0);
-        h->id = id;
-        return h;
-    }
-    PyErr_SetString(PyExc_ValueError, "invalid id");
-    return NULL;
-}
+static bool MxBond_destroyingAll = false;
 
 CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b) {
     
     std::unique_lock<std::mutex> lock(_Engine.bonds_mutex);
     
     if(b->flags & BOND_ACTIVE) {
-        Py_DecRef(b->potential);
+        #ifdef HAVE_CUDA
+        if(_Engine.bonds_cuda && !MxBond_destroyingAll) 
+            if(engine_cuda_finalize_bond(b->id) < 0) 
+                return E_FAIL;
+        #endif
+
         // this clears the BOND_ACTIVE flag
         bzero(b, sizeof(MxBond));
         _Engine.nr_active_bonds -= 1;
@@ -1011,29 +885,106 @@ CAPI_FUNC(HRESULT) MxBond_Destroy(struct MxBond *b) {
     return S_OK;
 }
 
+HRESULT MxBond_DestroyAll() {
+    MxBond_destroyingAll = true;
 
-PyObject* bond_destroy(MxBondHandle *self, PyObject *args, PyObject *kwargs)
+    #ifdef HAVE_CUDA
+    if(_Engine.bonds_cuda) 
+        if(engine_cuda_finalize_bonds_all(&_Engine) < 0) 
+            return E_FAIL;
+    #endif
+
+    for(auto bh : MxBondHandle::items()) bh->destroy();
+
+    MxBond_destroyingAll = false;
+    return S_OK;
+}
+
+std::vector<MxBondHandle*>* MxBondHandle::pairwise(struct MxPotential* pot,
+                                                   struct MxParticleList *parts,
+                                                   const double &cutoff,
+                                                   std::vector<std::pair<MxParticleType*, MxParticleType*>* > *ppairs,
+                                                   const double &half_life,
+                                                   const double &bond_energy,
+                                                   uint32_t flags) 
+{
+    
+    PairList pairs;
+    std::vector<MxBondHandle*> *bonds = new std::vector<MxBondHandle*>();
+    
+    try {
+        make_pairlist(parts, cutoff, ppairs, pairs);
+        
+        for(auto &pair : pairs) {
+            auto bond = new MxBondHandle(pot, pair.i, pair.j, half_life, bond_energy, flags);
+            if(!bond) {
+                throw std::logic_error("failed to allocated bond");
+            }
+            
+            bonds->push_back(bond);
+        }
+        
+        return bonds;
+    }
+    catch (const std::exception &e) {
+        delete bonds;
+        mx_exp(e);
+    }
+    return NULL;
+}
+
+bool MxBond_decays(MxBond *b, std::uniform_real_distribution<double> *uniform01) {
+    if(!b || b->half_life <= 0.0) return false;
+
+    bool created = uniform01 == NULL;
+    if(created) uniform01 = new std::uniform_real_distribution<double>(0.0, 1.0);
+
+    double pr = 1.0 - std::pow(2.0, -_Engine.dt / b->half_life);
+    MxRandomType &MxRandom = MxRandomEngine();
+    bool result = (*uniform01)(MxRandom) < pr;
+
+    if(created) delete uniform01;
+
+    return result;
+}
+
+HRESULT MxBondHandle::destroy()
 {
     Log(LOG_DEBUG);
     
-    MxBond_Destroy(self->get());
-    Py_RETURN_NONE;
+    return MxBond_Destroy(this->get());
 }
 
-PyObject* bond_energy(MxBondHandle *self)
-{
-    Log(LOG_DEBUG);
+std::vector<MxBondHandle*> MxBondHandle::bonds() {
+    std::vector<MxBondHandle*> list;
     
-    MxBond *bond = self->get();
-    double energy = 0;
+    for(int i = 0; i < _Engine.nr_bonds; ++i) 
+        list.push_back(new MxBondHandle(i));
     
-    MxBond_Energy (bond, &energy);
-    
-    return mx::cast(energy);
-    
-    Py_RETURN_NONE;
+    return list;
 }
 
+std::vector<MxBondHandle*> MxBondHandle::items() {
+    return bonds();
+}
+
+bool MxBondHandle::decays() {
+    return MxBond_decays(&_Engine.bonds[this->id]);
+}
+
+MxParticleHandle *MxBondHandle::operator[](unsigned int index) {
+    auto *b = get();
+    if(!b) {
+        Log(LOG_ERROR) << "Invalid bond handle";
+        return NULL;
+    }
+
+    if(index == 0) return MxParticle_FromId(b->i)->py_particle();
+    else if(index == 1) return MxParticle_FromId(b->j)->py_particle();
+    
+    mx_exp(std::range_error("Index out of range (must be 0 or 1)"));
+    return NULL;
+}
 
 HRESULT MxBond_Energy (MxBond *b, double *epot_out) {
     
@@ -1130,39 +1081,98 @@ std::vector<int32_t> MxBond_IdsForParticle(int32_t pid) {
     return bonds;
 }
 
-
-bool pair_check(PyObject *pairs, short a_typeid, short b_typeid) {
+bool pair_check(std::vector<std::pair<MxParticleType*, MxParticleType*>* > *pairs, short a_typeid, short b_typeid) {
     if(!pairs) {
         return true;
     }
     
-    PyObject *a = (PyObject*)&_Engine.types[a_typeid];
-    PyObject *b = (PyObject*)&_Engine.types[b_typeid];
+    auto *a = &_Engine.types[a_typeid];
+    auto *b = &_Engine.types[b_typeid];
     
-    for (int i = 0; i < PyList_Size(pairs); ++i) {
-        PyObject *o = PyList_GetItem(pairs, i);
-        if(PyTuple_Check(o) && PyTuple_Size(o) == 2) {
-            if((a == PyTuple_GET_ITEM(o, 0) && b == PyTuple_GET_ITEM(o, 1)) ||
-               (b == PyTuple_GET_ITEM(o, 0) && a == PyTuple_GET_ITEM(o, 1))) {
-                return true;
-            }
+    for (int i = 0; i < (*pairs).size(); ++i) {
+        std::pair<MxParticleType*, MxParticleType*> *o = (*pairs)[i];
+        if((a == std::get<0>(*o) && b == std::get<1>(*o)) ||
+            (b == std::get<0>(*o) && a == std::get<1>(*o))) {
+            return true;
         }
     }
     return false;
 }
 
-
-MxBond *MxBond_Get(PyObject *o) {
-    if(MxBondHandle_Check(o)) {
-        MxBondHandle *h = (MxBondHandle*)o;
-        return h->get();
-    }
-    return NULL;
-}
-
-bool MxBondHandle_Check(PyObject *o) {
-    if(o) {
-        return PyObject_IsInstance(o, (PyObject*)&MxBondHandle_Type);
+bool contains_bond(const std::vector<MxBondHandle*> &bonds, int a, int b) {
+    for(auto h : bonds) {
+        MxBond *bond = &_Engine.bonds[h->id];
+        if((bond->i == a && bond->j == b) || (bond->i == b && bond->j == a)) {
+            return true;
+        }
     }
     return false;
 }
+
+int insert_bond(std::vector<MxBondHandle*> &bonds, int a, int b,
+                MxPotential *pot, MxParticleList *parts) {
+    int p1 = parts->parts[a];
+    int p2 = parts->parts[b];
+    if(!contains_bond(bonds, p1, p2)) {
+        MxBondHandle *bond = new MxBondHandle(pot, p1, p2,
+                                              std::numeric_limits<double>::max(),
+                                              std::numeric_limits<double>::max(),
+                                              0);
+        bonds.push_back(bond);
+        return 1;
+    }
+    return 0;
+}
+
+
+namespace mx { namespace io {
+
+#define MXBONDIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXBONDIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const MxBond &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXBONDIOTOEASY(fe, "flags", dataElement.flags);
+    MXBONDIOTOEASY(fe, "i", dataElement.i);
+    MXBONDIOTOEASY(fe, "j", dataElement.j);
+    MXBONDIOTOEASY(fe, "id", dataElement.id);
+    MXBONDIOTOEASY(fe, "creation_time", dataElement.creation_time);
+    MXBONDIOTOEASY(fe, "half_life", dataElement.half_life);
+    MXBONDIOTOEASY(fe, "dissociation_energy", dataElement.dissociation_energy);
+    MXBONDIOTOEASY(fe, "potential_energy", dataElement.potential_energy);
+
+    fileElement->type = "Bond";
+    
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxBond *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "flags", &dataElement->flags);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "i", &dataElement->i);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "j", &dataElement->j);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "id", &dataElement->id);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "creation_time", &dataElement->creation_time);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "half_life", &dataElement->half_life);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "dissociation_energy", &dataElement->dissociation_energy);
+    MXBONDIOFROMEASY(feItr, fileElement.children, metaData, "potential_energy", &dataElement->potential_energy);
+
+    return S_OK;
+}
+
+}};

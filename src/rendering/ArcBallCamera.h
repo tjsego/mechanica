@@ -90,6 +90,68 @@ public:
     auto projectionMatrix() {
         return _projectionMatrix;
     }
+
+    void rotateDelta(const float *deltaX=NULL, const float *deltaY=NULL, const float *deltaZ=NULL) {
+        if(deltaZ) _targetQRotation = Magnum::Quaternion::rotation(Magnum::Rad(*deltaZ), Magnum::Vector3::zAxis()) * _targetQRotation;
+        if(deltaY) _targetQRotation = Magnum::Quaternion::rotation(Magnum::Rad(*deltaY), Magnum::Vector3::yAxis()) * _targetQRotation;
+        if(deltaX) _targetQRotation = Magnum::Quaternion::rotation(Magnum::Rad(*deltaX), Magnum::Vector3::xAxis()) * _targetQRotation;
+    }
+
+    void translateDelta(const Vector3 &deltaPos, const bool &absolute=false) {
+        if(absolute) _targetPosition += deltaPos;
+        else _targetPosition += _targetQRotation.inverted().transformVector(deltaPos);
+    }
+
+    void translateToOrigin() {
+        _targetPosition = Vector3(0.0);
+    }
+
+    void viewBottom(const float &viewDistance) {
+        rotateToAxis(Vector3::xAxis(-1.0f), viewDistance);
+        rotateByEulerAngles({0, 0, M_PI});
+    }
+
+    void viewTop(const float &viewDistance) {
+        rotateToAxis(Vector3::xAxis(), viewDistance);
+    }
+
+    void viewLeft(const float &viewDistance) {
+        viewTop(viewDistance);
+        rotateByEulerAngles({-0.5f*M_PI, 0, 0.5f*M_PI});
+    }
+
+    void viewRight(const float &viewDistance) {
+        viewLeft(viewDistance);
+        rotateByEulerAngles({0, 0, M_PI});
+    }
+
+    void viewBack(const float &viewDistance) {
+        viewTop(viewDistance);
+        rotateByEulerAngles({-0.5f*M_PI, 0, M_PI});
+    }
+
+    void viewFront(const float &viewDistance) {
+        viewBack(viewDistance);
+        rotateByEulerAngles({0, 0, M_PI});
+    }
+
+    MxVector3f cposition() {
+        return _currentPosition;
+    }
+
+    MxQuaternionf crotation() {
+        return _currentQRotation;
+    }
+
+    float czoom() {
+        return _currentZooming;
+    }
+
+    void setViewParameters(const MxVector3f &position, const MxQuaternionf &rotation, const float &zoom) {
+        _targetPosition = position;
+        _targetQRotation = rotation;
+        _targetZooming = zoom;
+    }
     
 private:
     //SceneGraph::AbstractTranslationRotation3D* _cameraObject{};

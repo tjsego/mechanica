@@ -16,8 +16,6 @@
 #include "MxDebug.h"
 #include <rendering/MxMeshRenderer.h>
 
-static MxCellType cellType{"CellType", NULL};
-CType *MxCell_Type = &cellType;
 
 bool operator == (const std::array<MxVertex *, 3>& a, const std::array<MxVertex *, 3>& b) {
   return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
@@ -32,7 +30,7 @@ bool MxCell::manifold() const {
 
 void MxCell::vertexAtributeData(const std::vector<MxVertexAttribute>& attributes,
         uint vertexCount, uint stride, void* buffer) {
-    MxCellType *type = (MxCellType*)ob_type;
+    MxCellType *cellType = (MxCellType*)constraintType;
 
 
     uchar *ptr = (uchar*)buffer;
@@ -51,7 +49,7 @@ void MxCell::vertexAtributeData(const std::vector<MxVertexAttribute>& attributes
 
     for(CPPolygonPtr pp : surface) {
         CPolygonPtr poly = pp->polygon;
-        MxPolygonType *polyType = static_cast<MxPolygonType*>(poly->ob_type);
+        MxPolygonType *polyType = static_cast<MxPolygonType*>(poly->constraintType);
 
         for(int i = 0; i < poly->vertices.size(); ++i) {
             CVertexPtr p1 = poly->vertices[i];
@@ -60,8 +58,8 @@ void MxCell::vertexAtributeData(const std::vector<MxVertexAttribute>& attributes
             Color4 edgeColor;
 
 
-            if (poly == mesh->selectedObject() || poly->edges[i] == mesh->selectedObject()) {
-                edgeColor = type->selectedEdgeColor;
+            if (mesh->isSelected(poly) || mesh->isSelected(poly->edges[i])) {
+                edgeColor = cellType->selectedEdgeColor;
             }
             //else if(Mx_IsEdgeToTriangleConfiguration(poly->edges[i])) {
             //    edgeColor = Color4::red();
@@ -145,7 +143,7 @@ void MxCell::writePOV(std::ostream& out) {
 HRESULT MxCell::positionsChanged() {
     area = 0;
     volume = 0;
-    centroid = Vector3{0., 0., 0.};
+    centroid = MxVector3f{0., 0., 0.};
     int npoly = 0;
 
     for(auto pt : surface) {
@@ -179,10 +177,10 @@ bool MxCell::isValid() const
     return true;
 }
 
-Vector3 MxCell::centerOfMass() const
+MxVector3f MxCell::centerOfMass() const
 {
     std::set<VertexPtr> verts;
-    Vector3 sum;
+    MxVector3f sum;
     float mass = 0;
 
 
@@ -199,7 +197,7 @@ Vector3 MxCell::centerOfMass() const
     return sum / mass;
 }
 
-Vector3 MxCell::radiusMeanVarianceStdDev() const
+MxVector3f MxCell::radiusMeanVarianceStdDev() const
 {
     int npts = 0;
     float radius = 0;
@@ -233,12 +231,12 @@ Vector3 MxCell::radiusMeanVarianceStdDev() const
 
     variance = variance / npts;
 
-    return {{radius, variance, sqrt(variance)}};
+    return {radius, variance, sqrt(variance)};
 }
 
-Matrix3 MxCell::momentOfInertia() const
+MxMatrix3f MxCell::momentOfInertia() const
 {
-    Matrix3 inertia;
+    MxMatrix3f inertia;
 
     std::set<VertexPtr> verts;
     //  sqrt((Xp-Xc)^2 + (Yp-Yc)^2 + (Zp-Zc)^2) - R

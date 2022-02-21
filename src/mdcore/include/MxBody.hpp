@@ -10,14 +10,17 @@
 
 #include <platform.h>
 #include <MxParticle.h>
+#include "../../types/mx_types.h"
 #include <Magnum/Math/Range.h>
 
-struct MxBody : PyObject
+struct MxBodyHandle;
+
+struct MxBody
 {
     /** Particle position */
     union {
-        FPTYPE x[4] __attribute__ ((aligned (16)));
-        Magnum::Vector3 position __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) x[4];
+        MX_ALIGNED(MxVector3f, 16) position;
 
         struct {
             float __dummy[3];
@@ -27,8 +30,8 @@ struct MxBody : PyObject
 
     /** linear velocity */
     union {
-        FPTYPE v[4] __attribute__ ((aligned (16)));
-        Magnum::Vector3 velocity __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) v[4];
+        MX_ALIGNED(MxVector3f, 16) velocity;
     };
     
     /**
@@ -38,42 +41,42 @@ struct MxBody : PyObject
      * integrators, that need to separate the random and coherent forces.
      */
     union {
-        FPTYPE f[4] __attribute__ ((aligned (16)));
-        Magnum::Vector3 force __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) f[4];
+        MX_ALIGNED(MxVector3f, 16) force;
     };
     
     union {
-        FPTYPE pad_orientation[4] __attribute__ ((aligned (16)));
-        Magnum::Quaternion orientation __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) pad_orientation[4];
+        MX_ALIGNED(MxQuaternionf, 16) orientation;
     };
     
     /** angular velocity */
     union {
-        FPTYPE _spin[4] __attribute__ ((aligned (16)));
-        Magnum::Vector3 spin __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) _spin[4];
+        MX_ALIGNED(MxVector3f, 16) spin;
     };
 
     union {
-        FPTYPE _torque[4] __attribute__ ((aligned (16)));
-        Magnum::Vector3 torque __attribute__ ((aligned (16)));
+        MX_ALIGNED(FPTYPE, 16) _torque[4];
+        MX_ALIGNED(MxVector3f, 16) torque;
     };
     
     /**
      * inverse rotation transform. 
      */
-    Magnum::Quaternion inv_orientation;
+    MxQuaternionf inv_orientation;
     
     /**
      * update the aabb on motion. 
      */
-    Magnum::Vector3 aabb_min_size;
+    MxVector3f aabb_min_size;
     
     Magnum::Range3D aabb;
         
 
     /** random force force */
     union {
-        Magnum::Vector3 persistent_force __attribute__ ((aligned (16)));
+        MX_ALIGNED(MxVector3f, 16) persistent_force;
     };
 
     // inverse mass
@@ -95,39 +98,69 @@ struct MxBody : PyObject
      *
      * initialzied to null, and only set when .
      */
-    PyObject *_handle;
+    MxBodyHandle *_handle;
 
     /**
      * public way of getting the pyparticle. Creates and caches one if
      * it's not there. Returns a inc-reffed handle, caller is responsible
      * for freeing it.
      */
-    PyObject *handle();
+    MxBodyHandle *handle();
 
 
     // style pointer, set at object construction time.
     // may be re-set by users later.
     // the base particle type has a default style.
-    NOMStyle *style;
+    MxStyle *style;
 
     /**
      * pointer to state vector (optional)
      */
-    struct CStateVector *state_vector;
+    struct MxStateVector *state_vector;
     
     MxBody();
 };
 
-struct MxBodyHandle : PyObject
+struct MxBodyHandle
 {
     int32_t id;
+
+    MxBody *body();
+
+    MxBodyHandle() : id(0) {}
+    MxBodyHandle(const int32_t &id) : id(id) {}
+
+    HRESULT move(const MxVector3f &by);
+    HRESULT move(const std::vector<float> &by);
+
+    HRESULT rotate(const MxVector3f &by);
+    HRESULT rotate(const std::vector<float> &by);
+
+    MxVector3f getPosition() const;
+    void setPosition(const MxVector3f &position);
+    void setPosition(const std::vector<float> &position);
+
+    MxVector3f getVelocity() const;
+    void setVelocity(const MxVector3f &velocity);
+    void setVelocity(const std::vector<float> &velocity);
+    
+    MxVector3f getForce() const;
+    void setForce(const MxVector3f &force);
+    void setForce(const std::vector<float> &force);
+
+    MxQuaternionf getOrientation() const;
+    void setOrientation(const MxQuaternionf &orientation);
+    void setOrientation(const std::vector<float> &orientation);
+    
+    MxVector3f getSpin() const;
+    void setSpin(const MxVector3f &spin);
+    void setSpin(const std::vector<float> &spin);
+
+    MxVector3f getTorque() const;
+    void setTorque(const MxVector3f &torque);
+    void setTorque(const std::vector<float> &torque);
+    
+    MxStateVector *getSpecies() const;
 };
-
-/**
- * vertex is special, it extends particle.
- */
-CAPI_DATA(PyTypeObject) MxBody_Type;
-
-HRESULT _MxBody_Init(PyObject *m);
 
 #endif /* SRC_MDCORE_BODY_H_ */

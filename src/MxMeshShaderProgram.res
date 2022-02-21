@@ -1,12 +1,12 @@
 group=MxMeshShaderProgram
 
 [file]
-filename=shaders/Flat.frag
-alias=Flat.frag
+filename=shaders/MxFlat3D.frag
+alias=MxFlat3D.frag
 
 [file]
-filename=shaders/Flat3D.vert
-alias=Flat3D.vert
+filename=shaders/MxFlat3D.vert
+alias=MxFlat3D.vert
 
 [file]
 filename=shaders/MxMeshShaderProgram.vert

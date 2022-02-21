@@ -1,20 +1,26 @@
-import mechanica as m
+import mechanica as mx
 from ipywidgets import widgets
 
-m.init(windowless=True, window_size=[1024,1024])
+mx.init(windowless=True, window_size=[1024, 1024])
 
-class Na (m.Particle):
+
+class NaType(mx.ParticleType):
     radius = 0.4
-    style={"color":"orange"}
+    style = {"color": "orange"}
 
-class Cl (m.Particle):
+
+class ClType(mx.ParticleType):
     radius = 0.25
-    style={"color":"spablue"}
+    style = {"color": "spablue"}
 
-uc = m.lattice.bcc(0.9, [Na, Cl])
 
-m.lattice.create_lattice(uc, [10, 10, 10])
+Na = NaType.get()
+Cl = ClType.get()
 
-w = widgets.Image(value=m.system.image_data(), width=600)
+uc = mx.lattice.bcc(0.9, [Na, Cl])
+
+mx.lattice.create_lattice(uc, [10, 10, 10])
+
+w = widgets.Image(value=mx.system.image_data(), width=600)
 
 display(w)

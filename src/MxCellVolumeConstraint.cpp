@@ -8,19 +8,19 @@
 #include <MxCellVolumeConstraint.h>
 #include "MxMesh.h"
 
-float MxCellVolumeConstraint::energy(const CObject **objs, int32_t len)
+float MxCellVolumeConstraint::energy(const std::vector<MxConstrainable*> &objs)
 {
     float e = 0;
-    for(int i = 0; i < len; ++i) {
-        e += energy(objs[i]);
+    for(auto o : objs) {
+        e += energy(o);
     }
     return e;
 }
 
-HRESULT MxCellVolumeConstraint::project(CObject **objs, int32_t len)
+HRESULT MxCellVolumeConstraint::project(const std::vector<MxConstrainable*> &objs)
 {
-    for(int i = 0; i < len; ++i) {
-        MxCell *cell = static_cast<MxCell*>(objs[i]);
+    for(auto o : objs) {
+        MxCell *cell = (MxCell*)o;
         float vc = energy(cell);
 
         for(PPolygonPtr pp : cell->surface) {
@@ -57,7 +57,7 @@ HRESULT MxCellVolumeConstraint::setTime(float time)
     return S_OK;
 }
 
-float MxCellVolumeConstraint::energy(const CObject* obj)
+float MxCellVolumeConstraint::energy(const MxConstrainable* obj)
 {
     const MxCell *cell = static_cast<const MxCell*>(obj);
     return lambda * (cell->volume - targetVolume);

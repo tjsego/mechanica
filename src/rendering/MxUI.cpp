@@ -11,19 +11,16 @@
 
 MxTestView *view = nullptr;
 
-void MxUI_init(CObject* m)
-{
-    std::cout << MX_FUNCTION << std::endl;
-}
-
-
-CAPI_FUNC(HRESULT) MxUI_PollEvents()
+HRESULT MxUI_PollEvents()
 {
     glfwPollEvents();
+    if(view) {
+        view->draw();
+    }
     return S_OK;
 }
 
-CAPI_FUNC(HRESULT) MxUI_WaitEvents(double timeout)
+HRESULT MxUI_WaitEvents(double timeout)
 {
     glfwWaitEventsTimeout(timeout);
     glfwWaitEvents();
@@ -34,29 +31,10 @@ CAPI_FUNC(HRESULT) MxUI_WaitEvents(double timeout)
     return S_OK;
 }
 
-CAPI_FUNC(HRESULT) MxUI_PostEmptyEvent()
+HRESULT MxUI_PostEmptyEvent()
 {
     glfwPostEmptyEvent();
     return S_OK;
-}
-
-
-PyObject *MxPyUI_PollEvents(PyObject *module)
-{
-    MxUI_PollEvents();
-    if(view) {
-        view->draw();
-    }
-    Py_RETURN_NONE;
-}
-
-
-PyObject* MxPyUI_PostEmptyEvent(PyObject *module)
-{
-    std::cout << MX_FUNCTION << std::endl;
-    std::cout << "MxPyUI_PostEmptyEvent" << std::endl;
-
-    Py_RETURN_NONE;
 }
 
 static void error_callback(int error, const char* description)
@@ -65,7 +43,7 @@ static void error_callback(int error, const char* description)
 }
 
 
-CAPI_FUNC(HRESULT) MxUI_InitializeGraphics(void*)
+HRESULT MxUI_InitializeGraphics()
 {
     std::cout << MX_FUNCTION << std::endl;
 
@@ -85,13 +63,7 @@ CAPI_FUNC(HRESULT) MxUI_InitializeGraphics(void*)
     return S_OK;
 }
 
-PyObject *MxPyUI_InitializeGraphics(PyObject *module, PyObject *args)
-{
-    MxUI_InitializeGraphics(nullptr);
-    Py_RETURN_NONE;
-}
-
-PyObject *MxPyUI_CreateTestWindow(PyObject *module, PyObject *args)
+HRESULT MxUI_CreateTestWindow()
 {
     std::cout << MX_FUNCTION << std::endl;
 
@@ -99,27 +71,14 @@ PyObject *MxPyUI_CreateTestWindow(PyObject *module, PyObject *args)
         view = new MxTestView(500,500);
     }
 
-    Py_RETURN_NONE;
+    return S_OK;
 }
 
-PyObject* MxPyUI_WaitEvents(PyObject* module, PyObject* args)
-{
-    double timeout;
-
-    if (!PyArg_ParseTuple(args, "d", &timeout)) {
-        return NULL;
-    }
-
-    HRESULT result = MxUI_WaitEvents(timeout);
-
-    Py_RETURN_NONE;
-}
-
-PyObject* MxPyUI_DestroyTestWindow(PyObject* module, PyObject* args)
+HRESULT MxUI_DestroyTestWindow()
 {
     std::cout << MX_FUNCTION << std::endl;
 
     delete view;
     view = nullptr;
-    Py_RETURN_NONE;
+    return S_OK;
 }

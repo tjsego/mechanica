@@ -16,11 +16,6 @@ struct MxModel;
 
 class LangevinPropagator;
 
-/**
- * The type object for a MxSymbol.
- */
-CAPI_DATA(CType) *MxModel_Type;
-
 struct MxModelMethods {
     void (*execute) (MxModel* cpu);
 };
@@ -155,10 +150,5 @@ struct MxModel  {
 
 
 };
-
-
-
-
-void MxModel_init(PyObject *m);
 
 #endif /* SRC_MXMODEL_H_ */

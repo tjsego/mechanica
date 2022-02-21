@@ -1,17 +1,22 @@
-import mechanica as m
+import mechanica as mx
 
-m.init(window_size=[1000,1000])
+mx.init(window_size=[1000, 1000])
 
-class Na (m.Particle):
+
+class NaType(mx.ParticleType):
     radius = 0.4
-    style={"color":"orange"}
+    style = {"color": "orange"}
 
-class Cl (m.Particle):
+
+class ClType(mx.ParticleType):
     radius = 0.25
-    style={"color":"spablue"}
+    style = {"color": "spablue"}
 
-uc = m.lattice.bcc(0.9, [Na, Cl])
 
-m.lattice.create_lattice(uc, [10, 10, 10])
+Na, Cl = NaType.get(), ClType.get()
 
-m.show()
+uc = mx.lattice.bcc(0.9, [Na, Cl])
+
+mx.lattice.create_lattice(uc, [10, 10, 10])
+
+mx.show()

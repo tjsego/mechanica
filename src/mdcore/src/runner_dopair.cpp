@@ -192,15 +192,15 @@ __attribute__ ((flatten)) int runner_dopair ( struct runner *r ,
                 continue;
             
             number_density = W(r2, cutoff);
+            part_i->number_density += number_density;
+            part_j->number_density += number_density;
             
             /* fetch the potential, if any */
             pot = get_potential(part_i, part_j);
             fluxes = get_fluxes(part_i, part_j);
-            if ( pot == NULL && fluxes == NULL ) {
-                part_i->number_density += number_density;
-                part_j->number_density += number_density;
+
+            if ( pot == NULL && fluxes == NULL ) 
                 continue;
-            }
 
             #if defined(VECTORIZE)
                 /* add this interaction to the interaction queue. */
@@ -262,7 +262,7 @@ __attribute__ ((flatten)) int runner_dopair ( struct runner *r ,
                     //MxPotential *pot, MxParticle *part_i, MxParticle *part_j,
                     //float *dx, float r2, float number_density, float *epot) {
                     
-                    potential_eval_super_ex(cell_i, pot, part_i, part_j, dx,  r2, number_density, &epot);
+                    potential_eval_super_ex(cell_i, pot, part_i, part_j, dx,  r2, &epot);
             
                 }
                 #endif // EXPLICIT_POTENTIALS
@@ -421,8 +421,7 @@ static inline int particle_largecell_force(MxParticle *p, struct space_cell *c, 
         potential_eval_expl( pot , r2 , &e , &f );
 #else
         /* update the forces if part in range */
-        float number_density = W(r2, _Engine.s.cutoff);
-        if(potential_eval_super_ex(c, pot, p, part_j, dx,  r2, number_density, &e)) {
+        if(potential_eval_super_ex(c, pot, p, part_j, dx,  r2, &e)) {
             /* tabulate the energy */
             epot += e;
         }
@@ -454,8 +453,7 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
     struct MxPotential *pot;
     MxFluxes *fluxes;
     // single body force and forces
-    MxForceSingleBinding *psb;
-    MxForceSingleBinding *psbs;
+    MxForce **forces, *force;
     struct engine *eng;
     FPTYPE cutoff, cutoff2, r2;
     FPTYPE *pif;
@@ -488,7 +486,7 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
     /* get some useful data */
     eng = r->e;
     s = &(eng->s);
-    psbs = eng->p_singlebody;
+    forces = eng->forces;
     cutoff = s->cutoff;
     cutoff2 = s->cutoff2;
     pix[3] = FPTYPE_ZERO;
@@ -517,9 +515,9 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
         pif = &( part_i->f[0] );
 
         // calculate single body force if any
-        psb = &psbs[part_i->typeId];
-        if(psb->force) {
-            psb->force->func(psb->force, part_i, psb->stateVectorIndex, part_i->f);
+        force = forces[part_i->typeId];
+        if(force) {
+            force->func(force, part_i, part_i->f);
         }
         
         // force between particle and large particles
@@ -550,15 +548,14 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
                 continue;
             
             number_density = W(r2, cutoff);
+            part_i->number_density += number_density;
+            part_j->number_density += number_density;
             
             pot = get_potential(part_i, part_j);
             fluxes = get_fluxes(part_i, part_j);
   
-            if ( pot == NULL && fluxes == NULL ) {
-                part_i->number_density += number_density;
-                part_j->number_density += number_density;
+            if ( pot == NULL && fluxes == NULL ) 
                 continue;
-            }
 
             #if defined(VECTORIZE)
                 /* add this interaction to the interaction queue. */
@@ -617,7 +614,7 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
             
             /* update the forces if part in range */
             if(pot) {
-                potential_eval_super_ex(c, pot, part_i, part_j, dx,  r2, number_density, &epot);
+                potential_eval_super_ex(c, pot, part_i, part_j, dx,  r2, &epot);
             }
                 #endif // EXPLICIT_POTENTIALS
             #endif // VECTORIZE

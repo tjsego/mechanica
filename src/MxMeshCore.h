@@ -14,18 +14,10 @@
 #include <algorithm>
 #include <set>
 #include <Magnum/Magnum.h>
-#include <Magnum/Math/Vector3.h>
+#include <types/mx_types.h>
 #include <MxParticle.h>
 #include <iostream>
 
-
-
-
-
-namespace Magnum {
-/** @brief Three-component unsigned integer vector */
-typedef Math::Vector3<UnsignedShort> Vector3us;
-}
 
 template<typename Container, typename Value>
 bool contains(const Container& container, const Value& value) {
@@ -41,7 +33,6 @@ void remove(Container& cont, const Value& val) {
 }
 
 
-using Vector3 = Magnum::Vector3;
 using Color4 = Magnum::Color4;
 
 
@@ -97,9 +88,7 @@ struct MxMeshNode {
     friend struct MxVertex;
 };
 
-CAPI_DATA(struct CType*) MxVertex_Type;
-
-struct MxVertex : CObject {
+struct MxVertex {
     /**
      * The Mechanica vertex does not represent a point mass as in a traditional
      * particle based approach. Rather, the vertex here represents a region of space,
@@ -114,13 +103,13 @@ struct MxVertex : CObject {
 
     float area = 0;
 
-    MxVertex();
+    MxVertex() {}
 
-    MxVertex(float mass, float area, const Magnum::Vector3 &pos);
+    MxVertex(float mass, float area, const MxVector3f &pos);
 
-    Magnum::Vector3 position;
+    MxVector3f position;
 
-    Magnum::Vector3 force;
+    MxVector3f force;
 
 
     float attr = 0;
@@ -130,22 +119,10 @@ struct MxVertex : CObject {
 
     uint id{0};
 
-
-    static bool classof(const CObject *o) {
-        return o->ob_type == MxVertex_Type;
-    }
-
-    static CType *type() {return MxVertex_Type;};
-
     void positionsChanged() {
         mass = 0;
         area = 0;
     }
-
-protected:
-    MxVertex(CType *derivedType);
-
-
 
 private:
 

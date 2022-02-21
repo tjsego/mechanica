@@ -1,41 +1,47 @@
-import mechanica as m
+import mechanica as mx
 
-m.init(dim=[6.5, 6.5, 6.5], bc=m.FREESLIP_FULL)
+mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL)
 
-class A (m.Particle):
+
+class AType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap" : {"species" : "S1", "map" : "rainbow","range" : "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
 
-class Producer (m.Particle):
+
+class ProducerType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap" : {"species" : "S1", "map" : "rainbow","range" : "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
 
-class Consumer (m.Particle):
+
+class ConsumerType(mx.ParticleType):
     radius = 0.1
     species = ['S1', 'S2', 'S3']
-    style = {"colormap" : {"species" : "S1", "map" : "rainbow","range" : "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow", "range": (0, 1)}}
+
+
+A, Producer, Consumer = AType.get(), ProducerType.get(), ConsumerType.get()
 
 # define fluxes between objects types
-m.flux(A, A, "S1", 5, 0)
-m.produce_flux(Producer, A, "S1", 5, 0)
-m.consume_flux(A, Consumer, "S1", 10, 500)
+mx.Fluxes.flux(A, A, "S1", 5, 0)
+mx.Fluxes.secrete(Producer, A, "S1", 5, 0)
+mx.Fluxes.uptake(A, Consumer, "S1", 10, 500)
 
 # make a lattice of objects
-uc = m.lattice.sc(0.25, A)
-parts = m.lattice.create_lattice(uc, [25, 25, 1])
+uc = mx.lattice.sc(0.25, A)
+parts = mx.lattice.create_lattice(uc, [25, 25, 1])
 
 # grap the left part
-left = parts[0,12,0][0]
+left = parts[0, 12, 0][0]
 
 # grab the right part
-right = parts[24,12,0][0]
+right = parts[24, 12, 0][0]
 
 # change types
 left.become(Producer)
 right.become(Consumer)
 
-left.species.S1 = 200 # set initial condition
+left.species.S1 = 200  # set initial condition
 
-m.show()
+mx.run()

@@ -1,0 +1,126 @@
+.. _appendix_a:
+
+Appendix A: Exported Simulation State Data
+-------------------------------------------
+
+- Meta
+    - Mechanica installation version
+- Simulator
+    - Associated class(es): :class:`MxSimulator`, :class:`MxSimulatorPy`
+    - Dimension
+    - Cell layout
+    - Global cutoff
+    - Integrator
+    - Timestep
+    - Psuedo-random number generator seed
+    - Simulation time at export
+    - Boundary conditions
+    - Maximum distance
+    - Clip planes
+- Universe
+    - Associated class(es): :class:`MxUniverse`
+    - Simulation name
+    - Particles and clusters
+    - Particle types
+    - Bonds, angles and dihedrals
+    - Temperature
+    - Kinetic energy
+    - Built-in potentials
+    - Built-in forces
+- Boundary
+    - Associated class(es): :class:`MxBoundaryCondition`, :class:`MxBoundaryConditions`
+    - Constituents (:class:`MxBoundaryConditions`)
+    - Kind (:class:`MxBoundaryCondition`)
+    - ID (:class:`MxBoundaryCondition`)
+    - Velocity (:class:`MxBoundaryCondition`)
+    - Restoration fraction (:class:`MxBoundaryCondition`)
+    - Name (:class:`MxBoundaryCondition`)
+    - Normal (:class:`MxBoundaryCondition`)
+    - Potential (:class:`MxBoundaryCondition`)
+    - Interaction cutoff (:class:`MxBoundaryCondition`)
+- Particle
+    - Associated class(es): :class:`MxParticle`, :class:`MxCluster`
+    - Total force
+    - Number density
+    - Velocity
+    - Position
+    - Creation time
+    - Persistent force
+    - Radius
+    - Mass
+    - Charge
+    - ID [#f1]_
+    - Type ID
+    - Cluster ID
+    - Particle inventory
+    - Style
+    - State vector
+- Particle Type
+    - Associated class(es): :class:`MxParticleType`, :class:`MxClusterParticleType`
+    - ID [#f1]_
+    - Mass
+    - Charge
+    - Radius
+    - Kinetic energy
+    - Potential energy
+    - Target energy
+    - Minimum radius
+    - Dynamics
+    - Name
+    - Particle inventory
+    - Style
+    - Species
+- Potential
+    - Associated class(es): :class:`MxPotential`, :class:`DPDPotential`, :class:`MxCoulombRPotential`
+    - Minimum cutoff (all classes)
+    - Maximum cutoff (all classes)
+    - Name (all classes)
+    - Type (all classes)
+    - Interpolation coefficients (:class:`MxPotential`)
+    - Constituent potentials (:class:`MxPotential`, :class:`MxCoulombRPotential`)
+    - Modes (:class:`MxCoulombRPotential`)
+    - Charge (:class:`MxPotential`, :class:`MxCoulombRPotential`)
+    - Screening distance (:class:`MxCoulombRPotential`)
+    - Interaction strength coefficients (:class:`DPDPotential`)
+- Force
+    - Associated class(es): :class:`MxForce`, :class:`Berendsen`, :class:`Friction`, :class:`Gaussian`,
+      :class:`MxConstantForce`, :class:`MxConstantForcePy`, :class:`MxForceSum`
+    - Type (all classes)
+    - Mean (:class:`Friction`, :class:`Gaussian`)
+    - Standard deviation (:class:`Friction`, :class:`Gaussian`)
+    - Magnitude (:class:`Friction`)
+    - Duration (:class:`Friction`, :class:`Gaussian`)
+    - Time coefficient (:class:`Berendsen`)
+    - Constituent forces (:class:`MxForceSum`)
+- Bonds
+    - Associated class(es): :class:`Bond`, :class:`Angle`, :class:`Dihedral`
+    - Particle IDs
+    - Creation time
+    - Half life
+    - Dissociation energy
+    - Potential energy
+    - Potential
+- State and species
+    - Associated class(es): :class:`MxStateVector`, :class:`MxSpeciesList`, :class:`MxSpeciesValue`, :class:`Species`
+    - Species inventory(:class:`MxStateVector`)
+    - Species values(:class:`MxStateVector`)
+    - Species fluxes(:class:`MxStateVector`)
+    - SBML data (:class:`Species`)
+        - ID
+        - Name
+        - Type
+        - Compartment
+        - Initial amount / concentration
+        - Substance units
+        - Spatial size units
+        - Units
+        - Boundary condition
+        - Charge
+        - Conversion factor
+- Style
+    - Associated class(es): :class:`NOMStyle`, :class:`MxColorMapper`
+    - Color (:class:`NOMStyle`)
+    - Color map (:class:`MxColorMapper`)
+
+.. footnotes::
+.. [#f1] Not conserved on import

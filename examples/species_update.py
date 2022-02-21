@@ -1,21 +1,27 @@
-import mechanica as m
+import mechanica as mx
 import numpy as n
 
-m.init()
+mx.init()
 
-class A(m.Particle):
+
+class AType(mx.ParticleType):
 
     radius = 5
 
     species = ['S1', 'S2', 'S3']
 
-    style = {"colormap" : {"species" : "S1", "map" : "rainbow", "range" : "auto"}}
+    style = {"colormap": {"species": "S1", "map": "rainbow"}}
 
-    def update(self, time):
-        self.species.S1 = (1 + n.sin(2. * time))/2
+    @staticmethod
+    def on_register(ptype):
+        def update(event: mx.ParticleTimeEvent):
+            for p in ptype.items():
+                p.species.S1 = (1 + n.sin(2. * mx.Universe.time)) / 2
 
-m.on_time(A.update, period=0.01)
+        mx.on_particletime(ptype=ptype, invoke_method=update, period=0.01)
 
-a = A(m.Universe.center)
 
-m.run()
+A = AType.get()
+a = A(mx.Universe.center)
+
+mx.run()

@@ -55,7 +55,9 @@
 #include <rendering/MxWindow.h>
 #include <rendering/ArcBallCamera.h>
 
-using namespace Magnum;
+#include <rendering/MxSubRenderer.h>
+
+struct MxSimulator_Config;
 
 class WireframeGrid;
 class WireframeBox;
@@ -77,14 +79,24 @@ struct CuboidInstanceData {
     Magnum::Color4 color;
 };
 
+
+typedef enum MxSubRendererFlag {
+    SUBRENDERER_ANGLE           = 1 << 0,
+    SUBRENDERER_ARROW           = 1 << 1,
+    SUBRENDERER_BOND            = 1 << 2,
+    SUBRENDERER_DIHEDRAL        = 1 << 3, 
+    SUBRENDERER_ORIENTATION     = 1 << 4
+} MxSubRendererFlag;
+
+
 struct MxUniverseRenderer : MxRenderer {
 
 
     // TODO, implement the event system instead of hard coding window events.
-    MxUniverseRenderer(const MxSimulator::Config &conf, MxWindow *win);
+    MxUniverseRenderer(const MxSimulator_Config &conf, MxWindow *win);
 
     template<typename T>
-    MxUniverseRenderer& draw(T& camera, const Vector2i& viewportSize);
+    MxUniverseRenderer& draw(T& camera, const MxVector2i& viewportSize);
 
     bool& isDirty() { return _dirty; }
 
@@ -102,38 +114,45 @@ struct MxUniverseRenderer : MxRenderer {
 
     Color3& ambientColor() { return _ambientColor; }
 
-    MxUniverseRenderer& setAmbientColor(const Color3& color) {
-        _ambientColor = color;
-        return *this;
-    }
+    MxUniverseRenderer& setAmbientColor(const Color3& color);
 
     Color3& diffuseColor() { return _diffuseColor; }
 
-    MxUniverseRenderer& setDiffuseColor(const Color3& color) {
-        _diffuseColor = color;
-        return *this;
-    }
+    MxUniverseRenderer& setDiffuseColor(const Color3& color);
 
     Color3& specularColor() { return _specularColor; }
 
-    MxUniverseRenderer& setSpecularColor(const Color3& color) {
-        _specularColor = color;
-        return *this;
-    }
+    MxUniverseRenderer& setSpecularColor(const Color3& color);
 
     Float& shininess() { return _shininess; }
 
-    MxUniverseRenderer& setShininess(Float shininess) {
-        _shininess = shininess;
+    MxUniverseRenderer& setShininess(float shininess);
+
+    Color3& gridColor() { return _gridColor; }
+
+    MxUniverseRenderer& setGridColor(const Color3 &color) {
+        _gridColor = color;
         return *this;
     }
 
-    Vector3& lightDirection() { return _lightDir; }
+    Color3& sceneBoxColor() { return _sceneBoxColor; }
 
-    MxUniverseRenderer& setLightDirection(const Vector3& lightDir) {
-        _lightDir = lightDir;
+    MxUniverseRenderer& setSceneBoxColor(const Color3 &color) {
+        _sceneBoxColor = color;
         return *this;
     }
+
+    MxVector3f& lightDirection() { return _lightDir; }
+
+    MxUniverseRenderer& setLightDirection(const MxVector3f& lightDir);
+
+    Color3& lightColor() { return _lightColor; }
+
+    MxUniverseRenderer& setLightColor(const Color3 &color);
+
+    Color3& backgroundColor() { return _clearColor; }
+
+    MxUniverseRenderer& setBackgroundColor(const Color3 &color);
 
     MxUniverseRenderer& setModelViewTransform(const Magnum::Matrix4& mat) {
         modelViewMat = mat;
@@ -144,16 +163,31 @@ struct MxUniverseRenderer : MxRenderer {
         projMat = mat;
         return *this;
     }
+
+    const bool showingDiscretizationGrid() const {
+        return _showDiscretizationGrid;
+    }
+
+    MxUniverseRenderer& showDiscretizationGrid(const bool &show) {
+        _showDiscretizationGrid = show;
+        return *this;
+    }
+
+    Color3& discretizationGridColor() {
+        return _discretizationGridColor;
+    }
+
+    MxUniverseRenderer& setDiscretizationGridColor(const Color3 &color);
     
-    const Magnum::Vector3& defaultEye() const {
+    const MxVector3f& defaultEye() const {
         return _eye;
     }
     
-    const Magnum::Vector3& defaultCenter() const {
+    const MxVector3f& defaultCenter() const {
         return _center;
     }
     
-    const Magnum::Vector3& defaultUp() const {
+    const MxVector3f& defaultUp() const {
         return _up;
     }
 
@@ -179,28 +213,100 @@ struct MxUniverseRenderer : MxRenderer {
     void draw();
     
     int clipPlaneCount() const;
+
+    static int maxClipPlaneCount();
+    
+    const unsigned addClipPlaneEquation(const Magnum::Vector4& pe);
+    
+    const unsigned removeClipPlaneEquation(const unsigned int &id);
     
     void setClipPlaneEquation(unsigned id, const Magnum::Vector4& pe);
     
     const Magnum::Vector4& getClipPlaneEquation(unsigned id);
 
+    const float getZoomRate();
+
+    void setZoomRate(const float &zoomRate);
+
+    const float getSpinRate();
+
+    void setSpinRate(const float &spinRate);
+
+    const float getMoveRate();
+
+    void setMoveRate(const float &moveRate);
+
     void viewportEvent(Platform::GlfwApplication::ViewportEvent& event);
+
+    /**
+     * @brief Key press event handling. 
+     * 
+     * @details When a key is pressed, actions are as follows by key and modifier: 
+     * 
+     * - D: toggle scene decorations
+     * - L: toggle lagging
+     * - R: reset camera
+     * - Arrow down: translate camera down
+     * - Arrow left: translate camera left
+     * - Arrow right: translate camera right
+     * - Arrow up: translate camera up
+     * - Ctrl + D: toggle discretization rendering
+     * - Ctrl + arrow down: zoom camera out
+     * - Ctrl + arrow left: rotate camera left
+     * - Ctrl + arrow right: rotate camera right
+     * - Ctrl + arrow up: zoom camera in
+     * - Shift + B: bottom view
+     * - Shift + F: front view
+     * - Shift + K: back view
+     * - Shift + L: left view
+     * - Shift + R: right view
+     * - Shift + T: top view
+     * - Shift + arrow down: rotate camera down
+     * - Shift + arrow left: rotate camera left
+     * - Shift + arrow right: rotate camera right
+     * - Shift + arrow up: rotate camera up
+     * - Shift + Ctrl + arrow down: translate backward
+     * - Shift + Ctrl + arrow up: translate forward
+     * 
+     * @param event 
+     */
     void keyPressEvent(Platform::GlfwApplication::KeyEvent& event);
     void mousePressEvent(Platform::GlfwApplication::MouseEvent& event);
     void mouseReleaseEvent(Platform::GlfwApplication::MouseEvent& event);
+
+    /**
+     * @brief Mouse move event handling. 
+     * 
+     * @details When a mouse button is pressed, actions are as follows by modifier:
+     *  - Shift: translates the camera
+     *  - Ctrl: zooms the camera
+     *  - None: rotates the camera
+     *  .
+     * 
+     * @param event 
+     */
     void mouseMoveEvent(Platform::GlfwApplication::MouseMoveEvent& event);
     void mouseScrollEvent(Platform::GlfwApplication::MouseScrollEvent& event);
 
+    MxSubRenderer *getSubRenderer(const MxSubRendererFlag &flag);
+
 
     bool _dirty = false;
+    bool _decorateScene = true;
+    bool _showDiscretizationGrid = false;
     ParticleSphereShader::ColorMode _colorMode = ParticleSphereShader::ColorMode::ConsistentRandom;
-    Color3 _ambientColor{0.1f};
-    Color3 _diffuseColor{0.0f, 0.5f, 0.9f};
-    Color3 _specularColor{ 1.0f};
-    Float _shininess = 150.0f;
-    Vector3 _lightDir{1.0f, 1.0f, 2.0f};
+    Color3 _ambientColor{0.4f};
+    Color3 _diffuseColor{1.f};
+    Color3 _specularColor{0.2f};
+    Color3 _gridColor = {1.f, 1.f, 1.f};
+    Color3 _sceneBoxColor = {1.f, 1.f, 0.f};
+    Float _shininess = 100.0f;
+    MxVector3f _lightDir{1.0f, 1.0f, 2.0f};
+    Color3 _lightColor = {0.9, 0.9, 0.9};
+    Color3 _clearColor{0.35f};
+    Color3 _discretizationGridColor{0.1, 0.1, 0.8};
     
-    Vector3 _eye, _center, _up;
+    MxVector3f _eye, _center, _up;
     
     std::vector<Magnum::Vector4> _clipPlanes;
     
@@ -215,11 +321,14 @@ struct MxUniverseRenderer : MxRenderer {
     Magnum::Matrix4 modelViewMat = Matrix4{Math::IdentityInit};
     Magnum::Matrix4 projMat =  Matrix4{Math::IdentityInit};
 
-    Vector2i _prevMousePosition;
-    Vector3  _rotationPoint, _translationPoint;
+    MxVector2i _prevMousePosition;
+    MxVector3f  _rotationPoint, _translationPoint;
     Float _lastDepth;
     
     float sideLength;
+    float _zoomRate;
+    float _spinRate;
+    float _moveRate;
 
     Magnum::Mechanica::ArcBallCamera *_arcball;
     
@@ -234,8 +343,6 @@ struct MxUniverseRenderer : MxRenderer {
     
     Shaders::MxPhong sphereShader{NoCreate};
     
-    Shaders::Flat3D flatShader{NoCreate};
-    
     Shaders::Flat3D wireframeShader{NoCreate};
     
     GL::Buffer sphereInstanceBuffer{NoCreate};
@@ -246,34 +353,39 @@ struct MxUniverseRenderer : MxRenderer {
 
     GL::Mesh largeSphereMesh{NoCreate};
     
-    GL::Mesh bondsMesh{NoCreate};
-    
     GL::Mesh cuboidMesh{NoCreate};
+
+    GL::Mesh discretizationGridMesh{NoCreate};
     
     GL::Buffer cuboidInstanceBuffer{NoCreate};
-    
-    GL::Buffer bondsVertexBuffer{NoCreate};
 
-    Vector3 center;
+    GL::Buffer discretizationGridBuffer{NoCreate};
+
+    std::vector<MxSubRenderer*> subRenderers;
+
+    MxVector3f center;
 
     MxWindow *window;
 
-    Vector3 unproject(const Vector2i& windowPosition, float depth) const;
+    /**
+     * @brief Set flag to draw/not draw scene decorators (e.g., grid)
+     * 
+     * @param decorate flag; true says to decorate
+     */
+    void decorateScene(const bool &decorate);
 
+    /**
+     * @brief Get scene decorator flag value
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool sceneDecorated() const;
+
+    MxVector3f unproject(const MxVector2i& windowPosition, float depth) const;
+
+    // todo: implement MxUniverseRenderer::setupCallbacks
     void setupCallbacks();
     
     ~MxUniverseRenderer();
 };
-
-
-/**
- * The the renderer type
- */
-CAPI_DATA(PyTypeObject) MxUniverseRenderer_Type;
-
-HRESULT MyUniverseRenderer_Init(PyObject *module);
-
-
-
-
-

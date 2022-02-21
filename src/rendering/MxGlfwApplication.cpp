@@ -30,6 +30,9 @@
 #include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
 
+#include <MxLogger.h>
+#include <mx_error.h>
+
 #if defined(_WIN32)
   #define GLFW_EXPOSE_NATIVE_WIN32
   #include <GLFW/glfw3native.h>
@@ -42,7 +45,7 @@ ACCESS_PRIVATE_FIELD(Magnum::Platform::GlfwApplication, Containers::Pointer<Plat
 #define MXGLFW_ERROR() { \
         const char* glfwErrorDesc = NULL; \
         glfwGetError(&glfwErrorDesc); \
-        throw std::domain_error(std::string("GLFW Error in ") + MX_FUNCTION + ": " +  glfwErrorDesc); \
+        mx_exp(std::domain_error(std::string("GLFW Error in ") + MX_FUNCTION + ": " +  glfwErrorDesc)); \
 }
 
 #define MXGLFW_CHECK() { \
@@ -52,7 +55,7 @@ ACCESS_PRIVATE_FIELD(Magnum::Platform::GlfwApplication, Containers::Pointer<Plat
 }
 
 
-static Platform::GlfwApplication::Configuration confconf(const MxSimulator::Config &conf) {
+static Platform::GlfwApplication::Configuration confconf(const MxSimulator_Config &conf) {
     Platform::GlfwApplication::Configuration res;
 
     res.setSize(conf.windowSize(), conf.dpiScaling());
@@ -79,7 +82,7 @@ static const MxGlfwApplication::Arguments& glfwChecker(const MxGlfwApplication::
 
         err += "error code: " + std::to_string(code) + ", " + description;
 
-        throw std::runtime_error(err);
+        mx_exp(std::runtime_error(err));
     }
 
     return args;
@@ -134,7 +137,7 @@ void MxGlfwApplication::drawEvent() {
     _timeline.nextFrame();
 }
 
-static MxGlfwApplication::Configuration magConf(const MxSimulator::Config &sc) {
+static MxGlfwApplication::Configuration magConf(const MxSimulator_Config &sc) {
     MxGlfwApplication::Configuration mc;
 
     mc.setTitle(sc.title());
@@ -186,7 +189,7 @@ static MxGlfwApplication::Configuration magConf(const MxSimulator::Config &sc) {
     return mc;
 }
 
-HRESULT MxGlfwApplication::createContext(const MxSimulator::Config &conf)
+HRESULT MxGlfwApplication::createContext(const MxSimulator_Config &conf)
 {
     Log(LOG_DEBUG);
 
@@ -277,6 +280,7 @@ HRESULT MxGlfwApplication::messageLoop(double et)
         // keep processing messages until window closes.
         if(engine_err == 0 && MxUniverse_Flag(MX_RUNNING)) {
             if(!SUCCEEDED((hr = simulationStep()))) {
+                Log(LOG_CRITICAL) << "something went wrong.";
                 close();
             }
             GlfwApplication::redraw();
@@ -303,7 +307,7 @@ HRESULT MxGlfwApplication::mainLoopIteration(double timeout) {
         }
     }
     else {
-        MxSimulator_Redraw();
+        MxSimulator::get()->redraw();
     }
 
     // process messages
@@ -324,7 +328,7 @@ void MxGlfwApplication::viewportEvent(ViewportEvent &event)
 
 void MxGlfwApplication::keyPressEvent(KeyEvent &event)
 {
-    MxKeyEvent_Invoke(event);
+    MxKeyEvent::invoke(event);
 
     if(event.isAccepted()) {
         return;
@@ -338,7 +342,7 @@ void MxGlfwApplication::keyPressEvent(KeyEvent &event)
             break;
         }
         case Platform::GlfwApplication::KeyEvent::KeyEvent::Key::S: {
-            MxUniverse_Step(0, 0);
+            MxUniverse::step(0, 0);
         }
         default:
             break;
@@ -522,7 +526,7 @@ HRESULT MxGlfwApplication::show()
 
     showWindow();
 
-    if (!C_TerminalInteractiveShell()) {
+    if (!Mx_TerminalInteractiveShell()) {
         return messageLoop(-1);
     }
 
@@ -536,7 +540,7 @@ HRESULT MxGlfwApplication::showWindow()
     glfwShowWindow(window());
 
 #ifdef _WIN32
-    if (!C_TerminalInteractiveShell()) {
+    if (!Mx_TerminalInteractiveShell()) {
         ForceForgoundWindow1(window());
     }
 #endif
@@ -570,7 +574,7 @@ bool MxGlfwApplication::contextHasCurrent()
         std::string msg = "GLFW and Magnum OpenGL contexts not synchronized, glfw context: ";
         msg += std::to_string(hasGlfw);
         msg += ", magnum context: " + std::to_string(hasMagnum);
-        throw std::runtime_error(msg);
+        mx_exp(std::runtime_error(msg));
     }
 
     return hasGlfw && hasMagnum;

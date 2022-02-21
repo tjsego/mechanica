@@ -174,11 +174,9 @@ struct MxApplication
 public:
 
     /**
-     * python list of windows.
-     *
-     * We do some pretty low level stuff with window events, so keep then as python objects.
+     * list of windows.
      */
-    PyObject *windows;
+    std::vector<MxGlfwWindow*> windows;
 
     virtual ~MxApplication() {};
     
@@ -258,7 +256,7 @@ public:
 
     virtual HRESULT setWindowAttribute(MxWindowAttributes attr, int val) = 0;
     
-    virtual HRESULT createContext(const MxSimulator::Config &conf) = 0;
+    virtual HRESULT createContext(const MxSimulator_Config &conf) = 0;
 
     virtual MxUniverseRenderer *getRenderer() = 0;
     
@@ -305,12 +303,19 @@ protected:
 
 };
 
-PyObject* MxTestImage(PyObject *module, PyObject* self, PyObject* args);
+std::tuple<char*, size_t> MxTestImage();
+PyObject* MxTestImage(PyObject* dummyo);
 
+std::tuple<char*, size_t> MxFramebufferImageData();
+PyObject* MxFramebufferImageData(PyObject *dummyo);
 
-PyObject* MxFramebufferImageData(PyObject *module, PyObject* self, PyObject* args);
-
-
+/**
+ * @brief Save a screenshot of the current scene
+ * 
+ * @param filePath path of file to save
+ * @return HRESULT 
+ */
+HRESULT MxScreenshot(const std::string &filePath);
 
 
 #endif /* SRC_MXAPPLICATION_H_ */

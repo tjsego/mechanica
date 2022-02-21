@@ -1,4 +1,4 @@
-import mechanica as m
+import mechanica as mx
 import numpy as np
 
 # total number of cells
@@ -9,61 +9,56 @@ B_count = 5000
 cutoff = 3
 
 # dimensions of universe
-dim=np.array([20., 20., 20.])
-center = dim / 2
+dim = [20., 20., 20.]
 
 # new simulator
-m.init(dim=dim,
-       cutoff=cutoff,
-       clip_planes = [([8, 8, 8], [1, 1, 0]), ([11, 11, 11], [-1, -1, 0])])
+mx.init(dim=dim,
+        cutoff=cutoff,
+        clip_planes=[([8, 8, 8], [1, 1, 0]), ([11, 11, 11], [-1, -1, 0])])
 
-class A(m.Particle):
+
+class AType(mx.ParticleType):
     mass = 40
     radius = 0.4
-    dynamics = m.Overdamped
+    dynamics = mx.Overdamped
 
 
-class B(m.Particle):
+class BType(mx.ParticleType):
     mass = 40
     radius = 0.4
-    dynamics = m.Overdamped
+    dynamics = mx.Overdamped
 
+
+A = AType.get()
+B = BType.get()
 
 # create three potentials, for each kind of particle interaction
-pot_aa = m.Potential.morse(d=3,   a=5, max=3)
-pot_bb = m.Potential.morse(d=3,   a=5, max=3)
-pot_ab = m.Potential.morse(d=0.3, a=5, max=3)
+pot_aa = mx.Potential.morse(d=3, a=5, max=3)
+pot_bb = mx.Potential.morse(d=3, a=5, max=3)
+pot_ab = mx.Potential.morse(d=0.3, a=5, max=3)
 
 
 # bind the potential with the *TYPES* of the particles
-m.Universe.bind(pot_aa, A, A)
-m.Universe.bind(pot_bb, B, B)
-m.Universe.bind(pot_ab, A, B)
+mx.bind.types(pot_aa, A, A)
+mx.bind.types(pot_bb, B, B)
+mx.bind.types(pot_ab, A, B)
 
 # create a random force. In overdamped dynamcis, we neeed a random force to
 # enable the objects to move around, otherwise they tend to get trapped
 # in a potential
 
-rforce = m.forces.random(0, 50)
+rforce = mx.Force.random(mean=0, std=50)
 
 # bind it just like any other force
-m.bind(rforce, A)
-m.bind(rforce, B)
+mx.bind.force(rforce, A)
+mx.bind.force(rforce, B)
 
 # create particle instances, for a total A_count + B_count cells
-for p in np.random.random((A_count,3)) * 15 + 2.5:
+for p in np.random.random((A_count, 3)) * 15 + 2.5:
     A(p)
 
-for p in np.random.random((B_count,3)) * 15 + 2.5:
+for p in np.random.random((B_count, 3)) * 15 + 2.5:
     B(p)
 
 # run the simulator
-m.Simulator.run()
-
-
-
-
-
-
-
-
+mx.Simulator.run()

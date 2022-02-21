@@ -1,27 +1,43 @@
 /*
- * CKeyEvent.h
+ * MxKeyEvent.h
  *
  *  Created on: Dec 29, 2020
  *      Author: andy
  */
 
-#ifndef EXTERN_CARBON_SRC_CKEYEVENT_HPP_
-#define EXTERN_CARBON_SRC_CKEYEVENT_HPP_
+#ifndef SRC_RENDERING_MXKEYEVENT_HPP_
+#define SRC_RENDERING_MXKEYEVENT_HPP_
 
-#include <CEvent.hpp>
 #include <Magnum/Platform/GlfwApplication.h>
+#include <mx_port.h>
+#include <event/MxEventPyExecutor.h>
 
-HRESULT MxKeyEvent_Invoke(Magnum::Platform::GlfwApplication::KeyEvent &event);
+struct KeyEvent;
 
-/**
- * adds a python event handler.
- */
-PyObject* MxKeyEvent_AddDelegate(PyObject *module, PyObject *args, PyObject *kwargs);
+using MxKeyEventDelegateType = HRESULT (*)(Magnum::Platform::GlfwApplication::KeyEvent*);
 
-CAPI_DATA(PyTypeObject) MxKeyEvent_Type;
+struct CAPI_EXPORT MxKeyEvent
+{
+    Magnum::Platform::GlfwApplication::KeyEvent *glfw_event;
+
+    MxKeyEvent(Magnum::Platform::GlfwApplication::KeyEvent *glfw_event=NULL) : glfw_event(glfw_event) {}
+
+    HRESULT invoke();
+    static HRESULT invoke(Magnum::Platform::GlfwApplication::KeyEvent &ke);
+    // adds an event handle
+    static HRESULT addDelegate(MxKeyEventDelegateType *_delegate);
+
+    std::string keyName();
+};
+
+// python support
+
+struct CAPI_EXPORT MxKeyEventPyExecutor : MxEventPyExecutor<MxKeyEvent> {
+    static bool hasStaticMxKeyEventPyExecutor();
+    static void setStaticMxKeyEventPyExecutor(MxKeyEventPyExecutor *executor);
+    static void maybeSetStaticMxKeyEventPyExecutor(MxKeyEventPyExecutor *executor);
+    static MxKeyEventPyExecutor *getStaticMxKeyEventPyExecutor();
+};
 
 
-HRESULT _MxKeyEvent_Init(PyObject* m);
-
-
-#endif /* EXTERN_CARBON_SRC_CKEYEVENT_HPP_ */
+#endif /* SRC_RENDERING_MXKEYEVENT_HPP_ */

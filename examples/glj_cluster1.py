@@ -1,44 +1,52 @@
-import mechanica as m
-import numpy as np
+import mechanica as mx
 
 # dimensions of universe
-dim=np.array([30., 30., 30.])
-center = dim / 2
+dim = [30., 30., 30.]
 
-m.init(dim=dim,
-       cutoff=10,
-       integrator=m.FORWARD_EULER,
-       dt=0.0005)
-
-class C(m.Cluster):
-    radius=3
-
-    class A(m.Particle):
-        radius=0.5
-        dynamics = m.Overdamped
-        mass=10
-        style={"color":"MediumSeaGreen"}
-
-    class B(m.Particle):
-        radius=0.5
-        dynamics = m.Overdamped
-        mass=10
-        style={"color":"skyblue"}
+mx.init(dim=dim,
+        cutoff=10,
+        integrator=mx.FORWARD_EULER,
+        dt=0.0005)
 
 
-c1 = C(position=center - (3, 0, 0))
-c2 = C(position=center + (7, 0, 0))
+class AType(mx.ParticleType):
+    radius = 0.5
+    dynamics = mx.Overdamped
+    mass = 10
+    style = {"color": "MediumSeaGreen"}
 
-c1.A(2000)
-c2.B(2000)
 
-p1  = m.Potential.glj(e=7, m=1, max=1)
-p2  = m.Potential.glj(e=7, m=1, max=2)
-m.bind(p1, C.A, C.A, bound=True)
-m.bind(p2, C.B, C.B, bound=True)
+class BType(mx.ParticleType):
+    radius = 0.5
+    dynamics = mx.Overdamped
+    mass = 10
+    style = {"color": "skyblue"}
 
-rforce = m.forces.random(0, 10)
-m.bind(rforce, C.A)
-m.bind(rforce, C.B)
 
-m.run()
+A = AType.get()
+B = BType.get()
+
+
+class CType(mx.ClusterType):
+    radius = 3
+    types = [A, B]
+
+
+C = CType.get()
+
+c1 = C(position=mx.Universe.center - (3, 0, 0))
+c2 = C(position=mx.Universe.center + (7, 0, 0))
+
+[A() for _ in range(2000)]
+[B() for _ in range(2000)]
+
+p1 = mx.Potential.glj(e=7, m=1, max=1)
+p2 = mx.Potential.glj(e=7, m=1, max=2)
+mx.bind.types(p1, A, A, bound=True)
+mx.bind.types(p2, B, B, bound=True)
+
+rforce = mx.Force.random(mean=0, std=10)
+mx.bind.force(rforce, A)
+mx.bind.force(rforce, B)
+
+mx.run()

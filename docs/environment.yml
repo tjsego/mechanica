@@ -1,0 +1,12 @@
+name: mechanica-docs
+channels:
+  - conda-forge
+  - mechanica
+dependencies:
+  - python=3.7
+  - mechanica
+  - sphinx
+  - sphinx_rtd_theme
+  - sphinxcontrib-bibtex
+  - doxygen
+  - graphviz

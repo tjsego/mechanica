@@ -25,14 +25,16 @@
 #include <MxPotential.h>
 #include <DissapativeParticleDynamics.hpp>
 #include <MxParticle.h>
-#include <MxPy.h>
-#include <MxConvert.hpp>
-#include <CLogger.hpp>
+#include "../../MxUtil.h"
+#include "../../MxLogger.h"
+#include "../../mx_error.h"
+#include <../../io/MxFIO.h>
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <float.h>
 #include <string.h>
+#include <cstring>
 
 /* include local headers */
 #include "errs.h"
@@ -44,31 +46,40 @@
 #include <iostream>
 #include <cmath>
 
+#define potential_defarg(ptr, defval) ptr == nullptr ? defval : *ptr
+
 /** Macro to easily define vector types. */
 #define simd_vector(elcount, type)  __attribute__((vector_size((elcount)*sizeof(type)))) type
 
 /** The last error */
 int potential_err = potential_err_ok;
 
+FPTYPE c_null[] = { FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO };
+
+MxPotential::MxPotential() : 
+    kind(POTENTIAL_KIND_POTENTIAL), 
+    flags(POTENTIAL_NONE), 
+    alpha{FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO}, 
+    c(c_null), 
+    r0_plusone(1.0), 
+    a(0.0f), 
+    b(std::numeric_limits<float>::max()), 
+    mu(0.0), 
+	offset{FPTYPE_ZERO, FPTYPE_ZERO, FPTYPE_ZERO}, 
+    n(1), 
+    create_func(NULL), 
+	clear_func(NULL), 
+    eval_byparts(NULL), 
+    eval_byparts3(NULL), 
+    eval_byparts4(NULL), 
+	pca(NULL), 
+	pcb(NULL), 
+    name(NULL)
+{}
+
 
 /** The null potential */
-FPTYPE c_null[] = { FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO };
-struct MxPotential potential_null = {
-        PyObject_HEAD_INIT(&MxPotential_Type)
-        .kind = POTENTIAL_KIND_POTENTIAL,
-        .flags = POTENTIAL_NONE ,
-        .alpha = {FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO , FPTYPE_ZERO } ,
-        .c = c_null ,
-	    .r0_plusone = 1.0,
-        .a = 0.0f ,
-        .b = std::numeric_limits<float>::max(),
-	    .mu = 0.0,
-        .n = 1,
-        .create_func = NULL,
-        .eval = NULL,
-        .name = NULL
-};
-
+MxPotential potential_null;
 
 /* the error macro. */
 #define error(id) ( potential_err = errs_register( id , potential_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
@@ -83,15 +94,13 @@ const char *potential_err_msg[] = {
 		"Maximum number of intervals reached before tolerance satisfied."
 };
 
-static PyObject *potential_checkerr(MxPotential *p) {
+static MxPotential *potential_checkerr(MxPotential *p) {
     if(p == NULL) {
         std::string err = errs_getstring(0);
-        PyErr_SetString(PyExc_ValueError, err.c_str());
+        throw std::runtime_error(err);
     }
     return p;
 }
-
-MxPotential *potential_alloc(PyTypeObject *type);
 
 /**
  * @brief Switching function.
@@ -100,7 +109,6 @@ MxPotential *potential_alloc(PyTypeObject *type);
  * @param A The start of the switching region.
  * @param B The end of the switching region.
  */
-
 double potential_switch ( double r , double A , double B ) {
 
 	if ( r < A )
@@ -134,6 +142,51 @@ double potential_switch_p ( double r , double A , double B ) {
 
 }
 
+static MxPotential *_do_create_periodic_potential(MxPotential* (*potCtor)(double, double, unsigned int), 
+												  const unsigned int &order, 
+												  const unsigned int dim, 
+												  const double &max, 
+												  const bool &pos) 
+{
+	Log(LOG_TRACE);
+
+	double imageLen = double(order) * _Engine.s.dim[dim];
+	double imageMin = imageLen - max;
+	double imageMax = imageLen + max;
+
+	double offset[3] = {0.0, 0.0, 0.0};
+	if (pos) offset[dim] = imageLen;
+	else offset[dim] = -imageLen;
+	
+	MxPotential *p = (*potCtor)(imageMin, imageMax, order);
+	for (int k = 0; k < 3; k++) p->offset[k] = offset[k];
+	p->flags |= POTENTIAL_PERIODIC;
+	return p;
+}
+
+static MxPotential* create_periodic_potential(MxPotential* (*potCtor)(double, double, unsigned int), const unsigned int &order, const double &min, const double &max) {
+	MxPotential *p = (*potCtor)(min, max, 0);
+	if (order == 0) return p;
+
+	MxPotential *pp;
+
+	std::vector<unsigned int> dims;
+	if (_Engine.boundary_conditions.periodic & space_periodic_x) dims.push_back(0);
+	if (_Engine.boundary_conditions.periodic & space_periodic_y) dims.push_back(1);
+	if (_Engine.boundary_conditions.periodic & space_periodic_z) dims.push_back(2);
+
+	for (unsigned int orderIdx = 1; orderIdx <= order; ++orderIdx) {
+		for (auto d : dims) {
+			pp = new MxPotential(*p);
+			*p = *pp + *_do_create_periodic_potential(potCtor, orderIdx, d, max, true);
+			pp = new MxPotential(*p);
+			*p = *pp + *_do_create_periodic_potential(potCtor, orderIdx, d, max, false);
+		}
+	}
+
+	return p;
+}
+
 
 /**
  * @brief A basic 12-6 Lennard-Jones potential.
@@ -145,7 +198,6 @@ double potential_switch_p ( double r , double A , double B ) {
  * @return The potential @f$ \left( \frac{A}{r^{12}} - \frac{B}{r^6} \right) @f$
  *      evaluated at @c r.
  */
-
 double potential_LJ126 ( double r , double A , double B ) {
 
 	double ir = 1.0/r, ir2 = ir * ir, ir6 = ir2*ir2*ir2, ir12 = ir6 * ir6;
@@ -165,7 +217,6 @@ double potential_LJ126 ( double r , double A , double B ) {
  *      @f$ \left( \frac{A}{r^{12}} - \frac{B}{r^6} \right) @f$
  *      evaluated at @c r.
  */
-
 double potential_LJ126_p ( double r , double A , double B ) {
 
 	double ir = 1.0/r, ir2 = ir*ir, ir4 = ir2*ir2, ir12 = ir4*ir4*ir4;
@@ -185,7 +236,6 @@ double potential_LJ126_p ( double r , double A , double B ) {
  *      @f$ \left( \frac{A}{r^{12}} - \frac{B}{r^6} \right) @f$
  *      evaluated at @c r.
  */
-
 double potential_LJ126_6p ( double r , double A , double B ) {
 
 	double r2 = r * r, ir2 = 1.0 / r2, ir6 = ir2*ir2*ir2, ir12 = ir6 * ir6;
@@ -202,7 +252,6 @@ double potential_LJ126_6p ( double r , double A , double B ) {
  * @return The potential @f$ \frac{1}{4\pi r} @f$
  *      evaluated at @c r.
  */
-
 double potential_Coulomb ( double r ) {
 
 	return potential_escale / r;
@@ -217,7 +266,6 @@ double potential_Coulomb ( double r ) {
  * @return The first derivative of the potential @f$ \frac{1}{4\pi r} @f$
  *      evaluated at @c r.
  */
-
 double potential_Coulomb_p ( double r ) {
 
 	return -potential_escale / (r*r);
@@ -232,7 +280,6 @@ double potential_Coulomb_p ( double r ) {
  * @return The sixth derivative of the potential @f$ \frac{1}{4\pi r} @f$
  *      evaluated at @c r.
  */
-
 double potential_Coulomb_6p ( double r ) {
 
 	double r2 = r*r, r4 = r2*r2, r7 = r*r2*r4;
@@ -251,7 +298,6 @@ double potential_Coulomb_6p ( double r ) {
  * @return The potential @f$ \frac{\mbox{erfc}( \kappa r )}{r} @f$
  *      evaluated at @c r.
  */
-
 double potential_Ewald ( double r , double kappa ) {
 
 	return potential_escale * erfc( kappa * r ) / r;
@@ -267,7 +313,6 @@ double potential_Ewald ( double r , double kappa ) {
  * @return The first derivative of the potential @f$ \frac{\mbox{erfc}( \kappa r )}{r} @f$
  *      evaluated at @c r.
  */
-
 double potential_Ewald_p ( double r , double kappa ) {
 
 	double r2 = r*r, ir = 1.0 / r, ir2 = ir*ir;
@@ -287,7 +332,6 @@ double potential_Ewald_p ( double r , double kappa ) {
  * @return The sixth derivative of the potential @f$ \frac{\mbox{erfc}( \kappa r )}{r} @f$
  *      evaluated at @c r.
  */
-
 double potential_Ewald_6p ( double r , double kappa ) {
 
 	double r2 = r*r, ir2 = 1.0 / r2, r4 = r2*r2, ir4 = ir2*ir2, ir6 = ir2*ir4;
@@ -317,6 +361,7 @@ double potential_create_harmonic_dfdr ( double r ) {
 double potential_create_harmonic_d6fdr6 ( double r ) {
 	return 0;
 }
+
 /**
  * @brief Creates a harmonic bond #potential
  *
@@ -331,16 +376,9 @@ double potential_create_harmonic_d6fdr6 ( double r ) {
  *      @f$ K(r-r_0)^2 @f$ in @f$[a,b]@f$
  *      or @c NULL on error (see #potential_err).
  */
-
 struct MxPotential *potential_create_harmonic ( double a , double b , double K , double r0 , double tol ) {
 
-	struct MxPotential *p;
-
-	/* allocate the potential */
-	if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
+	struct MxPotential *p = new MxPotential();
 
     p->flags = POTENTIAL_HARMONIC & POTENTIAL_R2 ;
     p->name = "Harmonic";
@@ -353,7 +391,7 @@ struct MxPotential *potential_create_harmonic ( double a , double b , double K ,
                         &potential_create_harmonic_dfdr,
                         &potential_create_harmonic_d6fdr6,
                         a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -378,6 +416,7 @@ double potential_create_linear_dfdr ( double r ) {
 double potential_create_linear_d6fdr6 ( double r ) {
     return 0;
 }
+
 /**
  * @brief Creates a harmonic bond #potential
  *
@@ -392,18 +431,11 @@ double potential_create_linear_d6fdr6 ( double r ) {
  *      @f$ K(r-r_0)^2 @f$ in @f$[a,b]@f$
  *      or @c NULL on error (see #potential_err).
  */
-
 struct MxPotential *potential_create_linear (double a , double b ,
                                              double k ,
                                              double tol ) {
     
-    struct MxPotential *p;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    struct MxPotential *p = new MxPotential();
     
     p->flags =  POTENTIAL_R2 ;
     p->name = "Linear";
@@ -411,7 +443,7 @@ struct MxPotential *potential_create_linear (double a , double b ,
     /* fill this potential */
     potential_create_linear_k = k;
     if ( potential_init( p , &potential_create_linear_f , NULL , &potential_create_linear_d6fdr6 , a , b , tol ) < 0 ) {
-        CAligned_Free(p);
+        MxAligned_Free(p);
         return NULL;
     }
     
@@ -420,50 +452,50 @@ struct MxPotential *potential_create_linear (double a , double b ,
 }
 
 
-double potential_create_harmonic_dihedral_K;
-int potential_create_harmonic_dihedral_n;
-double potential_create_harmonic_dihedral_delta;
+double potential_create_cosine_dihedral_K;
+int potential_create_cosine_dihedral_n;
+double potential_create_cosine_dihedral_delta;
 
 /* the potential functions */
-double potential_create_harmonic_dihedral_f ( double r ) {
-	double T[potential_create_harmonic_dihedral_n+1], U[potential_create_harmonic_dihedral_n+1];
-	double cosd = cos(potential_create_harmonic_dihedral_delta), sind = sin(potential_create_harmonic_dihedral_delta);
+double potential_create_cosine_dihedral_f ( double r ) {
+	double T[potential_create_cosine_dihedral_n+1], U[potential_create_cosine_dihedral_n+1];
+	double cosd = cos(potential_create_cosine_dihedral_delta), sind = sin(potential_create_cosine_dihedral_delta);
 	int k;
 	T[0] = 1.0; T[1] = r;
 	U[0] = 1.0; U[1] = 2*r;
-	for ( k = 2 ; k <= potential_create_harmonic_dihedral_n ; k++ ) {
+	for ( k = 2 ; k <= potential_create_cosine_dihedral_n ; k++ ) {
 		T[k] = 2 * r * T[k-1] - T[k-2];
 		U[k] = 2 * r * U[k-1] - U[k-2];
 	}
-	if ( potential_create_harmonic_dihedral_delta == 0.0 )
-		return potential_create_harmonic_dihedral_K * ( 1.0 + T[potential_create_harmonic_dihedral_n] );
-	else if ( potential_create_harmonic_dihedral_delta == M_PI )
-		return potential_create_harmonic_dihedral_K * ( 1.0 - T[potential_create_harmonic_dihedral_n] );
+	if ( potential_create_cosine_dihedral_delta == 0.0 )
+		return potential_create_cosine_dihedral_K * ( 1.0 + T[potential_create_cosine_dihedral_n] );
+	else if ( potential_create_cosine_dihedral_delta == M_PI )
+		return potential_create_cosine_dihedral_K * ( 1.0 - T[potential_create_cosine_dihedral_n] );
 	else if ( fabs(r) < 1.0 )
-		return potential_create_harmonic_dihedral_K * ( 1.0 + T[potential_create_harmonic_dihedral_n]*cosd + U[potential_create_harmonic_dihedral_n-1]*sqrt(1.0-r*r)*sind );
+		return potential_create_cosine_dihedral_K * ( 1.0 + T[potential_create_cosine_dihedral_n]*cosd + U[potential_create_cosine_dihedral_n-1]*sqrt(1.0-r*r)*sind );
 	else
-		return potential_create_harmonic_dihedral_K * ( 1.0 + T[potential_create_harmonic_dihedral_n]*cosd );
+		return potential_create_cosine_dihedral_K * ( 1.0 + T[potential_create_cosine_dihedral_n]*cosd );
 }
 
-double potential_create_harmonic_dihedral_dfdr ( double r ) {
-	double T[potential_create_harmonic_dihedral_n+1], U[potential_create_harmonic_dihedral_n+1];
-	double cosd = cos(potential_create_harmonic_dihedral_delta), sind = sin(potential_create_harmonic_dihedral_delta);
+double potential_create_cosine_dihedral_dfdr ( double r ) {
+	double T[potential_create_cosine_dihedral_n+1], U[potential_create_cosine_dihedral_n+1];
+	double cosd = cos(potential_create_cosine_dihedral_delta), sind = sin(potential_create_cosine_dihedral_delta);
 	int k;
 	T[0] = 1.0; T[1] = r;
 	U[0] = 1.0; U[1] = 2*r;
-	for ( k = 2 ; k <= potential_create_harmonic_dihedral_n ; k++ ) {
+	for ( k = 2 ; k <= potential_create_cosine_dihedral_n ; k++ ) {
 		T[k] = 2 * r * T[k-1] - T[k-2];
 		U[k] = 2 * r * U[k-1] - U[k-2];
 	}
-	if ( potential_create_harmonic_dihedral_delta == 0.0 )
-		return potential_create_harmonic_dihedral_K * potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1];
-	else if ( potential_create_harmonic_dihedral_delta == M_PI )
-		return -potential_create_harmonic_dihedral_K * potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1];
+	if ( potential_create_cosine_dihedral_delta == 0.0 )
+		return potential_create_cosine_dihedral_n * potential_create_cosine_dihedral_K * potential_create_cosine_dihedral_n*U[potential_create_cosine_dihedral_n-1];
+	else if ( potential_create_cosine_dihedral_delta == M_PI )
+		return -potential_create_cosine_dihedral_n * potential_create_cosine_dihedral_K * potential_create_cosine_dihedral_n*U[potential_create_cosine_dihedral_n-1];
 	else
-		return potential_create_harmonic_dihedral_K * ( potential_create_harmonic_dihedral_n*U[potential_create_harmonic_dihedral_n-1]*cosd + ( 2*r*U[potential_create_harmonic_dihedral_n-1] - potential_create_harmonic_dihedral_n*T[potential_create_harmonic_dihedral_n] ) * sind / sqrt(1.0 - r*r) );
+		return potential_create_cosine_dihedral_n * potential_create_cosine_dihedral_K * (U[potential_create_cosine_dihedral_n-1] * cosd - T[potential_create_cosine_dihedral_n] * sind / sqrt(1-r*r));
 }
 
-double potential_create_harmonic_dihedral_d6fdr6 ( double r ) {
+double potential_create_cosine_dihedral_d6fdr6 ( double r ) {
 	return 0.0;
 }
 
@@ -480,33 +512,26 @@ double potential_create_harmonic_dihedral_d6fdr6 ( double r ) {
  *      @f$ K(1 + \cos(n\arccos(r)-delta) @f$ in @f$[-1,1]@f$
  *      or @c NULL on error (see #potential_err).
  */
+struct MxPotential *potential_create_cosine_dihedral ( double K , int n , double delta , double tol ) {
 
-struct MxPotential *potential_create_harmonic_dihedral ( double K , int n , double delta , double tol ) {
-
-	struct MxPotential *p;
+	struct MxPotential *p = new MxPotential();
 	double a = -1.0, b = 1.0;
 
 	/* Adjust end-points if delta is not a multiple of pi. */
 	if ( fmod( delta , M_PI ) != 0 ) {
-		a = -1.0 / (1.0 + sqrt(FPTYPE_EPSILON));
-		b = 1.0 / (1.0 + sqrt(FPTYPE_EPSILON));
+		a = -1.0 / (1.0 - sqrt(FPTYPE_EPSILON));
+		b = 1.0 / (1.0 - sqrt(FPTYPE_EPSILON));
 	}
 
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
-
-    p->flags =   POTENTIAL_R | POTENTIAL_HARMONIC | POTENTIAL_DIHEDRAL;
-    p->name = "Harmonic Dihedral";
+    p->flags =   POTENTIAL_R | POTENTIAL_DIHEDRAL;
+    p->name = "Cosine Dihedral";
 
 	/* fill this potential */
-	potential_create_harmonic_dihedral_K = K;
-	potential_create_harmonic_dihedral_n = n;
-	potential_create_harmonic_dihedral_delta = delta;
-	if ( potential_init( p , &potential_create_harmonic_dihedral_f , NULL , &potential_create_harmonic_dihedral_d6fdr6 , a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+	potential_create_cosine_dihedral_K = K;
+	potential_create_cosine_dihedral_n = n;
+	potential_create_cosine_dihedral_delta = delta;
+	if ( potential_init( p , &potential_create_cosine_dihedral_f , NULL , &potential_create_cosine_dihedral_d6fdr6 , a , b , tol ) < 0 ) {
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -553,17 +578,10 @@ double potential_create_harmonic_angle_d6fdr6 ( double r ) {
  *      @f$ K(\arccos(r)-r_0)^2 @f$ in @f$[a,b]@f$
  *      or @c NULL on error (see #potential_err).
  */
-
 struct MxPotential *potential_create_harmonic_angle ( double a , double b , double K , double theta0 , double tol ) {
 
-	struct MxPotential *p;
+	struct MxPotential *p = new MxPotential();
 	double left, right;
-
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
 
     p->flags = POTENTIAL_ANGLE | POTENTIAL_HARMONIC ;
     p->name = "Harmonic Angle";
@@ -586,7 +604,74 @@ struct MxPotential *potential_create_harmonic_angle ( double a , double b , doub
 	potential_create_harmonic_angle_K = K;
 	potential_create_harmonic_angle_theta0 = theta0;
 	if ( potential_init( p , &potential_create_harmonic_angle_f , NULL , &potential_create_harmonic_angle_d6fdr6 , left , right , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
+		return NULL;
+	}
+
+	/* return it */
+	return p;
+
+}
+
+
+double potential_create_harmonic_dihedral_K;
+double potential_create_harmonic_dihedral_delta;
+
+/* the potential functions */
+double potential_create_harmonic_dihedral_f ( double r ) {
+	double theta;
+	r = fmin( 1.0 , fmax( -1.0 , r ) );
+	theta = acos( r );
+	return potential_create_harmonic_dihedral_K * ( theta - potential_create_harmonic_dihedral_delta ) * ( theta - potential_create_harmonic_dihedral_delta );
+}
+
+double potential_create_harmonic_dihedral_dfdr ( double r ) {
+	double r2 = r*r;
+	if ( r2 == 1.0 )
+		return -2.0 * potential_create_harmonic_dihedral_K;
+	else
+		return -2.0 * potential_create_harmonic_dihedral_K * ( acos(r) - potential_create_harmonic_dihedral_delta ) / sqrt( 1.0 - r2 );
+}
+
+double potential_create_harmonic_dihedral_d6fdr6 ( double r ) {
+	return 0.0;
+}
+
+/**
+ * @brief Creates a harmonic dihedral #potential
+ *
+ * @param a The smallest angle for which the potential will be constructed.
+ * @param b The largest angle for which the potential will be constructed.
+ * @param K The energy of the angle.
+ * @param delta The minimum energy angle.
+ * @param tol The tolerance to which the interpolation should match the exact
+ *      potential.
+ *
+ * @return A newly-allocated #potential representing the potential
+ *      @f$ K(\theta - \delta)^2 @f$ in @f$[a,b]@f$
+ *      or @c NULL on error (see #potential_err).
+ */
+struct MxPotential *potential_create_harmonic_dihedral ( double a , double b , double K , double delta , double tol ) {
+
+	struct MxPotential *p = new MxPotential();
+	double left, right;
+
+    p->flags = POTENTIAL_DIHEDRAL | POTENTIAL_HARMONIC ;
+    p->name = "Harmonic Dihedral";
+
+	/* Adjust a and b accordingly. */
+	if ( a < 0.0 )
+		a = 0.0;
+	if ( b > M_PI )
+		b = M_PI;
+	left = cos(b);
+	right = cos(a);
+
+	/* fill this potential */
+	potential_create_harmonic_dihedral_K = K;
+	potential_create_harmonic_dihedral_delta = delta;
+	if ( potential_init( p , &potential_create_harmonic_dihedral_f , NULL , &potential_create_harmonic_dihedral_d6fdr6 , left , right , tol ) < 0 ) {
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -627,16 +712,9 @@ double potential_create_Ewald_d6fdr6 ( double r ) {
  *      @f$ q\frac{\mbox{erfc}(\kappa r}{r} @f$ in @f$[a,b]@f$
  *      or @c NULL on error (see #potential_err).
  */
-
 struct MxPotential *potential_create_Ewald ( double a , double b , double q , double kappa , double tol ) {
 
-	struct MxPotential *p;
-
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
+	struct MxPotential *p = new MxPotential();
 
     p->flags =  POTENTIAL_R2 | POTENTIAL_EWALD ;
     p->name = "Ewald";
@@ -645,7 +723,7 @@ struct MxPotential *potential_create_Ewald ( double a , double b , double q , do
 	potential_create_Ewald_q = q;
 	potential_create_Ewald_kappa = kappa;
 	if ( potential_init( p , &potential_create_Ewald_f , &potential_create_Ewald_dfdr , &potential_create_Ewald_d6fdr6 , a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -654,6 +732,21 @@ struct MxPotential *potential_create_Ewald ( double a , double b , double q , do
 
 }
 
+double potential_create_Ewald_periodic_q;
+double potential_create_Ewald_periodic_kappa;
+double potential_create_Ewald_periodic_tol;
+
+MxPotential *_do_potential_create_Ewald_periodic(double a, double b, unsigned int order) {
+	return potential_create_Ewald(a, b, potential_create_Ewald_periodic_q, potential_create_Ewald_periodic_kappa, potential_create_Ewald_periodic_tol);
+}
+
+MxPotential *potential_create_Ewald_periodic(const double &a, const double &b, const double &q, const double &kappa, const double &tol, const unsigned int &order) {
+	potential_create_Ewald_periodic_q = q;
+	potential_create_Ewald_periodic_kappa = kappa;
+	potential_create_Ewald_periodic_tol = tol;
+
+	return create_periodic_potential(&_do_potential_create_Ewald_periodic, order, a, b);
+}
 
 double potential_create_LJ126_Ewald_A;
 double potential_create_LJ126_Ewald_B;
@@ -694,16 +787,9 @@ double potential_create_LJ126_Ewald_d6fdr6 ( double r ) {
  *      @f$ \left( \frac{A}{r^{12}} - \frac{B}{r^6} \right) @f$ in @f$[a,b]@f$
  *      or @c NULL on error (see #potential_err).
  */
-
 struct MxPotential *potential_create_LJ126_Ewald ( double a , double b , double A , double B , double q , double kappa , double tol ) {
 
-	struct MxPotential *p;
-
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
+	struct MxPotential *p = new MxPotential();
 
     p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 |  POTENTIAL_EWALD ;
     p->name = "Lennard-Jones Ewald";
@@ -714,7 +800,7 @@ struct MxPotential *potential_create_LJ126_Ewald ( double a , double b , double 
 	potential_create_LJ126_Ewald_kappa = kappa;
 	potential_create_LJ126_Ewald_q = q;
 	if ( potential_init( p , &potential_create_LJ126_Ewald_f , &potential_create_LJ126_Ewald_dfdr , &potential_create_LJ126_Ewald_d6fdr6 , a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -767,16 +853,9 @@ double potential_create_LJ126_Ewald_switch_d6fdr6 ( double r ) {
  *      @f$ \left( \frac{A}{r^{12}} - \frac{B}{r^6} \right) @f$ in @f$[a,b]@f$
  *      or @c NULL on error (see #potential_err).
  */
-
 struct MxPotential *potential_create_LJ126_Ewald_switch ( double a , double b , double A , double B , double q , double kappa , double s , double tol ) {
 
-	struct MxPotential *p;
-
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
+	struct MxPotential *p = new MxPotential();
 
     p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_EWALD | POTENTIAL_SWITCH ;
     p->name = "Lennard-Jones Ewald Switch";
@@ -789,7 +868,7 @@ struct MxPotential *potential_create_LJ126_Ewald_switch ( double a , double b , 
 	potential_create_LJ126_Ewald_switch_s = s;
 	potential_create_LJ126_Ewald_switch_cutoff = b;
 	if ( potential_init( p , &potential_create_LJ126_Ewald_switch_f , &potential_create_LJ126_Ewald_switch_dfdr , &potential_create_LJ126_Ewald_switch_d6fdr6 , a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -829,16 +908,9 @@ double potential_create_Coulomb_d6fdr6 ( double r ) {
  *      @f$ \frac{1}{4\pi r} @f$ in @f$[a,b]@f$
  *      or @c NULL on error (see #potential_err).
  */
-
 struct MxPotential *potential_create_Coulomb ( double a , double b , double q , double tol ) {
 
-	struct MxPotential *p;
-
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
+	struct MxPotential *p = new MxPotential();
 
     p->flags =  POTENTIAL_R2 |  POTENTIAL_COULOMB ;
     p->name = "Coulomb";
@@ -847,13 +919,26 @@ struct MxPotential *potential_create_Coulomb ( double a , double b , double q , 
 	potential_create_Coulomb_q = q;
 	potential_create_Coulomb_b = b;
 	if ( potential_init( p , &potential_create_Coulomb_f , &potential_create_Coulomb_dfdr , &potential_create_Coulomb_d6fdr6 , a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
 		return NULL;
 	}
 
 	/* return it */
 			return p;
 
+}
+
+double potential_create_Coulomb_periodic_q;
+double potential_create_Coulomb_periodic_tol;
+
+MxPotential *_do_potential_create_Coulomb_periodic(double min, double max, unsigned int order) {
+	return potential_create_Coulomb(min, max, potential_create_Coulomb_periodic_q, potential_create_Coulomb_periodic_tol);
+}
+
+MxPotential *potential_create_Coulomb_periodic(double a, double b, double q, double tol, const unsigned int &order) {
+	potential_create_Coulomb_periodic_q = q;
+	potential_create_Coulomb_periodic_tol = tol;
+	return create_periodic_potential(&_do_potential_create_Coulomb_periodic, order, a, b);
 }
 
 
@@ -895,16 +980,9 @@ double potential_create_LJ126_Coulomb_d6fdr6 ( double r ) {
  *      @f$ \left( \frac{A}{r^{12}} - \frac{B}{r^6} \right) @f$ in @f$[a,b]@f$
  *      or @c NULL on error (see #potential_err).
  */
-
 struct MxPotential *potential_create_LJ126_Coulomb ( double a , double b , double A , double B , double q , double tol ) {
 
-	struct MxPotential *p;
-
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
+	struct MxPotential *p = new MxPotential();
 
     p->flags =  POTENTIAL_R2 | POTENTIAL_COULOMB | POTENTIAL_LJ126  ;
     p->name = "Lennard-Jones Coulomb";
@@ -915,7 +993,7 @@ struct MxPotential *potential_create_LJ126_Coulomb ( double a , double b , doubl
 	potential_create_LJ126_Coulomb_A = A;
 	potential_create_LJ126_Coulomb_B = B;
 	if ( potential_init( p , &potential_create_LJ126_Coulomb_f , &potential_create_LJ126_Coulomb_dfdr , &potential_create_LJ126_Coulomb_d6fdr6 , a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -956,16 +1034,9 @@ double potential_create_LJ126_d6fdr6 ( double r ) {
  *      or @c NULL on error (see #potential_err).
  *
  */
-
 struct MxPotential *potential_create_LJ126 ( double a , double b , double A , double B , double tol ) {
 
-    MxPotential *p = NULL;
-
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
- 	}
+    MxPotential *p = new MxPotential();
 
     p->flags =  POTENTIAL_R2  | POTENTIAL_LJ126 ;
     p->name = "Lennard-Jones";
@@ -974,7 +1045,7 @@ struct MxPotential *potential_create_LJ126 ( double a , double b , double A , do
 	potential_create_LJ126_A = A;
 	potential_create_LJ126_B = B;
 	if ( potential_init( p , &potential_create_LJ126_f , &potential_create_LJ126_dfdr , &potential_create_LJ126_d6fdr6 , a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -1019,16 +1090,9 @@ double potential_create_LJ126_switch_d6fdr6 ( double r ) {
  *      or @c NULL on error (see #potential_err).
  *
  */
-
 struct MxPotential *potential_create_LJ126_switch ( double a , double b , double A , double B , double s , double tol ) {
 
-	struct MxPotential *p;
-
-	/* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-		error(potential_err_malloc);
-		return NULL;
-	}
+	struct MxPotential *p = new MxPotential();
 
     p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
     p->name = "Lennard-Jones Switch";
@@ -1039,7 +1103,7 @@ struct MxPotential *potential_create_LJ126_switch ( double a , double b , double
 	potential_create_LJ126_switch_s = s;
 	potential_create_LJ126_switch_cutoff = b;
 	if ( potential_init( p , &potential_create_LJ126_switch_f , &potential_create_LJ126_switch_dfdr , &potential_create_LJ126_switch_d6fdr6 , a , b , tol ) < 0 ) {
-		CAligned_Free(p);
+		MxAligned_Free(p);
 		return NULL;
 	}
 
@@ -1118,13 +1182,7 @@ static double potential_create_SS1_d6fdr6 ( double r ) {
 
 struct MxPotential *potential_create_SS1(double k, double e, double r0, double a , double b ,double tol) {
     
-    struct MxPotential *p;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    struct MxPotential *p = new MxPotential();
     
     p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
     p->name = "Soft Sphere 1";
@@ -1140,7 +1198,7 @@ struct MxPotential *potential_create_SS1(double k, double e, double r0, double a
         &potential_create_SS1_dfdr , &potential_create_SS1_d6fdr6 , a , b , tol )) < 0 ) {
         
         Log(LOG_TRACE) << "error creating potential: " << potential_err_msg[-err];
-		CAligned_Free(p);
+		MxAligned_Free(p);
         return NULL;
     }
     
@@ -1202,13 +1260,7 @@ static double potential_create_SS2_d6fdr6 ( double r ) {
 
 struct MxPotential *potential_create_SS2(double k, double e, double r0, double a , double b ,double tol) {
     
-    struct MxPotential *p;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    struct MxPotential *p = new MxPotential();
     
     p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
     p->name = "Soft Sphere 2";
@@ -1225,7 +1277,7 @@ struct MxPotential *potential_create_SS2(double k, double e, double r0, double a
                              &potential_create_SS2_d6fdr6 , a , b , tol )) < 0 ) {
         
         Log(LOG_TRACE) << "error creating potential: " << potential_err_msg[-err];
-		CAligned_Free(p);
+		MxAligned_Free(p);
         return NULL;
     }
     
@@ -1287,13 +1339,7 @@ static double potential_create_SS3_d6fdr6 ( double r ) {
 
 struct MxPotential *potential_create_SS3(double k, double e, double r0, double a , double b ,double tol) {
     
-    struct MxPotential *p;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    struct MxPotential *p = new MxPotential();
     
     p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
     p->name = "Soft Sphere 3";
@@ -1310,7 +1356,7 @@ struct MxPotential *potential_create_SS3(double k, double e, double r0, double a
                              &potential_create_SS3_d6fdr6 , a , b , tol )) < 0 ) {
         
         Log(LOG_TRACE) << "error creating potential: " << potential_err_msg[-err];
-		CAligned_Free(p);
+		MxAligned_Free(p);
         return NULL;
     }
     
@@ -1373,13 +1419,7 @@ static double potential_create_SS4_d6fdr6 ( double r ) {
 
 struct MxPotential *potential_create_SS4(double k, double e, double r0, double a , double b ,double tol) {
     
-    struct MxPotential *p;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    struct MxPotential *p = new MxPotential();
     
     p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
     p->name = "Soft Sphere 4";
@@ -1396,7 +1436,7 @@ struct MxPotential *potential_create_SS4(double k, double e, double r0, double a
                              &potential_create_SS4_d6fdr6 , a , b , tol )) < 0 ) {
         
         Log(LOG_TRACE) << "error creating potential: " << potential_err_msg[-err];
-		CAligned_Free(p);
+		MxAligned_Free(p);
         return NULL;
     }
     
@@ -1436,18 +1476,21 @@ struct MxPotential *potential_create_SS(int eta, double k, double e, double r0,
  * 
  * @param p Pointer to the #potential to clear.
  */
-
 void potential_clear ( struct MxPotential *p ) {
 
 	/* Do nothing? */
 	if ( p == NULL )
 		return;
 
+	/* Issue callback */
+	if(p->clear_func) 
+		p->clear_func(p);
+	
 	/* Clear the flags. */
 	p->flags = POTENTIAL_NONE;
 
 	/* Clear the coefficients. */
-	CAligned_Free( p->c );
+	MxAligned_Free( p->c );
 	p->c = NULL;
 
 }
@@ -1523,13 +1566,7 @@ struct MxPotential *potential_create_overlapping_sphere(double mu, double k,
     double harmonic_k, double harmonic_r0,
     double a , double b ,double tol) {
     
-    struct MxPotential *p;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    struct MxPotential *p = new MxPotential();
     
     overlapping_sphere_mu = mu;
     overlapping_sphere_k = k;
@@ -1553,7 +1590,7 @@ struct MxPotential *potential_create_overlapping_sphere(double mu, double k,
                              &overlapping_sphere_f6p , a , b , tol )) < 0 ) {
         
         Log(LOG_ERROR) << "error creating potential: " << potential_err_msg[-err];
-        CAligned_Free(p);
+        MxAligned_Free(p);
         return NULL;
     }
     
@@ -1613,13 +1650,7 @@ static double power_f6p ( double x ) {
 
 struct MxPotential *potential_create_power(double k, double r0, double alpha, double a , double b ,double tol) {
     
-    struct MxPotential *p;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    struct MxPotential *p = new MxPotential();
     
     power_k = k;
     power_r0 = r0;
@@ -1649,7 +1680,7 @@ struct MxPotential *potential_create_power(double k, double r0, double alpha, do
                              &power_f6p , fudged_a , 1.2 * b , tol )) < 0 ) {
         
         Log(LOG_ERROR) << "error creating potential: " << potential_err_msg[-err];
-        CAligned_Free(p);
+        MxAligned_Free(p);
         return NULL;
     }
     
@@ -1686,12 +1717,12 @@ struct MxPotential *potential_create_power(double k, double r0, double alpha, do
  *
  * The zeroth interval contains a linear extension of @c f for values < a.
  */
-
 int potential_init (struct MxPotential *p ,
                     double (*f)( double ) ,
                     double (*fp)( double ) ,
                     double (*f6p)( double ) ,
                     FPTYPE a , FPTYPE b , FPTYPE tol ) {
+	Log(LOG_DEBUG);
 
 	double alpha, w;
 	int l = potential_ivalsa, r = potential_ivalsb, m;
@@ -1703,12 +1734,16 @@ int potential_init (struct MxPotential *p ,
 	FPTYPE mtol = 10 * FPTYPE_EPSILON;
 
 	/* check inputs */
-	if ( p == NULL || f == NULL )
+	if ( p == NULL || f == NULL ) { 
+		Log(LOG_CRITICAL);
 		return error(potential_err_null);
+	}
 
 	/* check if we have a user-specified 6th derivative or not. */
-	if ( f6p == NULL )
+	if ( f6p == NULL ) {
+		Log(LOG_CRITICAL);
 		return error(potential_err_nyi);
+	}
     
     /* set the boundaries */
     p->a = a; p->b = b;
@@ -1739,9 +1774,10 @@ int potential_init (struct MxPotential *p ,
 
 	/* compute the smallest interpolation... */
 	/* printf("potential_init: trying l=%i...\n",l); fflush(stdout); */
-	xi_l = (FPTYPE *)CAligned_Malloc( sizeof(FPTYPE) * (l + 1), potential_align );
-	c_l = (FPTYPE *)CAligned_Malloc( sizeof(FPTYPE) * (l+1) * potential_chunk, potential_align);
+	xi_l = (FPTYPE *)MxAligned_Malloc( sizeof(FPTYPE) * (l + 1), potential_align );
+	c_l = (FPTYPE *)MxAligned_Malloc( sizeof(FPTYPE) * (l+1) * potential_chunk, potential_align);
 	if (xi_l == NULL || c_l == NULL) {
+		Log(LOG_CRITICAL);
 		return error(potential_err_malloc);
     }
 	xi_l[0] = a; xi_l[l] = b;
@@ -1754,12 +1790,15 @@ int potential_init (struct MxPotential *p ,
 				break;
 		}
 	}
-	if ( potential_getcoeffs(f,fp,xi_l,l,&c_l[potential_chunk],&err_l) < 0 )
+	if ( potential_getcoeffs(f,fp,xi_l,l,&c_l[potential_chunk],&err_l) < 0 ) { 
+		Log(LOG_CRITICAL);
 		return error(potential_err);
+	}
 	/* fflush(stderr); printf("potential_init: err_l=%22.16e.\n",err_l); */
 
 	/* if this interpolation is good enough, stop here! */
 	if ( err_l < tol ) {
+		Log(LOG_DEBUG);
 
 		/* Set the domain variables. */
 		p->n = l;
@@ -1787,7 +1826,7 @@ int potential_init (struct MxPotential *p ,
 			p->c[potential_chunk-1-k] = 0.0;
 
 		/* Clean up. */
-		CAligned_Free(xi_l);
+		MxAligned_Free(xi_l);
         
         // double test_n = p->alpha[0] + p->b * (p->alpha[1] + p->b * p->alpha[2]);
         
@@ -1801,13 +1840,15 @@ int potential_init (struct MxPotential *p ,
 	}
 
 	/* loop until we have an upper bound on the right... */
+	Log(LOG_DEBUG);
 	while ( 1 ) {
 
 		/* compute the larger interpolation... */
 		/* printf("potential_init: trying r=%i...\n",r); fflush(stdout); */
-		xi_r = (FPTYPE*)CAligned_Malloc(sizeof(FPTYPE) * (r + 1),  potential_align );
-		c_r =  (FPTYPE*)CAligned_Malloc(sizeof(FPTYPE) * (r + 1) * potential_chunk, potential_align);
+		xi_r = (FPTYPE*)MxAligned_Malloc(sizeof(FPTYPE) * (r + 1),  potential_align );
+		c_r =  (FPTYPE*)MxAligned_Malloc(sizeof(FPTYPE) * (r + 1) * potential_chunk, potential_align);
         if ( xi_r == NULL || c_r == NULL) {
+			Log(LOG_CRITICAL);
 			return error(potential_err_malloc);
         }
 		xi_r[0] = a; xi_r[r] = b;
@@ -1821,6 +1862,7 @@ int potential_init (struct MxPotential *p ,
 			}
 		}
         if ( potential_getcoeffs(f,fp,xi_r,r,&c_r[potential_chunk],&err_r) < 0 ) {
+			Log(LOG_CRITICAL) << "Error in potential_getcoeffs";
 			return error(potential_err);
         }
 		/* printf("potential_init: err_r=%22.16e.\n",err_r); fflush(stdout); */
@@ -1834,20 +1876,22 @@ int potential_init (struct MxPotential *p ,
 		else if ( 2*r > potential_ivalsmax ) {
 			/* printf( "potential_init: warning: maximum nr of intervals (%i) reached, err=%e.\n" , r , err_r );
             break; */
+			Log(LOG_CRITICAL) << "Too many intervals (" << err_r << ")";
 			return error(potential_err_ivalsmax);
 		}
 
 		/* otherwise, l=r and r = 2*r */
 		else {
 			l = r; err_l = err_r;
-			CAligned_Free(xi_l); xi_l = xi_r;
-			CAligned_Free(c_l); c_l = c_r;
+			MxAligned_Free(xi_l); xi_l = xi_r;
+			MxAligned_Free(c_l); c_l = c_r;
 			r *= 2;
 		}
 
 	} /* loop until we have a good right estimate */
 
 	/* we now have a left and right estimate -- binary search! */
+	Log(LOG_DEBUG);
 	while ( r - l > 1 ) {
 
 		/* find the middle */
@@ -1855,10 +1899,11 @@ int potential_init (struct MxPotential *p ,
 
 		/* construct that interpolation */
 		/* printf("potential_init: trying m=%i...\n",m); fflush(stdout); */
-		xi_m = (FPTYPE*)CAligned_Malloc(sizeof(FPTYPE) * (m + 1), potential_align);
-		c_m =  (FPTYPE*)CAligned_Malloc(sizeof(FPTYPE) * (m + 1) * potential_chunk, potential_align);
+		xi_m = (FPTYPE*)MxAligned_Malloc(sizeof(FPTYPE) * (m + 1), potential_align);
+		c_m =  (FPTYPE*)MxAligned_Malloc(sizeof(FPTYPE) * (m + 1) * potential_chunk, potential_align);
 
         if ( xi_m == NULL || c_m == NULL ) {
+			Log(LOG_CRITICAL);
 			return error(potential_err_malloc);
         }
 		xi_m[0] = a; xi_m[m] = b;
@@ -1871,28 +1916,31 @@ int potential_init (struct MxPotential *p ,
 					break;
 			}
 		}
-		if ( potential_getcoeffs(f,fp,xi_m,m,&c_m[potential_chunk],&err_m) != 0 )
+		if ( potential_getcoeffs(f,fp,xi_m,m,&c_m[potential_chunk],&err_m) != 0 ) {
+			Log(LOG_CRITICAL);
 			return error(potential_err);
+		}
 		/* printf("potential_init: err_m=%22.16e.\n",err_m); fflush(stdout); */
 
 		/* go left? */
-				if ( err_m > tol ) {
-					l = m; err_l = err_m;
-					CAligned_Free(xi_l); xi_l = xi_m;
-					CAligned_Free(c_l); c_l = c_m;
-				}
+		if ( err_m > tol ) {
+			l = m; err_l = err_m;
+			MxAligned_Free(xi_l); xi_l = xi_m;
+			MxAligned_Free(c_l); c_l = c_m;
+		}
 
-				/* otherwise, go right... */
-				else {
-					r = m; err_r = err_m;
-					CAligned_Free(xi_r); xi_r = xi_m;
-					CAligned_Free(c_r); c_r = c_m;
-				}
+		/* otherwise, go right... */
+		else {
+			r = m; err_r = err_m;
+			MxAligned_Free(xi_r); xi_r = xi_m;
+			MxAligned_Free(c_r); c_r = c_m;
+		}
 
 	} /* binary search */
 
 	/* as of here, the right estimate is the smallest interpolation below */
 	/* the requested tolerance */
+	Log(LOG_DEBUG);
 	p->n = r;
 	p->c = c_r;
 	p->alpha[0] *= p->n; p->alpha[1] *= p->n; p->alpha[2] *= p->n;
@@ -1918,9 +1966,9 @@ int potential_init (struct MxPotential *p ,
 		p->c[potential_chunk-1-k] = 0.0;
 
 	/* Clean up. */
-	CAligned_Free(xi_r);
-	CAligned_Free(xi_l);
-	CAligned_Free(c_l);
+	MxAligned_Free(xi_r);
+	MxAligned_Free(xi_l);
+	MxAligned_Free(c_l);
 
 	/* all is well that ends well... */
     
@@ -1945,7 +1993,6 @@ int potential_init (struct MxPotential *p ,
  *
  * @return #potential_err_ok or < 0 on error (see #potential_err).
  */
-
 int potential_getfp ( double (*f)( double ) , int n , FPTYPE *x , double *fp ) {
 
 	int i, k;
@@ -2135,7 +2182,6 @@ int potential_getfp_fixend ( double (*f)( double ) , double fpa , double fpb , i
  * The array to which @c c points must be large enough to hold at least
  * #potential_degree x @c n values of type #FPTYPE.
  */
-
 int potential_getcoeffs ( double (*f)( double ) , double (*fp)( double ) , FPTYPE *xi , int n , FPTYPE *c , FPTYPE *err ) {
 
 	// TODO, seriously buggy shit here!
@@ -2273,7 +2319,6 @@ int potential_getcoeffs ( double (*f)( double ) , double (*fp)( double ) , FPTYP
  * The value @f$\alpha@f$ is computed using Brent's algortihm to 4 decimal
  * digits.
  */
-
 double potential_getalpha ( double (*f6p)( double ) , double a , double b ) {
 
 	double xi[potential_N], fx[potential_N];
@@ -2339,870 +2384,1037 @@ double potential_getalpha ( double (*f6p)( double ) , double a , double b ) {
 
 }
 
-MxPotential *potential_alloc(PyTypeObject *type) {
-
-    Log(LOG_TRACE) ;
-
-    struct MxPotential *obj = NULL;
-
-    /* allocate the potential */
-    if ((obj = (MxPotential * )CAligned_Malloc(type->tp_basicsize, 16 )) == NULL ) {
-        return NULL;
-    }
-    
-    ::memset(obj, 0, type->tp_basicsize);
-
-    if (type->tp_flags & Py_TPFLAGS_HEAPTYPE)
-        Py_INCREF(type);
-
-    PyObject_INIT(obj, type);
-
-    if (PyType_IS_GC(type)) {
-        assert(0 && "should not get here");
-        //  _PyObject_GC_TRACK(obj);
-    }
-    
-    obj->kind = POTENTIAL_KIND_POTENTIAL;
-
-    return obj;
-}
-
-static void potential_dealloc(PyObject* obj) {
-	Log(LOG_TRACE) ;
-	CAligned_Free(obj);
-}
-
-static PyObject *potential_call(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    MxPotential *self = (MxPotential*)_self;
-
+float MxPotential::operator()(const float &r, const float &r0) {
     try {
-        float r = mx::arg<double>("r",  0, _args, _kwargs);
-        float r0 = mx::arg<double>("r0",  1, _args, _kwargs, -1);
+		float e = 0;
 
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				e += (*c)(r, r0);
+			}
+
+			return e;
+		}
+
+        float f = 0;
+		float _r = r;
+		float _r0 = r0;
         // if no r args are given, we pull the r0 from the potential,
         // and use the ri, rj to cancel them out.
-        if((self->flags & POTENTIAL_SCALED || self->flags & POTENTIAL_SHIFTED) && r0 < 0) {
+        if((flags & POTENTIAL_SCALED || flags & POTENTIAL_SHIFTED) && r0 < 0) {
   
-            PyErr_Warn(PyExc_Warning, "calling scaled potential without s, sum of particle radii");
-            r0 = 1;
+            std::cerr << "calling scaled potential without s, sum of particle radii" << std::endl;
+            
+            _r0 = 1.0f;
 
         }
+
+		if(this->flags & POTENTIAL_ANGLE || this->flags & POTENTIAL_DIHEDRAL) {
+			_r = cos(_r);
+			_r0 = cos(_r0);
+		}
         
-        float e = 0;
-        float f = 0;
-        
-        if(self->flags & POTENTIAL_R) {
-            potential_eval_r(self, r, &e, &f);
+        if(flags & POTENTIAL_R) {
+            potential_eval_r(this, _r, &e, &f);
         }
         else {
-            potential_eval_ex(self, r0/2, r0/2, r*r, &e, &f);
+            potential_eval_ex(this, _r0/2, _r0/2, _r*_r, &e, &f);
         }
         
         Log(LOG_DEBUG) << "potential_eval(" << r << ") : (" << e << "," << f << ")";
         
-        f = f * r;
-        
-        PyObject *res = PyTuple_New(2);
-        PyTuple_SET_ITEM(res, 0, PyFloat_FromDouble(e));
-        PyTuple_SET_ITEM(res, 1, PyFloat_FromDouble(f));
-        
-        return res;
+        return e;
     }
     catch (const std::exception &e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
+        return 0;
     }
 }
 
-static PyObject *potential_force(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    MxPotential *self = (MxPotential*)_self;
-    
-    try {
+float MxPotential::operator()(const std::vector<float> &r) {
+	try{
+		float e = 0;
 
-        float r = mx::arg<double>("r",  0, _args, _kwargs);
-        double ri = mx::arg<double>("ri",  1, _args, _kwargs, -1);
-        double rj = mx::arg<double>("rj",  2, _args, _kwargs, -1);
-        
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				e += (*c)(r);
+			}
+
+			return e;
+		}
+
+		MxVector3f rv(r);
+		auto rvl = rv.length();
+		float f[3] = {0.0, 0.0, 0.0};
+		this->eval_byparts(this, NULL, NULL, rv.data(), rvl * rvl, &e, f);
+		
+        Log(LOG_DEBUG) << "potential_eval(" << rv << ")";
+
+		return e;
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return 0.0;
+	}
+}
+
+float MxPotential::operator()(MxParticleHandle* pi, const MxVector3f &pt) {
+	try{
+		float e = 0;
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				e += (*c)(pi, pt);
+			}
+
+			return e;
+		}
+
+		auto part_i = pi->part();
+		MxVector3f rv = pi->relativePosition(pt);
+
+		auto rvl = rv.length();
+		float f[3] = {0.0, 0.0, 0.0};
+		this->eval_bypart(this, part_i, rv.data(), rvl * rvl, &e, f);
+		
+        Log(LOG_DEBUG) << "potential_eval(" << rv << ")";
+
+		return e;
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return 0.0;
+	}
+}
+
+float MxPotential::operator()(MxParticleHandle* pi, MxParticleHandle* pj) {
+	try{
+		float e = 0;
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				e += (*c)(pi, pj);
+			}
+
+			return e;
+		}
+
+		auto part_i = pi->part();
+		auto part_j = pj->part();
+		MxVector3f rv = pi->relativePosition(part_j->position);
+
+		auto rvl = rv.length();
+		float f[3] = {0.0, 0.0, 0.0};
+		this->eval_byparts(this, part_i, part_j, rv.data(), rvl * rvl, &e, f);
+		
+        Log(LOG_DEBUG) << "potential_eval(" << rv << ")";
+
+		return e;
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return 0.0;
+	}
+}
+
+float MxPotential::operator()(MxParticleHandle* pi, MxParticleHandle* pj, MxParticleHandle* pk) {
+	try{
+		float e = 0;
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				e += (*c)(pi, pj, pk);
+			}
+
+			return e;
+		}
+
+		auto part_i = pi->part();
+		auto part_j = pj->part();
+		auto part_k = pk->part();
+		MxVector3f rv_ij = pi->relativePosition(part_j->position);
+		MxVector3f rv_kj = pk->relativePosition(part_j->position);
+
+		float ctheta = rv_ij.normalized().dot(rv_kj.normalized());
+		MxVector3f fi(0.0), fk(0.0);
+		this->eval_byparts3(this, part_i, part_j, part_k, ctheta, &e, fi.data(), fk.data());
+		
+        Log(LOG_DEBUG) << "potential_eval(" << acos(ctheta) << ")";
+
+		return e;
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return 0.0;
+	}
+}
+
+float MxPotential::operator()(MxParticleHandle* pi, MxParticleHandle* pj, MxParticleHandle* pk, MxParticleHandle* pl) {
+	try{
+		float e = 0;
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				e += (*c)(pi, pj, pk, pl);
+			}
+
+			return e;
+		}
+
+		auto part_i = pi->part();
+		auto part_j = pj->part();
+		auto part_k = pk->part();
+		auto part_l = pl->part();
+		
+		MxQuaternionf q_ijk = MxQuaternionf::fromMatrix(MxMatrix3f(part_i->position, part_j->position, part_k->position));
+		MxQuaternionf q_jkl = MxQuaternionf::fromMatrix(MxMatrix3f(part_j->position, part_k->position, part_l->position));
+		float phi = q_ijk.angle(q_jkl);
+
+		MxVector3f fi(0.0), fl(0.0);
+		this->eval_byparts4(this, part_i, part_j, part_k, part_l, cos(phi), &e, fi.data(), fl.data());
+		
+        Log(LOG_DEBUG) << "potential_eval(" << phi << ")";
+
+		return e;
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return 0.0;
+	}
+}
+
+float MxPotential::force(double r, double ri, double rj) {
+    try {
+        float f = 0;
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				f += c->force(r, ri, rj);
+			}
+
+			return f;
+		}
+		
+        float e = 0;
+		float _r = r;
+
+		if(this->flags & POTENTIAL_ANGLE || this->flags & POTENTIAL_DIHEDRAL) {
+			_r = cos(_r);
+		}
+
         // if no r args are given, we pull the r0 from the potential,
         // and use the ri, rj to cancel them out.
-        if((self->flags & POTENTIAL_SHIFTED) && ri < 0 && rj < 0) {
+        if((flags & POTENTIAL_SHIFTED) && ri < 0 && rj < 0) {
             ri = 1 / 2;
             rj = 1 / 2;
         }
         
-        float e = 0;
-        float f = 0;
-        
-        if(self->flags & POTENTIAL_R) {
-            potential_eval_r(self, r, &e, &f);
+        if(flags & POTENTIAL_R) {
+            potential_eval_r(this, r, &e, &f);
         }
         else {
-            potential_eval_ex(self, ri, rj, r*r, &e, &f);
+            potential_eval_ex(this, ri, rj, r*r, &e, &f);
         }
+		
+        Log(LOG_DEBUG) << "force_eval(" << r << ")";
         
-     //   if (potential_eval_ex(pot, part_i->radius, part_j->radius, r2 , &e , &f )) {
-     //
-     //       for ( k = 0 ; k < 3 ; k++ ) {
-     //           w = f * dx[k];
-     //           pif[k] -= w;
-     //           part_j->f[k] += w;
-     //       }
-        
-        f = (f * r) / 2;
-        
-        return mx::cast(f);
+        return (f * r) / 2;
     }
     catch (const std::exception &e) {
-        C_EXP(e); return NULL;
+        mx_exp(e);
+        return -1.0;
     }
 }
 
-static PyObject *_lennard_jones_12_6(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-    
-    try {
-        double min = mx::arg<double>("min", 0, _args, _kwargs);
-        double max = mx::arg<double>("max", 1, _args, _kwargs);
-        double A = mx::arg<double>("A", 2, _args, _kwargs);
-        double B = mx::arg<double>("B", 3, _args, _kwargs);
-        double tol = mx::arg<double>("tol", 4, _args, _kwargs, 0.001 * (max-min));
-        return potential_create_LJ126( min, max, A, B, tol);
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+std::vector<float> MxPotential::force(const std::vector<float>& r) {
+	try{
+		MxVector3f f(0.0);
+
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				f += c->force(r);
+			}
+
+			return std::vector<float>(f);
+		}
+
+		MxVector3f rv(r);
+		auto rvl = rv.length();
+		float e = 0;
+		this->eval_byparts(this, NULL, NULL, rv.data(), rvl * rvl, &e, f.data());
+		
+        Log(LOG_DEBUG) << "force_eval(" << rv << ")";
+
+		return std::vector<float>(f);
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return std::vector<float>(3, 0.0);
+	}
 }
 
+std::vector<float> MxPotential::force(MxParticleHandle* pi, const MxVector3f &pt) {
+	try{
+		MxVector3f f(0.0);
 
-static PyObject *_lennard_jones_12_6_coulomb(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				f += c->force(pi, pt);
+			}
 
-    try {
-        double min = mx::arg<double>("min", 0, _args, _kwargs);
-        double max = mx::arg<double>("max", 1, _args, _kwargs);
-        double A = mx::arg<double>("A", 2, _args, _kwargs);
-        double B = mx::arg<double>("B", 3, _args, _kwargs);
-        double q = mx::arg<double>("q", 4, _args, _kwargs);
-        double tol = mx::arg<double>("tol", 5, _args, _kwargs, 0.001 * (max-min));
-        return potential_checkerr(potential_create_LJ126_Coulomb( min, max, A, B, q, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+			return std::vector<float>(f);
+		}
+
+		auto part_i = pi->part();
+		MxVector3f rv = pi->relativePosition(pt);
+
+		auto rvl = rv.length();
+		float e = 0;
+		this->eval_bypart(this, part_i, rv.data(), rvl * rvl, &e, f.data());
+		
+        Log(LOG_DEBUG) << "force_eval(" << rv << ")";
+
+		return std::vector<float>(f);
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return {0.0, 0.0, 0.0};
+	}
 }
 
-static PyObject *_soft_sphere(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
+std::vector<float> MxPotential::force(MxParticleHandle* pi, MxParticleHandle* pj) {
+	try{
+		MxVector3f f(0.0);
 
-    try {
-        double kappa = mx::arg<double>("kappa", 0, _args, _kwargs);
-        double epsilon = mx::arg<double>("epsilon", 1, _args, _kwargs);
-        double r0 = mx::arg<double>("r0", 2, _args, _kwargs);
-        double eta = mx::arg<double>("eta", 3, _args, _kwargs);
-        double min = mx::arg<double>("min", 4, _args, _kwargs, 0);
-        double max = mx::arg<double>("max", 5, _args, _kwargs, 2);
-        double tol = mx::arg<double>("tol", 6, _args, _kwargs, 0.001 * (max-min));
-        bool shift = mx::arg<bool>("shift", 7, _args, _kwargs, false);
-        return potential_checkerr(potential_create_SS(eta, kappa, epsilon, r0, min, max, tol, shift));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				f += c->force(pi, pj);
+			}
+
+			return std::vector<float>(f);
+		}
+
+		auto part_i = pi->part();
+		auto part_j = pj->part();
+		MxVector3f rv = pi->relativePosition(part_j->position);
+
+		auto rvl = rv.length();
+		float e = 0;
+		this->eval_byparts(this, part_i, part_j, rv.data(), rvl * rvl, &e, f.data());
+		
+        Log(LOG_DEBUG) << "force_eval(" << rv << ")";
+
+		return std::vector<float>(f);
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return {0.0, 0.0, 0.0};
+	}
 }
 
-static PyObject *_ewald(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
+std::pair<std::vector<float>, std::vector<float> > MxPotential::force(MxParticleHandle* pi, MxParticleHandle* pj, MxParticleHandle* pk) {
+	try{
+		MxVector3f fi(0.0), fk(0.0);
 
-    try {
-        double min = mx::arg<double>("min", 0, _args, _kwargs);
-        double max = mx::arg<double>("max", 1, _args, _kwargs);
-        double q = mx::arg<double>("q", 2, _args, _kwargs);
-        double kappa = mx::arg<double>("kappa", 3, _args, _kwargs);
-        double tol = mx::arg<double>("tol", 4, _args, _kwargs, 0.001 * (max-min));
-        return potential_checkerr(potential_create_Ewald( min, max, q, kappa, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				auto fp = c->force(pi, pj, pk);
+				fi += std::get<0>(fp);
+				fk += std::get<1>(fp);
+			}
+
+			return {std::vector<float>(fi), std::vector<float>(fk)};
+		}
+
+		auto part_i = pi->part();
+		auto part_j = pj->part();
+		auto part_k = pk->part();
+		MxVector3f rv_ij = pi->relativePosition(part_j->position);
+		MxVector3f rv_kj = pk->relativePosition(part_j->position);
+
+		float ctheta = rv_ij.normalized().dot(rv_kj.normalized());
+		float e = 0;
+		this->eval_byparts3(this, part_i, part_j, part_k, ctheta, &e, fi.data(), fk.data());
+		
+        Log(LOG_DEBUG) << "force_eval(" << acos(ctheta) << ")";
+
+		return {std::vector<float>(fi), std::vector<float>(fk)};
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+	}
 }
 
+std::pair<std::vector<float>, std::vector<float> > MxPotential::force(MxParticleHandle* pi, MxParticleHandle* pj, MxParticleHandle* pk, MxParticleHandle* pl) {
+	try{
+		MxVector3f fi(0.0), fl(0.0);
 
-static PyObject *_coulomb(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-    
-    try {
-        double q = mx::arg<double>("q", 0, _args, _kwargs);
-        double min = mx::arg<double>("min", 1, _args, _kwargs, 0.01);
-        double max = mx::arg<double>("max", 2, _args, _kwargs, 2);
-        double tol = mx::arg<double>("tol", 3, _args, _kwargs, 0.001 * (max-min));
-        return potential_checkerr(potential_create_Coulomb( min, max, q, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+		if(this->kind == POTENTIAL_KIND_COMBINATION) {
+			for (auto c : this->constituents()) {
+				auto fp = c->force(pi, pj, pk, pl);
+				fi += std::get<0>(fp);
+				fl += std::get<1>(fp);
+			}
+
+			return {std::vector<float>(fi), std::vector<float>(fl)};
+		}
+
+		auto part_i = pi->part();
+		auto part_j = pj->part();
+		auto part_k = pk->part();
+		auto part_l = pl->part();
+		
+		MxQuaternionf q_ijk = MxQuaternionf::fromMatrix(MxMatrix3f(part_i->position, part_j->position, part_k->position));
+		MxQuaternionf q_jkl = MxQuaternionf::fromMatrix(MxMatrix3f(part_j->position, part_k->position, part_l->position));
+		float phi = q_ijk.angle(q_jkl);
+
+		float e = 0;
+		this->eval_byparts4(this, part_i, part_j, part_k, part_l, cos(phi), &e, fi.data(), fl.data());
+		
+        Log(LOG_DEBUG) << "force_eval(" << phi << ")";
+
+		return {std::vector<float>(fi), std::vector<float>(fl)};
+	}
+	catch (const std::exception& e) {
+		mx_exp(e);
+		return {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+	}
 }
 
+std::vector<MxPotential*> MxPotential::constituents() {
+	std::vector<MxPotential*> result;
 
-static PyObject *_harmonic(PyObject *_self, PyObject *_args, PyObject *_kwargs){
-    Log(LOG_TRACE) ;
+	if(pca) {
+		if(pca->kind == POTENTIAL_KIND_COMBINATION) {
+			auto pcs = pca->constituents();
+			result.reserve(result.size() + std::distance(pcs.begin(), pcs.end()));
+			result.insert(result.end(), pcs.begin(), pcs.end());
+		}
+		else result.push_back(pca);
+	}
+	if(pcb) {
+		if(pcb->kind == POTENTIAL_KIND_COMBINATION) {
+			auto pcs = pcb->constituents();
+			result.reserve(result.size() + std::distance(pcs.begin(), pcs.end()));
+			result.insert(result.end(), pcs.begin(), pcs.end());
+		}
+		else result.push_back(pcb);
+	}
 
-    try {
-        double k =     mx::arg<double>("k", 0, _args, _kwargs);
-        double r0 =    mx::arg<double>("r0", 1, _args, _kwargs);
-        double range = r0;
-        double min =   mx::arg<double>("min", 2, _args, _kwargs, r0 - range);
-        double max =   mx::arg<double>("max", 3, _args, _kwargs, r0 + range);
-        double tol =   mx::arg<double>("tol", 4, _args, _kwargs, 0.01 * (max-min));
-        return potential_checkerr(potential_create_harmonic(min, max, k, r0, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+	return result;
 }
 
-static PyObject *_linear(PyObject *_self, PyObject *_args, PyObject *_kwargs){
-    Log(LOG_TRACE) ;
-    
-    try {
-        double k =     mx::arg<double>("k", 0, _args, _kwargs);
-        double min =   mx::arg<double>("min", 1, _args, _kwargs, std::numeric_limits<double>::epsilon());
-        double max =   mx::arg<double>("max", 2, _args, _kwargs, 10);
-        double tol =   mx::arg<double>("tol", 3, _args, _kwargs, 0.01 * (max-min));
-        return potential_checkerr(potential_create_linear(min, max, k, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+MxPotential& MxPotential::operator+(const MxPotential& rhs) {
+	MxPotential *p = new MxPotential();
+
+	// Enforce compatibility
+	if(this->flags & POTENTIAL_ANGLE && !(rhs.flags & POTENTIAL_ANGLE)) {
+		mx_exp(std::invalid_argument("Incompatible potentials"));
+		return potential_null;
+	}
+
+	p->pca = this;
+	p->pcb = const_cast<MxPotential*>(&rhs);
+	p->kind = POTENTIAL_KIND_COMBINATION;
+	p->flags = p->flags | POTENTIAL_SUM;
+
+	std::string pName = this->name;
+	pName += std::string(" PLUS ");
+	pName += p->pcb->name;
+	char *cname = new char[pName.size() + 1];
+	std::strcpy(cname, pName.c_str());
+	p->name = cname;
+	return *p;
 }
 
-static PyObject *_harmonic_angle(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-
-    try {
-        double k = mx::arg<double>("k", 0, _args, _kwargs);
-        double theta0 = mx::arg<double>("theta0", 1, _args, _kwargs);
-        double min = mx::arg<double>("min", 2, _args, _kwargs, 0.0);
-        double max = mx::arg<double>("max", 3, _args, _kwargs, M_PI);
-        double tol = mx::arg<double>("tol", 4, _args, _kwargs, 0.005 * std::abs(max-min));
-
-        return potential_checkerr(potential_create_harmonic_angle( min, max, k, theta0, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+std::string MxPotential::toString() {
+	MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+    if(mx::io::toFile(this, metaData, fe) != S_OK) 
+        return "";
+    return mx::io::toStr(fe, metaData);
 }
 
-
-static PyObject *_harmonic_dihedral(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-    
-    try {
-        double k = mx::arg<double>("k", 0, _args, _kwargs);
-        int n = mx::arg<int>("n", 1, _args, _kwargs);
-        double delta = mx::arg<double>("delta", 2, _args, _kwargs);
-        double tol = mx::arg<double>("tol", 3, _args, _kwargs, 0.001);
-        return potential_checkerr(potential_create_harmonic_dihedral( k, n, delta, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
+MxPotential *MxPotential::fromString(const std::string &str) {
+    return mx::io::fromString<MxPotential*>(str);
 }
 
-// potential_create_well(double k, double n, double r0, double tol, double min, double max)
-
-static PyObject *_well(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-
-    try {
-        double k =   mx::arg<double>("k",   0, _args, _kwargs);
-        double n =   mx::arg<double>("n",   1, _args, _kwargs);
-        double r0 =  mx::arg<double>("r0",  2, _args, _kwargs);
-        double min = mx::arg<double>("min", 3, _args, _kwargs, 0.0);
-        double max = mx::arg<double>("max", 4, _args, _kwargs, 0.99 * r0);
-        double tol = mx::arg<double>("tol", 5, _args, _kwargs, 0.01 * std::abs(min - max));
-
-        return potential_checkerr(potential_create_well(k, n, r0, tol, min, max));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
-}
-
-
-static PyObject *_glj(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-    
-    try {
-        double e =   mx::arg<double>("e",   0, _args, _kwargs);
-        int m =   mx::arg<double>("m",   1, _args, _kwargs, 3);
-        int n =  mx::arg<double>("n",  2, _args, _kwargs, 2*m);
-        double k = mx::arg<double>("k", 3, _args, _kwargs, 0);
-        double r0 = mx::arg<double>("r0", 4, _args, _kwargs, 1);
-        double min = mx::arg<double>("min", 5, _args, _kwargs, 0.05 * r0);
-        double max = mx::arg<double>("max", 6, _args, _kwargs, 3 * r0);
-        double tol = mx::arg<double>("tol", 7, _args, _kwargs, 0.01);
-        bool shifted = mx::arg<bool>("shifted", 8, _args, _kwargs, false);
-        
-        return potential_checkerr(potential_create_glj(e, n, m, k, r0, min, max, tol, shifted));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
-}
-
-static PyObject *_morse(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-    
-    try {
-        double d = mx::arg<double>("d", 0, _args, _kwargs, 1);
-        double a = mx::arg<double>("a", 1, _args, _kwargs, 6);
-        double r0 = mx::arg<double>("r0", 2, _args, _kwargs, 0);
-        double min = mx::arg<double>("min", 3, _args, _kwargs, 0.0001);
-        double max = mx::arg<double>("max", 4, _args, _kwargs, 3);
-        double tol = mx::arg<double>("tol", 5, _args, _kwargs, 0.001);
-        
-        return potential_checkerr(potential_create_morse(d, a, r0, min, max, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
-}
-
-static PyObject *_overlapping_sphere(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-    
-    try {
-        double mu =   mx::arg<double>("mu",   0, _args, _kwargs, 1);
-        double kc = mx::arg<double>("kc", 1, _args, _kwargs, 1);
-        double kh = mx::arg<double>("kh", 2, _args, _kwargs, 0.0);
-        double r0 = mx::arg<double>("r0", 3, _args, _kwargs, 0.0);
-        double min = mx::arg<double>("min", 4, _args, _kwargs, 0.001);
-        double max = mx::arg<double>("max", 5, _args, _kwargs, 10);
-        double tol = mx::arg<double>("tol", 6, _args, _kwargs, 0.001);
-        
-        return potential_checkerr(potential_create_overlapping_sphere(mu, kc, kh, r0, min, max, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
-}
-
-
-
-static PyObject *_potential_power(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-    Log(LOG_TRACE) ;
-    
-    try {
-        double k =   mx::arg<double>("k",   0, _args, _kwargs, 1);
-        double r0 = mx::arg<double>("r0", 1, _args, _kwargs, 1.0);
-        double alpha = mx::arg<double>("alpha", 2, _args, _kwargs, 1.0);
-        
-        double defaultMin = 0.1;
-        double defaultTol;
-        double defaultMax = 3.0;
-        
-        if(alpha >= 1) {
-            defaultTol = 0.001;
-        }
-        else {
-            defaultTol = 0.01;
-        }
-        
-        if(r0 > 0) {
-            if(alpha <= 1) {
-                defaultMin = r0;
-            }
-            else {
-                defaultMin = 0.1 * r0;
-            }
-            defaultMax = 3.0 * r0;
-        }
-        
-        double min = mx::arg<double>("min", 4, _args, _kwargs, defaultMin);
-        double max = mx::arg<double>("max", 5, _args, _kwargs, defaultMax);
-        double tol = mx::arg<double>("tol", 6, _args, _kwargs, defaultTol);
-        
-        if(alpha <= 1 && min < r0) {
-            PyErr_WarnEx(PyExc_Warning,
-                         "Creating a power potential with alpha less than or equal to one, \
-                         and min less than r0 is discontinous and unstable", 1);
-        }
-        
-        return potential_checkerr(potential_create_power(k, r0, alpha, min, max, tol));
-    }
-    catch (const std::exception &e) {
-        C_EXP(e); return NULL;
-    }
-}
-
-
-static PyObject *_potential_dpd(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
+MxPotential *MxPotential::lennard_jones_12_6(double min, double max, double A, double B, double *tol) {
     Log(LOG_TRACE);
-    
-    
-    float alpha =   mx::arg<double>("alpha",   0, _args, _kwargs, 1);
-    float gamma = mx::arg<double>("gamma", 1, _args, _kwargs, 1.0);
-    float sigma = mx::arg<double>("sigma", 2, _args, _kwargs, 1.0);
-    float cutoff = mx::arg<double>("cutoff", 3, _args, _kwargs, 1.0);
-    bool shifted = mx::arg<bool>("shifted", 4, _args, _kwargs, false);
-    
-    return DPDPotential_New(alpha, gamma, sigma, cutoff, shifted);
-};
 
-
-
-
-static PyObject *_potential_set_value(PyObject *_self, PyObject *_args, PyObject *_kwargs) {
-   
-    PyObject *key = PyTuple_GetItem(_args, 0);
-    PyObject *value = PyTuple_GetItem(_args, 1);
-    
-    if(key == NULL || value == NULL) {
-        PyErr_SetString(PyExc_RuntimeError, "potential_set_dict_value arguments null");
-        return NULL;
+    try {
+        return potential_checkerr(potential_create_LJ126(min, max, A, B, potential_defarg(tol, 0.001 * (max - min))));
     }
-    
-    int result = PyDict_SetItem(MxPotential_Type.tp_dict, key, value);
-    
-    if(result) {
+    catch (const std::exception &e) {
+        mx_exp(e);
         return NULL;
-    }
-    else {
-        Py_RETURN_NONE;
     }
 }
 
+MxPotential *MxPotential::lennard_jones_12_6_coulomb(double min, double max, double A, double B, double q, double *tol) {
+    Log(LOG_TRACE);
 
+    try {
+        return potential_checkerr(potential_create_LJ126_Coulomb(min, max, A, B, q, potential_defarg(tol, 0.001 * (max - min))));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
 
-static PyMethodDef potential_methods[] = {
-    {
-        "lennard_jones_12_6",
-        (PyCFunction)_lennard_jones_12_6,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        "Creates a #potential representing a 12-6 Lennard-Jones potential          \n"
-        "                                                                          \n"
-        "@param min The smallest radius for which the potential will be constructed. \n"
-        "@param max The largest radius for which the potential will be constructed. \n"
-        "@param A The first parameter of the Lennard-Jones potential. \n"
-        "@param B The second parameter of the Lennard-Jones potential. \n"
-        "@param tol The tolerance to which the interpolation should match the exact \n"
-        "potential. \n"
-        " \n"
-        "@return A newly-allocated #potential representing the potential \n"
-        "@f$ \\left( \\frac{A}{r^{12}} - \\frac{B}{r^6} \\right) @f$ in @f$[a,b]@f$ \n"
-        "or @c NULL on error (see #potential_err). \n"
-    },
-    {
-        "lennard_jones_12_6_coulomb",
-        (PyCFunction)_lennard_jones_12_6_coulomb,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        ""
-    },
-    {
-        "soft_sphere",
-        (PyCFunction)_soft_sphere,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        ""
-    },
-    {
-        "ewald",
-        (PyCFunction)_ewald,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        ""
-    },
-    {
-        "coulomb",
-        (PyCFunction)_coulomb,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        ""
-    },
-    {
-        "harmonic",
-        (PyCFunction)_harmonic,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        ""
-    },
-    {
-        "linear",
-        (PyCFunction)_linear,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        ""
-    },
-    {
-        "harmonic_angle",
-        (PyCFunction)_harmonic_angle,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        ""
-    },
-    {
-        "harmonic_dihedral",
-        (PyCFunction)_harmonic_dihedral,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        ""
-    },
-    {
-        "well",
-        (PyCFunction)_well,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        "Square well potential"
-    },
-    {
-        "glj",
-        (PyCFunction)_glj,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        "Generalized Lennard-Joned potential"
-    },
-    {
-        "os",
-        (PyCFunction)_overlapping_sphere,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        "Overlapping Sphere (soft) potential"
-    },
-    {
-        "overlapping_sphere",
-        (PyCFunction)_overlapping_sphere,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-       "Overlapping Sphere (soft) potential"
-    },
-    {
-        "_set_dict_value",
-        (PyCFunction)_potential_set_value,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        "set dictionary value"
-    },
-    {
-        "force",
-        (PyCFunction)potential_force,
-        METH_VARARGS | METH_KEYWORDS,
-        "calc force"
-    },
-    {
-        "power",
-        (PyCFunction)_potential_power,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        "calc force"
-    },
-    {
-        "dpd",
-        (PyCFunction)_potential_dpd,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        "calc force"
-    },
-    {
-        "morse",
-        (PyCFunction)_morse,
-        METH_VARARGS | METH_KEYWORDS | METH_STATIC,
-        "Morse potential"
-    },
-    {
-        "bind",
-        (PyCFunction)MxPotential_Bind,
-        METH_VARARGS | METH_KEYWORDS,
-        "bind potential to stuff"
-    },
-    {NULL}
+MxPotential *MxPotential::soft_sphere(double kappa, double epsilon, double r0, int eta, double *min, double *max, double *tol, bool *shift) {
+    Log(LOG_TRACE);
+
+    try {
+		auto _min = potential_defarg(min, 0.0);
+		auto _max = potential_defarg(max, 2.0);
+        return potential_checkerr(potential_create_SS(eta, kappa, epsilon, r0, _min, _max, 
+													  potential_defarg(tol, 0.001 * (_max - _min)), 
+													  potential_defarg(shift, false)));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::ewald(double min, double max, double q, double kappa, double *tol, unsigned int *periodicOrder) {
+    Log(LOG_TRACE);
+
+    try {
+		unsigned int _periodicOrder = potential_defarg(periodicOrder, 0);
+		MxPotential *p;
+
+		if (_periodicOrder == 0) p = potential_create_Ewald(min, max, q, kappa, potential_defarg(tol, 0.001 * (max - min)));
+		else p = potential_create_Ewald_periodic(min, max, q, kappa, potential_defarg(tol, 0.001 * (max - min)), _periodicOrder);
+
+        return potential_checkerr(p);
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::coulomb(double q, double *min, double *max, double *tol, unsigned int *periodicOrder) {
+    Log(LOG_TRACE);
+
+    try {
+		auto _min = potential_defarg(min, 0.01);
+		auto _max = potential_defarg(max, 2.0);
+		auto _tol = potential_defarg(tol, 0.001 * (_max - _min));
+		unsigned int _periodicOrder = potential_defarg(periodicOrder, 0);
+		MxPotential *p;
+
+		if (_periodicOrder == 0) p = potential_create_Coulomb(_min, _max, q, _tol);
+		else p = potential_create_Coulomb_periodic(_min, _max, q, _tol, _periodicOrder);
+
+        return potential_checkerr(p);
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+double _coulombR_cos_f(double r) {
+	return cos(r);
+}
+
+double _coulombR_cos_fp(double r) {
+	return - sin(r);
+}
+
+double _coulombR_cos_f6p(double r) {
+	return - cos(r);
+}
+
+double _coulombR_sin_f(double r) {
+	return sin(r);
+}
+
+double _coulombR_sin_fp(double r) {
+	return cos(r);
+}
+
+double _coulombR_sin_f6p(double r) {
+	return - sin(r);
+}
+
+static void coulombR_eval(struct MxPotential *p, 
+						  struct MxParticle *part_i, 
+						  struct MxParticle *part_j, 
+						  FPTYPE *dx, 
+						  FPTYPE r2, 
+						  FPTYPE *e, 
+						  FPTYPE *f);
+
+struct MxCoulombRPotential : public MxPotential {
+	MxPotential *pc, *ps;
+	unsigned int modes;
+	double q, kappa;
+	std::vector<double> mode_cfs;
+	std::vector<MxVector3d> mode_rvecs;
+
+	MxCoulombRPotential(MxPotential* pc, 
+						MxPotential* ps, 
+						double min, 
+						double max, 
+						double q, 
+						double kappa, 
+						unsigned int modes, 
+						std::vector<double> mode_cfs, 
+						std::vector<MxVector3d> mode_rvecs) : 
+		MxPotential(), pc(pc), ps(ps), q(q), kappa(kappa), modes(modes), mode_cfs(mode_cfs), mode_rvecs(mode_rvecs)
+	{
+		this->a = min;
+		this->b = max;
+		this->flags |= POTENTIAL_COULOMBR;
+		this->kind = POTENTIAL_KIND_BYPARTICLES;
+		this->name = "CoulombR";
+		this->eval_byparts = &coulombR_eval;
+	}
 };
 
-
-static PyGetSetDef potential_getset[] = {
-    {
-        .name = "name",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            return carbon::cast(std::string(obj->name));
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "min",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            return mx::cast(obj->a);
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "max",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            return mx::cast(obj->b);
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "cutoff",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            return mx::cast(obj->b);
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "domain",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            PyObject *res = PyTuple_New(2);
-            PyTuple_SET_ITEM(res, 0, mx::cast(obj->a));
-            PyTuple_SET_ITEM(res, 1, mx::cast(obj->b));
-            return res;
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "intervals",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            return mx::cast(obj->n);
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            PyErr_SetString(PyExc_PermissionError, "read only");
-            return -1;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "flags",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            return mx::cast(obj->flags);
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            MxPotential *obj = (MxPotential*)_obj;
-            obj->flags = mx::cast<uint32_t>(val);
-            return 0;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "bound",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            if(obj->flags & POTENTIAL_BOUND) {
-                Py_RETURN_TRUE;
-            }
-            else {
-                Py_RETURN_FALSE;
-            }
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            MxPotential *obj = (MxPotential*)_obj;
-            if(PyBool_Check(val)) {
-                if(val == Py_True) {
-                    obj->flags |= POTENTIAL_BOUND;
-                }
-                else {
-                    obj->flags &= ~POTENTIAL_BOUND;
-                }
-            }
-            else {
-                PyErr_SetString(PyExc_ValueError, "Potential.bound is a boolean");
-            }
-            return 0;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "r0",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            return PyFloat_FromDouble(obj->r0_plusone - 1);
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            MxPotential *obj = (MxPotential*)_obj;
-            if(PyNumber_Check(val)) {
-                obj->r0_plusone = PyFloat_AsDouble(val) + 1.;
-            }
-            else {
-                PyErr_SetString(PyExc_ValueError, "r0 is a number");
-                return -1;
-            }
-            return 0;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "shifted",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            if(obj->flags & POTENTIAL_SHIFTED) {
-                Py_RETURN_TRUE;
-            }
-            else {
-                Py_RETURN_FALSE;
-            }
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            MxPotential *obj = (MxPotential*)_obj;
-            if(PyBool_Check(val)) {
-                if(val == Py_True) {
-                    obj->flags |= POTENTIAL_SHIFTED;
-                }
-                else {
-                    obj->flags &= ~POTENTIAL_SHIFTED;
-                }
-            }
-            else {
-                PyErr_SetString(PyExc_ValueError, "shifted is a boolean");
-            }
-            return 0;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {
-        .name = "r_square",
-        .get = [](PyObject *_obj, void *p) -> PyObject* {
-            MxPotential *obj = (MxPotential*)_obj;
-            if(obj->flags & POTENTIAL_R2) {
-                Py_RETURN_TRUE;
-            }
-            else {
-                Py_RETURN_FALSE;
-            }
-        },
-        .set = [](PyObject *_obj, PyObject *val, void *p) -> int {
-            MxPotential *obj = (MxPotential*)_obj;
-            if(PyBool_Check(val)) {
-                if(val == Py_True) {
-                    obj->flags |= POTENTIAL_R2;
-                }
-                else {
-                    obj->flags &= POTENTIAL_R2;
-                }
-            }
-            else {
-                PyErr_SetString(PyExc_ValueError, "r_square is a boolean");
-            }
-            return 0;
-        },
-        .doc = "test doc",
-        .closure = NULL
-    },
-    {NULL}
-};
-
-
-PyTypeObject MxPotential_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "Potential",
-    .tp_basicsize = sizeof(MxPotential),
-    .tp_itemsize =       0, 
-    .tp_dealloc =        potential_dealloc,
-                         0, // .tp_print changed to tp_vectorcall_offset in python 3.8
-    .tp_getattr =        0, 
-    .tp_setattr =        0, 
-    .tp_as_async =       0, 
-    .tp_repr =           0, 
-    .tp_as_number =      0, 
-    .tp_as_sequence =    0, 
-    .tp_as_mapping =     0, 
-    .tp_hash =           0, 
-    .tp_call =           potential_call,
-    .tp_str =            0, 
-    .tp_getattro =       0, 
-    .tp_setattro =       0, 
-    .tp_as_buffer =      0, 
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = "Custom objects",
-    .tp_traverse =       0, 
-    .tp_clear =          0, 
-    .tp_richcompare =    0, 
-    .tp_weaklistoffset = 0, 
-    .tp_iter =           0, 
-    .tp_iternext =       0, 
-    .tp_methods =        potential_methods,
-    .tp_members =        0, 
-    .tp_getset =         potential_getset,
-    .tp_base =           0, 
-    .tp_dict =           0, 
-    .tp_descr_get =      0, 
-    .tp_descr_set =      0, 
-    .tp_dictoffset =     0, 
-    .tp_init =           0, 
-    .tp_alloc =          [] (struct _typeobject *type, Py_ssize_t n_items) -> PyObject* {
-
-                             if(PyType_IsSubtype(type, &MxPotential_Type) == 0) {
-                                 PyErr_SetString(PyExc_ValueError, "MxPotential.tp_alloc can only be used for MxPotential derived objects");
-                                 return NULL;
-                             }
-
-                             if(type->tp_itemsize != 0 || n_items != 0) {
-                                 PyErr_SetString(PyExc_ValueError, "MxPotential.tp_alloc can only be used for single instance potentials");
-                                 return NULL;
-                             }
-
-                             return (PyObject*)potential_alloc(type);
-                         },
-    .tp_new =            0, 
-    .tp_free =           0, 
-    .tp_is_gc =          0, 
-    .tp_bases =          0, 
-    .tp_mro =            0, 
-    .tp_cache =          0, 
-    .tp_subclasses =     0, 
-    .tp_weaklist =       0, 
-    .tp_del =            0, 
-    .tp_version_tag =    0, 
-    .tp_finalize =       0, 
-};
-
-
-HRESULT _MxPotential_init(PyObject *m)
+void coulombR_eval(struct MxPotential *p, 
+				   struct MxParticle *part_i, 
+				   struct MxParticle *part_j, 
+				   FPTYPE *dx, 
+				   FPTYPE r2, 
+				   FPTYPE *e, 
+				   FPTYPE *f) 
 {
-    if (PyType_Ready((PyTypeObject*)&MxPotential_Type) < 0) {
-        return E_FAIL;
+	MxCoulombRPotential *pr = (MxCoulombRPotential*)p;
+
+	FPTYPE xe, xf, *ce, *cf, vale, valf;
+	int inde, indf, k;
+	MxVector3d fr(0.0);
+	float TWO_PI = 2.0 * M_PI;
+
+	for (unsigned int m = 0; m < pr->mode_cfs.size(); m++) {
+		auto mode_cf = pr->mode_cfs[m];
+		auto mode_rvec = pr->mode_rvecs[m];
+		double r = mode_rvec[0] * dx[0] + mode_rvec[1] * dx[1] + mode_rvec[2] * dx[2];
+		double r0 = r;
+		
+		if (r < 0.0) while (r < 0.0) r += TWO_PI;
+		else if (r > TWO_PI) while (r > TWO_PI) r -= TWO_PI;
+		
+		inde = FPTYPE_FMAX( FPTYPE_ZERO , pr->pc->alpha[0] + r * (pr->pc->alpha[1] + r * pr->pc->alpha[2]) );
+		indf = FPTYPE_FMAX( FPTYPE_ZERO , pr->ps->alpha[0] + r * (pr->ps->alpha[1] + r * pr->ps->alpha[2]) );
+		ce = &(pr->pc->c[inde * potential_chunk]);
+		cf = &(pr->ps->c[indf * potential_chunk]);
+		xe = (r - ce[0]) * ce[1];
+		xf = (r - cf[0]) * cf[1];
+		vale = ce[2] * xe + ce[3];
+		valf = cf[2] * xf + cf[3];
+		for (k = 4; k < potential_chunk; k++) {
+			vale = vale * xe + ce[k];
+			valf = valf * xf + cf[k];
+		}
+
+		*e += mode_cf * vale;
+		fr += mode_cf * valf * mode_rvec;
+	}
+
+	f[0] += fr[0];
+	f[1] += fr[1];
+	f[2] += fr[2];
+}
+
+MxPotential* MxPotential::coulombR(double q, double kappa, double min, double max, unsigned int* modes) {
+	unsigned int _modes = potential_defarg(modes, 1);
+
+	std::vector<double> mode_cfs;
+	std::vector<MxVector3d> mode_rvecs;
+
+	unsigned int modesX = _Engine.boundary_conditions.periodic & space_periodic_x ? _modes : 0;
+	unsigned int modesY = _Engine.boundary_conditions.periodic & space_periodic_y ? _modes : 0;
+	unsigned int modesZ = _Engine.boundary_conditions.periodic & space_periodic_z ? _modes : 0;
+
+	double A = 2.0 * M_PI / (_Engine.s.dim[0] * _Engine.s.dim[1] * _Engine.s.dim[2]);
+	for (unsigned int mx = 0; mx <= modesX; mx++) {
+		double kx = 2.0 * M_PI * mx / _Engine.s.dim[0];
+
+		for (unsigned int my = 0; my <= modesY; my++) {
+			double ky = 2.0 * M_PI * my / _Engine.s.dim[1];
+
+			for (unsigned int mz = 0; mz <= modesZ; mz++) {
+				double kz = 2.0 * M_PI * mz / _Engine.s.dim[2];
+				double kmag2 = kx * kx + ky * ky + kz * kz;
+
+				if (kmag2 == 0.0) continue;
+
+				mode_rvecs.push_back({kx, ky, kz});
+
+				double expPow = M_PI / kappa;
+				mode_cfs.push_back(A / kmag2 * q * exp(- expPow * expPow * kmag2));
+			}
+		}
+	}
+
+	MxPotential* pc = new MxPotential();
+	MxPotential* ps = new MxPotential();
+
+	potential_init(pc, &_coulombR_cos_f, &_coulombR_cos_fp, &_coulombR_cos_f6p, 0, 2*M_PI, 1e-4);
+	potential_init(ps, &_coulombR_sin_f, &_coulombR_sin_fp, &_coulombR_sin_f6p, 0, 2*M_PI, 1e-4);
+
+	return new MxCoulombRPotential(pc, ps, min, max, q, kappa, _modes, mode_cfs, mode_rvecs);
+}
+
+MxPotential *MxPotential::harmonic(double k, double r0, double *min, double *max, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+        auto range = r0;
+
+        auto _min = potential_defarg(min, r0 - range);
+        auto _max = potential_defarg(max, r0 + range);
+        return potential_checkerr(potential_create_harmonic(_min, _max, k, r0, potential_defarg(tol, 0.01 * (_max - _min))));
     }
-
-    Py_INCREF(&MxPotential_Type);
-    if (PyModule_AddObject(m, "Potential", (PyObject *)&MxPotential_Type) < 0) {
-        Py_DECREF(&MxPotential_Type);
-        return E_FAIL;
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
     }
+}
 
-    PyModule_AddObject(m, "POTENTIAL_NONE", mx::cast((int)PotentialFlags::POTENTIAL_NONE));
-    PyModule_AddObject(m, "POTENTIAL_LJ126", mx::cast((int)PotentialFlags::POTENTIAL_LJ126));
-    PyModule_AddObject(m, "POTENTIAL_EWALD", mx::cast((int)PotentialFlags::POTENTIAL_EWALD));
-    PyModule_AddObject(m, "POTENTIAL_COULOMB", mx::cast((int)PotentialFlags::POTENTIAL_COULOMB));
-    PyModule_AddObject(m, "POTENTIAL_SINGLE", mx::cast((int)PotentialFlags::POTENTIAL_SINGLE));
-    PyModule_AddObject(m, "POTENTIAL_R2", mx::cast((int)PotentialFlags::POTENTIAL_R2));
-    PyModule_AddObject(m, "POTENTIAL_R", mx::cast((int)PotentialFlags::POTENTIAL_R));
-    PyModule_AddObject(m, "POTENTIAL_ANGLE", mx::cast((int)PotentialFlags::POTENTIAL_ANGLE));
-    PyModule_AddObject(m, "POTENTIAL_HARMONIC", mx::cast((int)PotentialFlags::POTENTIAL_HARMONIC));
-    PyModule_AddObject(m, "POTENTIAL_DIHEDRAL", mx::cast((int)PotentialFlags::POTENTIAL_DIHEDRAL));
-    PyModule_AddObject(m, "POTENTIAL_SWITCH", mx::cast((int)PotentialFlags::POTENTIAL_SWITCH));
-    PyModule_AddObject(m, "POTENTIAL_REACTIVE", mx::cast((int)PotentialFlags::POTENTIAL_REACTIVE));
-    PyModule_AddObject(m, "POTENTIAL_SCALED", mx::cast((int)PotentialFlags::POTENTIAL_SCALED));
-    PyModule_AddObject(m, "POTENTIAL_SHIFTED", mx::cast((int)PotentialFlags::POTENTIAL_SHIFTED));
+MxPotential *MxPotential::linear(double k, double *min, double *max, double *tol) {
+    Log(LOG_TRACE);
 
-    return S_OK;
+    try {
+		auto _min = potential_defarg(min, std::numeric_limits<double>::epsilon());
+		auto _max = potential_defarg(max, 10.0);
+        return potential_checkerr(potential_create_linear(_min, _max, k, potential_defarg(tol, 0.01 * (_max - _min))));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::harmonic_angle(double k, double theta0, double *min, double *max, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+		auto _min = potential_defarg(min, 0.0);
+		auto _max = potential_defarg(max, M_PI);
+        return potential_checkerr(potential_create_harmonic_angle(_min, _max, k, theta0, potential_defarg(tol, 0.005 * (_max - _min))));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::harmonic_dihedral(double k, double delta, double *min, double *max, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+		auto _min = potential_defarg(min, 0.0);
+		auto _max = potential_defarg(max, M_PI);
+        return potential_checkerr(potential_create_harmonic_dihedral(_min, _max, k, delta, potential_defarg(tol, 0.005 * (_max - _min))));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::cosine_dihedral(double k, int n, double delta, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+		return potential_checkerr(potential_create_cosine_dihedral(k, n, delta, potential_defarg(tol, 0.01)));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::well(double k, double n, double r0, double *min, double *max, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+		auto _min = potential_defarg(min, 0.0);
+        auto _max = potential_defarg(max, 0.99 * r0);
+        return potential_checkerr(potential_create_well(k, n, r0, 
+														potential_defarg(tol, 0.005 * (_max - _min)), 
+														_min, _max));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::glj(double e, double *m, double *n, double *k, double *r0, double *min, double *max, double *tol, bool *shifted) {
+    Log(LOG_TRACE);
+
+    try {
+        auto _m = potential_defarg(m, 3.0);
+		auto _r0 = potential_defarg(r0, 1.0);
+		return potential_checkerr(potential_create_glj(e, _m, 
+													   potential_defarg(n, 2*_m), 
+													   potential_defarg(k, 0.0), 
+													   _r0, 
+													   potential_defarg(min, 0.05 * _r0), 
+													   potential_defarg(max, 3.0 * _r0), 
+													   potential_defarg(tol, 0.01), 
+													   potential_defarg(shifted, false)));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::morse(double *d, double *a, double *r0, double *min, double *max, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+		return potential_checkerr(potential_create_morse(potential_defarg(d, 1.0), 
+														 potential_defarg(a, 6.0), 
+														 potential_defarg(r0, 0.0), 
+														 potential_defarg(min, 0.0001), 
+														 potential_defarg(max, 3.0), 
+														 potential_defarg(tol, 0.001)));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::overlapping_sphere(double *mu, double *kc, double *kh, double *r0, double *min, double *max, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+        return potential_checkerr(potential_create_overlapping_sphere(potential_defarg(mu, 1.0), 
+																	  potential_defarg(kc, 1.0), 
+																	  potential_defarg(kh, 0.0), 
+																	  potential_defarg(r0, 0.0), 
+																	  potential_defarg(min, 0.001), 
+																	  potential_defarg(max, 10.0), 
+																	  potential_defarg(tol, 0.001)));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::power(double *k, double *r0, double *alpha, double *min, double *max, double *tol) {
+    Log(LOG_TRACE);
+
+    try {
+		auto _r0 = potential_defarg(r0, 1.0);
+		auto _alpha = potential_defarg(alpha, 2.0);
+
+        double defaultMin;
+        if(_r0 > 0) defaultMin = _alpha <= 1 ? _r0 : 0.1 * _r0;
+		else defaultMin = 0.1;
+        
+        return potential_checkerr(potential_create_power(potential_defarg(k, 1.0), 
+														 _r0, 
+														 _alpha, 
+														 potential_defarg(min, defaultMin), 
+														 potential_defarg(max, _r0 > 0 ? 3.0 * _r0 : 3.0), 
+														 potential_defarg(tol, _alpha >= 1.0 ? 0.001 : 0.01)));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+MxPotential *MxPotential::dpd(double *alpha, double *gamma, double *sigma, double *cutoff, bool *shifted) {
+    Log(LOG_TRACE);
+
+    try {
+        return new DPDPotential(potential_defarg(alpha, 1.0), 
+								potential_defarg(gamma, 1.0), 
+								potential_defarg(sigma, 1.0), 
+								potential_defarg(cutoff, 1.0), 
+								potential_defarg(shifted, false));
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+Differentiator *customDiff = NULL;
+
+double customDiffEval_fp(double r) {
+	return customDiff->fnp(r, 1);
+}
+
+double customDiffEval_f6p(double r) {
+	return customDiff->fnp(r, 6);
+}
+
+MxPotential *MxPotential::custom(double min, double max, double (*f)(double), double (*fp)(double), double (*f6p)(double), double *tol, uint32_t *flags) {
+	Log(LOG_TRACE);
+
+    try {
+		struct MxPotential *p = new MxPotential();
+
+		bool differencing = fp == NULL || f6p == NULL;
+
+		if (differencing) {
+			customDiff = new Differentiator(f, min, max);
+			if (fp == NULL) fp = &customDiffEval_fp;
+			if (f6p == NULL) f6p = &customDiffEval_f6p;
+		}
+
+		p->name = "Custom";
+		p->flags = potential_defarg(flags, POTENTIAL_R);
+
+		int err;
+
+		if ((err = potential_init(p, f, fp, f6p, min, max, potential_defarg(tol, 0.001)))) {
+			Log(LOG_ERROR) << "error creating potential: " << potential_err_msg[-err];
+			MxAligned_Free(p);
+
+			if (differencing) {
+				delete customDiff;
+				customDiff = 0;
+			}
+
+			return NULL;
+		}
+
+		p->a = min;
+		p->b = max;
+
+		if (differencing) {
+			delete customDiff;
+			customDiff = 0;
+		}
+
+		return potential_checkerr(p);
+    }
+    catch (const std::exception &e) {
+        mx_exp(e);
+        return NULL;
+    }
+}
+
+static double pyEval(PyObject *f, double r) {
+	PyObject *py_r = mx::cast<double, PyObject*>(r);
+	PyObject *args = PyTuple_Pack(1, py_r);
+	PyObject *py_result = PyObject_CallObject(f, args);
+	Py_XDECREF(args);
+
+	if (py_result == NULL) {
+		PyObject *err = PyErr_Occurred();
+		PyErr_Clear();
+		return 0.0;
+	}
+
+	double result = mx::cast<PyObject, double>(py_result);
+	Py_DECREF(py_result);
+	return result;
+}
+
+static PyObject *pyCustom_f, *pyCustom_fp, *pyCustom_f6p;
+
+static double pyEval_f(double r) {
+	return pyEval(pyCustom_f, r);
+}
+
+static double pyEval_fp(double r) {
+	return pyEval(pyCustom_fp, r);
+}
+
+static double pyEval_f6p(double r) {
+	return pyEval(pyCustom_f6p, r);
+}
+
+MxPotential *MxPotential::customPy(double min, double max, PyObject *f, PyObject *fp, PyObject *f6p, double *tol, uint32_t *flags) {
+	pyCustom_f = f;
+	double (*eval_fp)(double) = NULL;
+	double (*eval_f6p)(double) = NULL;
+
+	if (fp != Py_None) {
+		pyCustom_fp = fp;
+		eval_fp = &pyEval_fp;
+	}
+	
+	if (f6p != Py_None) {
+		pyCustom_f6p = f6p;
+		eval_f6p = &pyEval_f6p;
+	}
+
+	auto p = MxPotential::custom(min, max, &pyEval_f, eval_fp, eval_f6p, tol, flags);
+
+	pyCustom_f = NULL;
+	pyCustom_fp = NULL;
+	pyCustom_f6p = NULL;
+
+	return p;
+}
+
+float MxPotential::getMin() {
+    return a;
+}
+
+float MxPotential::getMax() {
+    return b;
+}
+
+float MxPotential::getCutoff() {
+    return b;
+}
+
+std::pair<float, float> MxPotential::getDomain() {
+    return std::make_pair(a, b);
+}
+
+int MxPotential::getIntervals() {
+    return n;
+}
+
+bool MxPotential::getBound() {
+    return (bool)flags & POTENTIAL_BOUND;
+}
+
+void MxPotential::setBound(const bool &_bound) {
+    if(_bound) flags |= POTENTIAL_BOUND;
+    else flags &= ~POTENTIAL_BOUND;
+}
+
+FPTYPE MxPotential::getR0() {
+    return r0_plusone - 1.0;
+}
+
+void MxPotential::setR0(const FPTYPE &_r0) {
+    r0_plusone = _r0 + 1.0;
+}
+
+bool MxPotential::getShifted() {
+    return (bool)flags & POTENTIAL_SHIFTED;
+}
+
+void MxPotential::setShifted(const bool &_shifted) {
+    if(_shifted) flags |= POTENTIAL_SHIFTED;
+    else flags &= ~POTENTIAL_SHIFTED;
+}
+
+bool MxPotential::getPeriodic() {
+	return (bool) flags & POTENTIAL_PERIODIC;
+}
+
+bool MxPotential::getRSquare() {
+    return (bool)flags & POTENTIAL_R2;
+}
+
+void MxPotential::setRSquare(const bool &_rSquare) {
+    if(_rSquare) flags |= POTENTIAL_R2;
+    else flags &= POTENTIAL_R2;
 }
 
 
@@ -3232,13 +3444,7 @@ static double potential_create_well_d6fdr6 ( double r ) {
 
 MxPotential *potential_create_well(double k, double n, double r0, double tol, double min, double max)
 {
-    MxPotential *p = NULL;
-
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    MxPotential *p = new MxPotential();
 
     p->flags =  POTENTIAL_R2  | POTENTIAL_LJ126 ;
     p->name = "Well";
@@ -3253,7 +3459,7 @@ MxPotential *potential_create_well(double k, double n, double r0, double tol, do
             &potential_create_well_dfdr ,
             &potential_create_well_d6fdr6 ,
             min , max , tol ) < 0 ) {
-        CAligned_Free(p);
+        MxAligned_Free(p);
         return NULL;
     }
 
@@ -3313,13 +3519,7 @@ MxPotential *potential_create_glj(double e, double m, double n, double k,
 {
     Log(LOG_DEBUG) << "e: " << e << ", r0: " << r0 << ", m: " << m << ", n:"
                    << n << ", k:" << k << ", min: " << min << ", max: " << max << ", tol: " << tol;
-    MxPotential *p = NULL;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    MxPotential *p = new MxPotential();
     
     p->flags =  POTENTIAL_R2  | POTENTIAL_LJ126 | POTENTIAL_SCALED;
     p->name = "Generalized Lennard-Jones";
@@ -3336,7 +3536,7 @@ MxPotential *potential_create_glj(double e, double m, double n, double k,
                        &potential_create_glj_dfdr ,
                        &potential_create_glj_d6fdr6 ,
                        min , max , tol ) < 0 ) {
-        CAligned_Free(p);
+        MxAligned_Free(p);
         return NULL;
     }
     
@@ -3389,13 +3589,7 @@ static double potential_create_morse_d6fdr6 ( double r ) {
 MxPotential *potential_create_morse(double d, double a, double r0,
                                    double min, double max, double tol)
 {
-    MxPotential *p = NULL;
-    
-    /* allocate the potential */
-    if ((p = potential_alloc(&MxPotential_Type)) == NULL ) {
-        error(potential_err_malloc);
-        return NULL;
-    }
+    MxPotential *p = new MxPotential();
     
     p->flags =  POTENTIAL_R2  | POTENTIAL_SHIFTED;
     p->name = "Morse";
@@ -3414,7 +3608,7 @@ MxPotential *potential_create_morse(double d, double a, double r0,
                        &potential_create_morse_dfdr ,
                        &potential_create_morse_d6fdr6 ,
                        min , max , tol ) < 0 ) {
-        CAligned_Free(p);
+        MxAligned_Free(p);
         return NULL;
     }
     
@@ -3424,6 +3618,193 @@ MxPotential *potential_create_morse(double d, double a, double r0,
 }
 
 
-int MxPotential_Check(PyObject *obj) {
-    return PyObject_IsInstance(obj, (PyObject*)&MxPotential_Type);
+namespace mx { namespace io {
+
+
+#define MXPOTENTIALIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXPOTENTIALIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+HRESULT toFile(MxCoulombRPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+	MXPOTENTIALIOTOEASY(fe, "modes", dataElement->modes);
+	MXPOTENTIALIOTOEASY(fe, "q", dataElement->q);
+	MXPOTENTIALIOTOEASY(fe, "kappa", dataElement->kappa);
+
+	fileElement->type = "CoulombRPotential";
+	
+	return S_OK;
 }
+
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxCoulombRPotential **dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+	unsigned int modes;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "modes", &modes);
+	double q, kappa;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "q", &q);
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "kappa", &kappa);
+	float a, b;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "a", &a);
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "b", &b);
+
+	*dataElement = (MxCoulombRPotential*)MxPotential::coulombR(q, kappa, a, b, &modes);
+
+	return S_OK;
+}
+
+template <>
+HRESULT toFile(MxPotential *dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+	fileElement->type = "Potential";
+
+	MXPOTENTIALIOTOEASY(fe, "kind", dataElement->kind);
+	MXPOTENTIALIOTOEASY(fe, "flags", dataElement->flags);
+
+	std::string name = dataElement->name;
+	MXPOTENTIALIOTOEASY(fe, "name", name);
+
+	// Handle kind
+	
+	if(dataElement->kind == POTENTIAL_KIND_COMBINATION) {
+		if(dataElement->pca != NULL) 
+			MXPOTENTIALIOTOEASY(fe, "PotentialA", dataElement->pca);
+		if(dataElement->pcb != NULL) 
+			MXPOTENTIALIOTOEASY(fe, "PotentialB", dataElement->pcb);
+		return S_OK;
+	}
+
+	MXPOTENTIALIOTOEASY(fe, "a", dataElement->a);
+	MXPOTENTIALIOTOEASY(fe, "b", dataElement->b);
+
+	if(dataElement->kind == POTENTIAL_KIND_DPD) {
+		return toFile((DPDPotential*)dataElement, metaData, fileElement);
+	} 
+
+	if(dataElement->kind == POTENTIAL_KIND_BYPARTICLES) {
+		if(dataElement->flags | POTENTIAL_COULOMBR) {
+			return toFile((MxCoulombRPotential*)dataElement, metaData, fileElement);
+		}
+	}
+	
+	// Regular kind
+
+	std::vector<FPTYPE> alpha;
+	for(unsigned int i = 0; i < 4; i++) 
+		alpha.push_back(dataElement->alpha[i]);
+	MXPOTENTIALIOTOEASY(fe, "alpha", alpha);
+
+	MXPOTENTIALIOTOEASY(fe, "n", dataElement->n);
+
+	std::vector<FPTYPE> c;
+	for(unsigned int i = 0; i < (dataElement->n + 1) * potential_chunk; i++) {
+		c.push_back(dataElement->c[i]);
+	}
+	MXPOTENTIALIOTOEASY(fe, "c", c);
+
+	MXPOTENTIALIOTOEASY(fe, "r0_plusone", dataElement->r0_plusone);
+	MXPOTENTIALIOTOEASY(fe, "mu", dataElement->mu);
+
+	std::vector<FPTYPE> offset;
+	for(unsigned int i = 0; i < 3; i++) 
+		offset.push_back(dataElement->offset[i]);
+	MXPOTENTIALIOTOEASY(fe, "offset", offset);
+
+	return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxPotential **dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+	uint32_t kind;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "kind", &kind);
+
+	uint32_t flags;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "flags", &flags);
+
+	if(kind == POTENTIAL_KIND_DPD) {
+		DPDPotential *dpdp = NULL;
+		if(fromFile(fileElement, metaData, &dpdp) != S_OK) 
+			return E_FAIL;
+		*dataElement = dpdp;
+		return S_OK;
+	}
+	else if(kind == POTENTIAL_KIND_BYPARTICLES) {
+		if(flags | POTENTIAL_COULOMBR) {
+			MxCoulombRPotential *pcr = NULL;
+			if(fromFile(fileElement, metaData, &pcr) != S_OK) 
+				return E_FAIL;
+			*dataElement = pcr;
+			return S_OK;
+		}
+	}
+
+	MxPotential *p = new MxPotential();
+
+	p->kind = kind;
+	p->flags = flags;
+
+	std::string name;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "name", &name);
+	char *cname = new char[name.size() + 1];
+	std::strcpy(cname, name.c_str());
+	p->name = cname;
+	
+	if(p->kind == POTENTIAL_KIND_COMBINATION) {
+		if(fileElement.children.find("PotentialA") != fileElement.children.end()) {
+			p->pca = NULL;
+			MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "PotentialA", &p->pca);
+		}
+		if(fileElement.children.find("PotentialB") != fileElement.children.end()) {
+			p->pcb = NULL;
+			MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "PotentialB", &p->pcb);
+		}
+		*dataElement = p;
+		return S_OK;
+	} 
+	
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "a", &p->a);
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "b", &p->b);
+
+	std::vector<FPTYPE> alpha;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "alpha", &alpha);
+	for(unsigned int i = 0; i < 4; i++) 
+		p->alpha[i] = alpha[i];
+
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "n", &p->n);
+	
+	std::vector<FPTYPE> c;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "c", &c);
+	p->c = (FPTYPE*)malloc(sizeof(FPTYPE) * (p->n + 1) * potential_chunk);
+	for(unsigned int i = 0; i < (p->n + 1) * potential_chunk; i++) 
+		p->c[i] = c[i];
+
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "r0_plusone", &p->r0_plusone);
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "mu", &p->mu);
+
+	std::vector<FPTYPE> offset;
+	MXPOTENTIALIOFROMEASY(feItr, fileElement.children, metaData, "offset", &offset);
+	for(unsigned int i = 0; i < 3; i++) 
+		p->offset[i] = offset[i];
+
+	*dataElement = p;
+
+	return S_OK;
+}
+
+}};

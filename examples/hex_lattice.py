@@ -1,17 +1,18 @@
-import mechanica as m
+import mechanica as mx
 
-m.init()
+mx.init()
 
 
-class A (m.Particle):
+class AType(mx.ParticleType):
     radius = 0.2
 
-uc = m.lattice.hex(1, A)
+
+A = AType.get()
+
+uc = mx.lattice.hex(1, A)
 
 print(uc)
 
+mx.lattice.create_lattice(uc, [6, 4, 6])
 
-
-m.lattice.create_lattice(uc, [6, 4, 6])
-
-m.show()
+mx.show()

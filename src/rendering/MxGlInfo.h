@@ -10,9 +10,25 @@
 
 #include "Mechanica.h"
 
-PyObject *Mx_GlInfo(PyObject *args, PyObject *kwds);
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-PyObject *Mx_EglInfo(PyObject *args, PyObject *kwds);
+class CAPI_EXPORT MxGLInfo {
+
+public:
+
+    MxGLInfo() {};
+    ~MxGLInfo() {};
+
+    static const std::unordered_map<std::string, std::string> getInfo();
+    static const std::vector<std::string> getExtensionsInfo();
+
+};
+
+std::unordered_map<std::string, std::string> Mx_GlInfo();
+
+std::string Mx_EglInfo();
 
 std::string gl_info();
 

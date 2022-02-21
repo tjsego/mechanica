@@ -14,7 +14,7 @@ def init(*args, **kwargs):
     global flag, downflag, shiftflag
 
     w = widgets.Image(value=m.system.image_data(), width=600)
-    d = Event(source=w, watched_events=['mousedown', 'mouseup', 'mousemove', 'keyup','keydown', 'wheel'])
+    d = Event(source=w, watched_events=['mousedown', 'mouseup', 'mousemove', 'keyup', 'keydown', 'wheel'])
     no_drag = Event(source=w, watched_events=['dragstart'], prevent_default_action = True)
     d.on_dom_event(listen_mouse)
     run = widgets.ToggleButton(
@@ -94,11 +94,11 @@ def init(*args, **kwargs):
     # the simulator initializes creating the gl context on the creating thread.
     # this function gets called on that same creating thread, so we need to
     # release the context before calling in on the background thread.
-    m.system.context_release()
+    m.system.contextRelease()
 
     def background_threading():
         global flag
-        m.system.context_make_current()
+        m.system.contextMakeCurrent()
         while True:
             if flag:
                 m.step()
@@ -106,7 +106,7 @@ def init(*args, **kwargs):
             time.sleep(0.01)
 
         # done with background thead, release the context.
-        m.system.context_release()
+        m.system.contextRelease()
 
 
     t = threading.Thread(target=background_threading)
@@ -127,21 +127,21 @@ def run(*args, **kwargs):
 def listen_mouse(event):
     global downflag, shiftflag
     if event['type'] == "mousedown":
-        m.system.camera_init_mouse([event['dataX'], event['dataY']])
+        m.system.cameraInitMouse([event['dataX'], event['dataY']])
         downflag = True
     if event['type'] == "mouseup":
         downflag = False
     if event['type'] == "mousemove":
         if downflag and not shiftflag:
-            m.system.camera_rotate_mouse([event['dataX'], event['dataY']])
+            m.system.cameraRotateMouse([event['dataX'], event['dataY']])
         if downflag and shiftflag:
-            m.system.camera_translate_mouse([event['dataX'], event['dataY']])
+            m.system.cameraTranslateMouse([event['dataX'], event['dataY']])
 
     if event['shiftKey'] == True:
         shiftflag = True
     if event['shiftKey'] == False:
         shiftflag = False
     if event['type'] == "wheel":
-        m.system.camera_zoom_by(event['deltaY'])
+        m.system.cameraZoomBy(event['deltaY'])
     if event['type'] == "keydown" and event['code'] == "KeyR":
-        m.system.camera_reset()
+        m.system.cameraReset()

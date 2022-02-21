@@ -7,162 +7,19 @@
 
 #include <Flux.hpp>
 #include "MxParticle.h"
-#include "CSpeciesList.hpp"
-#include "CStateVector.hpp"
-#include <MxConvert.hpp>
-#include <CConvert.hpp>
+#include "../../state/MxSpeciesList.h"
+#include "../../state/MxStateVector.h"
 #include "flux_eval.hpp"
 #include "space.h"
-#include "space_cell.h"
 #include "engine.h"
+#include "../../MxLogger.h"
+#include "../../mx_error.h"
+#include "../../MxUtil.h"
+#include <../../io/MxFIO.h>
 
-
-
-PyTypeObject MxFluxes_Type = {
-    CObject_HEAD_INIT(NULL)
-    "Fluxes"                              , // .tp_name
-    sizeof(MxFluxes)                      , // .tp_basicsize
-    sizeof(MxFlux)                        , // .tp_itemsize
-    (destructor )0                        , // .tp_dealloc
-    0                                     , // .tp_print
-    0                                     , // .tp_getattr
-    0                                     , // .tp_setattr
-    0                                     , // .tp_as_async
-    (reprfunc)0                 , // .tp_repr
-    0                                     , // .tp_as_number
-    0                                     , // .tp_as_sequence
-    0                                     , // .tp_as_mapping
-    0                                     , // .tp_hash
-    0                                     , // .tp_call
-    (reprfunc)0                 , // .tp_str
-    0                                     , // .tp_getattro
-    0                                     , // .tp_setattro
-    0                                     , // .tp_as_buffer
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE , // .tp_flags
-    0                                     , // .tp_doc
-    0                                     , // .tp_traverse
-    0                                     , // .tp_clear
-    0                                     , // .tp_richcompare
-    0                                     , // .tp_weaklistoffset
-    0                                     , // .tp_iter
-    0                                     , // .tp_iternext
-    0                       , // .tp_methods
-    0                                     , // .tp_members
-    0                      , // .tp_getset
-    0                                     , // .tp_base
-    0                                     , // .tp_dict
-    0                                     , // .tp_descr_get
-    0                                     , // .tp_descr_set
-    0                                     , // .tp_dictoffset
-    (initproc)0               , // .tp_init
-    0                                     , // .tp_alloc
-    PyType_GenericNew                     , // .tp_new
-    0                                     , // .tp_free
-    0                                     , // .tp_is_gc
-    0                                     , // .tp_bases
-    0                                     , // .tp_mro
-    0                                     , // .tp_cache
-    0                                     , // .tp_subclasses
-    0                                     , // .tp_weaklist
-    0                                     , // .tp_del
-    0                                     , // .tp_version_tag
-    0                                     , // .tp_finalize
-#ifdef COUNT_ALLOCS
-    0                                     , // .tp_allocs
-    0                                     , // .tp_frees
-    0                                     , // .tp_maxalloc
-    0                                     , // .tp_prev
-    0                                     , // .tp_next
-#endif
-};
-
-PyTypeObject MxFlux_Type = {
-    CVarObject_HEAD_INIT(NULL, 0)
-    "Flux"                                , // .tp_name
-    sizeof(MxFlux)                      , // .tp_basicsize
-    sizeof(int32_t)                       , // .tp_itemsize
-    (destructor )0         , // .tp_dealloc
-    0                                     , // .tp_print
-    0                                     , // .tp_getattr
-    0                                     , // .tp_setattr
-    0                                     , // .tp_as_async
-    (reprfunc)0                 , // .tp_repr
-    0                                     , // .tp_as_number
-    0                                     , // .tp_as_sequence
-    0                                     , // .tp_as_mapping
-    0                                     , // .tp_hash
-    0                                     , // .tp_call
-    (reprfunc)0                 , // .tp_str
-    0                                     , // .tp_getattro
-    0                                     , // .tp_setattro
-    0                                     , // .tp_as_buffer
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE , // .tp_flags
-    0                                     , // .tp_doc
-    0                                     , // .tp_traverse
-    0                                     , // .tp_clear
-    0                                     , // .tp_richcompare
-    0                                     , // .tp_weaklistoffset
-    0                                     , // .tp_iter
-    0                                     , // .tp_iternext
-    0                       , // .tp_methods
-    0                                     , // .tp_members
-    0                      , // .tp_getset
-    0                                     , // .tp_base
-    0                                     , // .tp_dict
-    0                                     , // .tp_descr_get
-    0                                     , // .tp_descr_set
-    0                                     , // .tp_dictoffset
-    (initproc)0               , // .tp_init
-    0                                     , // .tp_alloc
-    PyType_GenericNew                     , // .tp_new
-    0                                     , // .tp_free
-    0                                     , // .tp_is_gc
-    0                                     , // .tp_bases
-    0                                     , // .tp_mro
-    0                                     , // .tp_cache
-    0                                     , // .tp_subclasses
-    0                                     , // .tp_weaklist
-    0                                     , // .tp_del
-    0                                     , // .tp_version_tag
-    0                                     , // .tp_finalize
-#ifdef COUNT_ALLOCS
-    0                                     , // .tp_allocs
-    0                                     , // .tp_frees
-    0                                     , // .tp_maxalloc
-    0                                     , // .tp_prev
-    0                                     , // .tp_next
-#endif
-};
-
-HRESULT _MxFlux_Init(PyObject* m) {
-    if (PyType_Ready((PyTypeObject*)&MxFluxes_Type) < 0) {
-        return E_FAIL;
-    }
-    
-    Py_INCREF(&MxFluxes_Type);
-    if (PyModule_AddObject(m, "Fluxes", (PyObject *)&MxFluxes_Type) < 0) {
-        Py_DECREF(&MxFluxes_Type);
-        return E_FAIL;
-    }
-    
-    if (PyType_Ready((PyTypeObject*)&MxFlux_Type) < 0) {
-        return E_FAIL;
-    }
-    
-    Py_INCREF(&MxFlux_Type);
-    if (PyModule_AddObject(m, "Flux", (PyObject *)&MxFlux_Type) < 0) {
-        Py_DECREF(&MxFlux_Type);
-        return E_FAIL;
-    }
-    
-    return S_OK;
-}
-
-PyObject* MxFluxes_FluxEx(FluxKind kind, PyObject *_a, PyObject *_b,
-                          const std::string& name, float k, float decay, float target) {
-    
-    MxParticleType *a = MxParticleType_Get(_a);
-    MxParticleType *b = MxParticleType_Get(_b);
+MxFluxes *MxFluxes::create(FluxKind kind, MxParticleType *a, MxParticleType *b,
+                           const std::string& name, float k, float decay, float target) 
+{
     
     if(!a || !b) {
         throw std::invalid_argument("Invalid particle types");
@@ -178,8 +35,8 @@ PyObject* MxFluxes_FluxEx(FluxKind kind, PyObject *_a, PyObject *_b,
         throw std::invalid_argument(msg);
     }
     
-    int index_a = a->species->index_of(name);
-    int index_b = b->species->index_of(name);
+    int index_a = a->species->index_of(name.c_str());
+    int index_b = b->species->index_of(name.c_str());
     
     if(index_a < 0) {
         std::string msg = std::string("particle type ") +
@@ -193,103 +50,102 @@ PyObject* MxFluxes_FluxEx(FluxKind kind, PyObject *_a, PyObject *_b,
         throw std::invalid_argument(msg);
     }
     
-    int fluxes_index1 = _Engine.max_type * a->id + b->id;
-    int fluxes_index2 = _Engine.max_type * b->id + a->id;
-    
-    MxFluxes *fluxes = _Engine.fluxes[fluxes_index1];
+    MxFluxes *fluxes = engine_getfluxes(&_Engine, a->id, b->id);
     
     if(fluxes == NULL) {
-        fluxes = MxFluxes_New(8);
+        fluxes = MxFluxes::newFluxes(8);
     }
     
-    fluxes = MxFluxes_AddFlux(kind, fluxes, a->id, b->id, index_a, index_b, k, decay, target);
+    fluxes = MxFluxes::addFlux(kind, fluxes, a->id, b->id, index_a, index_b, k, decay, target);
     
-    _Engine.fluxes[fluxes_index1] = fluxes;
-    _Engine.fluxes[fluxes_index2] = fluxes;
+    engine_addfluxes(&_Engine, fluxes, a->id, b->id);
     
-    return Py_INCREF(fluxes), fluxes;
+    return fluxes;
 }
 
-PyObject* MxFluxes_Fick(PyObject *self, PyObject *args, PyObject *kwargs) {
+MxFluxes *MxFluxes::fluxFick(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &decay) {
     try {
-        PyObject *a =      mx::arg<PyObject*>("A", 0, args, kwargs);
-        PyObject *b =      mx::arg<PyObject*>("B", 1, args, kwargs);
-        std::string name = mx::arg<std::string>("name", 2, args, kwargs);
-        float k =          mx::arg<float>("k", 3, args, kwargs);
-        float decay =      mx::arg<float>("decay", 4, args, kwargs, 0.f);
-        
-        return MxFluxes_FluxEx(FLUX_FICK, a, b, name, k, decay, 0.f);
+        return MxFluxes::create(FLUX_FICK, A, B, name, k, decay, 0.f);
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
 }
 
+MxFluxes *MxFluxes::flux(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &decay) {
+    return fluxFick(A, B, name, k, decay);
+}
 
-PyObject* MxFluxes_Secrete(PyObject *self, PyObject *args, PyObject *kwargs) {
+MxFluxes *MxFluxes::secrete(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay) {
     try {
-        PyObject *a =      mx::arg<PyObject*>("A", 0, args, kwargs);
-        PyObject *b =      mx::arg<PyObject*>("B", 1, args, kwargs);
-        std::string name = mx::arg<std::string>("name", 2, args, kwargs);
-        float k =          mx::arg<float>("k", 3, args, kwargs);
-        float target =     mx::arg<float>("target", 4, args, kwargs);
-        float decay =      mx::arg<float>("decay", 5, args, kwargs, 0.f);
-        
-        return MxFluxes_FluxEx(FLUX_SECRETE, a, b, name, k, decay, target);
+        return MxFluxes::create(FLUX_SECRETE, A, B, name, k, decay, target);
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
 }
 
-PyObject* MxFluxes_Uptake(PyObject *self, PyObject *args, PyObject *kwargs) {
+MxFluxes *MxFluxes::uptake(MxParticleType *A, MxParticleType *B, const std::string &name, const float &k, const float &target, const float &decay) {
     try {
-        PyObject *a =      mx::arg<PyObject*>("A", 0, args, kwargs);
-        PyObject *b =      mx::arg<PyObject*>("B", 1, args, kwargs);
-        std::string name = mx::arg<std::string>("name", 2, args, kwargs);
-        float k =          mx::arg<float>("k", 3, args, kwargs);
-        float target =     mx::arg<float>("target", 4, args, kwargs);
-        float decay =      mx::arg<float>("decay", 5, args, kwargs, 0.f);
-        
-        return MxFluxes_FluxEx(FLUX_UPTAKE, a, b, name, k, decay, target);
+        return MxFluxes::create(FLUX_UPTAKE, A, B, name, k, decay, target);
     }
     catch(const std::exception &e) {
-        C_RETURN_EXP(e);
+        MX_RETURN_EXP(e);
     }
 }
 
-static void integrate_statevector(CStateVector *s) {
+std::string MxFluxes::toString() {
+    
+    // todo: fix type deduction for mx::io::toString<MxFluxes>
+
+    MxIOElement *fe = new MxIOElement();
+    MxMetaData metaData;
+    if(mx::io::toFile(*this, metaData, fe) != S_OK) 
+        return "";
+    return mx::io::toStr(fe, metaData);
+}
+
+MxFluxes *MxFluxes::fromString(const std::string &str) {
+    return new MxFluxes(mx::io::fromString<MxFluxes>(str));
+}
+
+static void integrate_statevector(MxStateVector *s, float dt=-1.0) {
+    if(dt < 0) dt = _Engine.dt;
+
     for(int i = 0; i < s->size; ++i) {
+        s->species_flags[i] = (uint32_t)s->species->item(i)->flags();
         float konst = (s->species_flags[i] & SPECIES_KONSTANT) ? 0.f : 1.f;
-        s->fvec[i] += _Engine.dt * s->q[i] * konst;
+        s->fvec[i] += dt * s->q[i] * konst;
         s->q[i] = 0; // clear flux for next step
     }
 }
 
-
-HRESULT MxFluxes_Integrate(int cellId) {
-    
-    space_cell *c = &_Engine.s.cells[cellId];
+HRESULT MxFluxes_integrate(space_cell *c, float dt) {
     MxParticle *p;
-    CStateVector *s;
-    
+    MxStateVector *s;
     
     for(int i = 0; i < c->count; ++i) {
         p = &c->parts[i];
         s = p->state_vector;
         
         if(s) {
-            integrate_statevector(s);
+            integrate_statevector(s, dt);
         }
     }
     
     return S_OK;
 }
 
-MxFluxes *MxFluxes_AddFlux(FluxKind kind, MxFluxes *fluxes,
-                           int16_t typeId_a, int16_t typeId_b,
-                           int32_t index_a, int32_t index_b,
-                           float k, float decay, float target) {
+HRESULT MxFluxes_integrate(int cellId) {
+    return MxFluxes_integrate(&_Engine.s.cells[cellId]);
+}
+
+MxFluxes *MxFluxes::addFlux(FluxKind kind, MxFluxes *fluxes,
+                            int16_t typeId_a, int16_t typeId_b,
+                            int32_t index_a, int32_t index_b,
+                            float k, float decay, float target) {
+    Log(LOG_TRACE);
+
     int i = 0;
     if(fluxes->size + 1 < fluxes->fluxes_size * MX_SIMD_SIZE) {
         i = fluxes->fluxes[0].size;
@@ -298,7 +154,7 @@ MxFluxes *MxFluxes_AddFlux(FluxKind kind, MxFluxes *fluxes,
     }
     else {
         std::string msg = "currently only ";
-        msg += std::to_string(MX_SIMD_SIZE) + " flux species supported, please let Andy know you want more. ";
+        msg += std::to_string(MX_SIMD_SIZE) + " flux species supported, please let the Mechanica development team know you want more. ";
         throw std::logic_error(msg);
     }
     
@@ -316,21 +172,17 @@ MxFluxes *MxFluxes_AddFlux(FluxKind kind, MxFluxes *fluxes,
     return fluxes;
 }
 
-
-MxFluxes *MxFluxes_New(int32_t init_size) {
-    
+MxFluxes* MxFluxes::newFluxes(int32_t init_size) {
     Log(LOG_TRACE);
 
     struct MxFluxes *obj = NULL;
     
-    PyTypeObject *type = &MxFluxes_Type;
-    
     int32_t blocks = std::ceil((double)init_size / MX_SIMD_SIZE);
     
-    int total_size = type->tp_basicsize + blocks * type->tp_itemsize;
+    int total_size = sizeof(MxFluxes) + blocks * sizeof(MxFlux);
 
     /* allocate the potential */
-    if ((obj = (MxFluxes * )CAligned_Malloc(total_size, 16 )) == NULL ) {
+    if ((obj = (MxFluxes * )MxAligned_Malloc(total_size, 16 )) == NULL ) {
         return NULL;
     }
     
@@ -338,18 +190,163 @@ MxFluxes *MxFluxes_New(int32_t init_size) {
     
     obj->size = 0;
     obj->fluxes_size = blocks;
-    
-    if (type->tp_flags & Py_TPFLAGS_HEAPTYPE)
-        Py_INCREF(type);
-
-    PyObject_INIT(obj, type);
-
-    if (PyType_IS_GC(type)) {
-        assert(0 && "should not get here");
-        //  _PyObject_GC_TRACK(obj);
-    }
 
     return obj;
 }
 
 
+namespace mx { namespace io {
+
+#define MXFLUXIOTOEASY(fe, key, member) \
+    fe = new MxIOElement(); \
+    if(toFile(member, metaData, fe) != S_OK)  \
+        return E_FAIL; \
+    fe->parent = fileElement; \
+    fileElement->children[key] = fe;
+
+#define MXFLUXIOFROMEASY(feItr, children, metaData, key, member_p) \
+    feItr = children.find(key); \
+    if(feItr == children.end() || fromFile(*feItr->second, metaData, member_p) != S_OK) \
+        return E_FAIL;
+
+template <>
+HRESULT toFile(const TypeIdPair &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFLUXIOTOEASY(fe, "a", dataElement.a);
+    MXFLUXIOTOEASY(fe, "b", dataElement.b);
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, TypeIdPair *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "a", &dataElement->a);
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "b", &dataElement->b);
+
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxFlux &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+
+    MxIOElement *fe;
+
+    MXFLUXIOTOEASY(fe, "size", dataElement.size);
+    std::vector<int8_t> kinds;
+    std::vector<TypeIdPair> type_ids;
+    std::vector<int32_t> indices_a;
+    std::vector<int32_t> indices_b;
+    std::vector<float> coef;
+    std::vector<float> decay_coef;
+    std::vector<float> target;
+
+    for(unsigned int i = 0; i < MX_SIMD_SIZE; i++) {
+        kinds.push_back(dataElement.kinds[i]);
+        type_ids.push_back(dataElement.type_ids[i]);
+        indices_a.push_back(dataElement.indices_a[i]);
+        indices_b.push_back(dataElement.indices_b[i]);
+        coef.push_back(dataElement.coef[i]);
+        decay_coef.push_back(dataElement.decay_coef[i]);
+        target.push_back(dataElement.target[i]);
+    }
+
+    MXFLUXIOTOEASY(fe, "kinds", kinds);
+    MXFLUXIOTOEASY(fe, "type_ids", type_ids);
+    MXFLUXIOTOEASY(fe, "indices_a", indices_a);
+    MXFLUXIOTOEASY(fe, "indices_b", indices_b);
+    MXFLUXIOTOEASY(fe, "coef", coef);
+    MXFLUXIOTOEASY(fe, "decay_coef", decay_coef);
+    MXFLUXIOTOEASY(fe, "target", target);
+
+    fileElement->type = "Flux";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxFlux *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "size", &dataElement->size);
+    
+    std::vector<int8_t> kinds;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "kinds", &kinds);
+
+    std::vector<TypeIdPair> type_ids;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "type_ids", &type_ids);
+    
+    std::vector<int32_t> indices_a;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "indices_a", &indices_a);
+    
+    std::vector<int32_t> indices_b;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "indices_b", &indices_b);
+    
+    std::vector<float> coef;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "coef", &coef);
+    
+    std::vector<float> decay_coef;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "decay_coef", &decay_coef);
+    
+    std::vector<float> target;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "target", &target);
+
+    for(unsigned int i = 0; i < MX_SIMD_SIZE; i++) {
+        
+        dataElement->kinds[i] = kinds[i];
+        dataElement->type_ids[i] = type_ids[i];
+        dataElement->indices_a[i] = indices_a[i];
+        dataElement->indices_b[i] = indices_b[i];
+        dataElement->coef[i] = coef[i];
+        dataElement->decay_coef[i] = decay_coef[i];
+        dataElement->target[i] = target[i];
+
+    }
+    
+    return S_OK;
+}
+
+template <>
+HRESULT toFile(const MxFluxes &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
+    
+    MxIOElement *fe;
+
+    MXFLUXIOTOEASY(fe, "fluxes_size", dataElement.fluxes_size);
+    
+    std::vector<MxFlux> fluxes;
+    for(unsigned int i = 0; i < dataElement.size; i++) 
+        fluxes.push_back(dataElement.fluxes[i]);
+    MXFLUXIOTOEASY(fe, "fluxes", fluxes);
+
+    fileElement->type = "Fluxes";
+
+    return S_OK;
+}
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxFluxes *dataElement) {
+
+    MxIOChildMap::const_iterator feItr;
+
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "fluxes_size", &dataElement->fluxes_size);
+    
+    std::vector<MxFlux> fluxes;
+    MXFLUXIOFROMEASY(feItr, fileElement.children, metaData, "fluxes", &fluxes);
+    MxFlux flux = fluxes[0];
+    for(unsigned int i = 0; i < fluxes.size(); i++) { 
+        dataElement = MxFluxes::addFlux((FluxKind)flux.kinds[i], 
+                                        dataElement, 
+                                        flux.type_ids[i].a, flux.type_ids[i].b, 
+                                        flux.indices_a[i], flux.indices_b[i], 
+                                        flux.coef[i], flux.decay_coef[i], flux.target[i]);
+    }
+    
+    return S_OK;
+}
+
+}};

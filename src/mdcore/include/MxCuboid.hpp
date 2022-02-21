@@ -10,37 +10,37 @@
 
 #include <platform.h>
 #include <MxBody.hpp>
-#include <Magnum/Math/Quaternion.h>
+
+struct MxCuboidHandle;
 
 struct MxCuboid : MxBody
 {
     MxCuboid();
+
+    static MxCuboidHandle *create(MxVector3f *pos=NULL, MxVector3f *size=NULL, MxVector3f *orientation=NULL);
     
     // extents / size of the cuboid
-    Magnum::Vector3 size;
+    MxVector3f size;
 };
 
-struct MxCuboidHandle : PyObject
+struct MxCuboidHandle : MxBodyHandle
 {
-    int32_t id;
+    MxCuboid *cuboid();
+
+    MxCuboidHandle() : MxBodyHandle() {}
+    MxCuboidHandle(const int32_t &id) : MxBodyHandle(id) {}
+    MxCuboidHandle(const MxVector3f &pos, const MxVector3f &size, const MxVector3f &orientation);
+    
+    /**
+     * @brief For initializing a cuboid after constructing with default constructor
+     * 
+     * @param pos cuboid position
+     * @param size cuboid size
+     * @param orientation cuboid orientation
+     */
+    void init(const MxVector3f &pos, const MxVector3f &size={1, 1, 1}, const MxVector3f &orientation={0, 0, 0});
+    void scale(const MxVector3f &scale);
 };
-
-/**
- * check if a handle is a cublid
- */
-CAPI_FUNC(int) MxCuboid_Check(PyObject *obj);
-
-/**
- * check if a object is a cuboid type
- */
-CAPI_FUNC(int) MxCuboidType_Check(PyObject *obj);
-
-/**
- * vertex is special, it extends particle.
- */
-CAPI_DATA(PyTypeObject) MxCuboid_Type;
-
-HRESULT _MxCuboid_Init(PyObject *m);
 
 void MxCuboid_UpdateAABB(MxCuboid *c);
 

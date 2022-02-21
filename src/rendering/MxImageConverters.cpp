@@ -35,7 +35,7 @@
 #include <MagnumPlugins/TgaImageConverter/TgaImageConverter.h>
 #include <string.h>
 #include <tuple>
-#include <carbon.h>
+#include <MxLogger.h>
 
 using namespace Magnum;
 using namespace Magnum::Trade;

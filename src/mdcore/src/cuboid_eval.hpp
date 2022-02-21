@@ -35,14 +35,14 @@
  * The cuboid AABB *includes* the cutoff distance.
  */
 MX_ALWAYS_INLINE bool aabb_intersect_cuboid_spacecell(MxCuboid *cuboid, struct space_cell *c) {
-    Magnum::Vector3 a_min = cuboid->aabb.min();
-    Magnum::Vector3 a_max = cuboid->aabb.max();
-    Magnum::Vector3 b_min = {
+    MxVector3f a_min = cuboid->aabb.min();
+    MxVector3f a_max = cuboid->aabb.max();
+    MxVector3f b_min = {
         float(c->origin[0]) - (float)_Engine.s.cutoff,
         float(c->origin[1]) - (float)_Engine.s.cutoff,
         float(c->origin[2]) - (float)_Engine.s.cutoff
     };
-    Magnum::Vector3 b_max = {
+    MxVector3f b_max = {
         float(c->origin[0]) + (float)c->dim[0] + (float)_Engine.s.cutoff,
         float(c->origin[1]) + (float)c->dim[1] + (float)_Engine.s.cutoff,
         float(c->origin[2]) + (float)c->dim[2] + (float)_Engine.s.cutoff
@@ -59,9 +59,9 @@ MX_ALWAYS_INLINE bool aabb_intersect_cuboid_spacecell(MxCuboid *cuboid, struct s
  * cell local coords
  */
 MX_ALWAYS_INLINE bool aabb_intersect_cuboid_particle(MxCuboid *cuboid, MxParticle *p, struct space_cell *c) {
-    Magnum::Vector3 box_min = cuboid->aabb.min() - Magnum::Vector3(_Engine.s.cutoff);
-    Magnum::Vector3 box_max = cuboid->aabb.max() + Magnum::Vector3(_Engine.s.cutoff);
-    Magnum::Vector3 point = {
+    MxVector3f box_min = cuboid->aabb.min() - MxVector3f(_Engine.s.cutoff);
+    MxVector3f box_max = cuboid->aabb.max() + MxVector3f(_Engine.s.cutoff);
+    MxVector3f point = {
         p->position[0] + float(c->origin[0]),
         p->position[1] + float(c->origin[1]),
         p->position[2] + float(c->origin[2])
@@ -80,11 +80,11 @@ MX_ALWAYS_INLINE bool potential_eval_cuboid_particle(MxCuboid *cube, MxParticle 
         return false;
     }
     
-    Magnum::Vector3 box_min = cube->aabb.min() - Magnum::Vector3(_Engine.s.cutoff);
-    Magnum::Vector3 box_max = cube->aabb.max() + Magnum::Vector3(_Engine.s.cutoff);
+    MxVector3f box_min = cube->aabb.min() - MxVector3f(_Engine.s.cutoff);
+    MxVector3f box_max = cube->aabb.max() + MxVector3f(_Engine.s.cutoff);
     
     // point in global space
-    Magnum::Vector3 point = {
+    MxVector3f point = {
         part->position[0] + float(cell->origin[0]),
         part->position[1] + float(cell->origin[1]),
         part->position[2] + float(cell->origin[2])
@@ -108,13 +108,13 @@ MX_ALWAYS_INLINE bool potential_eval_cuboid_particle(MxCuboid *cube, MxParticle 
     point = cube->inv_orientation.transformVector(point);
     
     // absolute value of point, only work in octant 1.
-    Magnum::Vector3 absPoint = {std::abs(point[0]), std::abs(point[1]), std::abs(point[2])};
+    MxVector3f absPoint = {std::abs(point[0]), std::abs(point[1]), std::abs(point[2])};
     
-    Magnum::Vector3 halfSize = cube->size / 2;
+    MxVector3f halfSize = cube->size / 2;
     
     // distance between point and box surface, negative if inside the box.
-    Magnum::Vector3 distanceVec = absPoint - halfSize;
-    Magnum::Vector3 forceVec = {0, 0, 0};
+    MxVector3f distanceVec = absPoint - halfSize;
+    MxVector3f forceVec = {0, 0, 0};
     
     float r0, distance, force, energy;
     
@@ -192,9 +192,9 @@ MX_ALWAYS_INLINE bool potential_eval_cuboid_particle(MxCuboid *cube, MxParticle 
 
 inline std::vector<MxCuboid*> space_cell_intersecting_cuboids(struct space_cell *c) {
     std::vector<MxCuboid*> cuboids;
-    for (MxCuboid& cuboid : _Engine.s.cuboids) {
+    for(int i = 0; i < _Engine.s.cuboids.size(); i++) {
+        MxCuboid &cuboid = _Engine.s.cuboids[i];
         if(aabb_intersect_cuboid_spacecell(&cuboid, c)) {
-            aabb_intersect_cuboid_spacecell(&cuboid, c);
             cuboids.push_back(&cuboid);
         }
     }

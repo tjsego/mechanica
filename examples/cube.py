@@ -1,52 +1,56 @@
-import mechanica as m
-import numpy as np
+import mechanica as mx
 
 # dimensions of universe
-dim=np.array([30., 30., 30.])
+dim = [30., 30., 30.]
 
 dist = 3
 
-m.init(dim=dim,
-       cutoff=7,
-       integrator=m.FORWARD_EULER,
-       cells=[3, 3, 3],
-       dt=0.01)
+mx.init(dim=dim,
+        cutoff=7,
+        integrator=mx.FORWARD_EULER,
+        cells=[3, 3, 3],
+        dt=0.01)
 
-class A(m.Particle):
-    radius=0.5
-    dynamics = m.Newtonian
-    mass=5
-    style={"color":"MediumSeaGreen"}
 
-class Sphere(m.Particle):
-    radius=3
+class AType(mx.ParticleType):
+    radius = 0.5
+    dynamics = mx.Newtonian
+    mass = 5
+    style = {"color": "MediumSeaGreen"}
+
+
+class SphereType(mx.ParticleType):
+    radius = 3
     frozen = True
-    style={"color":"orange"}
+    style = {"color": "orange"}
 
-class Test(m.Particle):
-    radius=0
+
+class TestType(mx.ParticleType):
+    radius = 0
     frozen = True
-    style={"color":"orange"}
+    style = {"color": "orange"}
 
 
-p = m.Potential.glj(e=100, m=3, max=7)
+A = AType.get()
+Sphere = SphereType.get()
+Test = TestType.get()
 
-m.bind(p, A, Sphere)
-m.bind(p, A, Test)
-m.bind(p, A, m.Cuboid)
+p = mx.Potential.glj(e=100, m=3, max=7)
 
+mx.bind.types(p, A, Sphere)
+mx.bind.types(p, A, Test)
+mx.bind.cuboid(p, A)
 
 # above the sphere
-Sphere(m.Universe.center + [6, 0, 0])
-A(m.Universe.center + [6, 0, Sphere.radius + dist])
+Sphere(mx.Universe.center + [6, 0, 0])
+A(mx.Universe.center + [6, 0, Sphere.radius + dist])
 
 # above the test
-Test(m.Universe.center + [0, -10, 3])
-A(m.Universe.center + [0, -10, 3 + dist])
+Test(mx.Universe.center + [0, -10, 3])
+A(mx.Universe.center + [0, -10, 3 + dist])
 
 # above the cube
-c = m.Cuboid(m.Universe.center + [-5, 0, 0], size=[6, 6, 6])
-A(m.Universe.center + [-5, 0, 3 + dist])
+c = mx.Cuboid.create(mx.Universe.center + [-5, 0, 0], size=[6, 6, 6])
+A(mx.Universe.center + [-5, 0, 3 + dist])
 
-
-m.run()
+mx.run()

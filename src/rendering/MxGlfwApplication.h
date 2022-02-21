@@ -37,7 +37,7 @@ public:
     MxGlfwApplication(const Arguments &args);
 
 
-    HRESULT createContext(const MxSimulator::Config &conf) override;
+    HRESULT createContext(const MxSimulator_Config &conf) override;
 
     /**
      * This function processes only those events that are already in the event

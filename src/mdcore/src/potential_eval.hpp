@@ -24,7 +24,8 @@
 
 #include "MxPotential.h"
 #include "engine.h"
-
+#include "dpd_eval.hpp"
+#include "DissapativeParticleDynamics.hpp"
 
 /* This file contains the potential evaluation function als "extern inline",
    such that they can be inlined in the respective modules.
@@ -206,7 +207,88 @@ MX_ALWAYS_INLINE void potential_eval_r (struct MxPotential *p , FPTYPE r , FPTYP
     /* store the result */
     *e = ee; *f = eff * c[1];
 
+}
+
+MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
+                            MxPotential *pot, MxParticle *part_i, MxParticle *part_j,
+                            float *dx, float r2, float *epot) {
+    
+    float e;
+    bool result = false;
+    float _dx[3], _r2;
+    
+    if(pot->flags & POTENTIAL_PERIODIC) {
+        // Assuming elsewhere there's a corresponding potential in the opposite direction
+        _r2 = fptype_r2(dx, pot->offset, _dx);
     }
+    else {
+        _r2 = r2;
+        for (int k = 0; k < 3; k++) _dx[k] = dx[k];
+    }
+    
+    // if distance is less that potential min distance, define random
+    // for repulsive force.
+    if(_r2 < pot->a * pot->a) {
+        _dx[0] = space_cell_gaussian(cell->id);
+        _dx[1] = space_cell_gaussian(cell->id);
+        _dx[2] = space_cell_gaussian(cell->id);
+        float len = std::sqrt(_dx[0] * _dx[0] + _dx[1] * _dx[1] + _dx[2] * _dx[2]);
+        _dx[0] = _dx[0] * pot->a / len;
+        _dx[1] = _dx[1] * pot->a / len;
+        _dx[2] = _dx[2] * pot->a / len;
+        _r2 = pot->a * pot->a;
+    }
+    
+    if(pot->kind == POTENTIAL_KIND_DPD) {
+        /* update the forces if part in range */
+        if (dpd_eval((DPDPotential*)pot, space_cell_gaussian(cell->id), part_i, part_j, _dx, _r2 , &e)) {
+            
+            /* tabulate the energy */
+            *epot += e;
+            result = true;
+        }
+    }
+    else if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
+        FPTYPE fv[3] = {0., 0., 0.};
+
+        pot->eval_byparts(pot, part_i, part_j, _dx, _r2, &e, fv);
+
+        for (int k = 0 ; k < 3 ; k++ ) {
+            part_i->f[k] += fv[k];
+            part_j->f[k] -= fv[k];
+        }
+        
+        /* tabulate the energy */
+        *epot += e;
+        result = true;
+    }
+    else if(pot->kind == POTENTIAL_KIND_COMBINATION) {
+        if(pot->flags & POTENTIAL_SUM) {
+            potential_eval_super_ex(cell, pot->pca, part_i, part_j, _dx, _r2, epot);
+            potential_eval_super_ex(cell, pot->pcb, part_i, part_j, _dx, _r2, epot);
+            result = true;
+        }
+    }
+    else {
+        float f;
+    
+        /* update the forces if part in range */
+        if (potential_eval_ex(pot, part_i->radius, part_j->radius, _r2 , &e , &f )) {
+            
+            for (int k = 0 ; k < 3 ; k++ ) {
+                float w = f * _dx[k];
+                part_i->f[k] -= w;
+                part_j->f[k] += w;
+            }
+            
+            /* tabulate the energy */
+            *epot += e;
+            result = true;
+        }
+    }
+
+    return result;
+}
 
 
 /**

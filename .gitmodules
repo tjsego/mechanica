@@ -1,28 +1,21 @@
-[submodule "extern/mdcore"]
-	path = extern/mdcore
-	url = https://github.com/AndySomogyi/mdcore.git
 [submodule "extern/glfw"]
 	path = extern/glfw
-	url = https://github.com/AndySomogyi/glfw.git
+	url = https://github.com/tjsego/glfw.git
 [submodule "extern/magnum"]
 	path = extern/magnum
-	url = https://github.com/AndySomogyi/magnum.git
+	url = https://github.com/tjsego/magnum.git
 [submodule "extern/corrade"]
 	path = extern/corrade
-	url = https://github.com/AndySomogyi/corrade.git
+	url = https://github.com/tjsego/corrade.git
 [submodule "extern/Voroxx"]
 	path = extern/Voroxx
-	url = https://github.com/AndySomogyi/Voroxx.git
+	url = https://github.com/tjsego/Voroxx.git
 [submodule "extern/sundials"]
 	path = extern/sundials
-	url = https://github.com/AndySomogyi/sundials.git
+	url = https://github.com/tjsego/sundials.git
 [submodule "extern/DirectXMath"]
 	path = extern/DirectXMath
 	url = https://github.com/microsoft/DirectXMath.git
-[submodule "extern/carbon"]
-	path = extern/carbon
-	url = https://github.com/AndySomogyi/carbon.git
-[submodule "extern/pybind11"]
-	path = extern/pybind11
-	url = https://github.com/pybind/pybind11.git
-	branch = stable
+[submodule "extern/libsbml"]
+	path = extern/libsbml
+	url = https://github.com/sbmlteam/libsbml.git

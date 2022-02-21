@@ -41,7 +41,7 @@ struct MxSurfaceSimulator_Config {
     MxApplicationConfig applicationConfig;
 };
 
-struct MxSurfaceSimulator : CObject
+struct MxSurfaceSimulator
 {
     typedef MxSurfaceSimulator_Config Configuration;
 
@@ -55,15 +55,15 @@ struct MxSurfaceSimulator : CObject
     LangevinPropagator *propagator = nullptr;
 
     Magnum::Matrix4 transformation, projection;
-    Magnum::Vector2 previousMousePosition;
+    MxVector2f previousMousePosition;
 
     Magnum::Matrix4 rotation;
 
-    Vector3 centerShift{0., 0., -18};
+    MxVector3f centerShift{0., 0., -18};
 
 
     Color4 color; // = Color4::fromHsv(color.hue() + 50.0_degf, 1.0f, 1.0f);
-    Vector3 center;
+    MxVector3f center;
 
     // distance from camera, move by mouse
     float distance = -3;
@@ -73,12 +73,15 @@ struct MxSurfaceSimulator : CObject
 
     void loadModel(const char* fileName);
 
+    // todo: implement MxSurfaceSimulator::step
     void step(float dt);
 
     void draw();
 
+    // todo: implement MxSurfaceSimulator::mouseMove
     void mouseMove(double xpos, double ypos);
 
+    // todo: implement MxSurfaceSimulator::mouseClick
     void mouseClick(int button, int action, int mods);
 
     int timeSteps = 0;
@@ -91,20 +94,17 @@ struct MxSurfaceSimulator : CObject
 
     HRESULT createContext(const Configuration& configuration);
 
+    std::tuple<char*, size_t> imageData(const char* path);
+
 };
 
+struct MxSurfaceSimulatorPy : MxSurfaceSimulator {
 
+    MxSurfaceSimulatorPy(const Configuration &config) : MxSurfaceSimulator(config) {};
 
-MxSurfaceSimulator *MxSurfaceSimulator_New(const MxSurfaceSimulator_Config *conf);
+    PyObject *imageDataPy(const char* path);
 
-
-HRESULT MxSurfaceSimulator_LoadModel(MxSurfaceSimulator *sim, const char* modelPath);
-
-
-
-HRESULT MxSurfaceSimulator_init(PyObject *o);
-
-PyObject *MxSurfaceSimulator_ImageData(MxSurfaceSimulator *self, const char* path);
+};
 
 
 #endif /* SRC_MXSURFACESIMULATOR_H_ */

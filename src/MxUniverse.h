@@ -10,19 +10,149 @@
 
 #include "mechanica_private.h"
 #include "mdcore_single.h"
+#include "io/mx_io.h"
+#include <unordered_map>
+#include <event/MxEventList.h>
 
-
+/**
+ * @brief The universe is a top level singleton object, and is automatically
+ * initialized when the simulator loads. The universe is a representation of the
+ * physical universe that we are simulating, and is the repository for all
+ * physical object representations.
+ * 
+ * All properties and methods on the universe are static, and you never actually
+ * instantiate a universe.
+ * 
+ * Universe has a variety of properties such as boundary conditions, and stores
+ * all the physical objects such as particles, bonds, potentials, etc.
+ */
 struct CAPI_EXPORT MxUniverse  {
 
-    static Magnum::Vector3 origin();
+    /**
+     * @brief Gets the origin of the universe
+     * 
+     * @return MxVector3f 
+     */
+    static MxVector3f origin();
 
-    static  Magnum::Vector3 dim();
+    /**
+     * @brief Gets the dimensions of the universe
+     * 
+     * @return MxVector3f 
+     */
+    static  MxVector3f dim();
 
 
     bool isRunning;
 
+	MxEventBaseList *events;
+
     // name of the model / script, usually picked up from command line;
     std::string name;
+    
+    /**
+     * @brief Computes the virial tensor for the either the entire simulation 
+     * domain, or a specific local virial tensor at a location and 
+     * radius. Optionally can accept a list of particle types to restrict the 
+     * virial calculation for specify types.
+     * 
+     * @param origin An optional length-3 array for the origin. Defaults to the center of the simulation domain if not given.
+     * @param radius An optional number specifying the size of the region to compute the virial tensor for. Defaults to the entire simulation domain.
+     * @param types An optional list of :class:`Particle` types to include in the calculation. Defaults to every particle type.
+     * @return MxMatrix3f* 
+     */
+    static MxMatrix3f *virial(MxVector3f *origin=NULL, float *radius=NULL, std::vector<MxParticleType*> *types=NULL);
+
+    static MxVector3f getCenter();
+
+    /**
+     * @brief Performs a single time step ``dt`` of the universe if no arguments are 
+     * given. Optionally runs until ``until``, and can use a different timestep 
+     * of ``dt``.
+     * 
+     * @param until runs the timestep for this length of time, optional.
+     * @param dt overrides the existing time step, and uses this value for time stepping; currently not supported.
+     * @return HRESULT 
+     */
+    static HRESULT step(const double &until=0, const double &dt=0);
+
+    /**
+     * @brief Stops the universe time evolution. This essentially freezes the universe, 
+     * everything remains the same, except time no longer moves forward.
+     * 
+     * @return HRESULT 
+     */
+    static HRESULT stop();
+
+    /**
+     * @brief Starts the universe time evolution, and advanced the universe forward by 
+     * timesteps in ``dt``. All methods to build and manipulate universe objects 
+     * are valid whether the universe time evolution is running or stopped.
+     * 
+     * @return HRESULT 
+     */
+    static HRESULT start();
+
+    static HRESULT reset();
+
+    static MxUniverse* get();
+
+    /**
+     * @brief Gets all particles in the universe
+     * 
+     * @return MxParticleList* 
+     */
+    static MxParticleList *particles();
+    static void resetSpecies();
+
+    /**
+     * @brief Gets a three-dimesional array of particle lists, of all the particles in the system. 
+     * 
+     * @param shape shape of grid
+     * @return std::vector<std::vector<std::vector<MxParticleList*> > > 
+     */
+    static std::vector<std::vector<std::vector<MxParticleList*> > > grid(MxVector3i shape);
+
+    /**
+     * @brief Get all bonds in the universe
+     * 
+     * @return std::vector<MxBondHandle*>* 
+     */
+    static std::vector<MxBondHandle*> *bonds();
+
+    /**
+     * @brief Get all angles in the universe
+     * 
+     * @return std::vector<MxAngleHandle*>* 
+     */
+    static std::vector<MxAngleHandle*> *angles();
+
+    /**
+     * @brief Get all dihedrals in the universe
+     * 
+     * @return std::vector<MxDihedral*>* 
+     */
+    static std::vector<MxDihedralHandle*> *dihedrals();
+
+    /**
+     * @brief Get the universe temperature. 
+     * 
+     * The universe can be run with, or without a thermostat. With a thermostat, 
+     * getting / setting the temperature changes the temperature that the thermostat 
+     * will try to keep the universe at. When the universe is run without a 
+     * thermostat, reading the temperature returns the computed universe temp, but 
+     * attempting to set the temperature yields an error. 
+     * 
+     * @return double 
+     */
+    double getTemperature();
+    double getTime();
+    double getDt();
+    MxEventList *getEventList();
+    MxBoundaryConditions *getBoundaryConditions();
+    double getKineticEnergy();
+    int getNumTypes();
+    double getCutoff();
 };
 
 /**
@@ -54,21 +184,23 @@ struct CAPI_EXPORT MxUniverse  {
  */
 
 struct CAPI_EXPORT MxUniverseConfig {
-    Magnum::Vector3 origin;
-    Magnum::Vector3 dim;
-    Magnum::Vector3i spaceGridSize;
+    MxVector3f origin;
+    MxVector3f dim;
+    MxVector3i spaceGridSize;
     double cutoff;
     uint32_t flags;
     uint32_t maxTypes;
     double dt;
+    long start_step;
     double temp;
     int nParticles;
     int threads;
     EngineIntegrator integrator;
     
-    // pointer to python object for the boundary conditions, should be
-    // a dictionary or integer, parse this object when we initialize the engine.
-    PyObject *boundaryConditionsPtr;
+    // pointer to boundary conditions ctor data
+    // these objects are parsed initializing the engine.
+    MxBoundaryConditionsArgsContainer *boundaryConditionsPtr;
+
     double max_distance;
     
     
@@ -80,48 +212,18 @@ struct CAPI_EXPORT MxUniverseConfig {
     MxUniverseConfig();
     
     // just set the object, borow a pointer to python handle
-    void setBoundaryConditions(PyObject *obj) {
-        if(boundaryConditionsPtr) {
-            Py_DECREF(boundaryConditionsPtr);
-        }
-        boundaryConditionsPtr = obj;
-        Py_INCREF(boundaryConditionsPtr);
+    void setBoundaryConditions(MxBoundaryConditionsArgsContainer *_bcArgs) {
+        boundaryConditionsPtr = _bcArgs;
     }
     
     ~MxUniverseConfig() {
         if(boundaryConditionsPtr) {
-            Py_DECREF(boundaryConditionsPtr);
+            delete boundaryConditionsPtr;
+            boundaryConditionsPtr = 0;
         }
     }
 };
 
-CAPI_FUNC(HRESULT) MxUniverse_Init(const MxUniverseConfig &conf);
-
-CAPI_FUNC(HRESULT) MxUniverse_Bind(PyObject *args, PyObject *kwargs, PyObject **result);
-
-CAPI_FUNC(HRESULT) MxUniverse_BindThing3(PyObject *thing, PyObject *a, PyObject *b, PyObject *c);
-
-CAPI_FUNC(HRESULT) MxUniverse_BindThing2(PyObject *thing, PyObject *a, PyObject *b);
-
-CAPI_FUNC(HRESULT) MxUniverse_BindThing1(PyObject *thing, PyObject *a);
-
-
-PyObject* MxUniverse_ResetSpecies(PyObject *self, PyObject *args, PyObject *kwargs);
-
-
-/**
- * generate a surface mesh and bind it with a potential.
- *
- * args:
- *     potential
- *     number of subdivisions
- *     tuple of starting / stopping theta (polar angle)
- *     center of sphere
- *     radius of sphere
- */
-CAPI_FUNC(PyObject*) MxUniverse_BindSphere(PyObject *thing, PyObject *a);
-
-PyObject *MxPyUniverse_BindPairwise(PyObject *_args, PyObject *_kwargs);
 
 /**
  * runs the universe a pre-determined period of time, until.
@@ -169,12 +271,21 @@ CAPI_FUNC(HRESULT) MxUniverse_SetFlag(MxUniverse_Flags flag, int value);
  */
 CAPI_DATA(MxUniverse) Universe;
 
-
 /**
- * Init and add to python module
+ * Universe instance accessor
+ * 
  */
-HRESULT _MxUniverse_init(PyObject *m);
+CAPI_FUNC(MxUniverse*) getUniverse();
 
 
+namespace mx { namespace io {
+
+template <>
+HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
+
+template <>
+HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxUniverse *dataElement);
+
+}};
 
 #endif /* SRC_MXUNIVERSE_H_ */

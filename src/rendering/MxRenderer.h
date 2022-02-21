@@ -33,9 +33,4 @@ enum MxRenderer_Kind {
 
 uint32_t MxRenderer_AvailableRenderers();
 
-/**
- * The the particle type type
- */
-CAPI_DATA(PyTypeObject) MxRenderer_Type;
-
 #endif /* SRC_MXRENDERER_H_ */

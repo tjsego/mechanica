@@ -20,7 +20,6 @@
 #ifndef INCLUDE_ENGINE_H_
 #define INCLUDE_ENGINE_H_
 
-#include "carbon.h"
 #include "platform.h"
 #include "pthread.h"
 #include "space.h"
@@ -107,6 +106,12 @@ enum EngineIntegrator {
 #define engine_bonded_maxnrthreads       16
 #define engine_bonded_nrthreads          ((omp_get_num_threads()<engine_bonded_maxnrthreads)?omp_get_num_threads():engine_bonded_maxnrthreads)
 
+#ifdef MDCORE_MAXNRTYPES
+#define engine_maxnrtypes 				 MDCORE_MAXNRTYPES
+#else
+#define engine_maxnrtypes				 128
+#endif
+
 /** Timmer IDs. */
 enum {
 	engine_timer_step = 0,
@@ -189,7 +194,7 @@ typedef struct engine {
 	 */
 	unsigned int integrator_flags;
 
-#ifdef WITH_CUDA
+#ifdef HAVE_CUDA
 	/** Some flags controlling which cuda scheduling we use. */
 	unsigned int flags_cuda;
 #endif
@@ -215,7 +220,7 @@ typedef struct engine {
     static struct MxParticleType *types;
 
 	/** The interaction matrix */
-	struct MxPotential **p, **p_dihedral, **p_cluster;
+	struct MxPotential **p, **p_cluster;
 
 	/** The explicit electrostatic potential. */
 	struct MxPotential *ep;
@@ -228,10 +233,10 @@ typedef struct engine {
     struct MxPotential **cuboid_potentials;
 
 	/**
-	 * vector of single body potentials for types, indexed
+	 * vector of forces for types, indexed
 	 * by type id.
 	 */
-	struct MxForceSingleBinding *p_singlebody;
+	struct MxForce **forces;
 
     /**
      * interaction matrix of pointers to fluxes, same layout as
@@ -305,14 +310,36 @@ typedef struct engine {
 	/** List of angles. */
 	struct MxAngle *angles;
 
-	/** Nr. of angles. */
-	int nr_angles, angles_size;
+	/**
+     * total number of angles, active or not.
+     */
+	int nr_angles;
+
+	/** 
+	 * number of active angles. 
+	 * note, active angles are not necessarily in contiguous order
+	 */
+	int nr_active_angles;
+
+	/** Allocated size of angles array */
+	int angles_size;
 
 	/** List of dihedrals. */
-	struct dihedral *dihedrals;
+	struct MxDihedral *dihedrals;
 
-	/** Nr. of dihedrals. */
-	int nr_dihedrals, dihedrals_size, nr_dihedralpots, dihedralpots_size;
+	/**
+     * total number of dihedrals, active or not.
+     */
+	int nr_dihedrals;
+
+	/** 
+	 * number of active dihedrals. 
+	 * note, active dihedrals are not necessarily in contiguous order
+	 */
+	int nr_active_dihedrals;
+
+	/** Allocated size of dihedrals array */
+	int dihedrals_size;
 
 	/** The Comm object for mpi. */
 #ifdef WITH_MPI
@@ -330,11 +357,12 @@ typedef struct engine {
 	/** Pointers to device data for CUDA. */
 #ifdef HAVE_CUDA
 	void *sortlists_cuda[ engine_maxgpu ];
-	int nrpots_cuda, *pind_cuda[ engine_maxgpu ], *offsets_cuda[ engine_maxgpu ];
-	int nr_devices, devices[ engine_maxgpu ];
+	int nr_pots_cuda, nr_pots_cluster_cuda, *pind_cuda[ engine_maxgpu ], *pind_cluster_cuda[ engine_maxgpu ], *offsets_cuda[ engine_maxgpu ];
+	int nr_devices, devices[ engine_maxgpu ], nr_queues_cuda;
 	float *forces_cuda[ engine_maxgpu ];
-	void *cuArray_parts[ engine_maxgpu ], *parts_cuda[ engine_maxgpu ];
-	void *parts_cuda_local;
+	void *parts_cuda[ engine_maxgpu ], *part_states_cuda[engine_maxgpu];
+	void **pots_cuda[engine_maxgpu], **pots_cluster_cuda[engine_maxgpu];
+	void *parts_cuda_local, *part_states_cuda_local;
 	int *cells_cuda_local[ engine_maxgpu];
 	int cells_cuda_nr[ engine_maxgpu ];
 	int *counts_cuda[ engine_maxgpu ], *counts_cuda_local[ engine_maxgpu ];
@@ -343,6 +371,15 @@ typedef struct engine {
 	int *taboo_cuda[ engine_maxgpu ];
 	int nrtasks_cuda[ engine_maxgpu ];
 	void *streams[ engine_maxgpu ];
+	int nr_blocks[engine_maxgpu], nr_threads[engine_maxgpu];
+	void *rand_norm_cuda[engine_maxgpu];
+	int rand_norm_init_cuda[engine_maxgpu];
+	unsigned int rand_norm_seed_cuda;
+	int nr_fluxes_cuda, *fxind_cuda[engine_maxgpu];
+	void **fluxes_cuda[engine_maxgpu];
+	float *fluxes_next_cuda[engine_maxgpu];
+	bool bonds_cuda = false;
+	bool angles_cuda = false;
 #endif
 
 	/** Timers. */
@@ -358,9 +395,6 @@ typedef struct engine {
     uint32_t timers_mask;
     
     long timer_output_period;
-
-	struct CMulticastTimeEvent *on_time;
-
 
     /**
      * vector of constant forces. Because these forces get
@@ -395,7 +429,7 @@ typedef struct engine {
     /**
      * saved objects from init
      */
-    PyObject *_init_boundary_conditions;
+    MxBoundaryConditionsArgsContainer *_init_boundary_conditions;
     int _init_cells[3];
 } engine;
 
@@ -411,7 +445,7 @@ typedef struct engine_set {
 	/* Lists of ID of the relevant bonded types. */
 	struct MxBond *bonds;
 	struct MxAngle *angles;
-	struct dihedral *dihedrals;
+	struct MxDihedral *dihedrals;
 	struct exclusion *exclusions;
 
 	/* Nr of sets with which this set conflicts. */
@@ -439,6 +473,8 @@ typedef struct engine_comm {
 /* associated functions */
 CAPI_FUNC(int) engine_addpot ( struct engine *e , struct MxPotential *p , int i , int j );
 
+CAPI_FUNC(int) engine_addfluxes(struct engine *e, struct MxFluxes *f, int i, int j);
+MxFluxes *engine_getfluxes(struct engine *e, int i, int j);
 
 /**
  * add a particle / cuboid potential
@@ -449,13 +485,12 @@ CAPI_FUNC(int) engine_add_cuboid_potential (struct engine *e , struct MxPotentia
 /**
  * Add a single body force to the engine.
  */
-CAPI_FUNC(int) engine_add_singlebody_force (struct engine *e ,
-                                            struct MxForce *p , int typeId, int stateVectorId);
+CAPI_FUNC(int) engine_add_singlebody_force(struct engine *e , struct MxForce *p , int typeId);
 
 /**
- * allocates a new angle, returns a pointer to it.
+ * allocates a new angle, returns its id.
  */
-CAPI_FUNC(int) engine_angle_alloc (struct engine *e , PyTypeObject *type, struct MxAngle **result );
+CAPI_FUNC(int) engine_angle_alloc(struct engine *e, MxAngle **out);
 
 /**
  * @brief Add a angle potential.
@@ -491,8 +526,7 @@ CAPI_FUNC(int) engine_bond_eval ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_eval ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_eval_sets ( struct engine *e );
 CAPI_FUNC(int) engine_bonded_sets ( struct engine *e , int max_sets );
-CAPI_FUNC(int) engine_dihedral_add ( struct engine *e , int i , int j , int k , int l , int pid );
-CAPI_FUNC(int) engine_dihedral_addpot ( struct engine *e , struct MxPotential *p );
+CAPI_FUNC(int) engine_dihedral_alloc(struct engine *e, MxDihedral **out);
 CAPI_FUNC(int) engine_dihedral_eval ( struct engine *e );
 CAPI_FUNC(int) engine_dump_PSF ( struct engine *e , FILE *psf , FILE *pdb , char *excl[] , int nr_excl );
 CAPI_FUNC(int) engine_exclusion_add ( struct engine *e , int i , int j );
@@ -598,7 +632,7 @@ CAPI_FUNC(int) engine_addtype ( struct engine *e , double mass , double charge ,
  * @return #engine_err_ok or < 0 on error (see #engine_err).
  */
 CAPI_FUNC(int) engine_init ( struct engine *e , const double *origin , const double *dim , int *cells ,
-		double cutoff , PyObject *boundaryConditions , int max_type , unsigned int flags );
+		double cutoff , MxBoundaryConditionsArgsContainer *boundaryConditions , int max_type , unsigned int flags );
 
 
 /**
@@ -621,7 +655,7 @@ CAPI_FUNC(int) engine_rigid_sort ( struct engine *e );
 CAPI_FUNC(int) engine_rigid_unsort ( struct engine *e );
 CAPI_FUNC(int) engine_setexplepot ( struct engine *e , struct MxPotential *ep );
 CAPI_FUNC(int) engine_shuffle ( struct engine *e );
-CAPI_FUNC(int) engine_split_bisect ( struct engine *e , int N );
+CAPI_FUNC(int) engine_split_bisect ( struct engine *e , int N, int particle_flags );
 CAPI_FUNC(int) engine_split ( struct engine *e );
 
 CAPI_FUNC(int) engine_start ( struct engine *e , int nr_runners , int nr_queues );
@@ -683,22 +717,45 @@ CAPI_FUNC(int) engine_exchange_rigid_wait ( struct engine *e );
 CAPI_FUNC(int) engine_exchange_wait ( struct engine *e );
 #endif
 
-#if defined(HAVE_CUDA) && defined(WITH_CUDA)
+#if defined(HAVE_CUDA)
 CAPI_FUNC(int) engine_nonbond_cuda ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_load ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_load_parts ( struct engine *e );
 CAPI_FUNC(int) engine_cuda_unload_parts ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_load_pots ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_unload_pots ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_refresh_particles ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_allocate_particle_states ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_finalize_particle_states ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_refresh_particle_states ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_refresh_pots ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_load_fluxes ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_unload_fluxes ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_refresh_fluxes ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_boundary_conditions_refresh(struct engine *e);
+CAPI_FUNC(int) engine_cuda_queues_finalize ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_finalize ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_refresh ( struct engine *e );
+CAPI_FUNC(int) engine_cuda_setthreads(struct engine *e, int id, int nr_threads);
+CAPI_FUNC(int) engine_cuda_setblocks(struct engine *e, int id, int nr_blocks);
 CAPI_FUNC(int) engine_cuda_setdevice ( struct engine *e , int id );
 CAPI_FUNC(int) engine_cuda_setdevices ( struct engine *e , int nr_devices , int *ids );
-CAPI_FUNC(int) engine_split_METIS ( struct engine *e, int N, int flags);
+CAPI_FUNC(int) engine_cuda_cleardevices(struct engine *e);
+CAPI_FUNC(int) engine_split_gpu( struct engine *e, int N, int flags);
+CAPI_FUNC(int) engine_cuda_rand_norm_init(struct engine *e);
+CAPI_FUNC(int) engine_cuda_rand_norm_setSeed(struct engine *e, unsigned int seed, bool onDevice);
+
+CAPI_FUNC(int) engine_toCUDA(struct engine *e);
+CAPI_FUNC(int) engine_fromCUDA(struct engine *e);
 #endif
 
 #ifdef WITH_METIS
 CAPI_FUNC(int) engine_split_METIS ( struct engine *e, int N, int flags);
 #endif
 
-
-Magnum::Vector3 engine_center();
+MxVector3f engine_origin();
+MxVector3f engine_dimensions();
+MxVector3f engine_center();
 
 /**
  * Single static instance of the md engine per process.
@@ -717,17 +774,17 @@ inline MxParticle *MxParticle::particle(int i) {
     return _Engine.s.partlist[this->parts[i]];
 };
 
-inline Magnum::Vector3 MxParticle::global_position() {
+inline MxVector3f MxParticle::global_position() {
     double *o = _Engine.s.celllist[this->id]->origin;
-    return this->position + Magnum::Vector3 {
+    return this->position + MxVector3f {
         static_cast<float>(o[0]), static_cast<float>(o[1]), static_cast<float>(o[2])
     };
 }
 
-inline void MxParticle::set_global_position(const Magnum::Vector3& pos) {
+inline void MxParticle::set_global_position(const MxVector3f& pos) {
     double *o = _Engine.s.celllist[this->id]->origin;
     // TODO: need to update cells...
-    this->position = pos - Magnum::Vector3 {
+    this->position = pos - MxVector3f {
         static_cast<float>(o[0]), static_cast<float>(o[1]), static_cast<float>(o[2])
     };
 }
@@ -735,6 +792,10 @@ inline void MxParticle::set_global_position(const Magnum::Vector3& pos) {
 inline MxParticle *MxParticleHandle::part() {
     return _Engine.s.partlist[this->id];
 };
+
+inline MxParticleType *MxParticleHandle::type() {
+	return &_Engine.types[this->typeId];
+}
 
 inline MxParticle *MxParticle_FromId(int id) {
     return _Engine.s.partlist[id];

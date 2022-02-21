@@ -1,5 +1,5 @@
-# need 3.13 for FindPython support
-cmake_minimum_required (VERSION 3.13)
+# need 3.20.3 for CUDA fixes
+cmake_minimum_required (VERSION 3.20.3)
 
 
 if(APPLE)
@@ -21,11 +21,12 @@ if(APPLE)
 
 endif()
 
-
+set(USING_VCPKG FALSE)
 if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
     CACHE STRING "")
     message(" [INFO] VCPKG CMAKE_TOOLCHAIN_FILE = ${CMAKE_TOOLCHAIN_FILE}")
+    set(USING_VCPKG TRUE)
 endif()
 
 message("VCPKG CMAKE_TOOLCHAIN_FILE = ${CMAKE_TOOLCHAIN_FILE}")
@@ -54,6 +55,20 @@ set(CMAKE_CXX_STANDARD 17)
 # we're compiling a bunch of shared libs, all should be pos independent.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# handle rpath
+set(CMAKE_MACOSX_RPATH TRUE)
+set(CMAKE_BUILD_RPATH_USE_ORIGIN TRUE)
+if(APPLE)
+  set(RPATH_PREFIX @loader_path)
+else()
+  set(RPATH_PREFIX $ORIGIN)
+endif()
+file(RELATIVE_PATH RDIR
+  ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR} 
+  ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
+)
+set(CMAKE_INSTALL_RPATH ${RPATH_PREFIX} ${RPATH_PREFIX}/${RDIR})
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 option(MX_OPENMP "Enable OpenMP parallelism" OFF)
 
@@ -103,6 +118,32 @@ else()
   set(MX_SIMD_SIZE 0)
 endif()
 
+find_package(CUDAToolkit)
+if(CUDAToolkit_FOUND)
+  message(STATUS "Detected CUDA")
+  message(STATUS "  Version           : ${CUDAToolkit_VERSION}")
+  message(STATUS "  Architectures     : ${CMAKE_CUDA_ARCHITECTURES}")
+  message(STATUS "  Compiler          : ${CUDAToolkit_NVCC_EXECUTABLE}")
+  set(MX_HAVECUDA ON)
+else()
+  message(STATUS "No detected CUDA support")
+  set(MX_HAVECUDA OFF)
+endif()
+
+set(MX_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include/mechanica)
+set(MX_RESOURCE_DIR ${CMAKE_INSTALL_PREFIX}/resources/mechanica)
+
+if(MX_HAVECUDA)
+  enable_language(CUDA)
+  set(MX_CUDA_DIR ${MX_RESOURCE_DIR}/cuda)
+  set(MX_CUDA_INCLUDE_DIR ${CUDAToolkit_INCLUDE_DIRS})
+  option(MX_WITHCUDA             "Enable GPU-accelerated calculations using CUDA" OFF)
+  option(MX_CUDA_DEBUG           "Enable CUDA debug mode" OFF)
+  if(DEFINED ENV{MX_WITHCUDA})
+    set(MX_WITHCUDA ON)
+  endif()
+endif()
+
 # quiet linker warnings on Apple
 # set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
@@ -130,10 +171,33 @@ set(MX_VERSION_PATCH ${CMAKE_MATCH_1})
 string(REGEX MATCH "VERSION_DEV ([0-9]*)" _ ${ver})
 set(MX_VERSION_DEV ${CMAKE_MATCH_1})
 
-file(COPY VERSION.txt DESTINATION ${CMAKE_BINARY_DIR})
-
 
 message("version: ${MX_VERSION_MAJOR}.${MX_VERSION_MINOR}.${MX_VERSION_PATCH}")
+
+# Get the build qualifier from the environment, if one was specified
+if(DEFINED ENV{MXBUILDQUAL})
+  set(MX_BUILDQUAL $ENV{MXBUILDQUAL})
+  set(MX_HASBUILDQUAL true)
+  message("qualifer: ${MX_BUILDQUAL}")
+else()
+  set(MX_HASBUILDQUAL false)
+endif()
+
+# Get package details
+#   Local install is assumed unless MXPACKAGELOCALOFF env var is set
+set(MX_PACKAGE_LOCAL true)
+if(DEFINED ENV{MXPACKAGELOCALOFF})
+  set(MX_PACKAGE_LOCAL false)
+  message("Disabled local package")
+else()
+  message("Enabled local package")
+endif()
+#   Conda is enabled when MXPACKAGECONDA env var is set
+set(MX_PACKAGE_CONDA false)
+if(DEFINED ENV{MXPACKAGECONDA})
+  set(MX_PACKAGE_CONDA true)
+  message("Enabled conda package")
+endif()
 
 message("CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 message("CMAKE_OSX_DEPLOYMENT_TARGET: ${CMAKE_OSX_DEPLOYMENT_TARGET}")
@@ -144,39 +208,35 @@ message("CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
 message("CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 message("CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
 
-
-if(WIN32)
+set(MX_HAVEPTHREADS FALSE)
+if(USING_VCPKG)
 
   find_package(pthreads CONFIG REQUIRED)
 
-  # have to set this to create an alias, don't know why...
   set_target_properties(PThreads4W::PThreads4W PROPERTIES IMPORTED_GLOBAL TRUE)
   add_library(Threads::Threads ALIAS PThreads4W::PThreads4W)
+  set(MX_HAVEPTHREADS TRUE)
 
+elseif(DEFINED PThreads_ROOT)
 
-  #Use the PThreads4W vcpkg package, called pthreads
-  #The package pthreads provides CMake targets:
-
-  #find_package(pthreads CONFIG REQUIRED)
-
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W)
-  #or
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W_CXXEXC)
-  #or
-  #target_link_libraries(main PRIVATE PThreads4W::PThreads4W_STRUCTEXC)
+  find_library(PThreads 
+    NAMES pthreads pthreadsVSE2 
+    HINTS ${PThreads_ROOT} 
+    REQUIRED 
+  )
+  message("PThreads path: ${PThreads}")
+  add_library(pthreads UNKNOWN IMPORTED GLOBAL)
+  target_include_directories(pthreads INTERFACE ${PThreads_ROOT}/include)
+  set_target_properties(pthreads PROPERTIES IMPORTED_LOCATION ${PThreads})
+  add_library(Threads::Threads ALIAS pthreads)
+  set(MX_HAVEPTHREADS TRUE)
 
 else()
-  # use standard unix pthreads, creatates Threads::Threads target
+  # use standard unix pthreads, creates Threads::Threads target
   find_package(Threads REQUIRED)
 endif()
 
-find_package(Python 3.7.0...3.7.99 COMPONENTS Interpreter Development NumPy)
-
-if(${CMAKE_VERSION} VERSION_LESS "3.14.0")
-  # hack for 3.13 CMake, does not have find numpy.
-  message("old cmake, using hack to find numpy...")
-  find_package(NumPy)
-endif()
+find_package(Python 3.7.0...3.9.99 REQUIRED COMPONENTS Interpreter Development)
 
 message("Python_FOUND: ${Python_FOUND}")
 message("Python_Interpeter_FOUND: ${Python_Interpeter_FOUND}")
@@ -190,9 +250,21 @@ message("Python_LIBRARY_DIRS: ${Python_LIBRARY_DIRS}")
 message("Python_RUNTIME_LIBRARY_DIRS: ${Python_RUNTIME_LIBRARY_DIRS}")
 message("Python_EXECUTABLE: ${Python_EXECUTABLE}")
 
-message("Python_NumPy_FOUND: ${Python_NumPy_FOUND}")
-message("Python_NumPy_INCLUDE_DIRS: ${Python_NumPy_INCLUDE_DIRS}")
-message("Python_NumPy_VERSION: ${Python_NumPy_VERSION}")
+execute_process(
+  COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var(name='prefix'))" 
+  OUTPUT_VARIABLE PY_ROOT_DIR
+)
+string(STRIP ${PY_ROOT_DIR} PY_ROOT_DIR)
+file(TO_CMAKE_PATH "${PY_ROOT_DIR}" PY_ROOT_DIR)
+message("PY_ROOT_DIR: ${PY_ROOT_DIR}")
+
+execute_process(
+  COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path(name='platlib'))" 
+  OUTPUT_VARIABLE PY_SITEPACKAGES
+)
+string(STRIP ${PY_SITEPACKAGES} PY_SITEPACKAGES)
+file(TO_CMAKE_PATH "${PY_SITEPACKAGES}" PY_SITEPACKAGES)
+message("PY_SITEPACKAGES: ${PY_SITEPACKAGES}")
 
 if(Python_Development_FOUND)
   get_target_property(TMP Python::Python IMPORTED_LOCATION_DEBUG)
@@ -208,26 +280,33 @@ if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
   include_directories(${Python_INCLUDE_DIRS})
 endif()
 
+# Determine install site-packages location using info from environment if not provided
+if(DEFINED MX_INSTALL_PREFIX_PYTHON)
+  SET(MX_SITEPACKAGES ${MX_INSTALL_PREFIX_PYTHON})
+else()
+  execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
+    OUTPUT_VARIABLE MX_SITEPACKAGES_REL
+  )
+  string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
+  file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
+  set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
+endif()
+message("MX_SITEPACKAGES: ${MX_SITEPACKAGES}")
 
 # needed for jpeg image writer
+if(UNIX)
+  # link statically with JPEG, so we dont have to ship a dylib,
+  # brew installs newer JPEG, so that conflicts with stuff
+  find_library(libJPEG NAMES libjpeg.a REQUIRED)
+  message("libjpeg path: ${libJPEG}")
+  set(JPEG_LIBRARY_RELEASE ${libJPEG})
+endif()
 find_package(JPEG REQUIRED)
 
 message("JPEG_INCLUDE_DIRS: ${JPEG_INCLUDE_DIRS}")
 message("JPEG_LIBRARIES: ${JPEG_LIBRARIES}")
 message("JPEG_VERSION: ${JPEG_VERSION}")
-
-# link statically with JPEG, so we dont have to ship a dylib,
-# brew installs newer JPEG, so that conflicts with stuff
-set(MX_JPEG_INCLUDE_DIRS ${JPEG_INCLUDE_DIRS})  # /usr/local/include
-
-if(APPLE)
-  set(MX_JPEG_LIBRARIES /usr/local/lib/libjpeg.a)     #: /usr/local/lib/libjpeg.dylib
-else()
-  set(MX_JPEG_LIBRARIES ${JPEG_LIBRARIES})
-endif()
-
-message("MX_JPEG_INCLUDE_DIRS: ${MX_JPEG_INCLUDE_DIRS}")
-message("MX_JPEG_LIBRARIES: ${MX_JPEG_LIBRARIES}")
 
 set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install location for Mechancia")
 
@@ -268,40 +347,20 @@ include_directories(${OPENGL_INCLUDE_DIR})
 #
 #endif()
 
-if (MX_ASSIMP)
+find_package(assimp REQUIRED)
 
-	find_package(Assimp REQUIRED)
-	
-	if(Assimp_FOUND)
-	
-	  if(WIN32)
-	
-	    get_target_property(TMP Assimp::Assimp IMPORTED_LOCATION_DEBUG)
-	    message("ASSIMP IMPORTED_LOCATION_DEBUG: ${TMP}")
-	
-	    get_target_property(TMP Assimp::Assimp IMPORTED_LOCATION_RELEASE)
-	    message("ASSIMP IMPORTED_LOCATION_RELEASE: ${TMP}")
-	
-	  else()
-	
-	    get_target_property(TMP Assimp::Assimp IMPORTED_LOCATION)
-	    message("ASSIMP_LIBRARIES: ${TMP}")
-	  endif(WIN32)
-	
-	  get_target_property(TMP Assimp::Assimp INTERFACE_INCLUDE_DIRECTORIES)
-	
-	
-	  message("Assimp_INTERFACE_INCLUDE_DIRECTORIES: ${TMP}")
-	
-	
-	else()
-	  message("ASSIMP not found")
-	endif()
-
+if(assimp_FOUND)
+  message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
+else()
+  message("ASSIMP not found")
 endif()
 
-
-
+if(DEFINED ENV{JSON_INCLUDE_DIRS})
+  set(JSON_INCLUDE_DIRS "$ENV{JSON_INCLUDE_DIRS}" CACHE STRING "")
+else()
+  set(JSON_INCLUDE_DIRS ${CMAKE_FIND_ROOT_PATH}/include)
+endif()
+message("JSON inlucde: ${JSON_INCLUDE_DIRS}")
 
 
 # finds: GLFW_FOUND GLFW_INCLUDE_DIR GLFW_LIBRARIES
@@ -361,6 +420,7 @@ add_subdirectory(apps)
 add_subdirectory(testing)
 #add_subdirectory(magnum_examples)
 add_subdirectory(examples)
+add_subdirectory(package)
 
 # try to make eclipse see the system python include dir.
 if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
@@ -370,4 +430,10 @@ if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
 endif()
 
 
-file(COPY README.md DESTINATION ${CMAKE_BINARY_DIR})
+set(CMAKE_INFO_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Install location for Mechancia basic info")
+set(MX_INFO_FILES
+  README.md 
+  LICENSE.txt 
+  VERSION.txt 
+)
+install(FILES ${MX_INFO_FILES} DESTINATION ${CMAKE_INFO_PREFIX})

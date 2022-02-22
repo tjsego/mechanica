@@ -17,7 +17,7 @@
 #include "../../state/MxSpeciesList.h"
 #include <MxPy.h>
 
-static Berendsen *berenderson_create(float tau);
+static Berendsen *berendsen_create(float tau);
 static Gaussian *random_create(float mean, float std, float durration);
 static Friction *friction_create(float coef, float mean, float std, float durration);
 
@@ -148,11 +148,11 @@ HRESULT MxForce::bind_species(MxParticleType *a_type, const std::string &couplin
     return S_OK;
 }
 
-Berendsen* MxForce::berenderson_tstat(const float &tau) {
+Berendsen* MxForce::berendsen_tstat(const float &tau) {
     Log(LOG_DEBUG);
 
     try {
-        return berenderson_create(tau);
+        return berendsen_create(tau);
     }
     catch (const std::exception &e) {
         MX_RETURN_EXP(e);
@@ -281,7 +281,7 @@ static void gaussian_force(Gaussian *t, MxParticle *p, FPTYPE *f) {
     f[2] += scale * p->persistent_force[2];
 }
 
-Berendsen *berenderson_create(float tau) {
+Berendsen *berendsen_create(float tau) {
     auto *obj = new Berendsen();
 
     obj->type = FORCE_BERENDSEN;

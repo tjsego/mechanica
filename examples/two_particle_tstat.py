@@ -44,7 +44,7 @@ mx.bind.types(pot, B, B)
 
 # create a thermostat, coupling time constant determines how rapidly the
 # thermostat operates, smaller numbers mean thermostat acts more rapidly
-tstat = mx.Force.berenderson_tstat(10)
+tstat = mx.Force.berendsen_tstat(10)
 
 # bind it just like any other force
 mx.bind.force(tstat, A)

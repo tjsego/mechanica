@@ -99,7 +99,7 @@ struct MxForce {
      * @param tau time constant that determines how rapidly the thermostat effects the system.
      * @return Berendsen* 
      */
-    static Berendsen* berenderson_tstat(const float &tau);
+    static Berendsen* berendsen_tstat(const float &tau);
 
     /**
      * @brief Creates a random force. 
@@ -273,7 +273,7 @@ struct MxConstantForcePy : MxConstantForce {
 /**
  * @brief Berendsen force. 
  * 
- * Create one with :meth:`MxForce.berenderson_tstat`. 
+ * Create one with :meth:`MxForce.berendsen_tstat`. 
  */
 struct Berendsen : MxForce {
     /**

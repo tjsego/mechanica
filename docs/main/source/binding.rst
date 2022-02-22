@@ -1,5 +1,7 @@
 .. _binding:
 
+.. py:currentmodule:: mechanica
+
 Binding
 -------
 
@@ -8,17 +10,15 @@ Mechanica simulation. Binding connects a process (*e.g.*, a
 :ref:`potential <potentials>`, :ref:`force <forces>`) with one
 or more objects that the process acts on.
 Binding in Mechanica is done with static methods on the class
-:class:`Bind` (:class:`MxBind` in C++), and methods that implement
+:py:attr:`bind` (:class:`MxBind` in C++), and methods that implement
 binding of processes to objects, in general, only return a code
 indicating success or failure of the binding procedure.
-For convenience, the :class:`Bind` class in Python is a top-level
-variable named :attr:`bind`.
 
 Binding Interactions Between Particles by Types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 An interaction between particles by pairs of types can be implemented
-using the :class:`Bind` method :meth:`types`. ::
+using the :py:attr:`bind` method :py:meth:`types <MxBind.types>`. ::
 
     import mechanica as mx
     ...
@@ -30,8 +30,8 @@ Binding Interactions Between Particles by Group
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 An interaction between two particles can be implemented
-using the :class:`Bind` method :meth:`particles`, which creates
-a :ref:`bond <bonded_interactions>`. ::
+using the :py:attr:`bind` method :py:meth:`particles <MxBind.particles>`,
+which creates a :ref:`bond <bonded_interactions>`. ::
 
     # Bind an interaction between particles "p0" and "p1"
     #   according to the potential "pot_bond"
@@ -44,10 +44,10 @@ Binding Interactions within and Between Clusters
 
 Binding an interaction between particles by pairs of types
 can be particularized to only occuring between particles of
-the same :ref:`cluster <clusters-label>`. The :class:`Bind` method
-:meth:`types` provides a fourth, optional argument ``bound`` that,
-when set to ``True``, only binds an interaction between particles
-of a pair of types that are in the same cluster. ::
+the same :ref:`cluster <clusters-label>`. The :py:attr:`bind` method
+:py:meth:`types <MxBind.types>` provides a fourth, optional argument
+``bound`` that, when set to ``True``, only binds an interaction between
+particles of a pair of types that are in the same cluster. ::
 
     # Bind an interaction between particle types "A" and "B" in the
     #   same cluster according to potential "potb"
@@ -61,8 +61,8 @@ Binding Interactions with Boundaries
 Mechanica supports enforcing :ref:`boundary conditions <boundary>` on
 particles as an interaction between a particle and a boundary according
 to a potential. Binding an interaction between a particle by type and a
-boundary can be implemented using the :class:`Bind` method
-:meth:`boundaryCondition`. ::
+boundary can be implemented using the :py:attr:`bind` method
+:meth:`boundaryCondition <MxBind.boundaryCondition>`. ::
 
     mx.init(bc={'top': 'potential'})
     ...
@@ -74,7 +74,7 @@ Binding Forces to Particles
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Binding a :ref:`force <forces>` to a particle type can be implemented
-using the :class:`Bind` method :meth:`force`. ::
+using the :py:attr:`bind` method :meth:`force <MxBind.force>`. ::
 
     # Bind force "f" to act on particles of type "C"
     mx.bind.force(f, C)
@@ -94,7 +94,7 @@ Binding of species to forces can occur at a second, finer level of granularity,
 specifically related to force arithmetic. Since Mechanica supports combining forces
 using addition operations (see :ref:`Creating Forces <creating_forces-label>`), it
 is possible to bind different species to two forces, and then apply them both to all
-particles of a particle type,
+particles of a particle type, ::
 
     # Bind species "S2" to force "f2" and species "S3" to force "f3"
     f2.bind_species('S2')

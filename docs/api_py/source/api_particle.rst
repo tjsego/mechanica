@@ -174,6 +174,8 @@ Particles and Clusters
 
     .. automethod:: items
 
+    .. automethod:: isCluster
+
     .. automethod:: to_cluster
 
     .. automethod:: toString

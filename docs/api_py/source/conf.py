@@ -49,7 +49,8 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosectionlabel',
-    'sphinx.ext.autosummary'
+    'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx'
 ]
 
 
@@ -136,6 +137,13 @@ autosectionlabel_prefix_document = True
 # Auto-generation specification
 autosummary_generate = True
 autoclass_content = "both"
+
+# -- Options for Intersphinx ----------------------------------------------
+
+intersphinx_mapping = {
+    'docs_main': ('https://mechanica-documentation.readthedocs.io/en/latest/', None),
+    'docs_api_cpp': ('https://mechanica-c-api-documentation.readthedocs.io/en/latest/', None)
+}
 
 # -- Options for HTML output ----------------------------------------------
 

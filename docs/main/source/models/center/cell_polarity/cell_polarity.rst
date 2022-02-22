@@ -1,5 +1,7 @@
 .. _cell_polarity:
 
+.. py:currentmodule:: mechanica.models.center.cell_polarity
+
 Cell Polarity
 ^^^^^^^^^^^^^^
 
@@ -81,7 +83,7 @@ vector of interacting particles such that particles tend to align laterally,
     L_{ij} = \left(\hat{\mathbf{r}}_{ij} \times \mathbf{q}_{i} \right) \cdot \left(\hat{\mathbf{r}}_{ij} \times \mathbf{q}_{j} \right).
 
 In Python, all functionality of the cell polarity model module can be accessed with
-``CellPolarity`` (``mx::models::center::CellPolarity`` in C++), which defines the
+:py:attr:`CellPolarity` (``mx::models::center::CellPolarity`` in C++), which defines the
 interface of the module as static functions, ::
 
     from mechanica.models.center.cell_polarity import CellPolarity
@@ -92,7 +94,8 @@ In C++, the module can be included when building from source with
 
     #include <models/center/cell_polarity/cell_polarity.h>
 
-Before using any functionality of the module, the module method ``load`` must be called, ::
+Before using any functionality of the module, the module method :meth:`load <_CellPolarity.load>`
+must be called, ::
 
     CellPolarity.load()
 

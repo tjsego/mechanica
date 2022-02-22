@@ -9,7 +9,7 @@
     %pythoncode %{
         @property
         def point(self) -> MxVector3f:
-            return self.getPoint();
+            return self.getPoint()
 
         @property
         def normal(self) -> MxVector3f:

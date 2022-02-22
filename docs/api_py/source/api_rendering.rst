@@ -7,6 +7,8 @@ Rendering
 
 .. autoclass:: MxClipPlane
 
+    .. autoproperty:: index
+
     .. autoproperty:: point
 
     .. autoproperty:: normal

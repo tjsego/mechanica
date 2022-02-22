@@ -1,5 +1,7 @@
 .. _become:
 
+.. py:currentmodule:: mechanica
+
 Changing Type
 =============
 
@@ -9,12 +11,13 @@ particle phenotype analogously to a class in a programming language (*i.e.*, the
 particle type): for a particular phenotype, we have an instance of an object, and the
 phenotype of the object defines the set of interactions and processes in which
 that object participates. Furthermore, Mechanica supports the process of a
-change in particle type, using the particle method :meth:`become`.
+change in particle type, using the particle method
+:py:meth:`become <MxParticleHandle.become>`.
 
-:meth:`become` changes the *type* of a particle, and generally neglects the
-:ref:`state <flux>` of the particle on the condition that the state
-defined in the respective particle type definitions of a particle of one type
-becoming another type are compatible. If the state of the two particle types
+:py:meth:`become <MxParticleHandle.become>` changes the *type* of a particle, and
+generally neglects the :ref:`state <flux>` of the particle on the condition that
+the state defined in the respective particle type definitions of a particle of one
+type becoming another type are compatible. If the state of the two particle types
 are incompatible, then the state variables of the initial particle type that
 are incompatible with the state of the new particle type are destroyed, and
 the state variables of the new particle type that are incompatible with the

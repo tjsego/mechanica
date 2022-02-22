@@ -1,5 +1,7 @@
 .. _bonded_interactions:
 
+.. py:currentmodule:: mechanica
+
 Bonded Interactions
 --------------------
 
@@ -29,10 +31,10 @@ Bonds
 
 A bond describes an interaction between two particles in terms
 of the distance between the two particles. A bond can be
-created using the method :meth:`create` on the class
-:class:`Bond` (:class:`MxBond` in C++), which returns a handle
+created using the method :py:meth:`create <MxBond.create>` on the class
+:py:attr:`Bond` (:class:`MxBond` in C++), which returns a handle
 to the newly created bond. A bond can be manually destroyed
-using the :class:`Bond` method :meth:`destroy`.
+using the :py:attr:`Bond` method :py:meth:`destroy <MxBondHandle.destroy>`.
 
 .. rst-class::  clear-both
 
@@ -42,9 +44,9 @@ using the :class:`Bond` method :meth:`destroy`.
     # Create a bond between particles "p0" and "p1" using the potential "pot_bond"
     bond_handle = mx.Bond.create(pot_bond, p0, p1)
 
-:class:`Bond` instances have an optional dissociation energy
+:py:attr:`Bond` instances have an optional dissociation energy
 that, when set, describes an energy threshold above which the
-bond is automatically destroyed. Likewise, each :class:`Bond`
+bond is automatically destroyed. Likewise, each :py:attr:`Bond`
 instance has an optional half life that, when set, describes
 the probability of destroying the bond at each simulation step,
 which Mechanica automatically implements,
@@ -54,8 +56,8 @@ which Mechanica automatically implements,
     bond_handle.dissociation_energy = 1E-3
     bond_handle.half_life = 10.0
 
-All bonds in the universe are accessible using the :class:`Universe`
-method :meth:`Universe.bonds`,
+All bonds in the universe are accessible using the :py:attr:`Universe`
+method :py:meth:`bonds <MxUniverse.bonds>`,
 
 .. code-block:: python
 
@@ -74,15 +76,15 @@ Angles
 An angle describes an interaction between two particles in terms
 of the angle made by their relative position vectors with respect
 to a third particle. An angle can be created using the method
-:meth:`create` on the class :class:`Angle` (:class:`MxAngle` in
-C++), which returns a handle to the newly created angle.
-An angle can be manually destroyed using the :class:`Angle`
-method :meth:`destroy`. :class:`Angle` instances have analogous
-properties and methods to most of those defined for :class:`Bond`
+:py:meth:`create <MxAngle.create>` on the class :py:attr:`Angle`
+(:class:`MxAngle` in C++), which returns a handle to the newly
+created angle. An angle can be manually destroyed using the :py:attr:`Angle`
+method :py:meth:`destroy <MxAngleHandle.destroy>`. :py:attr:`Angle` instances
+have analogous properties and methods to most of those defined for :py:attr:`Bond`
 instances, including accessing each constituent particle
 by indexing, and optional dissociation energy and half life.
-All angles in the universe are accessible using the :class:`Universe`
-method :meth:`Universe.angles`,
+All angles in the universe are accessible using the :py:attr:`Universe`
+method :py:meth:`angles <MxUniverse.angles>`,
 
 .. rst-class::  clear-both
 
@@ -106,15 +108,15 @@ Dihedrals
 
 A dihedral describes an interaction between four particles in terms
 of the angle between the planes made by their relative position vectors.
-A dihedral can be created using the method :meth:`create` on the class
-:class:`Dihedral` (:class:`MxDihedral` in C++), which returns a handle
+A dihedral can be created using the method :py:meth:`create <MxDihedral.create>`
+on the class :py:attr:`Dihedral` (:class:`MxDihedral` in C++), which returns a handle
 to the newly created dihedral. A dihedral can be manually destroyed using
-the :class:`Dihedral` method :meth:`destroy`. :class:`Dihedral` instances
-have analogous properties and methods to most of those defined for
-:class:`Bond` instances, including accessing each constituent particle
+the :py:attr:`Dihedral` method :py:meth:`destroy <MxDihedralHandle.destroy>`.
+:py:attr:`Dihedral` instances have analogous properties and methods to most
+of those defined for :py:attr:`Bond` instances, including accessing each constituent particle
 by indexing, and optional dissociation energy and half life.
-All dihedrals in the universe are accessible using the :class:`Universe`
-method :meth:`Universe.dihedrals`,
+All dihedrals in the universe are accessible using the :py:attr:`Universe`
+method :py:meth:`dihedrals <MxUniverse.dihedrals>`,
 
 .. rst-class::  clear-both
 

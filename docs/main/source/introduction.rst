@@ -88,7 +88,7 @@ biologically relevant problems using any combination of the following modeling m
 
 .. warning:: Only a subset of these features are presently available. We encourage users
     to **contact us about what features would best benefit your specific problem**.
-    Please contact us at `<tjsego@iu.edu>` or raise an issue on the
+    Please contact us at `<mechanicasim@gmail.com>` or raise an issue on the
     `Mechanica repository <https://github.com/tjsego/mechanica>`_.
 
 As development of Mechanica progresses, existing *Vertex Model* capabilities

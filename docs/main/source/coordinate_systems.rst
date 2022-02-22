@@ -1,5 +1,7 @@
 .. _coordinate_systems:
 
+.. py:currentmodule:: mechanica
+
 Coordinate Systems
 ------------------
 
@@ -17,7 +19,7 @@ and polar angle :math:`\phi`.
     :figclass: align-center
 
 The cartesian coordinates of every particle are accessible
-via the particle property :meth:`position` ::
+via the particle property :py:attr:`position <MxParticleHandle.position>` ::
 
     p = MyParticleType.items()[0]
     print('Particle position:', p.position)
@@ -25,7 +27,7 @@ via the particle property :meth:`position` ::
 Spherical coordinates of a particle can be accessed with respect to
 the frame of the universe, to the position of another particle, or to
 the position of an arbitrary point, using the particle method
-:meth:`sphericalPosition` ::
+:py:meth:`sphericalPosition <MxParticleHandle.sphericalPosition>` ::
 
     # Report some spherical coordinates in various frames of particle "p"
     print('Spherical coordinates (global)  :', p.sphericalPosition())

@@ -1,5 +1,7 @@
 .. _making_things_move:
 
+.. py:currentmodule:: mechanica
+
 Making Things Move
 ------------------
 
@@ -9,7 +11,7 @@ whether using one of the variety of built-in :ref:`potentials <potentials>`
 and :ref:`forces <forces>` provided by Mechanica or designing and
 implementing a custom force.
 
-Conservative forces are usually a kind of :class:`Potential` object, where the
+Conservative forces are usually a kind of :py:attr:`Potential` object, where the
 force is described in terms of its potential energy function. Long-range,
 fluid, and most bonded interactions are examples of forces based on
 conservative potential energy functions. All potential-based forces contribute

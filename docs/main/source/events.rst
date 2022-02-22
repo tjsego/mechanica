@@ -1,5 +1,7 @@
 .. _events:
 
+.. py:currentmodule:: mechanica
+
 Events
 -------
 
@@ -17,7 +19,7 @@ the *invoke method*. Aside from the condition that corresponds to a particular b
 event, the condition of each event can be further customized by also specifying a
 *predicate method*, which is another custom function that, when evaluated, tells
 Mechanica whether the event is triggered. Both invoke and predicate methods take as
-argument an instance of a specialized class of a base class :class:`Event`
+argument an instance of a specialized class of a base class :py:attr:`Event`
 (:class:`MxEvent` in C++). In C++, pointers to invoke and predicate methods can be
 created using the template :class:`MxEventMethodT` defined in *MxEvent.h*, where the
 template parameter is the class of the corresponding event. Invoke methods return
@@ -29,13 +31,13 @@ Working with Events
 ^^^^^^^^^^^^^^^^^^^^
 
 In the most basic (and also most robust) case, Mechanica provides a basic
-:class:`Event` class that, when created, is evaluated at every simulation step.
-A :class:`Event` instance has no built-in predicate method, and its invoke method is
+:py:attr:`Event` class that, when created, is evaluated at every simulation step.
+A :py:attr:`Event` instance has no built-in predicate method, and its invoke method is
 evaluated at every simulation step unless a custom predicate method is provided.
-As such, the :class:`Event` class is the standard class for implementing custom
-events for a particular model and simulation. An :class:`Event` instance
-can be created with the top-level method :meth:`on_event`
-(:meth:`MxOnEvent` in C++). ::
+As such, the :py:attr:`Event` class is the standard class for implementing custom
+events for a particular model and simulation. An :py:attr:`Event` instance
+can be created with the top-level method :func:`on_event`
+(:func:`MxOnEvent` in C++). ::
 
     import mechanica as mx
     ...
@@ -61,7 +63,8 @@ for the event to occur, ::
                 predicate_method=destroy_first_predicate)
 
 Events that are called repeatedly can also be designated for removal from the event
-system using the :class:`Event` method :meth:`remove` in an invoke method. ::
+system using the :py:attr:`Event` method :meth:`remove <MxEventBase.remove>` in an invoke
+method. ::
 
     class SplittingType(mx.ParticleType):
         pass
@@ -85,12 +88,12 @@ system using the :class:`Event` method :meth:`remove` in an invoke method. ::
 Timed Events
 ^^^^^^^^^^^^^
 
-The built-in event :class:`TimeEvent` (:class:`MxTimeEvent` in C++) repeatedly
+The built-in event :py:attr:`TimeEvent` (:class:`MxTimeEvent` in C++) repeatedly
 occurs with a prescribed period. By default, the period of evaluation is
 approximately implemented as the first simulation time at which at an amount
 of time at least as great as the period has elapsed since the last evaluation
-of the event. :class:`TimeEvent` instances can be created with the top-level
-method :meth:`on_time` (:meth:`MxOnTimeEvent` in C++). ::
+of the event. :py:attr:`TimeEvent` instances can be created with the top-level
+method :func:`on_time` (:func:`MxOnTimeEvent` in C++). ::
 
     def split_regular(event):
         splitting_type()
@@ -110,7 +113,7 @@ the name `"exponential"`. ::
 
     mx.on_time(invoke_method=split_random, period=10.0, distribution="exponential")
 
-:class:`TimeEvent` instances can also be generated for only a particular period
+:py:attr:`TimeEvent` instances can also be generated for only a particular period
 in simulation. The optional keyword argument ``start_time`` (default 0.0)
 defines the first time in simulation when the event can occur, and the optional
 keyword argument ``end_time`` (default forever) defines the last time in
@@ -135,13 +138,13 @@ from a prescribed particle type. These event instances have the attributes
 :attr:`targetType` and :attr:`targetParticle` that are set to the particle
 type and particle that correspond to an event.
 
-The :class:`ParticleEvent` (:class:`MxParticleEvent`) is a particle event
-that functions much the same as :class:`Event`. A :class:`ParticleEvent`
+The :py:attr:`ParticleEvent` (:class:`MxParticleEvent`) is a particle event
+that functions much the same as :py:attr:`Event`. A :py:attr:`ParticleEvent`
 instance has an invoke method and optional predicate method, and is
-evaluated at every simulation step. However, a :class:`ParticleEvent`
+evaluated at every simulation step. However, a :py:attr:`ParticleEvent`
 instance also has an associated particle type and, on evaluation, an
-associated particle. :class:`ParticleEvent` instances can be created with
-the top-level method :meth:`on_particle` (:meth:`MxOnParticleEvent` in C++). ::
+associated particle. :py:attr:`ParticleEvent` instances can be created with
+the top-level method :func:`on_particle` (:func:`MxOnParticleEvent` in C++). ::
 
     def split_selected(event):
         selected_particle = event.targetParticle
@@ -162,10 +165,10 @@ using the optional keyword argument ``selector`` and passing ``"largest"``. ::
     mx.on_particle(splitting_type, invoke_method=invoke_destroy_largest,
                    selector="largest")
 
-The particle event :class:`ParticleTimeEvent` (:class:`MxParticleTimeEvent` in C++)
-functions is a combination of :class:`TimeEvent` and :class:`ParticleEvent`, and
-can be created with the top-level method :meth:`on_particletime`
-(:meth:`MxOnParticleTimeEvent` in C++) with all of the combined corresponding
+The particle event :py:attr:`ParticleTimeEvent` (:class:`MxParticleTimeEvent` in C++)
+functions is a combination of :py:attr:`TimeEvent` and :py:attr:`ParticleEvent`, and
+can be created with the top-level method :func:`on_particletime`
+(:func:`MxOnParticleTimeEvent` in C++) with all of the combined corresponding
 arguments. ::
 
     def split_selected_later(event):
@@ -180,13 +183,14 @@ arguments. ::
 Input-Driven Events
 ^^^^^^^^^^^^^^^^^^^^
 
-Mechanica provides an event :class:`KeyEvent` (:class:`MxKeyEvent` in C++) that
-occurs each time a key on the keyboard is pressed. :class:`KeyEvent` instances
+Mechanica provides an event :py:attr:`KeyEvent` (:class:`MxKeyEvent` in C++) that
+occurs each time a key on the keyboard is pressed. :py:attr:`KeyEvent` instances
 do not support a custom predicate method. The name of the key that triggered
-the event is available as the :class:`KeyEvent` string attribute :attr:`key_name`.
-One :class:`KeyEvent` instance can be created with the top-level method
-:meth:`on_keypress`. In C++, an invoke method can be assigned as a keyboard
-callback using the static method :meth:`MxKeyEvent::addDelegate`. ::
+the event is available as the :py:attr:`KeyEvent` string attribute
+:attr:`key_name <MxKeyEvent.key_name>`. One :py:attr:`KeyEvent` instance can be
+created with the top-level method :func:`on_keypress`. In C++, an invoke method
+can be assigned as a keyboard callback using the static method
+:meth:`MxKeyEvent::addDelegate`. ::
 
     # key "d" destroys a particle; key "c" creates a particle
     def do_key_actions(event):

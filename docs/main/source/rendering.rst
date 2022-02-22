@@ -1,10 +1,12 @@
 .. _rendering:
 
+.. py:currentmodule:: mechanica
+
 Rendering and System Interaction
 --------------------------------
 
 Mechanica provides a number of methods to interact with the rendering
-engine and host CPU via the ``system`` module (:class:`MxSystem` in C++).
+engine and host CPU via the :py:attr:`system` module (:class:`MxSystem` in C++).
 Basic information about a Mechanica installation can be retrieved on demand,
 including information about the CPU, software compilation and available graphics
 hardware, ::
@@ -16,7 +18,7 @@ hardware, ::
     print('Compilation info:', mx.system.compile_flags())
     print('OpenGL info:', mx.system.gl_info())
 
-The ``system`` module provides rendering methods for customizing basic
+The :py:attr:`system` module provides rendering methods for customizing basic
 visualization during simulation. Basic visualization customization combines
 with specifications made using :ref:`Style <style>` objects, ::
 
@@ -75,7 +77,7 @@ plane, one side of which is visualized, and the other side of which is not visua
 Mechanica supports up to 8 clip planes at any given time in simulation.
 
 A Mechanica simulation can be initialized in Python with one or more clip planes using the keyword
-argument ``clip_planes`` in the :meth:`init` method. Clip planes in Python are specified in a list of
+argument ``clip_planes`` in the :func:`init` function. Clip planes in Python are specified in a list of
 tuples (in C++, a string with the same syntax is passed), where each tuple specifies a clip plane.
 Each tuple contains two elements: a three-element list specifying a point on the clip plane, and
 a three-element list specifying the components of the normal vector of the plane, ::
@@ -84,8 +86,8 @@ a three-element list specifying the components of the normal vector of the plane
     # Initialize with a clip plane at the center along the y-z plane
     mx.init(dim=[10, 10, 10], clip_planes=[([5, 5, 5], [1, 0, 0])])
 
-Existing clip planes can be retrieved using the :class:`ClipPlanes` (:class:`MxClipPlanes` in C++)
-interface, which provides :class:`ClipPlane` (:class:`MxClipPlane` in C++) objects for interacting
+Existing clip planes can be retrieved using the :py:attr:`ClipPlanes` (:class:`MxClipPlanes` in C++)
+interface, which provides :py:attr:`ClipPlane` (:class:`MxClipPlane` in C++) objects for interacting
 with clip planes during a simulation, ::
 
     # See how many clip planes we currently have
@@ -93,13 +95,13 @@ with clip planes during a simulation, ::
     # Get the clip plane created during initialization
     clip_plane0 = mx.ClipPlanes.item(0)                   # Returned object is a mx.ClipPlane
 
-The :class:`ClipPlanes` interface also provides the ability to create new clip planes
+The :py:attr:`ClipPlanes` interface also provides the ability to create new clip planes
 at any time during a simulation, ::
 
     # Create a second clip plane at the center along the x-z plane
     clip_plane1 = mx.ClipPlanes.create(mx.Universe.center, mx.MxVector3f(0, 1, 0))
 
-A :class:`ClipPlane` instance provides a live interface to its clip plane in the Mechanica rendering
+A :py:attr:`ClipPlane` instance provides a live interface to its clip plane in the Mechanica rendering
 engine, so that clip planes can be manipulated or destroyed at any time in simulation after
 their creation, ::
 
@@ -109,12 +111,13 @@ their creation, ::
     clip_plane1.destroy()
     mx.run()
 
-.. note:: Destroying a :class:`ClipPlane` can have downstream effects on the validity of
-    other :class:`ClipPlane` instances. When a :class:`ClipPlane` instance is created, it
+.. note:: Destroying a :py:attr:`ClipPlane` can have downstream effects on the validity of
+    other :py:attr:`ClipPlane` instances. When a :py:attr:`ClipPlane` instance is created, it
     refers to a clip plane by index from a list of clip planes in the rendering engine.
     If a clip plane is removed from the middle of the list of clip planes, then all instances
     after it in the list are shifted downward (like popping from a Python list). As such, all
-    :class:`ClipPlane` instances that refer to downshifted clip planes have invalid reference
-    indices. Invalid references can be repaired by decrementing their attribute :attr:`index`,
-    though a more reliable approach is to always refer to clip planes using the
-    :class:`ClipPlanes` static method :meth:`item` (*e.g.*, ``mx.ClipPlanes.item(1).destroy()``).
+    :py:attr:`ClipPlane` instances that refer to downshifted clip planes have invalid reference
+    indices. Invalid references can be repaired by decrementing their attribute
+    :attr:`index <ClipPlane.index>`, though a more reliable approach is to always refer to clip
+    planes using the :py:attr:`ClipPlanes` static method :meth:`item <MxClipPlanes.item>`
+    (*e.g.*, ``mx.ClipPlanes.item(1).destroy()``).

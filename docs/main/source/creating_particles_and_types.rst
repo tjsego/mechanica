@@ -1,5 +1,7 @@
 .. _creating_particles_and_types:
 
+.. py:currentmodule:: mechanica
+
 Creating Particles and Particle Types
 ======================================
 
@@ -50,9 +52,9 @@ been registered with Mechanica for a simulation, and there is exactly
 one instance of each registered particle type that Mechanica works
 with during a simulation.
 :class:`MxParticleType` and each subclass of it has a special method
-:meth:`get` that retrieves the instance of the particle type that
-Mechanica is using in a simulation (assuming the type has been
-registered), which is not necessarily an instance of a particle
+:py:meth:`get <MxParticleType.get>` that retrieves the instance of the
+particle type that Mechanica is using in a simulation (assuming the type
+has been registered), which is not necessarily an instance of a particle
 type that might be created during simulation.
 This way, the working instance of a registered particle type can be
 retrieved from Mechanica and interacted with by referring to the
@@ -100,12 +102,12 @@ with Mechanica in Python with the class method :meth:`ParticleType.get`,
     :class:`MxParticleType`. Rather, it is a convenience class that
     automates the process of creating, registering and retrieving a
     :class:`MxParticleType` instance with Mechanica using the class method
-    :meth:`get`, which always returns the actual registered
+    :meth:`get <ParticleType.get>`, which always returns the actual registered
     :class:`MxParticleType` instance without ambiguity. A
     :class:`ParticleType` instance can be instantiated in the typical
     way and operated on without any need for the Mechanica engine, so
-    long as :meth:`get` is not called on the instance. Furthermore,
-    additional specifications can be made on a :class:`ParticleType`
+    long as :meth:`get <ParticleType.get>` is not called on the instance.
+    Furthermore, additional specifications can be made on a :class:`ParticleType`
     class definition. However, ``self`` in a :class:`ParticleType` method
     does not refer to the corresponding :class:`MxParticleType` instance
     registered with Mechanica.
@@ -209,13 +211,13 @@ not concerned with the distinction between a particle and a cluster.
 As such, operations can return a cluster or cluster type instance
 as a particle or particle type instance. To handle any ambiguity
 about whether a particle is actually a cluster, each particle type
-has a method :meth:`isCluster` that returns ``true`` if the particle
-type is a cluster type. In such cases, corresponding particles can be
-safely cast to a cluster type in appropriate languages.
-In Python, this cast can be accomplished with the particle method
-:meth:`to_cluster`, which returns a cluster instance of the same
-underlying particle. Likewise the :meth:`get` method of cluster types
-in Python correctly returns instances of the cluster type.
+has a method :meth:`isCluster <MxParticleType.isCluster>` that
+returns ``true`` if the particle type is a cluster type. In such cases,
+corresponding particles can be safely cast to a cluster type in appropriate
+languages. In Python, this cast can be accomplished with the particle method
+:meth:`to_cluster <MxParticleType.to_cluster>`, which returns a cluster instance
+of the same underlying particle. Likewise the :meth:`get <ClusterType.get>`
+method of cluster types in Python correctly returns instances of the cluster type.
 
 Clusters also have unique properties (*e.g.*, center of mass,
 :ref:`particle inventory <accessing>`)
@@ -227,12 +229,12 @@ particle types *and* :ref:`cluster ownership <binding_with_clusters>`.
 Defining Clusters
 ^^^^^^^^^^^^^^^^^^
 
-The class :class:`ClusterType` (:class:`MxClusterType` in C++) corresponds
-to :class:`ParticleType` for clusters, and the class :class:`Cluster`
-corresponds to :class:`Particle`. New cluster types can be specified in
+The class :class:`ClusterType` (:class:`MxClusterParticleType` in C++) corresponds
+to :class:`ParticleType` for clusters, and the class :py:attr:`Cluster`
+corresponds to :py:attr:`Particle`. New cluster types can be specified in
 the same way as particle types, with the additional specification of
 other particle and cluster types that constitute it with the
-cluster type property ``types``.
+cluster type property :py:attr:`types <ClusterType.types>`.
 
 .. code-block:: python
 

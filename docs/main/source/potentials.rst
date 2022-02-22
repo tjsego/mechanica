@@ -1,5 +1,7 @@
 .. _potentials:
 
+.. py:currentmodule:: mechanica
+
 Potentials
 -----------
 
@@ -9,20 +11,20 @@ the 100nm to multiple cm range. Supporting modeling and simulation in these
 ranges requires a good deal of flexibility to create and calibrate potential
 functions to model material rheology and particle interactions.
 
-Mechanica provides a wide range of potentials in the :class:`Potential` class
+Mechanica provides a wide range of potentials in the :py:attr:`Potential` class
 (:class:`MxPotential` in C++). Any of the built-in potential functions
 can be created as objects in a simulation using a static method on the
-:class:`Potential` class, which can be :ref:`bound <binding>` to pairs and
+:py:attr:`Potential` class, which can be :ref:`bound <binding>` to pairs and
 groups of particles to implement models of interactions.
 
 Creating, Plotting and Exploring Potentials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:class:`Potential` objects are created simply by calling one of the
-static methods on the :class:`Potential` class. In Python, :class:`Potential`
-objects conveniently have a :meth:`plot` method that displays a ``matplotlib``
-plot. For example, while working with the built-in
-Generalized Lennard-Jones potential, ::
+:py:attr:`Potential` objects are created simply by calling one of the
+static methods on the :py:attr:`Potential` class. In Python, :py:attr:`Potential`
+objects conveniently have a :meth:`plot <MxPotential.plot>` method that displays a
+graph of the potential energy in a ``matplotlib`` plot. For example, while working
+with the built-in Generalized Lennard-Jones potential, ::
 
     import mechanica as mx
     pot = mx.Potential.glj(10)
@@ -35,7 +37,7 @@ results in
     :width: 300px
     :class: sphx-glr-single-img
 
-A :class:`Potential` instance can also be created by adding two existing
+A :py:attr:`Potential` instance can also be created by adding two existing
 instances. Such operations can be arbitrarily performed to construct complicated
 potentials consisting of multiple constituent potentials, ::
 
@@ -48,13 +50,13 @@ potentials consisting of multiple constituent potentials, ::
     Changes to constituent potentials during simulation are reflected in potentials
     that have been constructed from them using summation operations.
 
-Mechanica also supports creating custom potentials with the :class:`Potential` method
-:meth:`custom`. A custom potential requires the domain of the potential and, at minimum,
-a function that takes a float as argument and returns the value of the potential at the
-argument value. Mechanica constructs an interpolation of a potential function using
-functions that return the value of the potential, its first derivative, and its
-sixth derivative. When a function is not provided for either derivative, the derivative
-is approximated using finite difference, ::
+Mechanica also supports creating custom potentials with the :py:attr:`Potential` method
+:meth:`custom <MxPotential.custom>`. A custom :py:attr:`Potential` requires the domain
+of the :py:attr:`Potential` and, at minimum, a function that takes a float as argument and
+returns the value of the :py:attr:`Potential` at the argument value. Mechanica constructs
+an interpolation of a potential function using functions that return the value of the
+:py:attr:`Potential`, its first derivative, and its sixth derivative. When a function is
+not provided for either derivative, the derivative is approximated using finite difference, ::
 
     pot_custom = mx.Potential.custom(min=0.0, max=2.0,
                                      f=lambda r: (r-1.0) ** 6.0,            # Potential function
@@ -62,10 +64,11 @@ is approximated using finite difference, ::
                                      f6p=lambda r: 720.0)                   # Sixth derivative
 
 Potentials for :ref:`angle <bonded_interactions:Angles>` and
-:ref:`dihedral <bonded_interactions:Dihedrals>` bonds by passing ``Potential.Flags.angle.value``
-and ``Potential.Flags.dihedral.value``, respectively, to the keyword argument ``flags``. In
-both cases, the cosine of the angle of an angle or dihedral bond is passed as argument to
-the potential function, ::
+:ref:`dihedral <bonded_interactions:Dihedrals>` bonds can be created by passing
+``Potential.Flags.angle.value`` and ``Potential.Flags.dihedral.value``, respectively
+(``POTENTIAL_ANGLE`` and ``POTENTIAL_DIHEDRAL`` in C++, respectively), to
+the keyword argument ``flags``. In both cases, the cosine of the angle of an angle or
+dihedral bond is passed as argument to the potential function, ::
 
     pot_angle = mx.Potential.custom(min=-0.999, max=0.999,
                                     f=lambda r: cos(2.0 * acos(r)),
@@ -80,7 +83,7 @@ the potential function, ::
     for approximating derivatives using finite difference. However, providing functions
     for the first and sixth derivative of a potential function is recommended whenever possible,
     as is examining the quality of the generated interpolation of a potential function before
-    using it in a simulation using ``plot``.
+    using it in a simulation using :meth:`plot <MxPotential.plot>`.
 
 Built-in Potentials
 ^^^^^^^^^^^^^^^^^^^^
@@ -89,20 +92,20 @@ Presently, the following built-in potential functions are supported, with corres
 constructor method. For details on the parameters of each function, refer to the
 :ref:`Mechanica API Reference <api_reference>`.
 
-* 12-6 Lennard-Jones: Potential.lennard_jones_12_6
-* 12-6 Lennard-Jones with shifted Coulomb: Potential.lennard_jones_12_6_coulomb
-* Coulomb: Potential.coulomb
-* Coulomb reciprocal potential: Potential.coulombR
-* Dissipative particle dynamics: Potential.dpd
-* Ewald (real-space): Potential.ewald
-* Generalized Lennard-Jones: Potential.glj
-* Harmonic: Potential.harmonic
-* Harmonic angle: Potential.harmonic_angle
-* Harmonic dihedral: Potential.harmonic_dihedral
-* Cosine dihedral: Potential.cosine_dihedral
-* Linear: Potential.linear
-* Morse: Potential.morse
-* Overlapping sphere: Potential.overlapping_sphere
-* Power: Potential.power
-* Soft sphere: Potential.soft_sphere
-* Well: Potential.well
+* 12-6 Lennard-Jones: :meth:`Potential.lennard_jones_12_6 <MxPotential.lennard_jones_12_6>`
+* 12-6 Lennard-Jones with shifted Coulomb: :meth:`Potential.lennard_jones_12_6_coulomb <MxPotential.lennard_jones_12_6_coulomb>`
+* Coulomb: :meth:`Potential.coulomb <MxPotential.coulomb>`
+* Coulomb reciprocal potential: :meth:`Potential.coulombR <MxPotential.coulombR>`
+* Dissipative particle dynamics: :meth:`Potential.dpd <MxPotential.dpd>`
+* Ewald (real-space): :meth:`Potential.ewald <MxPotential.ewald>`
+* Generalized Lennard-Jones: :meth:`Potential.glj <MxPotential.glj>`
+* Harmonic: :meth:`Potential.harmonic <MxPotential.harmonic>`
+* Harmonic angle: :meth:`Potential.harmonic_angle <MxPotential.harmonic_angle>`
+* Harmonic dihedral: :meth:`Potential.harmonic_dihedral <MxPotential.harmonic_dihedral>`
+* Cosine dihedral: :meth:`Potential.cosine_dihedral <MxPotential.cosine_dihedral>`
+* Linear: :meth:`Potential.linear <MxPotential.linear>`
+* Morse: :meth:`Potential.morse <MxPotential.morse>`
+* Overlapping sphere: :meth:`Potential.overlapping_sphere <MxPotential.overlapping_sphere>`
+* Power: :meth:`Potential.power <MxPotential.power>`
+* Soft sphere: :meth:`Potential.soft_sphere <MxPotential.soft_sphere>`
+* Well: :meth:`Potential.well <MxPotential.well>`

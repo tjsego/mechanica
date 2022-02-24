@@ -19,7 +19,7 @@
 
 static Berendsen *berendsen_create(float tau);
 static Gaussian *random_create(float mean, float std, float durration);
-static Friction *friction_create(float coef, float mean, float std, float durration);
+static Friction *friction_create(float coef);
 
 static float scaling_constant(MxParticle *part, int stateVectorIndex) {
     if(part->state_vector && stateVectorIndex >= 0) {
@@ -170,11 +170,11 @@ Gaussian* MxForce::random(const float &std, const float &mean, const float &dura
     }
 }
 
-Friction* MxForce::friction(const float &coef, const float &std, const float &mean, const float &duration) {
+Friction* MxForce::friction(const float &coef) {
     Log(LOG_DEBUG);
 
     try {
-        return friction_create(coef, std, mean, duration);
+        return friction_create(coef);
     }
     catch (const std::exception &e) {
         MX_RETURN_EXP(e);
@@ -252,18 +252,11 @@ static void constant_force(MxConstantForce *cf, MxParticle *p, FPTYPE *f) {
  */
 static void friction_force(Friction *t, MxParticle *p, FPTYPE *f) {
     
-    if((_Engine.integrator_flags & INTEGRATOR_UPDATE_PERSISTENTFORCE) &&
-       (_Engine.time + p->id) % t->durration_steps == 0) {
-        
-        p->persistent_force = MxRandomVector(t->mean, t->std);
-    }
+    float scale = -1. * t->coef * p->velocity.length() * scaling_constant(p, t->stateVectorIndex);
     
-    float v2 = p->velocity.dot();
-    float scale = -1. * t->coef * v2  * scaling_constant(p, t->stateVectorIndex);
-    
-    f[0] += scale * p->v[0] + p->persistent_force[0];
-    f[1] += scale * p->v[1] + p->persistent_force[1];
-    f[2] += scale * p->v[2] + p->persistent_force[2];
+    f[0] += scale * p->v[0];
+    f[1] += scale * p->v[1];
+    f[2] += scale * p->v[2];
 }
 
 static void gaussian_force(Gaussian *t, MxParticle *p, FPTYPE *f) {
@@ -303,15 +296,12 @@ Gaussian *random_create(float mean, float std, float durration) {
     return obj;
 }
 
-Friction *friction_create(float coef, float mean, float std, float durration) {
+Friction *friction_create(float coef) {
     auto *obj = new Friction();
     
     obj->type = FORCE_FRICTION;
     obj->func = (MxForce_EvalFcn)friction_force;
     obj->coef = coef;
-    obj->std = std;
-    obj->mean = mean;
-    obj->durration_steps = std::ceil(durration / _Engine.dt);
     
     return obj;
 }
@@ -586,9 +576,6 @@ HRESULT toFile(const Friction &dataElement, const MxMetaData &metaData, MxIOElem
     MXFORCEIOTOEASY(fe, "type", dataElement.type);
     MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement.stateVectorIndex);
     MXFORCEIOTOEASY(fe, "coef", dataElement.coef);
-    MXFORCEIOTOEASY(fe, "std", dataElement.std);
-    MXFORCEIOTOEASY(fe, "mean", dataElement.mean);
-    MXFORCEIOTOEASY(fe, "durration_steps", dataElement.durration_steps);
 
     fileElement->type = "FrictionForce";
     
@@ -603,9 +590,6 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, Fri
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "stateVectorIndex", &dataElement->stateVectorIndex);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "coef", &dataElement->coef);
-    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "std", &dataElement->std);
-    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "mean", &dataElement->mean);
-    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "durration_steps", &dataElement->durration_steps);
     dataElement->func = (MxForce_EvalFcn)friction_force;
 
     return S_OK;

@@ -124,20 +124,16 @@ struct MxForce {
      * 
      * @f[
      * 
-     *      - \frac{|| \mathbf{v} ||}{\tau} \mathbf{v} + \mathbf{f}_{r} ,
+     *      - \frac{|| \mathbf{v} ||}{\tau} \mathbf{v} ,
      * 
      * @f]
      * 
-     * where @f$ \mathbf{v} @f$ is the velocity of a particle, @f$ \tau @f$ is a time constant and 
-     * @f$ \mathbf{f}_r @f$ is a random force. 
+     * where @f$ \mathbf{v} @f$ is the velocity of a particle and @f$ \tau @f$ is a time constant. 
      * 
      * @param coef time constant
-     * @param std standard deviation of random force magnitude
-     * @param mean mean of random force magnitude
-     * @param duration duration of force. Defaults to 0.1. 
      * @return Friction* 
      */
-    static Friction* friction(const float &coef, const float &std=0.0, const float &mean=0.0, const float &duration=0.1);
+    static Friction* friction(const float &coef);
 
     MxForce& operator+(const MxForce& rhs);
 
@@ -334,21 +330,6 @@ struct Friction : MxForce {
      * @brief time constant
      */
     float coef;
-
-    /**
-     * @brief standard deviation of random force magnitude
-     */
-    float std;
-
-    /**
-     * @brief mean of random force magnitude
-     */
-    float mean;
-
-    /**
-     * @brief duration of force, in time steps
-     */
-    unsigned durration_steps;
 
     /**
      * @brief Convert basic force to Friction. 

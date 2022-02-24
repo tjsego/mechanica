@@ -16,54 +16,16 @@
 #
 # original Copyright (c) 2009-2019 The Regents of the University of Michigan
 # This file is part of the HOOMD-blue project, released under the BSD 3-Clause License.
-
-""" Define lattices.
-
-:py:mod:`mechanica.lattice` provides a general interface to define lattices to initialize systems.
-
+"""
+Defines lattices.
 """
 
 import numpy
 import math
+from typing import Callable, List, Tuple, Union
 from collections import namedtuple
 
 import mechanica as m
-
-
-# Multiply two quaternions
-# Apply quaternion multiplication per
-# http://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation
-# (requires numpy)
-# \param q1 quaternion
-# \param q2 quaternion
-# \returns q1*q2
-def _quatMult(q1, q2):
-    s = q1[0]
-    v = q1[1:]
-    t = q2[0]
-    w = q2[1:]
-    q = numpy.empty((4,), dtype=numpy.float64)
-    q[0] = s*t - numpy.dot(v, w)
-    q[1:] = s*w + t*v + numpy.cross(v, w)
-    return q
-
-
-# Rotate a vector by a unit quaternion
-# Quaternion rotation per
-# http://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation
-# (requires numpy)
-# \param q rotation quaternion
-# \param v 3d vector to be rotated
-# \returns q*v*q^{-1}
-def _quatRot(q, v):
-    v = numpy.asarray(v)
-    q = numpy.asarray(q)
-    # assume q is a unit quaternion
-    w = q[0]
-    r = q[1:]
-    vnew = numpy.empty((3,), dtype=v.dtype)
-    vnew = v + 2*numpy.cross(r, numpy.cross(r, v) + w*v)
-    return vnew
 
 
 # make a types vector of the requested size
@@ -76,53 +38,33 @@ def _make_types(n, types):
         pass
 
     if types is None:
-        return [m.Particle] * n
+        return [m.MxParticleType] * n
 
     return [types] * n
 
 
-# hold bond rule info,
-#
-# *func: function of func(p1, p2) that accepts two particle handles and
-#        returns a bond.
-#
-# *parts: pair of particle ids in current current and other unit cell
-#         must be tuple.
-#
-# *cell_offset: offset vector of other unit cell relative to current
-#         unit cell. Must be a tuple
 _BondRule = namedtuple('_BondRule', ['func', 'part_ids', 'cell_offset'])
+"""
+hold bond rule info,
+
+*func: function of func(p1, p2) that accepts two particle handles and
+       returns a bond.
+
+*parts: pair of particle ids in current current and other unit cell
+        must be tuple.
+
+*cell_offset: offset vector of other unit cell relative to current
+        unit cell. Must be a tuple
+"""
 
 
 class unitcell(object):
-    R""" Define a unit cell.
-
-    Args:
-        N (int): Number of particles in the unit cell.
-        a1 (list): Lattice vector (3-vector).
-        a2 (list): Lattice vector (3-vector).
-        a3 (list): Lattice vector (3-vector). Set to [0,0,1] in 2D lattices.
-        dimensions (int): Dimensionality of the lattice (2 or 3).
-        position (list): List of particle positions.
-        type_name (list): List of particle type names.
-        mass (list): List of particle masses.
-        charge (list): List of particle charges.
-        diameter (list): List of particle diameters.
-        moment_inertia (list): List of particle moments of inertia.
-        orientation (list): List of particle orientations.
-        bonds (tuple): a list of tuples, where each tuple that contains a:
-                      * potential,
-                      * tuple of particle index in current cell, and
-                        another unit cell
-                      * tuple of the other unit cell's offset, i.e.
-                      to bind the 1'th particle in a cell with the 1'th particle
-                      in another cell one unit cell offset in the i direction, we
-                      would:
-                      (pot, (1, 1), (1, 0, 0))
+    """
+    A unit cell
 
     A unit cell is a box definition (*a1*, *a2*, *a3*, *dimensions*), and particle properties
     for *N* particles. You do not need to specify all particle properties. Any property omitted
-    will be initialized to defaults. The :py:class:`create_lattice` initializes the system with
+    will be initialized to defaults. The function :py:func:`create_lattice` initializes the system with
     many copies of a unit cell.
 
     :py:class:`unitcell` is a completely generic unit cell representation. See other classes in
@@ -130,31 +72,46 @@ class unitcell(object):
 
     Example::
 
-        uc = lattice.unitcell(N = 2,
-                              a1 = [1,0,0],
-                              a2 = [0.2,1.2,0],
-                              a3 = [-0.2,0, 1.0],
-                              dimensions = 3,
-                              position = [[0,0,0], [0.5, 0.5, 0.5]],
-                              types = [A, B],
-                              orientation = [[0.707, 0, 0, 0.707], [1.0, 0, 0, 0]])
+        uc = lattice.unitcell(N=2,
+                              a1=[1, 0, 0],
+                              a2=[0.2, 1.2, 0],
+                              a3=[-0.2, 0, 1.0],
+                              dimensions=3,
+                              position=[[0, 0, 0], [0.5, 0.5, 0.5]],
+                              types=[A, B])
 
     Note:
         *a1*, *a2*, *a3* must define a right handed coordinate system.
-
     """
 
     def __init__(self,
-                 N,
-                 a1,
-                 a2,
-                 a3,
-                 dimensions=3,
-                 position=None,
-                 types=None,
-                 diameter=None,
-                 orientation=None,
-                 bonds=None):
+                 N: int,
+                 a1: List[float],
+                 a2: List[float],
+                 a3: List[float],
+                 dimensions: int = 3,
+                 position: List[List[float]] = None,
+                 types: List[m.MxParticleType] = None,
+                 bonds: Tuple[_BondRule] = None):
+        """
+
+        :param N: Number of particles in the unit cell.
+        :type N: int
+        :param a1: Lattice vector (3-vector).
+        :type a1: List[float]
+        :param a2: Lattice vector (3-vector).
+        :type a2: List[float]
+        :param a3: Lattice vector (3-vector).
+        :type a3: List[float]
+        :param dimensions: Dimensionality of the lattice (2 or 3).
+        :type dimensions: int
+        :param position: List of particle positions.
+        :type position: List[List[float]]
+        :param types: List of particle types
+        :type types: List[m.MxParticleType]
+        :param bonds: bond constructors rules
+        :type bonds: Tuple[_BondRule]
+        """
 
         self.N = N
         self.a1 = numpy.asarray(a1, dtype=numpy.float64)
@@ -177,56 +134,56 @@ class unitcell(object):
             if len(self.types) != N:
                 raise ValueError("Particle properties must have length N")
 
-        if orientation is None:
-            self.orientation = numpy.array([(1, 0, 0, 0)] * self.N, dtype=numpy.float64)
-        else:
-            self.orientation = numpy.asarray(orientation, dtype=numpy.float64)
-            if len(self.orientation) != N:
-                raise ValueError("Particle properties must have length N")
 
+def sc(a: float,
+       types: m.MxParticleType = None,
+       bond: Union[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
+                   List[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle]]] = None,
+       bond_vector: Tuple[bool] = (True, True, True)) -> unitcell:
+    """
+    Create a unit cell for a simple cubic lattice (3D).
 
-def sc(a, types=None, bond=None, bond_vector=(True, True, True)):
-    R""" Create a simple cubic lattice (3D).
+    The simple cubic lattice unit cell has one particle:
 
-    Args:
-        a (float): Lattice constant.
-        type_name (str): Particle type name.
-
-    The simple cubic unit cell has 1 particle:
-
-    .. math::
-        :nowrap:
-
-        \begin{eqnarray*}
-        \vec{r}& =& \left(\begin{array}{ccc} 0 & 0 & 0 \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    - ``[0, 0, 0]``
 
     And the box matrix:
 
-    .. math::
-        :nowrap:
+    - ``[[a, 0, 0]``
+      ``[0, a, 0]``
+      ``[0, 0, a]]``
 
-        \begin{eqnarray*}
-        \mathbf{h}& =& \left(\begin{array}{ccc} a & 0 & 0 \\
-                                                0 & a & 0 \\
-                                                0 & 0 & a \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    Example::
+
+        uc = mechanica.lattice.sc(1.0, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
+
+    :param a: lattice constant
+    :param types: particle type
+    :param bond: bond constructor(s)
+    :param bond_vector: flags for creating bonds in the 1-, 2-, and 3-directions
+    :return: a simple cubic lattice unit cell
     """
 
     bonds = None
     if bond:
+        try:
+            iter(bond)
+            bond_funcs = bond
+        except TypeError:
+            bond_funcs = [bond] * 3
+
         bonds = []
 
         if bond_vector[0]:
-            bonds.append(_BondRule(bond, (0, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
 
         if bond_vector[1]:
-            bonds.append(_BondRule(bond, (0, 0), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (0, 0), (0, 1, 0)))
 
         if bond_vector[2]:
-            bonds.append(_BondRule(bond, (0, 0), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
+
+        bonds = tuple(bonds)
 
     return unitcell(N=1,
                     types=_make_types(1, types),
@@ -237,36 +194,64 @@ def sc(a, types=None, bond=None, bond_vector=(True, True, True)):
                     bonds=bonds)
 
 
-def bcc(a, types=None):
-    R""" Create a body centered cubic lattice (3D).
+def bcc(a: float,
+        types: Union[m.MxParticleType, List[m.MxParticleType]] = None,
+        bond: Union[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
+                    List[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle]]] = None,
+        bond_vector: Tuple[bool] = (True, True)) -> unitcell:
+    """
+    Create a unit cell for a body centered cubic lattice (3D).
 
-    Args:
-        a (float): Lattice constant.
-        type_name (str): Particle type name.
+    The body centered cubic lattice unit cell has two particles:
 
-    The body centered cubic unit cell has 2 particles:
-
-    .. math::
-        :nowrap:
-
-        \begin{eqnarray*}
-        \vec{r}& =& \left(\begin{array}{ccc} 0 & 0 & 0 \\
-                                             \frac{a}{2} & \frac{a}{2} & \frac{a}{2} \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    - ``[0, 0, 0]``
+    - ``[a/2, a/2, a/2]``
 
     And the box matrix:
 
-    .. math::
-        :nowrap:
+    - ``[[a, 0, 0]``
+      ``[0, a, 0]``
+      ``[0, 0, a]]``
 
-        \begin{eqnarray*}
-        \mathbf{h}& =& \left(\begin{array}{ccc} a & 0 & 0 \\
-                                                0 & a & 0 \\
-                                                0 & 0 & a \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    Example::
+
+        uc = mechanica.lattice.bcc(1.0, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
+
+    :param a: lattice constant
+    :param types: particle type or list of particle types
+    :param bond: bond constructor(s)
+    :param bond_vector: flags for creating bonds
+        - between the corner particles
+        - between the corner and center particles
+    :return: a body centered cubic lattice unit cell
     """
+
+    bonds = None
+    if bond:
+        try:
+            iter(bond)
+            bond_funcs = bond
+        except TypeError:
+            bond_funcs = [bond] * 2
+
+        bonds = []
+
+        if bond_vector[0]:
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (0, 0, 1)))
+
+        if bond_vector[1]:
+            bonds.append(_BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 1)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 1, 1)))
+
+        bonds = tuple(bonds)
 
     return unitcell(N=2,
                     types=_make_types(2, types),
@@ -274,41 +259,74 @@ def bcc(a, types=None):
                     a1=[a, 0, 0],
                     a2=[0, a, 0],
                     a3=[0, 0, a],
-                    dimensions=3)
+                    dimensions=3,
+                    bonds=bonds)
 
 
-def fcc(a, types=None):
-    R""" Create a face centered cubic lattice (3D).
+def fcc(a: float,
+        types: Union[m.MxParticleType, List[m.MxParticleType]] = None,
+        bond: Union[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
+                    List[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle]]] = None,
+        bond_vector: Tuple[bool] = (True, True)) -> unitcell:
+    """
+    Create a unit cell for a face centered cubic lattice (3D).
 
-    Args:
-        a (float): Lattice constant.
-        type_name (str): Particle type name.
+    The face centered cubic lattice unit cell has four particles:
 
-    The face centered cubic unit cell has 4 particles:
-
-    .. math::
-        :nowrap:
-
-        \begin{eqnarray*}
-        \vec{r}& =& \left(\begin{array}{ccc} 0 & 0 & 0 \\
-                                             0 & \frac{a}{2} & \frac{a}{2} \\
-                                             \frac{a}{2} & 0 & \frac{a}{2} \\
-                                             \frac{a}{2} & \frac{a}{2} & 0\\
-                             \end{array}\right)
-        \end{eqnarray*}
+    - ``[0, 0, 0]``
+    - ``[0, a/2, a/2]``
+    - ``[a/2, 0, a/2]``
+    - ``[a/2, a/2, 0]]``
 
     And the box matrix:
 
-    .. math::
-        :nowrap:
+    - ``[[a, 0, 0]``
+      ``[0, a, 0]``
+      ``[0, 0, a]]``
 
-        \begin{eqnarray*}
-        \mathbf{h}& =& \left(\begin{array}{ccc} a & 0 & 0 \\
-                                                0 & a & 0 \\
-                                                0 & 0 & a \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    Example::
+
+        uc = mechanica.lattice.fcc(1.0, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
+
+    :param a: lattice constant
+    :param types: particle type or list of particle types
+    :param bond: bond constructor(s)
+    :param bond_vector: flags for creating bonds
+        - between the corner particles
+        - between the corner and the center particles
+    :return: a face centered cubic lattice unit cell
     """
+
+    bonds = None
+    if bond:
+        try:
+            iter(bond)
+            bond_funcs = bond
+        except TypeError:
+            bond_funcs = [bond] * 2
+
+        bonds = []
+
+        if bond_vector[0]:
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (0, 0, 1)))
+
+        if bond_vector[1]:
+            bonds.append(_BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (0, 2), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (0, 3), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 1)))
+            bonds.append(_BondRule(bond_funcs[1], (2, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (2, 0), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[1], (2, 0), (1, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[1], (3, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (3, 0), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (3, 0), (1, 1, 0)))
+
+        bonds = tuple(bonds)
 
     return unitcell(N=4,
                     types=_make_types(4, types),
@@ -316,79 +334,122 @@ def fcc(a, types=None):
                     a1=[a, 0, 0],
                     a2=[0, a, 0],
                     a3=[0, 0, a],
-                    dimensions=3)
+                    dimensions=3,
+                    bonds=bonds)
 
 
-def sq(a, types=None):
-    R""" Create a square lattice (2D).
+def sq(a: float,
+       types: Union[m.MxParticleType, List[m.MxParticleType]] = None,
+       bond: Union[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
+                   List[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle]]] = None,
+       bond_vector: Tuple[bool] = (True, True, False)) -> unitcell:
+    """
+    Create a unit cell for a square lattice (2D).
 
-    Args:
-        a (float): Lattice constant.
-        type_name (str): Particle type name.
+    The square lattice unit cell has one particle:
 
-    The simple square unit cell has 1 particle:
-
-    .. math::
-        :nowrap:
-
-        \begin{eqnarray*}
-        \vec{r}& =& \left(\begin{array}{ccc} 0 & 0 \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    - ``[0, 0]``
 
     And the box matrix:
 
-    .. math::
-        :nowrap:
+    - ``[[a, 0]``
+      ``[0, a]]``
 
-        \begin{eqnarray*}
-        \mathbf{h}& =& \left(\begin{array}{ccc} a & 0 \\
-                                                0 & a \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    Example::
+
+        uc = mechanica.lattice.sq(1.0, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
+
+    :param a: lattice constant
+    :param types: particle type or list of particle types
+    :param bond: bond constructor(s)
+    :param bond_vector: flags for creating bonds along the 1-, 2- and 3-directions
+    :return: a square lattice unit cell
     """
+
+    bonds = None
+    if bond:
+        try:
+            iter(bond)
+            bond_funcs = bond
+        except TypeError:
+            bond_funcs = [bond] * 3
+
+        bonds = []
+
+        if bond_vector[0]:
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+
+        if bond_vector[1]:
+            bonds.append(_BondRule(bond_funcs[1], (0, 0), (0, 1, 0)))
+
+        if bond_vector[2]:
+            bonds.append(_BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
+
+        bonds = tuple(bonds)
 
     return unitcell(N=1,
                     types=_make_types(1, types),
                     a1=[a, 0, 0],
                     a2=[0, a, 0],
                     a3=[0, 0, 1],
-                    dimensions=2)
+                    dimensions=2,
+                    bonds=bonds)
 
 
-def hex(a, types=None):
-    R""" Create a hexagonal lattice (2D).
+def hex(a: float,
+        types: Union[m.MxParticleType, List[m.MxParticleType]] = None,
+        bond: Union[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
+                    List[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle]]] = None,
+        bond_vector: Tuple[bool] = (True, True, False)) -> unitcell:
+    """
+    Create a unit cell for a hexagonal lattice (2D).
 
-    Args:
-        a (float): Lattice constant.
-        type_name (str): Particle type name.
+    The hexagonal lattice unit cell has two particles:
 
-    :py:class:`hex` creates a hexagonal lattice in a rectangular box.
-    It has 2 particles, one at the corner and one at the center of the rectangle.
-    This is not the primitive unit cell, but is more convenient to
-    work with because of its shape.
-
-    .. math::
-        :nowrap:
-
-        \begin{eqnarray*}
-        \vec{r}& =& \left(\begin{array}{ccc} 0 & 0 \\
-                                             \frac{a}{2} & \sqrt{3} \frac{a}{2} \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    - ``[0, 0]``
+    - ``[0, a*sqrt(3)/2]``
 
     And the box matrix:
 
-    .. math::
-        :nowrap:
+    - ``[[a, 0]``
+      ``[0, a*sqrt(3)]]``
 
-        \begin{eqnarray*}
-        \mathbf{h}& =& \left(\begin{array}{ccc} a & 0 \\
-                                                0 & \sqrt{3} a \\
-                                                0 & 0 \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    Example::
+
+        uc = mechanica.lattice.hex(1.0, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
+
+    :param a: lattice constant
+    :param types: particle type or list of particle types
+    :param bond: bond constructor(s)
+    :param bond_vector: flags for creating bonds along the 1-, 2- and 3-directions
+    :return: a hexagonal lattice unit cell
     """
+
+    bonds = None
+    if bond:
+        try:
+            iter(bond)
+            bond_funcs = bond
+        except TypeError:
+            bond_funcs = [bond] * 3
+
+        bonds = []
+
+        if bond_vector[0]:
+            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (1, 1), (1, 0, 0)))
+
+        if bond_vector[1]:
+            bonds.append(_BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 1, 0)))
+
+        if bond_vector[2]:
+            bonds.append(_BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (1, 1), (0, 0, 1)))
+
+        bonds = tuple(bonds)
 
     return unitcell(N=2,
                     types=_make_types(2, types),
@@ -396,88 +457,153 @@ def hex(a, types=None):
                     a1=[a, 0, 0],
                     a2=[0, math.sqrt(3)*a, 0],
                     a3=[0, 0, 1],
-                    dimensions=2)
+                    dimensions=2,
+                    bonds=bonds)
 
 
-def hcp(a, c=None, types=None):
-    R""" Create a hexagonal close pack cell
+def hcp(a: float,
+        c: float = None,
+        types: Union[m.MxParticleType, List[m.MxParticleType]] = None,
+        bond: Union[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
+                    List[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle]]] = None,
+        bond_vector: Tuple[bool] = (True, True, True)) -> unitcell:
+    """
+    Create a unit cell for a hexagonal close pack lattice (3D).
 
-    Args:
-        a (float): Lattice constant.
-        type_name (str): Particle type name.
+    The hexagonal close pack lattice unit cell has seven particles:
 
-    :py:class:`hcp` creates a hexagonal lattice in a rectangular box.
-    It has 6 particles, one at the corner and one at the center of the rectangle.
-    This is not the primitive unit cell, but is more convenient to
-    work with because of its shape.
-
-    .. math::
-        :nowrap:
-
-        \begin{eqnarray*}
-        \vec{r}& =& \left(\begin{array}{ccc} 0 & 0 \\
-                                             \frac{a}{2} & \sqrt{3} \frac{a}{2} \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    - ``[0, a*sqrt(3)/2, 0]``
+    - ``[a/2, 0, 0]``
+    - ``[a, a*sqrt(3)/2, 0]``
+    - ``[a*3/2, 0, 0]``
+    - ``[a/2, a*2/sqrt(3), c/2]``
+    - ``[a, a/2/sqrt(3), c/2]``
+    - ``[a*3/2, a*2/sqrt(3), c/2]``
 
     And the box matrix:
 
-    .. math::
-        :nowrap:
+    - ``[[2*a, 0, 0]``
+      ``[0, a*sqrt(3), 0]``
+      ``[0, 0, c]]``
 
-        \begin{eqnarray*}
-        \mathbf{h}& =& \left(\begin{array}{ccc} a & 0 \\
-                                                0 & \sqrt{3} a \\
-                                                0 & 0 \\
-                             \end{array}\right)
-        \end{eqnarray*}
+    Example::
+
+        uc = mechanica.lattice.hcp(1.0, 2.0, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
+
+    :param a: lattice constant
+    :param c: height of lattice (default ``a``)
+    :param types: particle type or list of particle types
+    :param bond: bond constructor(s)
+    :param bond_vector: flags for creating bonds
+        - between the outer particles
+        - between the inner particles
+        - between the outer and inner particles
+    :return: a hexagonal close pack lattice unit cell
     """
 
     if c is None:
         c = a
 
-    return unitcell(N=6,
-                    types=_make_types(6, types),
-                    position=[[0, 0, 0], [a/2, math.sqrt(3)*a/2, 0]],
-                    a1=[a, 0, 0],
-                    a2=[a/2, math.sqrt(3)*a/2, 0],
+    bonds = None
+    if bond:
+        try:
+            iter(bond)
+            bond_funcs = bond
+        except TypeError:
+            bond_funcs = [bond] * 3
+
+        bonds = []
+
+        if bond_vector[0]:
+            bonds.append(_BondRule(bond_funcs[0], (0, 1), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (0, 2), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (1, 2), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (1, 3), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (2, 3), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (2, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (3, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (3, 1), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (0, 1), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (2, 1), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[0], (2, 3), (0, 1, 0)))
+
+        if bond_vector[1]:
+            bonds.append(_BondRule(bond_funcs[1], (4, 5), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (4, 6), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[1], (5, 6), (0, 0, 0)))
+
+        if bond_vector[2]:
+            bonds.append(_BondRule(bond_funcs[2], (0, 4), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[2], (4, 1), (0, 1, 0)))
+            bonds.append(_BondRule(bond_funcs[2], (2, 4), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[2], (1, 5), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[2], (2, 5), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[2], (3, 5), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[2], (2, 6), (0, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[2], (6, 0), (1, 0, 0)))
+            bonds.append(_BondRule(bond_funcs[2], (6, 3), (0, 1, 0)))
+
+            bonds.append(_BondRule(bond_funcs[2], (4, 0), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (4, 1), (0, 1, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (4, 2), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (5, 1), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (5, 2), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (5, 3), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (6, 2), (0, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (6, 0), (1, 0, 1)))
+            bonds.append(_BondRule(bond_funcs[2], (6, 3), (0, 1, 1)))
+
+        bonds = tuple(bonds)
+
+    return unitcell(N=7,
+                    types=_make_types(7, types),
+                    position=[[0, a*math.sqrt(3)/2, 0], [a/2, 0, 0], [a, a*math.sqrt(3)/2, 0], [a*3/2, 0, 0],
+                              [a/2,   a*2/math.sqrt(3), c/2],
+                              [a,     a/2/math.sqrt(3), c/2],
+                              [a*3/2, a*2/math.sqrt(3), c/2]],
+                    a1=[2*a, 0, 0],
+                    a2=[0, math.sqrt(3)*a, 0],
                     a3=[0, 0, c],
-                    dimensions=3)
+                    dimensions=3,
+                    bonds=bonds)
 
 
-def create_lattice(unitcell, n, origin=None):
-    R""" Create a lattice.
-    Args:
-        unitcell (:py:class:`mechanica.lattice.unitcell`):
-        The unit cell of the lattice.
-        n (list): Number of replicates in each direction.
-    :py:func:`create_lattice` take a unit cell and replicates it the requested
-    number of times in each direction. The resulting simulation box is commensurate
-    with the given unit cell. A generic :py:class:`mechanica.lattice.unitcell`
-    may have arbitrary vectors :math:`\vec{a}_1`, :math:`\vec{a}_2`, and
-    :math:`\vec{a}_3`. :py:func:`create_lattice` will rotate the unit cell so
-    that :math:`\vec{a}_1` points in the :math:`x` direction and
-    :math:`\vec{a}_2` is in the :math:`xy` plane so that the lattice may be
-    represented as a simulation box. When *n* is a single value, the lattice is
-    replicated *n* times in each direction. When *n* is a list, the
-    lattice is replicated *n[0]* times in the :math:`\vec{a}_1` direction,
-    *n[1]* times in the :math:`\vec{a}_2` direction and *n[2]* times in the
-    :math:`\vec{a}_3` direction.
+def create_lattice(uc: unitcell, n: Union[int, List[int]], origin: List[float] = None) -> numpy.ndarray:
+    """
+    Create a lattice
+
+    Takes a unit cell and replicates it the requested
+    number of times in each direction. A generic :py:class:`unitcell`
+    may have arbitrary vectors ``a1``, ``a2``, and ``a3``.
+    :py:func:`create_lattice` will rotate the unit cell so
+    that ``a1`` points in the ``x`` direction and
+    ``a2`` is in the ``xy`` plane so that the lattice may be
+    represented as a simulation box. When ``n`` is a single value, the lattice is
+    replicated ``n`` times in each direction. When ``n`` is a list, the
+    lattice is replicated ``n[i]`` times in each ``i``th direction.
 
     Examples::
-        mechanica.lattice.create_lattice(unitcell=mechanica.lattice.sc(a=1.0),
-                                  n=[2,4,2])
-        mechanica.lattice.create_lattice(unitcell=mechanica.lattice.bcc(a=1.0),
-                                  n=10)
-        mechanica.lattice.create_lattice(unitcell=mechanica.lattice.sq(a=1.2),
-                                  n=[100,10])
-        mechanica.lattice.create_lattice(unitcell=mechanica.lattice.hex(a=1.0),
-                                  n=[100,58])
+
+        mechanica.lattice.create_lattice(uc=mechanica.lattice.sc(a=1.0), n=[2,4,2])
+        mechanica.lattice.create_lattice(uc=mechanica.lattice.bcc(a=1.0), n=10)
+        mechanica.lattice.create_lattice(uc=mechanica.lattice.sq(a=1.2), n=[100,10])
+        mechanica.lattice.create_lattice(uc=mechanica.lattice.hex(a=1.0), n=[100,58])
+
+    :param uc: unit cell
+    :param n: number of unit cells to create along all/each direction(s)
+    :param origin: origin to begin creating lattice (default centered about simulation origin)
+    :return: particles created in every unit cell
     """
 
+    if isinstance(n, int):
+        n = [n, n, 1] if uc.dimensions == 2 else [n] * 3
+
+    if len(n) == 2 and uc.dimensions == 2:
+        n.append(1)
+
     if origin is None:
-        cell_half_size = (unitcell.a1 + unitcell.a2 + unitcell.a3) / 2
-        extents = n[0] * unitcell.a1 + n[1] * unitcell.a2 + n[2] * unitcell.a3
+        cell_half_size = (uc.a1 + uc.a2 + uc.a3) / 2
+        extents = n[0] * uc.a1 + n[1] * uc.a2 + n[2] * uc.a3
         origin = m.Universe.center - extents / 2 + cell_half_size
 
     lattice = numpy.empty(n, dtype=numpy.object)
@@ -485,31 +611,24 @@ def create_lattice(unitcell, n, origin=None):
     for i in range(n[0]):
         for j in range(n[1]):
             for k in range(n[2]):
-                pos = origin + unitcell.a1 * i + unitcell.a2 * j + unitcell.a3 * k
-                parts = [type(pos.tolist()) for (type, pos) in zip(unitcell.types, unitcell.position + pos)]
+                pos = origin + uc.a1 * i + uc.a2 * j + uc.a3 * k
+                parts = [type(pos.tolist()) for (type, pos) in zip(uc.types, uc.position + pos)]
                 lattice[i, j, k] = parts
 
-    if unitcell.bonds:
+    if uc.bonds:
         for i in range(n[0]):
             for j in range(n[1]):
                 for k in range(n[2]):
-                    for bond in unitcell.bonds:
+                    for bond in uc.bonds:
                         ii = (i, j, k)  # index of first unit cell, needs to be tuple
                         jj = (ii[0] + bond.cell_offset[0], ii[1] + bond.cell_offset[1], ii[2] + bond.cell_offset[2])
                         # check if next unit cell index is valid
                         if jj[0] >= n[0] or jj[1] >= n[1] or jj[2] >= n[2]:
                             continue
 
-                        # print("ii, jj: ", ii, jj)
-
-                        # print("lattice[(0,0,0)]: ", lattice[(0, 0, 0)])
-
                         # grap the parts out of the lattice
                         ci = lattice[ii]
                         cj = lattice[jj]
-
-                        # print("ci: ", ci)
-                        # print("cj: ", cj)
 
                         m.Logger.log(m.Logger.TRACE, f"bonding: {ci[bond.part_ids[0]]}, {cj[bond.part_ids[1]]}")
 

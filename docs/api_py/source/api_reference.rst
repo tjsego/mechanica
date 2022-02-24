@@ -69,6 +69,8 @@ This is the API Reference page for the module: :mod:`mechanica`
 
 .. include:: api_events.rst
 
+.. include:: api_lattice.rst
+
 .. include:: api_style.rst
 
 .. include:: api_rendering.rst

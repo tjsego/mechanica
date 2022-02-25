@@ -680,8 +680,6 @@ void MxUniverseRenderer::onMouseButton(int button, int action, int mods)
 {
 }
 
-
-
 void MxUniverseRenderer::viewportEvent(Platform::GlfwApplication::ViewportEvent& event) {
     window->framebuffer().setViewport({{}, event.framebufferSize()});
 
@@ -692,6 +690,65 @@ void MxUniverseRenderer::viewportEvent(Platform::GlfwApplication::ViewportEvent&
 }
 
 static inline const bool cameraZoom(Magnum::Mechanica::ArcBallCamera *camera, const float &delta);
+
+void MxUniverseRenderer::cameraTranslateDown() {
+    _arcball->translateDelta({0, _moveRate * sideLength, 0});
+}
+
+void MxUniverseRenderer::cameraTranslateUp() {
+    _arcball->translateDelta({0, -_moveRate * sideLength, 0});
+}
+
+void MxUniverseRenderer::cameraTranslateRight() {
+    _arcball->translateDelta({-_moveRate * sideLength, 0, 0});
+}
+
+void MxUniverseRenderer::cameraTranslateLeft() {
+    _arcball->translateDelta({_moveRate * sideLength, 0, 0});
+}
+
+void MxUniverseRenderer::cameraTranslateForward() {
+    _arcball->translateDelta({0, 0, _moveRate * sideLength});
+}
+
+void MxUniverseRenderer::cameraTranslateBackward() {
+    _arcball->translateDelta({0, 0, -_moveRate * sideLength});
+}
+
+void MxUniverseRenderer::cameraRotateDown() {
+    _arcball->rotateDelta(&_spinRate, NULL, NULL);
+}
+
+void MxUniverseRenderer::cameraRotateUp() {
+    const float _ang(-_spinRate);
+    _arcball->rotateDelta(&_ang, NULL, NULL);
+}
+
+void MxUniverseRenderer::cameraRotateLeft() {
+    const float _ang(-_spinRate);
+    _arcball->rotateDelta(NULL, &_ang, NULL);
+}
+
+void MxUniverseRenderer::cameraRotateRight() {
+    _arcball->rotateDelta(NULL, &_spinRate, NULL);
+}
+
+void MxUniverseRenderer::cameraRollLeft() {
+    _arcball->rotateDelta(NULL, NULL, &_spinRate);
+}
+
+void MxUniverseRenderer::cameraRollRight() {
+    const float _ang(-_spinRate);
+    _arcball->rotateDelta(NULL, NULL, &_ang);
+}
+
+void MxUniverseRenderer::cameraZoomIn() {
+    cameraZoom(_arcball, _zoomRate);
+}
+
+void MxUniverseRenderer::cameraZoomOut() {
+    cameraZoom(_arcball, - _zoomRate);
+}
 
 void MxUniverseRenderer::keyPressEvent(Platform::GlfwApplication::KeyEvent& event) {
     switch(event.key()) {
@@ -775,17 +832,17 @@ void MxUniverseRenderer::keyPressEvent(Platform::GlfwApplication::KeyEvent& even
         case Platform::GlfwApplication::KeyEvent::Key::Down: {
             if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
                 if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
-                    _arcball->translateDelta({0, 0, -_moveRate * sideLength});
+                    this->cameraTranslateBackward();
                 }
                 else {
-                    if(!cameraZoom(_arcball, - _zoomRate)) return;
+                    this->cameraZoomOut();
                 }
             }
             else if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
-                _arcball->rotateDelta(&_spinRate, NULL, NULL);
+                this->cameraRotateDown();
             }
             else {
-                _arcball->translateDelta({0, _moveRate * sideLength, 0});
+                this->cameraTranslateDown();
             }
             
             }
@@ -793,14 +850,13 @@ void MxUniverseRenderer::keyPressEvent(Platform::GlfwApplication::KeyEvent& even
             
         case Platform::GlfwApplication::KeyEvent::Key::Left: {
             if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
-                _arcball->rotateDelta(NULL, NULL, &_spinRate);
+                this->cameraRollLeft();
             }
             else if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
-                const float _ang(-_spinRate);
-                _arcball->rotateDelta(NULL, &_ang, NULL);
+                this->cameraRotateLeft();
             }
             else {
-                _arcball->translateDelta({_moveRate * sideLength, 0, 0});
+                this->cameraTranslateLeft();
             }
             
             }
@@ -808,14 +864,13 @@ void MxUniverseRenderer::keyPressEvent(Platform::GlfwApplication::KeyEvent& even
             
         case Platform::GlfwApplication::KeyEvent::Key::Right: {
             if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
-                const float _ang(-_spinRate);
-                _arcball->rotateDelta(NULL, NULL, &_ang);
+                this->cameraRollRight();
             }
             else if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
-                _arcball->rotateDelta(NULL, &_spinRate, NULL);
+                this->cameraRotateRight();
             }
             else {
-                _arcball->translateDelta({-_moveRate * sideLength, 0, 0});
+                this->cameraTranslateRight();
             }
             
             }
@@ -824,16 +879,17 @@ void MxUniverseRenderer::keyPressEvent(Platform::GlfwApplication::KeyEvent& even
         case Platform::GlfwApplication::KeyEvent::Key::Up: {
             if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Ctrl) {
                 if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
-                    _arcball->translateDelta({0, 0, _moveRate * sideLength});
+                    this->cameraTranslateForward();
                 }
-                else if(!cameraZoom(_arcball, _zoomRate)) return;
+                else {
+                    this->cameraZoomIn();
+                }
             }
             else if(event.modifiers() & Platform::GlfwApplication::MouseMoveEvent::Modifier::Shift) {
-                const float _ang(-_spinRate);
-                _arcball->rotateDelta(&_ang, NULL, NULL);
+                this->cameraRotateUp();
             }
             else {
-                _arcball->translateDelta({0, -_moveRate * sideLength, 0});
+                this->cameraTranslateUp();
             }
             
             }

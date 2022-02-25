@@ -1,6 +1,5 @@
 import mechanica as m
 from ipywidgets import widgets
-import numpy as np
 import threading
 import time
 from ipyevents import Event
@@ -9,9 +8,11 @@ from IPython.display import display
 flag = False
 downflag = False
 shiftflag = False
+ctrlflag = False
+
 
 def init(*args, **kwargs):
-    global flag, downflag, shiftflag
+    global flag
 
     w = widgets.Image(value=m.system.image_data(), width=600)
     d = Event(source=w, watched_events=['mousedown', 'mouseup', 'mousemove', 'keyup', 'keydown', 'wheel'])
@@ -125,23 +126,80 @@ def run(*args, **kwargs):
 
 
 def listen_mouse(event):
-    global downflag, shiftflag
+    global downflag, shiftflag, ctrlflag
     if event['type'] == "mousedown":
-        m.system.cameraInitMouse([event['dataX'], event['dataY']])
+        m.system.cameraInitMouse(m.MxVector2i([event['dataX'], event['dataY']]))
         downflag = True
     if event['type'] == "mouseup":
         downflag = False
     if event['type'] == "mousemove":
         if downflag and not shiftflag:
-            m.system.cameraRotateMouse([event['dataX'], event['dataY']])
+            m.system.cameraRotateMouse(m.MxVector2i([event['dataX'], event['dataY']]))
         if downflag and shiftflag:
-            m.system.cameraTranslateMouse([event['dataX'], event['dataY']])
+            m.system.cameraTranslateMouse(m.MxVector2i([event['dataX'], event['dataY']]))
 
-    if event['shiftKey'] == True:
-        shiftflag = True
-    if event['shiftKey'] == False:
-        shiftflag = False
+    shiftflag = True if event['shiftKey'] else False
+    ctrlflag = True if event['ctrlKey'] else False
     if event['type'] == "wheel":
         m.system.cameraZoomBy(event['deltaY'])
-    if event['type'] == "keydown" and event['code'] == "KeyR":
-        m.system.cameraReset()
+    elif event['type'] == "keydown":
+        key_code = event['code']
+        if key_code == "KeyB":
+            if shiftflag:
+                m.system.cameraViewBottom()
+        elif key_code == "KeyD":
+            if ctrlflag:
+                m.system.showDiscretization(not m.system.showingDiscretization())
+            else:
+                m.system.decorateScene(not m.system.decorated())
+        elif key_code == "KeyF":
+            if shiftflag:
+                m.system.cameraViewFront()
+        elif key_code == "KeyK":
+            if shiftflag:
+                m.system.cameraViewBack()
+        elif key_code == "KeyL":
+            if shiftflag:
+                m.system.cameraViewLeft()
+        elif key_code == "KeyR":
+            if shiftflag:
+                m.system.cameraViewRight()
+            else:
+                m.system.cameraReset()
+        elif key_code == "KeyT":
+            if shiftflag:
+                m.system.cameraViewTop()
+        elif key_code == "ArrowDown":
+            if ctrlflag:
+                if shiftflag:
+                    m.system.cameraTranslateBackward()
+                else:
+                    m.system.cameraZoomOut()
+            elif shiftflag:
+                m.system.cameraRotateDown()
+            else:
+                m.system.cameraTranslateDown()
+        elif key_code == "ArrowUp":
+            if ctrlflag:
+                if shiftflag:
+                    m.system.cameraTranslateForward()
+                else:
+                    m.system.cameraZoomIn()
+            elif shiftflag:
+                m.system.cameraRotateUp()
+            else:
+                m.system.cameraTranslateUp()
+        elif key_code == "ArrowLeft":
+            if ctrlflag:
+                m.system.cameraRollLeft()
+            elif shiftflag:
+                m.system.cameraRotateLeft()
+            else:
+                m.system.cameraTranslateLeft()
+        elif key_code == "ArrowRight":
+            if ctrlflag:
+                m.system.cameraRollRight()
+            elif shiftflag:
+                m.system.cameraRotateRight()
+            else:
+                m.system.cameraTranslateRight()

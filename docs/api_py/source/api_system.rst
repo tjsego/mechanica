@@ -27,6 +27,34 @@ System
 
     .. automethod:: cameraReset
 
+    .. automethod:: cameraTranslateDown
+
+    .. automethod:: cameraTranslateUp
+
+    .. automethod:: cameraTranslateRight
+
+    .. automethod:: cameraTranslateLeft
+
+    .. automethod:: cameraTranslateForward
+
+    .. automethod:: cameraTranslateBackward
+
+    .. automethod:: cameraRotateDown
+
+    .. automethod:: cameraRotateUp
+
+    .. automethod:: cameraRotateLeft
+
+    .. automethod:: cameraRotateRight
+
+    .. automethod:: cameraRollLeft
+
+    .. automethod:: cameraRollRight
+
+    .. automethod:: cameraZoomIn
+
+    .. automethod:: cameraZoomOut
+
     .. automethod:: cameraZoomBy
 
     .. automethod:: cameraZoomTo

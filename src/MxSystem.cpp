@@ -326,6 +326,258 @@ HRESULT MxSystem::cameraTranslateMouse(const MxVector2i &mousePos) {
     }
 }
 
+HRESULT MxSystem::cameraTranslateDown() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateDown();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateUp() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateUp();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateRight() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateRight();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateLeft() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateLeft();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateForward() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateForward();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateBackward() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateBackward();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRotateDown() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRotateDown();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRotateUp() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRotateUp();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRotateLeft() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRotateLeft();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRotateRight() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRotateRight();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRollLeft() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRollLeft();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRollRight() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRollRight();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraZoomIn() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraZoomIn();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraZoomOut() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraZoomOut();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
 HRESULT MxSystem::cameraInitMouse(const MxVector2i &mousePos) {
     try {
         MxSimulator *sim = MxSimulator::get();

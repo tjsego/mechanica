@@ -136,6 +136,104 @@ struct CAPI_EXPORT MxSystem {
    the current (screen) mouse position */
    static HRESULT cameraTranslateMouse(const MxVector2i &mousePos);
 
+   /**
+    * @brief Translate the camera down
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateDown();
+
+   /**
+    * @brief Translate the camera up
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateUp();
+
+   /**
+    * @brief Translate the camera right
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateRight();
+
+   /**
+    * @brief Translate the camera left
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateLeft();
+   
+   /**
+    * @brief Translate the camera forward
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateForward();
+   
+   /**
+    * @brief Translate the camera backward
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateBackward();
+   
+   /**
+    * @brief Rotate the camera down
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRotateDown();
+   
+   /**
+    * @brief Rotate the camera up
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRotateUp();
+   
+   /**
+    * @brief Rotate the camera left
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRotateLeft();
+   
+   /**
+    * @brief Rotate the camera right
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRotateRight();
+   
+   /**
+    * @brief Roll the camera left
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRollLeft();
+   
+   /**
+    * @brief Rotate the camera right
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRollRight();
+
+   /**
+    * @brief Zoom the camera in
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraZoomIn();
+
+   /**
+    * @brief Zoom the camera out
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraZoomOut();
+
    /* Rotate the camera from the previous (screen) mouse position to the
    current (screen) position */
    static HRESULT cameraInitMouse(const MxVector2i &mousePos);

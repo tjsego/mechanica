@@ -5,6 +5,8 @@
 Lattices
 ---------
 
+.. autoclass:: BondRule
+
 .. autoclass:: unitcell
 
 .. autofunction:: sc
@@ -15,7 +17,7 @@ Lattices
 
 .. autofunction:: sq
 
-.. autofunction:: hex
+.. autofunction:: hex2d
 
 .. autofunction:: hcp
 

@@ -68,7 +68,7 @@ Currently, Mechanica provides built-in methods to construct the following
 unit cells,
 
 * Square (2D): :func:`lattice.sq`
-* Hexagonal (2D): :func:`lattice.hex`
+* Hexagonal (2D): :func:`lattice.hex2d`
 * Simple cubic (3D): :func:`lattice.sc`
 * Body centered cubic (3D): :func:`lattice.bcc`
 * Face centered cubic (3D): :func:`lattice.fcc`
@@ -125,7 +125,8 @@ about :ref:`bonded interactions <bonded_interactions>` between
 :ref:`particles <MxParticleHandle>` of each :py:class:`unitcell <lattice.unitcell>`
 when used to create a lattice. Bonded interactions can be attached to a
 :py:class:`unitcell <lattice.unitcell>` definition by specifying a tuple,
-each element of which contains three pieces of information,
+each element of which contains three pieces of information in a
+:py:class:`BondRule <lattice.BondRule>`,
 
 #. a callable that takes two :ref:`particles <MxParticleHandle>` as arguments
    and returns a newly created :ref:`bond <MxBondHandle>`
@@ -146,18 +147,19 @@ bonds between all particles in a lattice, ::
     # Create a callable for constructing uniform bonded interactions in a lattice
     bond_callable = lambda i, j: mx.Bond.create(pot, i, j)
     # Construct a 2D square unit cell with bonded interactions
-    uc_sq_bonded = mx.lattice.unitcell(N=1,                   # One particle
-                                       a1=[1, 0, 0],          # Length 1 along x
-                                       a2=[0, 1, 0],          # Length 1 along y
-                                       a3=[0, 0, 1],          # Length 1 along z
-                                       dimensions=2,          # 2D
-                                       types=[lattice_type],  # Of type "lattice_type"
-                                       position=[[0, 0, 0]],  # One particle at the origin
-                                       bonds=[                # Declare bonded interactions...
-                                           (bond_callable, (0, 0), (1, 0, 0)),  # ... +x cell
-                                           (bond_callable, (0, 0), (0, 1, 0)),  # ... +y cell
-                                           (bond_callable, (0, 0), (0, 0, 1))   # ... +z cell
-                                       ])
+    uc_sq_bonded = mx.lattice.unitcell(
+        N=1,                   # One particle
+        a1=[1, 0, 0],          # Length 1 along x
+        a2=[0, 1, 0],          # Length 1 along y
+        a3=[0, 0, 1],          # Length 1 along z
+        dimensions=2,          # 2D
+        types=[lattice_type],  # Of type "lattice_type"
+        position=[[0, 0, 0]],  # One particle at the origin
+        bonds=[                # Declare bonded interactions...
+            mx.lattice.BondRule(bond_callable, (0, 0), (1, 0, 0)),  # ... +x cell
+            mx.lattice.BondRule(bond_callable, (0, 0), (0, 1, 0)),  # ... +y cell
+            mx.lattice.BondRule(bond_callable, (0, 0), (0, 0, 1))]  # ... +z cell
+    )
 
 Creating a Lattice
 ^^^^^^^^^^^^^^^^^^^

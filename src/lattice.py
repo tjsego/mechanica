@@ -23,7 +23,6 @@ Defines lattices.
 import numpy
 import math
 from typing import Callable, List, Tuple, Union
-from collections import namedtuple
 
 import mechanica as m
 
@@ -43,19 +42,25 @@ def _make_types(n, types):
     return [types] * n
 
 
-_BondRule = namedtuple('_BondRule', ['func', 'part_ids', 'cell_offset'])
-"""
-hold bond rule info,
+class BondRule:
+    """
+    Simple container for info to create a bond when constructing a lattice
+    """
 
-*func: function of func(p1, p2) that accepts two particle handles and
-       returns a bond.
+    def __init__(self,
+                 func: Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
+                 part_ids: Tuple[int, int],
+                 cell_offset: Tuple[int, int, int]):
+        """
 
-*parts: pair of particle ids in current current and other unit cell
-        must be tuple.
+        :param func: function of func(p1, p2) that accepts two particle handles and returns a newly created bond.
+        :param part_ids: pair of particle ids in current current and other unit cell.
+        :param cell_offset: offset vector of other unit cell relative to current unit cell.
+        """
 
-*cell_offset: offset vector of other unit cell relative to current
-        unit cell. Must be a tuple
-"""
+        self.func = func
+        self.part_ids = part_ids
+        self.cell_offset = cell_offset
 
 
 class unitcell(object):
@@ -92,7 +97,7 @@ class unitcell(object):
                  dimensions: int = 3,
                  position: List[List[float]] = None,
                  types: List[m.MxParticleType] = None,
-                 bonds: Tuple[_BondRule] = None):
+                 bonds: List[BondRule] = None):
         """
 
         :param N: Number of particles in the unit cell.
@@ -110,7 +115,7 @@ class unitcell(object):
         :param types: List of particle types
         :type types: List[m.MxParticleType]
         :param bonds: bond constructors rules
-        :type bonds: Tuple[_BondRule]
+        :type bonds: List[BondRule]
         """
 
         self.N = N
@@ -175,15 +180,13 @@ def sc(a: float,
         bonds = []
 
         if bond_vector[0]:
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
 
         if bond_vector[1]:
-            bonds.append(_BondRule(bond_funcs[1], (0, 0), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[1], (0, 0), (0, 1, 0)))
 
         if bond_vector[2]:
-            bonds.append(_BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
-
-        bonds = tuple(bonds)
+            bonds.append(BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
 
     return unitcell(N=1,
                     types=_make_types(1, types),
@@ -237,21 +240,19 @@ def bcc(a: float,
         bonds = []
 
         if bond_vector[0]:
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (0, 0, 1)))
 
         if bond_vector[1]:
-            bonds.append(_BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 1)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 1, 1)))
-
-        bonds = tuple(bonds)
+            bonds.append(BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (1, 1, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (1, 0, 1)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (0, 1, 1)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (1, 1, 1)))
 
     return unitcell(N=2,
                     types=_make_types(2, types),
@@ -308,25 +309,23 @@ def fcc(a: float,
         bonds = []
 
         if bond_vector[0]:
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (0, 0, 1)))
 
         if bond_vector[1]:
-            bonds.append(_BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (0, 2), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (0, 3), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 1)))
-            bonds.append(_BondRule(bond_funcs[1], (2, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (2, 0), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[1], (2, 0), (1, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[1], (3, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (3, 0), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (3, 0), (1, 1, 0)))
-
-        bonds = tuple(bonds)
+            bonds.append(BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (0, 2), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (0, 3), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (0, 1, 1)))
+            bonds.append(BondRule(bond_funcs[1], (2, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (2, 0), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[1], (2, 0), (1, 0, 1)))
+            bonds.append(BondRule(bond_funcs[1], (3, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (3, 0), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[1], (3, 0), (1, 1, 0)))
 
     return unitcell(N=4,
                     types=_make_types(4, types),
@@ -377,15 +376,13 @@ def sq(a: float,
         bonds = []
 
         if bond_vector[0]:
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
 
         if bond_vector[1]:
-            bonds.append(_BondRule(bond_funcs[1], (0, 0), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[1], (0, 0), (0, 1, 0)))
 
         if bond_vector[2]:
-            bonds.append(_BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
-
-        bonds = tuple(bonds)
+            bonds.append(BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
 
     return unitcell(N=1,
                     types=_make_types(1, types),
@@ -396,11 +393,11 @@ def sq(a: float,
                     bonds=bonds)
 
 
-def hex(a: float,
-        types: Union[m.MxParticleType, List[m.MxParticleType]] = None,
-        bond: Union[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
-                    List[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle]]] = None,
-        bond_vector: Tuple[bool] = (True, True, False)) -> unitcell:
+def hex2d(a: float,
+          types: Union[m.MxParticleType, List[m.MxParticleType]] = None,
+          bond: Union[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle],
+                      List[Callable[[m.MxParticleHandle, m.MxParticleHandle], m.MxBondHandle]]] = None,
+          bond_vector: Tuple[bool] = (True, True, False)) -> unitcell:
     """
     Create a unit cell for a hexagonal lattice (2D).
 
@@ -416,7 +413,7 @@ def hex(a: float,
 
     Example::
 
-        uc = mechanica.lattice.hex(1.0, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
+        uc = mechanica.lattice.hex2d(1.0, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
 
     :param a: lattice constant
     :param types: particle type or list of particle types
@@ -436,20 +433,18 @@ def hex(a: float,
         bonds = []
 
         if bond_vector[0]:
-            bonds.append(_BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (1, 1), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (1, 1), (1, 0, 0)))
 
         if bond_vector[1]:
-            bonds.append(_BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (1, 0), (1, 1, 0)))
+            bonds.append(BondRule(bond_funcs[1], (0, 1), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[1], (1, 0), (1, 1, 0)))
 
         if bond_vector[2]:
-            bonds.append(_BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (1, 1), (0, 0, 1)))
-
-        bonds = tuple(bonds)
+            bonds.append(BondRule(bond_funcs[2], (0, 0), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[2], (1, 1), (0, 0, 1)))
 
     return unitcell(N=2,
                     types=_make_types(2, types),
@@ -515,45 +510,43 @@ def hcp(a: float,
         bonds = []
 
         if bond_vector[0]:
-            bonds.append(_BondRule(bond_funcs[0], (0, 1), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (0, 2), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (1, 2), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (1, 3), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (2, 3), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (2, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (3, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (3, 1), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (0, 1), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (2, 1), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[0], (2, 3), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 1), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 2), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (1, 2), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (1, 3), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (2, 3), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (2, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (3, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (3, 1), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[0], (0, 1), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[0], (2, 1), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[0], (2, 3), (0, 1, 0)))
 
         if bond_vector[1]:
-            bonds.append(_BondRule(bond_funcs[1], (4, 5), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (4, 6), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[1], (5, 6), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (4, 5), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (4, 6), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[1], (5, 6), (0, 0, 0)))
 
         if bond_vector[2]:
-            bonds.append(_BondRule(bond_funcs[2], (0, 4), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[2], (4, 1), (0, 1, 0)))
-            bonds.append(_BondRule(bond_funcs[2], (2, 4), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[2], (1, 5), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[2], (2, 5), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[2], (3, 5), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[2], (2, 6), (0, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[2], (6, 0), (1, 0, 0)))
-            bonds.append(_BondRule(bond_funcs[2], (6, 3), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[2], (0, 4), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[2], (4, 1), (0, 1, 0)))
+            bonds.append(BondRule(bond_funcs[2], (2, 4), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[2], (1, 5), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[2], (2, 5), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[2], (3, 5), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[2], (2, 6), (0, 0, 0)))
+            bonds.append(BondRule(bond_funcs[2], (6, 0), (1, 0, 0)))
+            bonds.append(BondRule(bond_funcs[2], (6, 3), (0, 1, 0)))
 
-            bonds.append(_BondRule(bond_funcs[2], (4, 0), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (4, 1), (0, 1, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (4, 2), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (5, 1), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (5, 2), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (5, 3), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (6, 2), (0, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (6, 0), (1, 0, 1)))
-            bonds.append(_BondRule(bond_funcs[2], (6, 3), (0, 1, 1)))
-
-        bonds = tuple(bonds)
+            bonds.append(BondRule(bond_funcs[2], (4, 0), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[2], (4, 1), (0, 1, 1)))
+            bonds.append(BondRule(bond_funcs[2], (4, 2), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[2], (5, 1), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[2], (5, 2), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[2], (5, 3), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[2], (6, 2), (0, 0, 1)))
+            bonds.append(BondRule(bond_funcs[2], (6, 0), (1, 0, 1)))
+            bonds.append(BondRule(bond_funcs[2], (6, 3), (0, 1, 1)))
 
     return unitcell(N=7,
                     types=_make_types(7, types),
@@ -587,7 +580,7 @@ def create_lattice(uc: unitcell, n: Union[int, List[int]], origin: List[float] =
         mechanica.lattice.create_lattice(uc=mechanica.lattice.sc(a=1.0), n=[2,4,2])
         mechanica.lattice.create_lattice(uc=mechanica.lattice.bcc(a=1.0), n=10)
         mechanica.lattice.create_lattice(uc=mechanica.lattice.sq(a=1.2), n=[100,10])
-        mechanica.lattice.create_lattice(uc=mechanica.lattice.hex(a=1.0), n=[100,58])
+        mechanica.lattice.create_lattice(uc=mechanica.lattice.hex2d(a=1.0), n=[100,58])
 
     :param uc: unit cell
     :param n: number of unit cells to create along all/each direction(s)
@@ -612,7 +605,7 @@ def create_lattice(uc: unitcell, n: Union[int, List[int]], origin: List[float] =
         for j in range(n[1]):
             for k in range(n[2]):
                 pos = origin + uc.a1 * i + uc.a2 * j + uc.a3 * k
-                parts = [type(pos.tolist()) for (type, pos) in zip(uc.types, uc.position + pos)]
+                parts = [tp(pos.tolist()) for (tp, pos) in zip(uc.types, uc.position + pos)]
                 lattice[i, j, k] = parts
 
     if uc.bonds:

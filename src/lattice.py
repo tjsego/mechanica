@@ -623,7 +623,7 @@ def create_lattice(uc: unitcell, n: Union[int, List[int]], origin: List[float] =
                         ii = (i, j, k)  # index of first unit cell, needs to be tuple
                         jj = (ii[0] + bond.cell_offset[0], ii[1] + bond.cell_offset[1], ii[2] + bond.cell_offset[2])
                         # check if next unit cell index is valid
-                        if jj[0] >= n[0] or jj[1] >= n[1] or jj[2] >= n[2]:
+                        if any([not 0 <= jj[i] < n[i] for i in range(3)]):
                             continue
 
                         # grap the parts out of the lattice

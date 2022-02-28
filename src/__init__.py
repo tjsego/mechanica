@@ -9,6 +9,7 @@ __all__ = ['forces', 'math', 'lattice']
 if system.is_jupyter_notebook():
     from . import jwidget
     __all__.append('jwidget')
+    show = jwidget.show
 
 if system.is_terminal_interactive():
     from .mechanica import _onIPythonNotReady

@@ -10,86 +10,260 @@ downflag = False
 shiftflag = False
 ctrlflag = False
 
+html_controls = """
+<table border="1">
+    <tr>
+        <th colspan = "2"> Mouse Controls</th>
+    </tr>
+    <tr>
+        <th>Button</th>
+        <th>Function</th>
+    </tr>
+    <tr>
+        <td>Click</td>
+        <td>Rotate camera</td>
+    </tr>
+    <tr>
+        <td>Shift + Click</td>
+        <td>Translate camera</td>
+    </tr>
+    
+    <tr>
+        <th colspan = "2"> Keyboard Controls</th>
+    </tr>
+    <tr>
+        <th>Button</th>
+        <th>Function</th>
+    </tr>
+    <tr>
+        <td>D</td>
+        <td>Toggle scene decorations</td>
+    </tr>
+    <tr>
+        <td>L</td>
+        <td>Toggle lagging</td>
+    </tr>
+    <tr>
+        <td>R</td>
+        <td>Reset camera</td>
+    </tr>
+    <tr>
+        <td>Arrow down</td>
+        <td>Translate camera down</td>
+    </tr>
+    <tr>
+        <td>Arrow left</td>
+        <td>Translate camera left</td>
+    </tr>
+    <tr>
+        <td>Arrow right</td>
+        <td>Translate camera right</td>
+    </tr>
+    <tr>
+        <td>Arrow up</td>
+        <td>Translate camera up</td>
+    </tr>
+    <tr>
+        <td>Ctrl + D</td>
+        <td>Toggle discretization rendering</td>
+    </tr>
+    <tr>
+        <td>Ctrl + arrow down</td>
+        <td>Zoom camera out</td>
+    </tr>
+    <tr>
+        <td>Ctrl + arrow left</td>
+        <td>Rotate camera left</td>
+    </tr>
+    <tr>
+        <td>Ctrl + arrow right</td>
+        <td>Rotate camera right</td>
+    </tr>
+    <tr>
+        <td>Ctrl + arrow up</td>
+        <td>Zoom camera in</td>
+    </tr>
+    <tr>
+        <td>Shift + B</td>
+        <td>Bottom view</td>
+    </tr>
+    <tr>
+        <td>Shift + F</td>
+        <td>Front view</td>
+    </tr>
+    <tr>
+        <td>Shift + K</td>
+        <td>Back view</td>
+    </tr>
+    <tr>
+        <td>Shift + L</td>
+        <td>Left view</td>
+    </tr>
+    <tr>
+        <td>Shift + R</td>
+        <td>Right view</td>
+    </tr>
+    <tr>
+        <td>Shift + T</td>
+        <td>Top view</td>
+    </tr>
+    <tr>
+        <td>Shift + arrow down</td>
+        <td>Rotate camera down</td>
+    </tr>
+    <tr>
+        <td>Shift + arrow left</td>
+        <td>Rotate camera left</td>
+    </tr>
+    <tr>
+        <td>Shift + arrow right</td>
+        <td>Rotate camera right</td>
+    </tr>
+    <tr>
+        <td>Shift + arrow up</td>
+        <td>Rotate camera up</td>
+    </tr>
+    <tr>
+        <td>Shift + Ctrl + arrow down</td>
+        <td>Translate backward</td>
+    </tr>
+    <tr>
+        <td>Shift + Ctrl + arrow up</td>
+        <td>Translate forward</td>
+    </tr>
+</table>
+"""
+"""
+HTML source for controls display widget
+"""
+
 
 def init(*args, **kwargs):
+    pass
+
+
+def show():
     global flag
 
     w = widgets.Image(value=m.system.image_data(), width=600)
     d = Event(source=w, watched_events=['mousedown', 'mouseup', 'mousemove', 'keyup', 'keydown', 'wheel'])
     no_drag = Event(source=w, watched_events=['dragstart'], prevent_default_action = True)
     d.on_dom_event(listen_mouse)
-    run = widgets.ToggleButton(
-        value = False,
+    tb_run = widgets.ToggleButton(
+        value=False,
         description='Run',
         disabled=False,
-        button_style='', # 'success', 'info', 'warning', 'danger' or ''
+        button_style='',  # 'success', 'info', 'warning', 'danger' or ''
         tooltip='run the simulation',
-        icon = 'play'
+        icon='play'
         )
-    pause = widgets.ToggleButton(
-        value = False,
+    tb_pause = widgets.ToggleButton(
+        value=False,
         description='Pause',
         disabled=False,
-        button_style='', # 'success', 'info', 'warning', 'danger' or ''
+        button_style='',  # 'success', 'info', 'warning', 'danger' or ''
         tooltip='pause the simulation',
-        icon = 'pause'
-        )
-
-    reset = widgets.ToggleButton(
-        value = False,
-        description='Reset',
-        disabled=False,
-        button_style='', # 'success', 'info', 'warning', 'danger' or ''
-        tooltip='reset the simulation',
-        icon = 'stop'
+        icon='pause'
         )
 
     def onToggleRun(b):
         global flag
-        if run.value:
-            run.button_style = 'success'
-            pause.value = False
-            pause.button_style = ''
-            reset.value = False
-            reset.button_style = ''
+        if tb_run.value:
+            tb_run.button_style = 'success'
+            tb_pause.value = False
+            tb_pause.button_style = ''
             flag = True
         else:
-            run.button_style=''
+            tb_run.button_style = ''
+            tb_pause.value = True
+            tb_pause.button_style = 'success'
             flag = False
 
     def onTogglePause(b):
         global flag
-        if pause.value:
-            pause.button_style = 'success'
-            run.value = False
-            run.button_style = ''
-            reset.value = False
-            reset.button_style = ''
+        if tb_pause.value:
+            tb_pause.button_style = 'success'
+            tb_run.value = False
+            tb_run.button_style = ''
             flag = False
         else:
-            pause.button_style=''
+            tb_pause.button_style = ''
+            tb_run.value = True
+            tb_run.button_style = 'success'
             flag = True
 
-    def onToggleReset(b):
-        global flag
-        if reset.value:
-            reset.button_style = 'success'
-            pause.value = False
-            pause.button_style = ''
-            run.value = False
-            run.button_style = ''
-            flag = False
-            m.Universe.reset()
-        else:
-            reset.button_style=''
-            #w = create_simulation()
+    tb_run.observe(onToggleRun, 'value')
+    tb_pause.observe(onTogglePause, 'value')
 
-    buttons = widgets.HBox([run, pause, reset])
-    run.observe(onToggleRun,'value')
-    pause.observe(onTogglePause,'value')
-    reset.observe(onToggleReset,'value')
+    buttons_exec = widgets.HBox([tb_run, tb_pause])
 
-    box = widgets.VBox([w, buttons])
+    view_front = widgets.Button(
+        value=False,
+        description='View: Front', 
+        disabled=False, 
+        button_style='', 
+        tooltip='set the camera to the front view'
+    )
+    view_back = widgets.Button(
+        value=False,
+        description='View: Back', 
+        disabled=False, 
+        button_style='', 
+        tooltip='set the camera to the back view'
+    )
+    view_right = widgets.Button(
+        value=False,
+        description='View: Right', 
+        disabled=False, 
+        button_style='', 
+        tooltip='set the camera to the right view'
+    )
+    view_left = widgets.Button(
+        value=False,
+        description='View: Left', 
+        disabled=False, 
+        button_style='', 
+        tooltip='set the camera to the left view'
+    )
+    view_top = widgets.Button(
+        value=False,
+        description='View: Top', 
+        disabled=False, 
+        button_style='', 
+        tooltip='set the camera to the top view'
+    )
+    view_bottom = widgets.Button(
+        value=False,
+        description='View: Bottom', 
+        disabled=False, 
+        button_style='', 
+        tooltip='set the camera to the bottom view'
+    )
+    view_reset = widgets.Button(
+        value=False, 
+        description='View: Reset', 
+        disabled=False, 
+        button_style='', 
+        tooltip='reset the camera'
+    )
+    
+    view_front.on_click(lambda b: m.system.cameraViewFront())
+    view_back.on_click(lambda b: m.system.cameraViewBack())
+    view_right.on_click(lambda b: m.system.cameraViewRight())
+    view_left.on_click(lambda b: m.system.cameraViewLeft())
+    view_top.on_click(lambda b: m.system.cameraViewTop())
+    view_bottom.on_click(lambda b: m.system.cameraViewBottom())
+    view_reset.on_click(lambda b: m.system.cameraReset())
+    
+    buttons_view = widgets.HBox([view_front, view_back, view_right, view_left, view_top, view_bottom, view_reset])
+
+    controls_content = widgets.HTML(value=html_controls)
+    acc_container = widgets.Accordion(children=[buttons_view, controls_content])
+    acc_container.selected_index = None
+    acc_container.set_title(0, 'Views')
+    acc_container.set_title(1, 'Controls')
+
+    box = widgets.VBox([w, buttons_exec, acc_container])
     display(box)
 
     # the simulator initializes creating the gl context on the creating thread.

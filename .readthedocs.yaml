@@ -4,6 +4,9 @@ build:
   os: ubuntu-20.04
   tools:
     python: miniconda3-4.7
+  apt_packages:
+    - libgl1-mesa-dev
+    - libegl1-mesa-dev
 
 conda:
   environment: docs/environment.yml

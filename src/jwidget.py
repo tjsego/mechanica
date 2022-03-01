@@ -4,6 +4,15 @@ import threading
 import time
 from ipyevents import Event
 from IPython.display import display
+import os
+
+# When rendering docs, the behvaior of ``show`` is altered to only show the rendering window, run for
+# a certain number of steps and then be done.
+_rendering_docs = os.environ.get('MXDOCS', None) == '1'
+docs_steps_term = os.environ.get('MXDOCS_RENDERSTEPS', 1000)
+
+window_width = 600
+"""Width of render window"""
 
 flag = False
 downflag = False
@@ -145,9 +154,17 @@ def init(*args, **kwargs):
 def show():
     global flag
 
-    w = widgets.Image(value=m.system.image_data(), width=600)
+    # If building docs, just do stepping, output image and be done
+    if _rendering_docs:
+        from IPython.display import Image
+        for _ in range(docs_steps_term):
+            m.step()
+        display(Image(m.system.image_data(), width=window_width))
+        return
+
+    w = widgets.Image(value=m.system.image_data(), width=window_width)
     d = Event(source=w, watched_events=['mousedown', 'mouseup', 'mousemove', 'keyup', 'keydown', 'wheel'])
-    no_drag = Event(source=w, watched_events=['dragstart'], prevent_default_action = True)
+    no_drag = Event(source=w, watched_events=['dragstart'], prevent_default_action=True)
     d.on_dom_event(listen_mouse)
     tb_run = widgets.ToggleButton(
         value=False,
@@ -283,10 +300,8 @@ def show():
         # done with background thead, release the context.
         m.system.contextRelease()
 
-
     t = threading.Thread(target=background_threading)
     t.start()
-
 
 
 def run(*args, **kwargs):

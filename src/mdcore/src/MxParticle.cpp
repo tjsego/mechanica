@@ -47,6 +47,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <typeinfo>
+#include <limits>
 
 MxParticle::MxParticle() {
     bzero(this, sizeof(MxParticle));
@@ -623,31 +624,54 @@ MxParticleHandle *MxParticle_FissionSimple(MxParticle *self,
         int result = space_getpos(&_Engine.s, self->id, vec.data());
 
         if(result < 0) {
-            Log(LOG_DEBUG) << part.typeId << ", " << _Engine.nr_types;
-            Log(LOG_DEBUG) << vec;
-            Log(LOG_DEBUG) << part.id << ", " << _Engine.s.nr_parts;
+            Log(LOG_CRITICAL) << part.typeId << ", " << _Engine.nr_types;
+            Log(LOG_CRITICAL) << vec;
+            Log(LOG_CRITICAL) << part.id << ", " << self->id << ", " << _Engine.s.nr_parts;
             mx_exp(std::runtime_error(engine_err_msg[-engine_err]));
             return NULL;            
         }
 
-        double pos[] = {vec[0], vec[1], vec[2]};
-        result = engine_addpart(&_Engine, &part, pos, &p);
+        // Double-check boundaries
+        const MxBoundaryConditions &bc = _Engine.boundary_conditions;
+        std::vector<bool> periodicFlags {
+            bool(bc.periodic & space_periodic_x), 
+            bool(bc.periodic & space_periodic_y), 
+            bool(bc.periodic & space_periodic_z)
+        };
+        float eps = std::numeric_limits<float>::epsilon();
+
+        // Calculate new positions; account for boundaries
+        MxVector3f posParent = vec + sep;
+        MxVector3f posChild = vec - sep;
+
+        for(unsigned int i = 0; i < 3; i++) {
+            float dim_i = (float)_Engine.s.dim[i];
+
+            if(periodicFlags[i]) {
+                while(posChild[i] > dim_i) 
+                    posChild[i] -= dim_i;
+                
+                while(posChild[i] < 0.0) 
+                    posChild[i] += dim_i;
+            }
+            posParent[i] = std::max<float>(eps, std::min<float>(dim_i - eps, posParent[i]));
+            posChild[i] = std::max<float>(eps, std::min<float>(dim_i - eps, posChild[i]));
+        }
+
+        result = engine_addpart(&_Engine, &part, MxVector3d(posChild).data(), &p);
 
         if(result < 0) {
-            Log(LOG_DEBUG) << part.typeId << ", " << _Engine.nr_types;
-            Log(LOG_DEBUG) << vec;
-            Log(LOG_DEBUG) << pos[0] << ", " << pos[1] << ", " << pos[2];
-            Log(LOG_DEBUG) << part.id << ", " << _Engine.s.nr_parts;
+            Log(LOG_CRITICAL) << part.typeId << ", " << _Engine.nr_types;
+            Log(LOG_CRITICAL) << posParent;
+            Log(LOG_CRITICAL) << posChild;
+            Log(LOG_CRITICAL) << part.id << ", " << _Engine.s.nr_parts;
             mx_exp(std::runtime_error(engine_err_msg[-engine_err]));
             return NULL;
         }
         
         // pointers after engine_addpart could change...
         self = _Engine.s.partlist[self_id];
-        space_setpos(&_Engine.s, self_id, (vec + sep).data());
-        
-        // p is valid, because that's the result of the addpart
-        space_setpos(&_Engine.s, p->id, (vec - sep).data());
+        space_setpos(&_Engine.s, self_id, posParent.data());
         Log(LOG_DEBUG) << self->position << ", " << p->position;
         
         // all is good, set the new radii

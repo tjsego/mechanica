@@ -208,27 +208,14 @@
 
             pos, vel = None, None
             if position is not None:
-                pos = MxVector3f(list(position))
+                pos = MxVector3f(list(position)) if not isinstance(position, MxVector3f) else position
 
             if velocity is not None:
-                vel = MxVector3f(list(velocity))
-
-            args = []
-            if pos is not None:
-                args.append(pos)
-            if vel is not None:
-                args.append(vel)
-            if args:
-                if cluster_id is not None:
-                    args.append(cluster_id)
-                return self._call(*args)
+                vel = MxVector3f(list(velocity)) if not isinstance(velocity, MxVector3f) else velocity
 
             if part_str is not None:
-                args.append(part_str)
-            if cluster_id is not None:
-                args.append(cluster_id)
-            
-            return self._call(*args)
+                return self._call(part_str, cluster_id)
+            return self._call(pos, vel, cluster_id)
 
         @property
         def frozen(self):

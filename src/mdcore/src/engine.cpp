@@ -2239,6 +2239,18 @@ CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
         MxBond_Destroy(&_Engine.bonds[bonds[i]]);
     }
 
+	std::vector<int32_t> angles = MxAngle_IdsForParticle(pid);
+
+	for(int i = 0; i < angles.size(); ++i) {
+		MxAngle_Destroy(&_Engine.angles[angles[i]]);
+	}
+
+	std::vector<int32_t> dihedrals = MxDihedral_IdsForParticle(pid);
+
+	for(int i = 0; i < dihedrals.size(); ++i) {
+		MxDihedral_Destroy(&_Engine.dihedrals[dihedrals[i]]);
+	}
+
     return space_del_particle(&e->s, pid);
 }
 

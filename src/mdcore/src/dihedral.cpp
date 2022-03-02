@@ -955,6 +955,18 @@ bool MxDihedral_decays(MxDihedral *d, std::uniform_real_distribution<double> *un
     return result;
 }
 
+std::vector<int32_t> MxDihedral_IdsForParticle(int32_t pid) {
+    std::vector<int32_t> dihedrals;
+    for (int i = 0; i < _Engine.nr_dihedrals; ++i) {
+        MxDihedral *d = &_Engine.dihedrals[i];
+        if((d->flags & DIHEDRAL_ACTIVE) && (d->i == pid || d->j == pid || d->k == pid || d->l == pid)) {
+            assert(i == d->id);
+            dihedrals.push_back(d->id);
+        }
+    }
+    return dihedrals;
+}
+
 
 namespace mx { namespace io {
 

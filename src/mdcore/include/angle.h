@@ -260,6 +260,11 @@ CAPI_FUNC(bool) MxAngle_decays(MxAngle *a, std::uniform_real_distribution<double
 int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out );
 int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , double *epot_out );
 
+/**
+ * find all the angles that interact with the given particle id
+ */
+std::vector<int32_t> MxAngle_IdsForParticle(int32_t pid);
+
 
 namespace mx { namespace io {
 

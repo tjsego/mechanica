@@ -1529,14 +1529,6 @@ CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
 
     assert(p == &cell->parts[cid] && "pointer arithmetic error");
 
-    cell->count -= 1;
-    if ( cid < cell->count ) {
-        cell->parts[cid] = cell->parts[cell->count];
-        s->partlist[cell->parts[cid].id ] = &( cell->parts[cid] );
-    }
-
-    s->nr_parts -= 1;
-    
     MxParticleType *type = &_Engine.types[p->typeId];
     MxStyle *style = p->style ? p->style : type->style;
     
@@ -1548,6 +1540,14 @@ CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
             s->nr_visible_parts -= 1;
         }
     }
+
+    cell->count -= 1;
+    if ( cid < cell->count ) {
+        cell->parts[cid] = cell->parts[cell->count];
+        s->partlist[cell->parts[cid].id ] = &( cell->parts[cid] );
+    }
+
+    s->nr_parts -= 1;
 
     return S_OK;
 }
@@ -1583,6 +1583,8 @@ HRESULT space_update_style( struct space *s ) {
     
     for(int i = 0; i < s->nr_parts; ++i) {
         MxParticle *p = s->partlist[i];
+        if(!p) 
+            continue;
         MxParticleType *type = &_Engine.types[p->typeId];
         MxStyle *style = p->style ? p->style : type->style;
         

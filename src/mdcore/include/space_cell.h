@@ -189,6 +189,16 @@ struct MxParticle *space_cell_add ( struct space_cell *c ,
         struct MxParticle *p , struct MxParticle **partlist );
 
 /**
+ * @brief Remove a particle from a cell.
+ * 
+ * @param c The #cell from which the particle should be removed.
+ * @param p The #particle to remove from the cell.
+ * @param partlist Optional #particle array to update.
+ * @return #cell_err_ok or < 0 on error (see #cell_err).
+ */
+int space_cell_remove(struct space_cell *c, struct MxParticle *p, struct MxParticle **partlist);
+
+/**
  * @brief Add a particle to the incomming array of a cell.
  *
  * @param c The #cell to which the particle should be added.

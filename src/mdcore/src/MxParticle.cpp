@@ -47,7 +47,6 @@
 #include <iostream>
 #include <unordered_map>
 #include <typeinfo>
-#include <limits>
 
 MxParticle::MxParticle() {
     bzero(this, sizeof(MxParticle));
@@ -638,27 +637,25 @@ MxParticleHandle *MxParticle_FissionSimple(MxParticle *self,
             bool(bc.periodic & space_periodic_y), 
             bool(bc.periodic & space_periodic_z)
         };
-        float eps = std::numeric_limits<float>::epsilon();
 
         // Calculate new positions; account for boundaries
         MxVector3f posParent = vec + sep;
-        MxVector3f posChild = vec - sep;
+        MxVector3d posChild = MxVector3d(vec - sep);
 
         for(unsigned int i = 0; i < 3; i++) {
-            float dim_i = (float)_Engine.s.dim[i];
+            double dim_i = _Engine.s.dim[i];
+            double origin_i = _Engine.s.origin[i];
 
             if(periodicFlags[i]) {
-                while(posChild[i] > dim_i) 
+                while(posChild[i] >= dim_i + origin_i) 
                     posChild[i] -= dim_i;
-                
-                while(posChild[i] < 0.0) 
+
+                while(posChild[i] < origin_i) 
                     posChild[i] += dim_i;
             }
-            posParent[i] = std::max<float>(eps, std::min<float>(dim_i - eps, posParent[i]));
-            posChild[i] = std::max<float>(eps, std::min<float>(dim_i - eps, posChild[i]));
         }
 
-        result = engine_addpart(&_Engine, &part, MxVector3d(posChild).data(), &p);
+        result = engine_addpart(&_Engine, &part, posChild.data(), &p);
 
         if(result < 0) {
             Log(LOG_CRITICAL) << part.typeId << ", " << _Engine.nr_types;

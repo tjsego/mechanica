@@ -52,6 +52,7 @@
 
 #include <vector>
 #include <random>
+#include <float.h>
 
 #pragma clang diagnostic ignored "-Wwritable-strings"
 

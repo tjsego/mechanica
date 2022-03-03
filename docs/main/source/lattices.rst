@@ -45,8 +45,8 @@ All methods that construct built-in unit cells support optional features to
 add to the corresponding unit cell, like adding bonded interactions
 to pairs of particles. Specifying bonded interactions among particles
 in a lattice requires providing at least a callable that takes two
-:ref:`particles <MxParticleHandle>` as arguments and returns a newly created
-:ref:`bond <MxBondHandle>`. ::
+:py:class:`particles <MxParticleHandle>` as arguments and returns a newly created
+:py:class:`bond <MxBondHandle>`. ::
 
     # Create a potential for bonded interactions in a lattice
     pot = mx.Potential.power(r0=2.0 * lattice_type.radius, alpha=2)
@@ -103,9 +103,9 @@ three vectors for their box definition, each with three coordinates. Rather,
 :py:class:`unitcell <lattice.unitcell>` instances are declared two- or
 three-dimensional using the integer argument ``dimensions``.
 
-The :ref:`particles <MxParticleHandle>` of a :py:class:`unitcell <lattice.unitcell>`
-are defined by declaring the number of :ref:`particles <MxParticleHandle>` and the
-position and :ref:`type <MxParticleType>` of each :ref:`particles <MxParticleHandle>`.
+The :py:class:`particles <MxParticleHandle>` of a :py:class:`unitcell <lattice.unitcell>`
+are defined by declaring the number of :py:class:`particles <MxParticleHandle>` and the
+position and :py:class:`type <MxParticleType>` of each :py:class:`particles <MxParticleHandle>`.
 The position of each particle is defined with respect to the origin of the
 coordinate system of the :py:class:`unitcell <lattice.unitcell>`.
 For example, to create a :py:class:`unitcell <lattice.unitcell>` for a
@@ -122,22 +122,22 @@ two-dimensional square lattice with unit length of ``1``, ::
 
 The :py:class:`unitcell <lattice.unitcell>` also supports embedding information
 about :ref:`bonded interactions <bonded_interactions>` between
-:ref:`particles <MxParticleHandle>` of each :py:class:`unitcell <lattice.unitcell>`
+:py:class:`particles <MxParticleHandle>` of each :py:class:`unitcell <lattice.unitcell>`
 when used to create a lattice. Bonded interactions can be attached to a
 :py:class:`unitcell <lattice.unitcell>` definition by specifying a tuple,
 each element of which contains three pieces of information in a
 :py:class:`BondRule <lattice.BondRule>`,
 
-#. a callable that takes two :ref:`particles <MxParticleHandle>` as arguments
-   and returns a newly created :ref:`bond <MxBondHandle>`
+#. a callable that takes two :py:class:`particles <MxParticleHandle>` as arguments
+   and returns a newly created :py:class:`bond <MxBondHandle>`
 #. a tuple of two integers identify the index of each
-   :ref:`particles <MxParticleHandle>` of the bond, according to the ordering of
+   :py:class:`particles <MxParticleHandle>` of the bond, according to the ordering of
    arguments passed to the :py:class:`unitcell <lattice.unitcell>` constructor,
-   where at least the first integer refers to a :ref:`particles <MxParticleHandle>`
+   where at least the first integer refers to a :py:class:`particle <MxParticleHandle>`
    in the current :py:class:`unitcell <lattice.unitcell>`.
 #. a lattice offset vector referring to the displacement from the current
    :py:class:`unitcell <lattice.unitcell>` to the :py:class:`unitcell <lattice.unitcell>`
-   to which the second :ref:`particle <MxParticleHandle>` of the bond belongs,
+   to which the second :py:class:`particle <MxParticleHandle>` of the bond belongs,
    where an offset vector of ``[0, 0, 0]`` refers to the current
    :py:class:`unitcell <lattice.unitcell>`.
 

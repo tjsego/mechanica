@@ -1179,6 +1179,7 @@ HRESULT toFile(const MxParticle &dataElement, const MxMetaData &metaData, MxIOEl
     MxIOElement *fe;
 
     MXPARTICLEIOTOEASY(fe, "force", dataElement.force);
+    MXPARTICLEIOTOEASY(fe, "force_i", dataElement.force_i);
     MXPARTICLEIOTOEASY(fe, "number_density", dataElement.number_density);
     MXPARTICLEIOTOEASY(fe, "velocity", dataElement.velocity);
     MXPARTICLEIOTOEASY(fe, "position", MxParticleHandle(dataElement.id, dataElement.typeId).getPosition());
@@ -1228,6 +1229,8 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxP
     MxIOChildMap::const_iterator feItr;
 
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "force", &dataElement->force);
+    if(metaData.versionMajor > 0 || metaData.versionMinor > 31 || (metaData.versionMinor == 31 && metaData.versionPatch > 0)) 
+        MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "force_i", &dataElement->force_i);
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "velocity", &dataElement->velocity);
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "number_density", &dataElement->number_density);
     dataElement->inv_number_density = 1.f / dataElement->number_density;

@@ -40,7 +40,7 @@ Appendix A: Exported Simulation State Data
     - Interaction cutoff (:class:`MxBoundaryCondition`)
 - Particle
     - Associated class(es): :class:`MxParticle`, :class:`MxCluster`
-    - Total force
+    - Total and initial forces
     - Number density
     - Velocity
     - Position

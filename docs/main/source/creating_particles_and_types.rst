@@ -194,6 +194,21 @@ randomly selected, has a random direction but speed such that the
 initial kinetic energy of the particle is equal to the particle type
 property ``target_temperature`` (in C++, ``target_energy``).
 
+Properties of individual particles can be set at any time during simulation, including
+:attr:`mass <MxParticleHandle.mass>`, :attr:`velocity <MxParticleHandle.velocity>` and
+:attr:`radius <MxParticleHandle.radius>`. While most vector quantities like
+:attr:`velocity <MxParticleHandle.velocity>` can be set both by vector and vector component,
+the particle :attr:`position <MxParticleHandle.position>` requires a special exception
+where it can only be set using a full vector value, which helps Mechanica maintain
+critically important aspects of its computational performance. ::
+
+    particle_handle.radius *= 2      # Double the particle radius
+    particle_handle.velocity[0] = 0  # Stop particle motion along the x-direction
+    # Set the y-component of the particle position
+    position = particle_handle.position
+    position[1] = 2
+    particle_handle.position = position
+
 .. _clusters-label:
 
 Clusters

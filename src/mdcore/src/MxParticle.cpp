@@ -266,7 +266,7 @@ void MxParticleHandle::setPosition(MxVector3f position) {
     space_setpos(&_Engine.s, part()->id, position.data());
 }
 
-MxVector3f MxParticleHandle::getVelocity() {
+MxVector3f &MxParticleHandle::getVelocity() {
     return part()->velocity;
 }
 
@@ -278,8 +278,12 @@ MxVector3f MxParticleHandle::getForce() {
     return part()->force;
 }
 
-void MxParticleHandle::setForce(MxVector3f force) {
-    part()->force = force;
+MxVector3f &MxParticleHandle::getForceInit() {
+    return part()->force_i;
+}
+
+void MxParticleHandle::setForceInit(MxVector3f force) {
+    part()->force_i = force;
 }
 
 int MxParticleHandle::getId() {

@@ -46,6 +46,8 @@ Particles and Clusters
 
     .. autoproperty:: force
 
+    .. autoproperty:: force_init
+
     .. autoproperty:: id
 
     .. autoproperty:: type_id

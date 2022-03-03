@@ -234,7 +234,7 @@ int space_prepare ( struct space *s ) {
             
             // yes, we are using up to k=4 here, clear the force, and number density.
             for ( k = 0 ; k < 3 ; k++ ) {
-                s->cells[cid].parts[pid].f[k] = 0.0;
+                s->cells[cid].parts[pid].f[k] = s->cells[cid].parts[pid].force_i[k];
             }
             s->cells[cid].parts[pid].f[3] = self_number_density;
         }

@@ -137,9 +137,14 @@
             """Net force acting on particle"""
             return self.getForce()
 
-        @force.setter
-        def force(self, force):
-            self.setForce(MxVector3f(force))
+        @property
+        def force_init(self):
+            """Persistent force acting on particle"""
+            return self.getForceInit()
+
+        @force_init.setter
+        def force_init(self, force):
+            self.setForceInit(MxVector3f(force))
 
         @property
         def id(self):

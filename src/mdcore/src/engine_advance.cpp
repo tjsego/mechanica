@@ -177,6 +177,7 @@ static inline void cell_advance_forward_euler(const float dt, const float h[3], 
             for ( k = 0 ; k < 3 ; k++ ) {
                 dx = mask[k] * (dt * p->f[k] * p->imass);
                 neg = dx / abs(dx); // could be NaN, but only used if dx is > maxx.
+                p->v[k] = dx / dt;
                 p->x[k] += dx * dx <= maxx2[k] ? dx : neg * maxx[k];
                 delta[k] = __builtin_isgreaterequal( p->x[k] , h[k] ) - __builtin_isless( p->x[k] , 0.0 );
                 toofast = toofast || (p->x[k] >= h2[k] || p->x[k] <= -h[k]);
@@ -312,7 +313,8 @@ int engine_advance_forward_euler ( struct engine *e ) {
                     }
                     else {
                         for ( k = 0 ; k < 3 ; k++ ) {
-                            p->x[k] += p->f[k] * dt * p->imass;
+                            p->v[k] = p->f[k] * p->imass;
+                            p->x[k] += p->v[k] * dt;
                             delta[k] = isgreaterequal( p->x[k] , h[k] ) - isless( p->x[k] , 0.0 );
                             toofast = toofast || (p->x[k] >= h2[k] || p->x[k] <= -h[k]);
                         }
@@ -503,7 +505,8 @@ int engine_advance_runge_kutta_4 ( struct engine *e ) {
                     }
                     else {
                         for ( k = 0 ; k < 3 ; k++ ) {
-                            p->x[k] += dt * p->f[k] * w;
+                            p->v[k] = p->f[k] * w;
+                            p->x[k] += dt * p->v[k];
                             delta[k] = isgreaterequal( p->x[k] , h[k] ) - isless( p->x[k] , 0.0 );
                             toofast = toofast || (p->x[k] >= h2[k] || p->x[k] <= -h[k]);
                         }

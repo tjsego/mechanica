@@ -112,6 +112,15 @@ struct MxParticle  {
             float number_density;
         };
     };
+    
+    /**
+     * Initial particle force
+     *
+     * At each step, the total force acting on a particle is reset to this settable value. 
+     */
+    union {
+        MX_ALIGNED(MxVector3f, 16) force_i;
+    };
 
 
 	/** Particle velocity */
@@ -416,10 +425,11 @@ struct MxParticleHandle {
     std::string getName2();
     MxVector3f getPosition();
     void setPosition(MxVector3f position);
-    MxVector3f getVelocity();
+    MxVector3f &getVelocity();
     void setVelocity(MxVector3f velocity);
     MxVector3f getForce();
-    void setForce(MxVector3f force);
+    MxVector3f &getForceInit();
+    void setForceInit(MxVector3f force);
     int getId();
     int16_t getTypeId();
     uint16_t getFlags();

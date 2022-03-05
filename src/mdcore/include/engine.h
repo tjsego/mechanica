@@ -775,18 +775,14 @@ inline MxParticle *MxParticle::particle(int i) {
 };
 
 inline MxVector3f MxParticle::global_position() {
-    double *o = _Engine.s.celllist[this->id]->origin;
-    return this->position + MxVector3f {
-        static_cast<float>(o[0]), static_cast<float>(o[1]), static_cast<float>(o[2])
-    };
+    MxVector3f position;
+	space_getpos(&_Engine.s, this->id, position.data());
+	return position;
 }
 
 inline void MxParticle::set_global_position(const MxVector3f& pos) {
-    double *o = _Engine.s.celllist[this->id]->origin;
-    // TODO: need to update cells...
-    this->position = pos - MxVector3f {
-        static_cast<float>(o[0]), static_cast<float>(o[1]), static_cast<float>(o[2])
-    };
+    FPTYPE x[] = {pos.x(), pos.y(), pos.z()};
+	space_setpos(&_Engine.s, this->id, x);
 }
 
 inline MxParticle *MxParticleHandle::part() {

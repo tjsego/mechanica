@@ -97,19 +97,46 @@ static unsigned colors [] = {
 unsigned int *MxParticle_Colors = colors;
 
 #define PARTICLE_SELF(pypart) \
-    MxParticle *self = _Engine.s.partlist[((MxParticleHandle*)pypart)->id]; \
+    MxParticle *self = pypart->part(); \
     if(self == NULL) { \
         throw std::runtime_error("Particle has been destroyed or is invalid"); \
         return NULL; \
     }
 
 #define PARTICLE_PROP_SELF(pypart) \
-    MxParticle *self = _Engine.s.partlist[((MxParticleHandle*)pypart)->id]; \
+    MxParticle *self = pypart->part(); \
     if(self == NULL) { \
         throw std::runtime_error("Particle has been destroyed or is invalid"); \
         return -1; \
     }
 
+#define PARTICLE_SELFW(pypart, ret) \
+    MxParticle *self = pypart->part(); \
+    if(self == NULL) { \
+        Log(LOG_WARNING) << "Particle has been destroyed or is invalid"; \
+        return ret; \
+    }
+
+#define PARTICLE_TYPE(pypart) \
+    MxParticleType *ptype = pypart->type(); \
+    if(ptype == NULL) { \
+        throw std::runtime_error("Particle has been destroyed or is invalid"); \
+        return NULL; \
+    }
+
+#define PARTICLE_PROP_TYPE(pypart) \
+    MxParticleType *ptype = pypart->type(); \
+    if(ptype == NULL) { \
+        throw std::runtime_error("Particle has been destroyed or is invalid"); \
+        return -1; \
+    }
+
+#define PARTICLE_TYPEW(pypart, ret) \
+    MxParticleType *ptype = pypart->type(); \
+    if(ptype == NULL) { \
+        Log(LOG_WARNING) << "Particle has been destroyed or is invalid"; \
+        return ret; \
+    }
 
 static int particle_init(MxParticleHandle *self, MxVector3f *position=NULL, MxVector3f *velocity=NULL, int *cluster=NULL);
 
@@ -120,6 +147,8 @@ static int particle_init_ex(MxParticleHandle *self,  const MxVector3f &position,
 
 static MxParticleList *particletype_items(MxParticleType *self);
 
+static MxParticle *particleSelf(MxParticleHandle *handle);
+
 
 struct Offset {
     uint32_t kind;
@@ -129,19 +158,23 @@ struct Offset {
 static_assert(sizeof(Offset) == sizeof(void*), "error, void* must be 64 bit");
 
 double MxParticleHandle::getCharge() {
-    return part()->q;
+    PARTICLE_SELFW(this, 0)
+    return self->q;
 }
 
 void MxParticleHandle::setCharge(const double &charge) {
-    part()->q = charge;
+    PARTICLE_SELFW(this, )
+    self->q = charge;
 }
 
 double MxParticleHandle::getMass() {
-    return part()->mass;
+    PARTICLE_SELFW(this, 0)
+    return self->mass;
 }
 
 void MxParticleHandle::setMass(const double &mass) {
-    part()->mass = mass;
+    PARTICLE_SELFW(this, )
+    self->mass = mass;
 }
 
 bool MxParticleType::getFrozen() {
@@ -181,67 +214,82 @@ void MxParticleType::setFrozenZ(const bool &frozen) {
 }
 
 bool MxParticleHandle::getFrozen() {
-    return part()->flags & PARTICLE_FROZEN;
+    PARTICLE_SELFW(this, 0)
+    return self->flags & PARTICLE_FROZEN;
 }
 
 void MxParticleHandle::setFrozen(const bool frozen) {
-    if(frozen) part()->flags |= PARTICLE_FROZEN;
-    else part()->flags &= ~PARTICLE_FROZEN;
+    PARTICLE_SELFW(this, )
+    if(frozen) self->flags |= PARTICLE_FROZEN;
+    else self->flags &= ~PARTICLE_FROZEN;
 }
 
 bool MxParticleHandle::getFrozenX() {
-    return part()->flags & PARTICLE_FROZEN_X;
+    PARTICLE_SELFW(this, 0)
+    return self->flags & PARTICLE_FROZEN_X;
 }
 
 void MxParticleHandle::setFrozenX(const bool frozen) {
-    if(frozen) part()->flags |= PARTICLE_FROZEN_X;
-    else part()->flags &= ~PARTICLE_FROZEN_X;
+    PARTICLE_SELFW(this, )
+    if(frozen) self->flags |= PARTICLE_FROZEN_X;
+    else self->flags &= ~PARTICLE_FROZEN_X;
 }
 
 bool MxParticleHandle::getFrozenY() {
-    return part()->flags & PARTICLE_FROZEN_Y;
+    PARTICLE_SELFW(this, 0)
+    return self->flags & PARTICLE_FROZEN_Y;
 }
 
 void MxParticleHandle::setFrozenY(const bool frozen) {
-    if(frozen) part()->flags |= PARTICLE_FROZEN_Y;
-    else part()->flags &= ~PARTICLE_FROZEN_Y;
+    PARTICLE_SELFW(this, )
+    if(frozen) self->flags |= PARTICLE_FROZEN_Y;
+    else self->flags &= ~PARTICLE_FROZEN_Y;
 }
 
 bool MxParticleHandle::getFrozenZ() {
-    return part()->flags & PARTICLE_FROZEN_Z;
+    PARTICLE_SELFW(this, 0)
+    return self->flags & PARTICLE_FROZEN_Z;
 }
 
 void MxParticleHandle::setFrozenZ(const bool frozen) {
-    if(frozen) part()->flags |= PARTICLE_FROZEN_Z;
-    else part()->flags &= ~PARTICLE_FROZEN_Z;
+    PARTICLE_SELFW(this, )
+    if(frozen) self->flags |= PARTICLE_FROZEN_Z;
+    else self->flags &= ~PARTICLE_FROZEN_Z;
 }
 
 MxStyle *MxParticleHandle::getStyle() {
-    return part()->style;
+    PARTICLE_SELFW(this, 0)
+    return self->style;
 }
 
 void MxParticleHandle::setStyle(MxStyle *style) {
-    part()->style = style;
+    PARTICLE_SELFW(this, )
+    self->style = style;
 }
 
 double MxParticleHandle::getAge() {
-    return (_Engine.time - part()->creation_time) * _Engine.dt;
+    PARTICLE_SELFW(this, 0)
+    return (_Engine.time - self->creation_time) * _Engine.dt;
 }
 
 double MxParticleHandle::getRadius() {
-    return part()->radius;
+    PARTICLE_SELFW(this, 0)
+    return self->radius;
 }
 
 void MxParticleHandle::setRadius(const double &radius) {
-    part()->radius = radius;
+    PARTICLE_SELFW(this, )
+    self->radius = radius;
 }
 
 std::string MxParticleHandle::getName() {
-    return type()->name;
+    PARTICLE_TYPEW(this, "")
+    return ptype->name;
 }
 
 std::string MxParticleHandle::getName2() {
-    return type()->name2;
+    PARTICLE_TYPEW(this, "")
+    return ptype->name2;
 }
 
 double MxParticleType::getTemperature() {
@@ -257,53 +305,63 @@ void MxParticleType::setTargetTemperature(const double &temperature) {
 }
 
 MxVector3f MxParticleHandle::getPosition() {
-    MxVector3f vec(0.0);
-    int result = space_getpos(&_Engine.s, this->id, vec.data());
-    return vec;
+    PARTICLE_SELFW(this, MxVector3f(0.0))
+    return self->global_position();
 }
 
 void MxParticleHandle::setPosition(MxVector3f position) {
-    space_setpos(&_Engine.s, part()->id, position.data());
+    PARTICLE_SELFW(this, )
+    self->set_global_position(position);
 }
 
 MxVector3f &MxParticleHandle::getVelocity() {
-    return part()->velocity;
+    auto self = particleSelf(this);
+    return self->velocity;
 }
 
 void MxParticleHandle::setVelocity(MxVector3f velocity) {
-    part()->velocity = velocity;
+    PARTICLE_SELFW(this, )
+    self->velocity = velocity;
 }
 
 MxVector3f MxParticleHandle::getForce() {
-    return part()->force;
+    PARTICLE_SELFW(this, MxVector3f(0.0))
+    return self->force;
 }
 
 MxVector3f &MxParticleHandle::getForceInit() {
-    return part()->force_i;
+    auto self = particleSelf(this);
+    return self->force_i;
 }
 
 void MxParticleHandle::setForceInit(MxVector3f force) {
-    part()->force_i = force;
+    PARTICLE_SELFW(this, )
+    self->force_i = force;
 }
 
 int MxParticleHandle::getId() {
-    return part()->id;
+    PARTICLE_SELFW(this, 0)
+    return self->id;
 }
 
 int16_t MxParticleHandle::getTypeId() {
-    return part()->typeId;
+    PARTICLE_SELFW(this, 0)
+    return self->typeId;
 }
 
 uint16_t MxParticleHandle::getFlags() {
-    return part()->flags;
+    PARTICLE_SELFW(this, 0)
+    return self->flags;
 }
 
 MxStateVector *MxParticleHandle::getSpecies() {
-    return part()->state_vector;
+    PARTICLE_SELFW(this, 0)
+    return self->state_vector;
 }
 
 MxParticleHandle::operator MxClusterParticleHandle*() {
-    if (!type()->isCluster()) return NULL;
+    PARTICLE_TYPEW(this, NULL)
+    if (!ptype->isCluster()) return NULL;
     return static_cast<MxClusterParticleHandle*>(this);
 }
 
@@ -416,19 +474,14 @@ CAPI_FUNC(MxParticleType*) MxCluster_GetType()
 }
 
 MxParticle *particleSelf(MxParticleHandle *handle) {
-    MxParticle *self = _Engine.s.partlist[handle->id];
-    if(self == NULL) {
-        throw std::runtime_error("Particle has been destroyed or is invalid");
-        return NULL;
-    }
+    PARTICLE_SELF(handle)
     return self;
 }
 
 HRESULT MxParticleHandle::destroy()
 {
-    auto *self = part();
-    if(self) return engine_del_particle(&_Engine, self->id);
-    return S_OK;
+    PARTICLE_SELFW(this, S_OK)
+    return engine_del_particle(&_Engine, self->id);
 }
 
 MxVector3f MxParticleHandle::sphericalPosition(MxParticle *particle, MxVector3f *origin)
@@ -447,7 +500,7 @@ MxVector3f MxParticleHandle::relativePosition(const MxVector3f &origin, const bo
 
 MxMatrix3f MxParticleHandle::virial(float *radius)
 {
-    auto *self = part();
+    PARTICLE_SELFW(this, MxMatrix3f(0.0))
 
     MxVector3f pos = self->global_position();
     MxMatrix3f mat;
@@ -514,6 +567,7 @@ MxParticleHandle *MxParticleType::operator()(const std::string &str, int *cluste
     // copy reamining valid imported data
 
     p->force = dummy->force;
+    p->force_i = dummy->force_i;
     p->inv_number_density = dummy->inv_number_density;
     p->creation_time = dummy->creation_time;
     p->persistent_force = dummy->persistent_force;
@@ -694,7 +748,8 @@ MxParticleHandle *MxParticle_FissionSimple(MxParticle *self,
 MxParticleHandle* MxParticleHandle::fission()
 {
     try {
-        return MxParticle_FissionSimple(part(), NULL, NULL, 0, NULL);
+        PARTICLE_SELF(this)
+        return MxParticle_FissionSimple(self, NULL, NULL, 0, NULL);
     }
     catch (const std::exception &e) {
         mx_exp(e); return NULL;
@@ -780,6 +835,26 @@ bool MxParticle::verify() {
     }
     
     bool pindex = this == _Engine.s.partlist[this->id];
+
+    if(!gte || !lt || !pindex) {
+        
+        Log(LOG_ERROR) << "Verify failed for particle " << this->id;
+        Log(LOG_ERROR) << "   Large particle   : " << (this->flags & PARTICLE_LARGE);
+        Log(LOG_ERROR) << "   Validated lower  : " << lt;
+        Log(LOG_ERROR) << "   Validated upper  : " << gte;
+        Log(LOG_ERROR) << "   Validated address: " << pindex;
+        Log(LOG_ERROR) << "   Global position  : " << this->global_position();
+        Log(LOG_ERROR) << "   Relative position: " << this->position;
+        Log(LOG_ERROR) << "   Particle type    : " << this->py_particle()->type()->name;
+        Log(LOG_ERROR) << "   Engine dims      : " << engine_dimensions();
+
+        if(!(this->flags & PARTICLE_LARGE)) {
+            space_cell *cell = _Engine.s.celllist[this->id];
+            Log(LOG_ERROR) << "   Cell dims        : " << MxVector3d::from(_Engine.s.h);
+            Log(LOG_ERROR) << "   Cell location    : " << MxVector3i::from(cell->loc);
+            Log(LOG_ERROR) << "   Cell origin      : " << MxVector3d::from(cell->origin);
+        }
+    }
 
     assert("particle pos below zero" && gte);
     assert("particle pos over cell size" && lt);
@@ -887,12 +962,13 @@ HRESULT MxParticle_Become(MxParticle *part, MxParticleType *type) {
 }
 
 HRESULT MxParticleHandle::become(MxParticleType *type) {
-    return MxParticle_Become(part(), type);
+    PARTICLE_SELFW(this, NULL)
+    return MxParticle_Become(self, type);
 }
 
 MxParticleList *MxParticleHandle::neighbors(const float *distance, const std::vector<MxParticleType> *types) {
     try {
-        auto self = part();
+        PARTICLE_SELFW(this, NULL)
         
         float radius = distance ? *distance : _Engine.s.cutoff;
 
@@ -919,7 +995,9 @@ MxParticleList *MxParticleHandle::neighbors(const float *distance, const std::ve
 
 MxParticleList *MxParticleHandle::getBondedNeighbors() {
     try {
-        auto id = part()->id;
+        PARTICLE_SELFW(this, NULL)
+
+        auto id = self->id;
         
         MxParticleList *list = new MxParticleList(5);
         
@@ -943,7 +1021,9 @@ MxParticleList *MxParticleHandle::getBondedNeighbors() {
 
 std::vector<MxBondHandle*> *MxParticleHandle::getBonds() {
     try {
-        auto id = part()->id;
+        PARTICLE_SELFW(this, 0)
+
+        auto id = self->id;
         
         std::vector<MxBondHandle*> *bonds = new std::vector<MxBondHandle*>();
         
@@ -962,7 +1042,9 @@ std::vector<MxBondHandle*> *MxParticleHandle::getBonds() {
 
 std::vector<MxAngleHandle*> *MxParticleHandle::getAngles() {
     try {
-        auto id = part()->id;
+        PARTICLE_SELFW(this, 0)
+
+        auto id = self->id;
         
         std::vector<MxAngleHandle*> *angles = new std::vector<MxAngleHandle*>();
         
@@ -981,7 +1063,9 @@ std::vector<MxAngleHandle*> *MxParticleHandle::getAngles() {
 
 std::vector<MxDihedralHandle*> *MxParticleHandle::getDihedrals() {
     try {
-        auto id = part()->id;
+        PARTICLE_SELFW(this, 0)
+
+        auto id = self->id;
         
         std::vector<MxDihedralHandle*> *dihedrals = new std::vector<MxDihedralHandle*>();
         
@@ -1007,10 +1091,10 @@ MxParticleList *MxParticleType::items() {
 }
 
 float MxParticleHandle::distance(MxParticleHandle *_other) {
-    auto self = part();
+    PARTICLE_SELF(this)
     auto other = particleSelf(_other);
     
-    if(other == NULL || self == NULL) {
+    if(other == NULL) {
         mx_error(E_FAIL, "invalid args, distance(Particle)");
         return NULL;
     }
@@ -1029,8 +1113,9 @@ int particle_init(MxParticleHandle *self,
     
     try {
         Log(LOG_TRACE);
+
+        PARTICLE_TYPE(self)
         
-        MxParticleType *type = self->type();
         MxRandomType &MxRandom = MxRandomEngine();
 
         MxVector3f _position;
@@ -1047,13 +1132,13 @@ int particle_init(MxParticleHandle *self,
 
         MxVector3f _velocity;
         if (velocity) _velocity = *velocity;
-        else if(type->target_energy <= 0) _velocity = {0.0, 0.0, 0.0};
+        else if(ptype->target_energy <= 0) _velocity = {0.0, 0.0, 0.0};
         else {
             // initial velocity, chosen to fit target temperature
             std::uniform_real_distribution<float> v(-1.0, 1.0);
             _velocity = {v(MxRandom), v(MxRandom), v(MxRandom)};
             float v2 = _velocity.dot();
-            float x2 = (type->target_energy * 2. / (type->mass * v2));
+            float x2 = (ptype->target_energy * 2. / (ptype->mass * v2));
             _velocity *= std::sqrt(x2);
         }
         
@@ -1073,26 +1158,25 @@ int particle_init_ex(MxParticleHandle *self,  const MxVector3f &position,
                      const MxVector3f &velocity,
                      int clusterId) {
     
-    MxParticleType *type = self->type();
+    PARTICLE_TYPE(self)
     
     MxParticle part;
     bzero(&part, sizeof(MxParticle));
-    part.radius = type->radius;
-    part.mass = type->mass;
-    part.imass = type->imass;
+    part.radius = ptype->radius;
+    part.mass = ptype->mass;
+    part.imass = ptype->imass;
     part.id = engine_next_partid(&_Engine);
-    part.typeId = type->id;
-    part.flags = type->particle_flags;
+    part.typeId = ptype->id;
+    part.flags = ptype->particle_flags;
     part.creation_time = _Engine.time;
     part.clusterId = clusterId;
     
-    if(type->species) {
-        part.state_vector = new MxStateVector(type->species, self);
+    if(ptype->species) {
+        part.state_vector = new MxStateVector(ptype->species, self);
     }
     
-    if(type->isCluster()) {
+    if(ptype->isCluster()) {
         Log(LOG_DEBUG) << "making cluster";
-        part.flags |= PARTICLE_CLUSTER;
     }
     
     part.position = position;
@@ -1116,8 +1200,7 @@ int particle_init_ex(MxParticleHandle *self,  const MxVector3f &position,
     
     if(clusterId >= 0) {
         MxParticle *cluster = _Engine.s.partlist[clusterId];
-        p->flags |= PARTICLE_BOUND;
-        cluster->addpart(p->id);
+        MxCluster_AddParticle((MxCluster*)cluster, p);
     } else {
         p->clusterId = -1;
     }

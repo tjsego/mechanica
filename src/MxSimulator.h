@@ -9,15 +9,13 @@
 #define SRC_MXSIMULATOR_H_
 
 #include "mechanica_private.h"
-#include "MxModel.h"
-#include "MxPropagator.h"
-#include "MxController.h"
-#include "MxView.h"
+
 #include "io/MxFIO.h"
 #ifdef MX_WITHCUDA
 #include "cuda/MxSimulatorCUDAConfig.h"
 #endif
 
+#include "Magnum/Magnum.h"
 #include "Magnum/Platform/GLContext.h"
 #include "Magnum/Platform/Implementation/DpiScaling.h"
 #include "MxUniverse.h"
@@ -78,7 +76,7 @@ enum MxSimulator_Options {
 
 struct MxSimulator;
 
-enum class MxSimulator_DpiScalingPolicy : UnsignedByte {
+enum class MxSimulator_DpiScalingPolicy : Magnum::UnsignedByte {
     /* Using 0 for an "unset" value */
 
     #ifdef CORRADE_TARGET_APPLE
@@ -286,7 +284,7 @@ struct CAPI_EXPORT MxSimulator {
      *
      * @see @ref WindowFlags, @ref setWindowFlags()
      */
-    enum WindowFlags : UnsignedShort
+    enum WindowFlags : Magnum::UnsignedShort
     {
         /** Fullscreen window */
         Fullscreen = 1 << 0,
@@ -597,7 +595,7 @@ public:
     }
 
     /** @brief Context version */
-    GL::Version version() const { return _version; }
+    Magnum::GL::Version version() const { return _version; }
 
     /**
      * @brief Set context version
@@ -607,7 +605,7 @@ public:
      * backwards-compatible with requested one. Default is
      * @ref GL::Version::None, i.e. any provided version is used.
      */
-    GLConfig& setVersion(GL::Version version) {
+    GLConfig& setVersion(Magnum::GL::Version version) {
         _version = version;
         return *this;
     }
@@ -627,7 +625,7 @@ public:
     }
 
     /** @brief Depth buffer size */
-    Int depthBufferSize() const { return _depthBufferSize; }
+    Magnum::Int depthBufferSize() const { return _depthBufferSize; }
 
     /**
      * @brief Set depth buffer size
@@ -635,13 +633,13 @@ public:
      * Default is @cpp 24 @ce bits.
      * @see @ref setColorBufferSize(), @ref setStencilBufferSize()
      */
-    GLConfig& setDepthBufferSize(Int size) {
+    GLConfig& setDepthBufferSize(Magnum::Int size) {
         _depthBufferSize = size;
         return *this;
     }
 
     /** @brief Stencil buffer size */
-    Int stencilBufferSize() const { return _stencilBufferSize; }
+    Magnum::Int stencilBufferSize() const { return _stencilBufferSize; }
 
     /**
      * @brief Set stencil buffer size
@@ -649,13 +647,13 @@ public:
      * Default is @cpp 0 @ce bits (i.e., no stencil buffer).
      * @see @ref setColorBufferSize(), @ref setDepthBufferSize()
      */
-    GLConfig& setStencilBufferSize(Int size) {
+    GLConfig& setStencilBufferSize(Magnum::Int size) {
         _stencilBufferSize = size;
         return *this;
     }
 
     /** @brief Sample count */
-    Int sampleCount() const { return _sampleCount; }
+    Magnum::Int sampleCount() const { return _sampleCount; }
 
     /**
      * @brief Set sample count
@@ -665,7 +663,7 @@ public:
      * count is ignored, GLFW either enables it or disables. See also
      * @ref GL::Renderer::Feature::Multisampling.
      */
-    GLConfig& setSampleCount(Int count) {
+    GLConfig& setSampleCount(Magnum::Int count) {
         _sampleCount = count;
         return *this;
     }
@@ -688,9 +686,9 @@ public:
 
 private:
     MxVector4i _colorBufferSize;
-    Int _depthBufferSize, _stencilBufferSize;
-    Int _sampleCount;
-    GL::Version _version;
+    Magnum::Int _depthBufferSize, _stencilBufferSize;
+    Magnum::Int _sampleCount;
+    Magnum::GL::Version _version;
     Flags _flags;
     bool _srgbCapable;
 };

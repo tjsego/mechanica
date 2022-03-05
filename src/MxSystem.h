@@ -9,12 +9,8 @@
 #define SRC_MXSYSTEM_H_
 
 #include "mechanica_private.h"
-#include "MxModel.h"
-#include "MxPropagator.h"
-#include "MxController.h"
 #include <MxUtil.h>
 #include <MxLogger.h>
-#include "MxView.h"
 #include <rendering/MxGlInfo.h>
 #include <rendering/MxEglInfo.h>
 

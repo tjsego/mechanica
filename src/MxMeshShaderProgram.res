@@ -9,18 +9,6 @@ filename=shaders/MxFlat3D.vert
 alias=MxFlat3D.vert
 
 [file]
-filename=shaders/MxMeshShaderProgram.vert
-alias=MxMeshShaderProgram.vert
-
-[file]
-filename=shaders/MxMeshShaderProgram.geom
-alias=MxMeshShaderProgram.geom
-
-[file]
-filename=shaders/MxMeshShaderProgram.frag
-alias=MxMeshShaderProgram.frag
-
-[file]
 filename=shaders/MxPhong.vert
 alias=MxPhong.vert
 

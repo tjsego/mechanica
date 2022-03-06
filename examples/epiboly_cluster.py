@@ -34,7 +34,7 @@ def split(event: mx.ParticleTimeEvent):
 
     print("split(" + str(ptype.name) + ")")
     axis = particle.position - yolk.position
-    print("axis: " + str(axis))
+    print("axis: " + str(axis.as_list()))
 
     particle.split(axis=axis)
 

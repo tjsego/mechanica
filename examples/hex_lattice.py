@@ -9,7 +9,7 @@ class AType(mx.ParticleType):
 
 A = AType.get()
 
-uc = mx.lattice.hex(1, A)
+uc = mx.lattice.hex2d(1, A)
 
 print(uc)
 

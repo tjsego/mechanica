@@ -296,7 +296,7 @@ protected:
     bool _dynamicBoundary = true;
     
     
-    Float _boundaryOffset = 0.0f; /* For boundary animation */
+    Magnum::Float _boundaryOffset = 0.0f; /* For boundary animation */
     
     int currentStep = 0;
 

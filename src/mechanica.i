@@ -265,16 +265,4 @@
 
     start = MxUniverse.start
     """Alias of :meth:`mechanica.mechanica.MxUniverse.start`"""
-
-    # From MxUtils
-
-    test = _MxTest
-
-    random_points = MxRandomPoints
-    """Alias of :meth:`mechanica.mechanica.MxRandomPoints`"""
-
-    points = MxPoints
-    """Alias of :meth:`mechanica.mechanica.MxPoints`"""
-
-    primes = MxMath_FindPrimes
 %}

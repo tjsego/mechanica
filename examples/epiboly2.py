@@ -68,4 +68,4 @@ for i, p in enumerate(mx.random_points(mx.PointsType.SolidSphere, count)):
 
 
 # run the simulator interactive
-mx.Simulator.run()
+mx.run()

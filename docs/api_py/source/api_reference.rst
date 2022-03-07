@@ -2,7 +2,7 @@ Mechanica Library Python API Reference
 =======================================
 
 .. module:: mechanica
-   :platform: Linux, Windows
+   :platform: Linux, MacOS, Windows
    :synopsis: Interactive, particle-based physics, chemistry and biology modeling and simulation environment
 
 This is the API Reference page for the module: :mod:`mechanica`
@@ -25,14 +25,6 @@ This is the API Reference page for the module: :mod:`mechanica`
 .. autofunction:: stop
 
 .. autofunction:: start
-
-.. autofunction:: random_points
-
-.. autofunction:: points
-
-.. autofunction:: getSeed
-
-.. autofunction:: setSeed
 
 .. autoclass:: mechanica.version
     :members:
@@ -78,6 +70,8 @@ This is the API Reference page for the module: :mod:`mechanica`
 .. include:: api_system.rst
 
 .. include:: api_logger.rst
+
+.. include:: api_utils.rst
 
 .. include:: api_types.rst
 

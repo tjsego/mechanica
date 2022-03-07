@@ -106,4 +106,4 @@ initialization with the keyword argument ``seed``, as well as at any time during
 simulation, ::
 
     mx.init(seed=1)               # Set the seed during initialization...
-    mx.setSeed(mx.getSeed() + 1)  # ... or after initialization.
+    mx.set_seed(mx.get_seed() + 1)  # ... or after initialization.

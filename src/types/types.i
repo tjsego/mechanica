@@ -402,6 +402,11 @@ vector4_template_init(int, MxVector4i)
         def as_list(self) -> list:
             """convert to a python list"""
             return list(self.asVector())
+
+        def __str__(self) -> str:
+            s = type(self).__name__
+            s += ': ' + str(self.as_list())
+            return s
     %}
 }
 
@@ -439,6 +444,11 @@ vector_list_cast_add(mx::type::MxQuaternion, float, vectorMxQuaternionf)
         def as_lists(self) -> list:
             """convert to a list of python lists"""
             return [list(v) for v in self.asVectors()]
+
+        def __str__(self) -> str:
+            s = type(self).__name__
+            s += ': ' + str(self.as_lists())
+            return s
 
         def __reduce__(self):
             return self.__class__, tuple([v for v in self.asVectors()])

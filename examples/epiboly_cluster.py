@@ -34,7 +34,7 @@ def split(event: mx.ParticleTimeEvent):
 
     print("split(" + str(ptype.name) + ")")
     axis = particle.position - yolk.position
-    print("axis: " + str(axis.as_list()))
+    print("axis: " + str(axis))
 
     particle.split(axis=axis)
 
@@ -75,4 +75,4 @@ mx.bind.types(pb, C, B, bound=True)
 mx.bind.types(pub, C, B, bound=False)
 mx.bind.types(py, Yolk, B)
 
-mx.Simulator.run()
+mx.run()

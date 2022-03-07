@@ -16,6 +16,7 @@
 #include <../../state/MxStateVector.h>
 #include "../../state/MxSpeciesList.h"
 #include <MxPy.h>
+#include <../../MxUtil.h>
 
 static Berendsen *berendsen_create(float tau);
 static Gaussian *random_create(float mean, float std, float durration);

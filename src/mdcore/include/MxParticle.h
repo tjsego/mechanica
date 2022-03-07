@@ -715,16 +715,6 @@ CAPI_FUNC(MxParticle*) MxParticle_Get(MxParticleHandle *pypart);
 
 
 /**
- * internal function that absoltuly has to be moved to a util file,
- * TODO: quick hack putting it here.
- *
- * points in a random direction with given magnitide mean, std
- */
-MxVector3f MxRandomVector(float mean, float std);
-MxVector3f MxRandomUnitVector();
-
-
-/**
  * simple fission,
  *
  * divides a particle into two, and creates a new daughter particle in the

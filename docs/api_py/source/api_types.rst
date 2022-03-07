@@ -67,6 +67,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_list
 
+    .. automethod:: __str__
+
 .. autoclass:: MxVector2f
 
     A 2D vector with ``float`` elements
@@ -123,6 +125,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_list
 
+    .. automethod:: __str__
+
 .. autoclass:: MxVector2i
 
     A 2D vector with ``int`` elements
@@ -166,6 +170,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
     .. automethod:: __setitem__
 
     .. automethod:: as_list
+
+    .. automethod:: __str__
 
 .. autoclass:: MxVector3d
 
@@ -237,6 +243,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_list
 
+    .. automethod:: __str__
+
 .. autoclass:: MxVector3f
 
     A 3D vector with ``float`` elements
@@ -307,6 +315,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_list
 
+    .. automethod:: __str__
+
 .. autoclass:: MxVector3i
 
     A 3D vector with ``int`` elements
@@ -364,6 +374,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
     .. automethod:: __setitem__
 
     .. automethod:: as_list
+
+    .. automethod:: __str__
 
 .. autoclass:: MxVector4d
 
@@ -435,6 +447,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_list
 
+    .. automethod:: __str__
+
 .. autoclass:: MxVector4f
 
     A 4D vector with ``float`` elements
@@ -505,6 +519,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_list
 
+    .. automethod:: __str__
+
 .. autoclass:: MxVector4i
 
     A 4D vector with ``int`` elements
@@ -558,6 +574,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
     .. automethod:: __setitem__
 
     .. automethod:: as_list
+
+    .. automethod:: __str__
 
 .. autoclass:: MxMatrix3d
 
@@ -615,6 +633,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_lists
 
+    .. automethod:: __str__
+
 .. autoclass:: MxMatrix3f
 
     A 3x3 square matrix with ``float`` elements
@@ -670,6 +690,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
     .. automethod:: __setitem__
 
     .. automethod:: as_lists
+
+    .. automethod:: __str__
 
 .. autoclass:: MxMatrix4d
 
@@ -769,6 +791,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_lists
 
+    .. automethod:: __str__
+
 .. autoclass:: MxMatrix4f
 
     A 4x4 square matrix with ``float`` elements
@@ -867,6 +891,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_lists
 
+    .. automethod:: __str__
+
 .. autoclass:: MxQuaterniond
 
     A quaternion with ``double`` elements
@@ -935,6 +961,8 @@ types distributed in various Mechanica dependencies (*e.g.*,
 
     .. automethod:: as_list
 
+    .. automethod:: __str__
+
 .. autoclass:: MxQuaternionf
 
     A quaternion with ``float`` elements
@@ -1002,3 +1030,5 @@ types distributed in various Mechanica dependencies (*e.g.*,
     .. automethod:: __setitem__
 
     .. automethod:: as_list
+
+    .. automethod:: __str__

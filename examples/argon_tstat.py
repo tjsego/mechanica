@@ -49,4 +49,4 @@ for (pos, vel) in zip(positions, velocities):
     Argon(pos, vel)
 
 # run the simulator interactive
-mx.Simulator.run()
+mx.run()

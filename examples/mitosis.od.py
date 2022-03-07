@@ -14,7 +14,6 @@ class CellType(mx.ParticleType):
     mass = 20
     target_temperature = 0
     radius = 0.5
-    # events = [mx.on_time(mx.Particle.fission, period=1, distribution='exponential')]
     dynamics = mx.Overdamped
 
     @staticmethod
@@ -38,4 +37,4 @@ mx.bind.force(rforce, Cell)
 Cell([10., 10., 10.])
 
 # run the simulator interactive
-mx.Simulator.run()
+mx.run()

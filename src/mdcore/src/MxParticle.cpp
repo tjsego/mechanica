@@ -891,32 +891,6 @@ MxParticleHandle* MxParticle_New(MxParticleType *type,
 }
 
 
-MxVector3f MxRandomVector(float mean, float std) {
-    std::normal_distribution<> dist{mean,std};
-    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
-    MxRandomType &MxRandom = MxRandomEngine();
-    float theta = 2 * M_PI * uniform01(MxRandom);
-    float phi = acos(1 - 2 * uniform01(MxRandom));
-    float r = dist(MxRandom);
-    float x = r * sin(phi) * cos(theta);
-    float y = r * sin(phi) * sin(theta);
-    float z = r * cos(phi);
-    return MxVector3f{x, y, z};
-}
-
-MxVector3f MxRandomUnitVector() {
-    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
-    MxRandomType &MxRandom = MxRandomEngine();
-    float theta = 2 * M_PI * uniform01(MxRandom);
-    float phi = acos(1 - 2 * uniform01(MxRandom));
-    float r = 1.;
-    float x = r * sin(phi) * cos(theta);
-    float y = r * sin(phi) * sin(theta);
-    float z = r * cos(phi);
-    return MxVector3f{x, y, z};
-}
-
-
 HRESULT MxParticle_Become(MxParticle *part, MxParticleType *type) {
     HRESULT hr;
     if(!part || !type) {

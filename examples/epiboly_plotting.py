@@ -5,7 +5,7 @@ import math
 import matplotlib
 import matplotlib.pyplot as plt
 
-print(matplotlib.__version__ )
+print(matplotlib.__version__)
 
 # potential cutoff distance
 cutoff = 10

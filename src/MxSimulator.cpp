@@ -874,7 +874,7 @@ HRESULT MxSimulator_initC(const MxSimulator_Config &conf, const std::vector<std:
 
         Log(LOG_INFORMATION) << "got universe name: " << Universe.name;
 
-        setSeed(const_cast<MxSimulator_Config&>(conf).seed());
+        MxSetSeed(const_cast<MxSimulator_Config&>(conf).seed());
 
         // init the engine first
         /* Initialize scene particles */
@@ -1249,7 +1249,7 @@ PyObject *MxSimulatorPy_init(PyObject *args, PyObject *kwargs) {
             Log(LOG_WARNING) << "requested window mode in Jupyter notebook, will fail badly if there is no X-server";
         }
 
-        setSeed(const_cast<MxSimulator_Config&>(conf).seed());
+        MxSetSeed(const_cast<MxSimulator_Config&>(conf).seed());
 
         // init the engine first
         /* Initialize scene particles */
@@ -1445,7 +1445,7 @@ HRESULT toFile(const MxSimulator &dataElement, const MxMetaData &metaData, MxIOE
     MXSIMULATORIOTOEASY(fe, "time", _Engine.time);
     MXSIMULATORIOTOEASY(fe, "boundary_conditions", _Engine.boundary_conditions);
     MXSIMULATORIOTOEASY(fe, "max_distance", _Engine.particle_max_dist_fraction * _Engine.s.h[0]);
-    MXSIMULATORIOTOEASY(fe, "seed", getSeed());
+    MXSIMULATORIOTOEASY(fe, "seed", MxGetSeed());
     
     if(dataElement.app != NULL) {
         auto renderer = dataElement.app->getRenderer();

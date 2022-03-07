@@ -58,4 +58,4 @@ for p in pts:
 # mx.on_time(invoke_method=plt.update, period=0.01)
 
 # run the simulator interactive
-mx.Simulator.run()
+mx.run()

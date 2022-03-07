@@ -61,6 +61,6 @@ mx.on_time(period=cam_per, invoke_method=inc_cam_rotation_axis)
 mx.run()
 
 # Report the final camera view settings before exiting
-print('Camera position:', mx.system.cameraCenter().as_list())
-print('Camera rotation:', mx.system.cameraRotation().as_list())
+print('Camera position:', mx.system.cameraCenter())
+print('Camera rotation:', mx.system.cameraRotation())
 print('Camera zoom:', mx.system.cameraZoom())

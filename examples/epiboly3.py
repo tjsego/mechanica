@@ -130,7 +130,7 @@ Cell.style.visible = True
 
 # display function to write out values, any code can go here.
 def update(e):
-    print(Actin.items().center_of_mass.as_list())
+    print(Actin.items().center_of_mass)
 
 
 # hook up the 'update' function to the on_time event to disply output.

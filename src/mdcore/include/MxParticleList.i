@@ -3,6 +3,10 @@
 
 %}
 
+%template(vectorParticleList_p) std::vector<MxParticleList*>;
+%template(vector2ParticleList_p) std::vector<std::vector<MxParticleList*>>;
+%template(vector3ParticleList_p) std::vector<std::vector<std::vector<MxParticleList*>>>;
+
 %include "MxParticleList.hpp"
 
 %extend MxParticleList {

@@ -130,8 +130,8 @@ else()
   set(MX_HAVECUDA OFF)
 endif()
 
-set(MX_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include/mechanica)
-set(MX_RESOURCE_DIR ${CMAKE_INSTALL_PREFIX}/resources/mechanica)
+set(MX_INCLUDE_DIR include/mechanica)
+set(MX_RESOURCE_DIR resources/mechanica)
 
 if(MX_HAVECUDA)
   enable_language(CUDA)
@@ -312,13 +312,9 @@ set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install locati
 
 set(BUILD_SHARED_LIBS ON CACHE BOOL "build shared/dynamic library")
 
-set(MX_MODEL_DIR ${PROJECT_SOURCE_DIR}/testing/models CACHE PATH "directory for mechanica models" FORCE)
-
 find_package(OpenGL REQUIRED)
 
 #find_package(LLVM)
-
-#find_package(OpenMM)
 
 add_definitions(-DCX3D_SUPPORT_OPENGL)
 
@@ -363,39 +359,15 @@ endif()
 message("JSON inlucde: ${JSON_INCLUDE_DIRS}")
 
 
-# finds: GLFW_FOUND GLFW_INCLUDE_DIR GLFW_LIBRARIES
-# find_package(GLFW 3.2 REQUIRED)
-
-
-#include_directories(${GLFW_INCLUDE_DIRS})
-
-#message("GLFW_INCLUDE_DIR ${GLFW_INCLUDE_DIR}")
-
-#include_directories(${YOUR_DIRECTORY})
-
-#include_directories(${GLFW_INCLUDE_DIR})
-
-#message("GLFW_LIBRARIES: ${GLFW_LIBRARIES}")
-
 message("before extern include path: ${CMAKE_INCLUDE_PATH}")
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 foreach(dir ${dirs})
   message( "dir='${dir}'")
 endforeach()
 
-#if(MSVC)
-#  string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-#  string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-#  string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
-#endif(MSVC)
-
-
 
 # process dependencies first
 add_subdirectory(extern)
-
-
-message("getting mdcore interface incude:  ${MDCORE_INCLUDE_DIR}")
 
 add_subdirectory(include)
 add_subdirectory(src)
@@ -417,8 +389,7 @@ find_package(Magnum REQUIRED
 
 
 add_subdirectory(apps)
-add_subdirectory(testing)
-#add_subdirectory(magnum_examples)
+# add_subdirectory(testing)
 add_subdirectory(examples)
 add_subdirectory(package)
 

@@ -746,6 +746,8 @@ CAPI_FUNC(HRESULT) _onIPythonNotReady();
  * 
  *      seed: (int) seed for pseudo-random number generator
  * 
+ *      load_file: (str) path to saved simulation state to initialize
+ * 
  *      logger_level: (int) logger level; default is no logging
  * 
  *      clip_planes: (list of tuple of (MxVector3f, MxVector3f)) list of point-normal pairs of clip planes; default is no planes

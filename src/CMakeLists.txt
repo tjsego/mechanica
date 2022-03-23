@@ -14,17 +14,6 @@ include_directories(PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${GLM_INCLUDE_DIRS})
 
-
-# file(GLOB AST_SRC
-#   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-#   "ast/*.cpp"
-#   )
-
-#file(GLOB X3D_SRC
-#  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-#  "x3d/*.cpp"
-#  )
-
 # Resources for the MxMeshShaderProgram
 corrade_add_resource(MxMeshShaderProgramRes MxMeshShaderProgram.res)
 
@@ -107,9 +96,6 @@ set(SRC
   state/MxStateVector.cpp
 
   types/mx_cast.cpp
-
-  # ${AST_SRC}
-#  ${X3D_SRC}
   )
 
 
@@ -288,8 +274,6 @@ target_link_libraries(mechanica_obj
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
-  #voro++
-  #sundials_cvode_static
   assimp::assimp
   ${OPENGL_LIBRARIES}
   mdcore_single
@@ -308,11 +292,6 @@ source_group("Event" REGULAR_EXPRESSION "event/.*")
 source_group("Rendering" REGULAR_EXPRESSION "rendering/.*")
 source_group("Shaders" REGULAR_EXPRESSION "shaders/.*")
 source_group("State" REGULAR_EXPRESSION "state/.*")
-
-
-#message("MECHANICA_PUBLIC_HEADERS: ${MECHANICA_PUBLIC_HEADERS}")
-
-#message("MECHANICA_SRC: ${SRC}")
 
 
 # Link against LLVM libraries
@@ -444,8 +423,6 @@ set(mechanica_py_LIBS
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
-  #voro++
-  #sundials_cvode_static
   MagnumGlfwApplication
   Magnum::SceneGraph
   Magnum::Primitives
@@ -536,8 +513,6 @@ target_link_libraries(mechanica_shared
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
-  #voro++
-  #sundials_cvode_static
   MagnumGlfwApplication
   Magnum::SceneGraph
   Magnum::Primitives
@@ -591,8 +566,6 @@ endif()
 #  Magnum::Application
 #  Magnum::Magnum
 #  Magnum::Shaders
-#  voro++
-#  sundials_cvode_static
 #  ${OPENGL_LIBRARIES}
 #  )
 

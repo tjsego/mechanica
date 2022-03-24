@@ -187,10 +187,14 @@ Mechanica provides an event :py:attr:`KeyEvent` (:class:`MxKeyEvent` in C++) tha
 occurs each time a key on the keyboard is pressed. :py:attr:`KeyEvent` instances
 do not support a custom predicate method. The name of the key that triggered
 the event is available as the :py:attr:`KeyEvent` string attribute
-:attr:`key_name <MxKeyEvent.key_name>`. One :py:attr:`KeyEvent` instance can be
-created with the top-level method :func:`on_keypress`. In C++, an invoke method
-can be assigned as a keyboard callback using the static method
-:meth:`MxKeyEvent::addDelegate`. ::
+:attr:`key_name <MxKeyEvent.key_name>`, as are key modifier flags
+(``Alt``: :attr:`key_alt <MxKeyEvent.key_alt>`,
+``Ctrl``: :attr:`key_ctrl <MxKeyEvent.key_ctrl>`,
+``Shift``: :attr:`key_shift <MxKeyEvent.key_shift>`).
+One :py:attr:`KeyEvent` instance in Python can be
+created with the top-level method :func:`on_keypress`. In C++, an arbitrary number of
+invoke methods can be assigned as keyboard callbacks using the static method
+:meth:`MxKeyEvent::addHandler`. ::
 
     # key "d" destroys a particle; key "c" creates a particle
     def do_key_actions(event):

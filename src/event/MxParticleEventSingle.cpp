@@ -32,30 +32,3 @@ MxParticleEventSingle *MxOnParticleEventSingle(MxParticleType *targetType,
 
     return event;
 }
-
-// python support
-
-MxParticleSingleEventPy::MxParticleSingleEventPy(MxParticleType *targetType, 
-                                                 MxParticleEventPyInvokePyExecutor *invokeExecutor, 
-                                                 MxParticleEventPyPredicatePyExecutor *predicateExecutor, 
-                                                 MxParticleEventParticleSelector *particleSelector) : 
-    MxParticleEventPy(targetType, invokeExecutor, predicateExecutor, particleSelector)
-{}
-
-HRESULT MxParticleSingleEventPy::eval(const double &time) {
-    remove();
-    return MxParticleEventPy::eval(time);
-}
-
-MxParticleSingleEventPy *MxOnParticleEventSinglePy(MxParticleType *targetType, 
-                                                   MxParticleEventPyInvokePyExecutor *invokeExecutor, 
-                                                   MxParticleEventPyPredicatePyExecutor *predicateExecutor)
-{
-    Log(LOG_TRACE) << targetType->id;
-
-    MxParticleSingleEventPy *event = new MxParticleSingleEventPy(targetType, invokeExecutor, predicateExecutor);
-
-    MxUniverse::get()->events->addEvent(event);
-
-    return event;
-}

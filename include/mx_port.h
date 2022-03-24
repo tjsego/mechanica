@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <assert.h>
 
 #ifdef __cplusplus
 #include <cstdio>
@@ -27,31 +28,6 @@ namespace std {
   };
 };
 #endif // __GNUC__
-
-
-// todo: remove python imports
-/// Include Python header, disable linking to pythonX_d.lib on Windows in debug mode
-#if defined(_MSC_VER) || defined(_WIN32)
-#  if (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 4)
-#    define HAVE_ROUND 1
-#  endif
-#  pragma warning(push)
-#  pragma warning(disable: 4510 4610 4512 4005)
-#  if defined(_DEBUG)
-#    define MX_DEBUG_MARKER
-#    undef _DEBUG
-#  endif
-#endif
-
-#include <Python.h>
-
-#if defined(_MSC_VER) || defined(_WIN32)
-#  if defined(MX_DEBUG_MARKER)
-#    define _DEBUG
-#    undef  MX_DEBUG_MARKER
-#  endif
-#  pragma warning(pop)
-#endif
 
 
 /**

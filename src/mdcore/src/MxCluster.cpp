@@ -17,9 +17,6 @@
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
 
-// python type info
-#include <structmember.h>
-#include <MxPy.h>
 #include "engine.h"
 #include "space.h"
 #include "mx_runtime.h"

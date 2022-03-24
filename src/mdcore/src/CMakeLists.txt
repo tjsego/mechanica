@@ -44,7 +44,6 @@ set(PUBLIC_HEADERS
   "${MDCORE_SOURCE_DIR}/include/cycle.h"
   "${MDCORE_SOURCE_DIR}/include/fptype.h"
   "${MDCORE_SOURCE_DIR}/include/mdcore_config.h"
-  "${MDCORE_SOURCE_DIR}/include/MxPy.h"
   "${MDCORE_SOURCE_DIR}/include/MxForce.h"
   "${MDCORE_SOURCE_DIR}/include/MxReactivePotential.h"
   "${MDCORE_SOURCE_DIR}/include/metrics.h"
@@ -114,7 +113,6 @@ SET(SOURCES
   runner_dosort.cpp
   task.cpp
   runner_verlet.cpp
-  MxPy.cpp
   MxForce.cpp
   MxReactivePotential.cpp
   MxConstraint.cpp

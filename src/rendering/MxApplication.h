@@ -13,6 +13,7 @@
 #include <MxSimulator.h>
 #include <Magnum/GL/Context.h>
 #include <GLFW/glfw3.h>
+#include "MxImageConverters.h"
 
 enum MxWindowAttributes {
     MX_FOCUSED = GLFW_FOCUSED,
@@ -303,11 +304,11 @@ protected:
 
 };
 
+Corrade::Containers::Array<char> MxJpegImageData();
+
 std::tuple<char*, size_t> MxTestImage();
-PyObject* MxTestImage(PyObject* dummyo);
 
 std::tuple<char*, size_t> MxFramebufferImageData();
-PyObject* MxFramebufferImageData(PyObject *dummyo);
 
 /**
  * @brief Save a screenshot of the current scene

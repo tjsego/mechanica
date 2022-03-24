@@ -372,7 +372,7 @@ add_subdirectory(extern)
 add_subdirectory(include)
 add_subdirectory(src)
 add_subdirectory(models)
-
+add_subdirectory(wraps)
 
 # CMake policies: enable MACOSX_RPATH by default
 if(POLICY CMP0042)

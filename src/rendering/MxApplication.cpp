@@ -24,7 +24,6 @@
 
 
 #include <Corrade/Utility/Directory.h>
-#include <rendering/MxImageConverters.h>
 #include <Magnum/Math/Color.h>
 
 #include <MxUtil.h>
@@ -92,19 +91,7 @@ std::tuple<char*, size_t> MxTestImage() {
     return std::make_tuple(jpegData.data(), jpegData.size());
 }
 
-PyObject* MxTestImage(PyObject* dummyo) {
-
-    char *data;
-    size_t size;
-    std::tie(data, size) = MxTestImage();
-
-    if (data == NULL)
-        return NULL;
-    
-    return PyBytes_FromStringAndSize(data, size);
-}
-
-Corrade::Containers::Array<char> _MxJpegImageData() {
+Corrade::Containers::Array<char> MxJpegImageData() {
     PerformanceTimer t1(engine_timer_image_data);
     PerformanceTimer t2(engine_timer_render_total);
     
@@ -132,26 +119,15 @@ std::tuple<char*, size_t> MxFramebufferImageData() {
     
     Log(LOG_TRACE);
     
-    auto jpegData = _MxJpegImageData();
+    auto jpegData = MxJpegImageData();
 
     return std::make_tuple(jpegData.data(), jpegData.size());
-}
-
-PyObject* MxFramebufferImageData(PyObject *dummyo) {
-
-    Log(LOG_TRACE);
-    
-    auto jpegData = _MxJpegImageData();
-    char *data = jpegData.data();
-    size_t size = jpegData.size();
-    
-    return PyBytes_FromStringAndSize(data, size);
 }
 
 HRESULT MxScreenshot(const std::string &filePath) {
     Log(LOG_TRACE);
     
-    if(!Utility::Directory::write(filePath, _MxJpegImageData())) {
+    if(!Utility::Directory::write(filePath, MxJpegImageData())) {
         std::string msg = "Cannot write to file: " + filePath;
         mx_error(E_FAIL, msg.c_str());
         return E_FAIL;

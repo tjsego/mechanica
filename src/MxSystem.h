@@ -591,33 +591,4 @@ public:
 
 };
 
-struct CAPI_EXPORT MxSystemPy : MxSystem {
-
-public:
-   MxSystemPy() {};
-   ~MxSystemPy() {};
-
-   static PyObject *test_image();
-   static PyObject *image_data();
-
-   /**
-    * @brief Test whether Mechanica is running in an interactive terminal
-    * 
-    * @return true if running in an interactive terminal
-    * @return false 
-    */
-   static bool is_terminal_interactive();
-
-   /**
-    * @brief Test whether Mechanica is running in a Jupyter notebook
-    * 
-    * @return true if running in a Jupyter notebook
-    * @return false 
-    */
-   static bool is_jupyter_notebook();
-
-   static PyObject *jwidget_init(PyObject *args, PyObject *kwargs);
-   static PyObject *jwidget_run(PyObject *args, PyObject *kwargs);
-};
-
 #endif /* SRC_MXSYSTEM_H_ */

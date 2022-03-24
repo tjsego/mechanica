@@ -12,6 +12,7 @@
 
 #include <MxUtil.h>
 #include <MxThreadPool.hpp>
+#include <MxLogger.h>
 #include <mx_error.h>
 
 #include <mdcore_config.h>
@@ -772,7 +773,7 @@ Magnum::Color3 Color3_Parse(const std::string &s)
     
     std::string warning = std::string("Warning, \"") + s + "\" is not a valid color name.";
     
-    PyErr_WarnEx(PyExc_Warning, warning.c_str(), 0);
+    Log(LOG_WARNING) << warning.c_str();
 
     return Magnum::Color3{};
 }

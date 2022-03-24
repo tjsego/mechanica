@@ -26,8 +26,7 @@ enum MXFORCE_TYPE {
     FORCE_GAUSSIAN      = 1 << 1, 
     FORCE_FRICTION      = 1 << 2, 
     FORCE_SUM           = 1 << 3, 
-    FORCE_CONSTANT      = 1 << 4, 
-    FORCE_CONSTANTPY    = 1 << 5
+    FORCE_CONSTANT      = 1 << 4
 };
 
 /**
@@ -234,38 +233,6 @@ struct MxConstantForce : MxForce {
     static MxConstantForce *fromForce(MxForce *f);
 };
 
-struct MxConstantForcePy : MxConstantForce {
-    PyObject *callable;
-
-    MxConstantForcePy();
-    MxConstantForcePy(const MxVector3f &f, const float &period=std::numeric_limits<float>::max());
-
-    /**
-     * @brief Creates an instance from an underlying custom python function
-     * 
-     * @param f python function. Takes no arguments and returns a three-component vector. 
-     * @param period period at which the force is updated. 
-     */
-    MxConstantForcePy(PyObject *f, const float &period=std::numeric_limits<float>::max());
-    virtual ~MxConstantForcePy();
-
-    void onTime(double time);
-    MxVector3f getValue();
-
-    void setValue(PyObject *_userFunc=NULL);
-
-    /**
-     * @brief Convert basic force to MxConstantForcePy. 
-     * 
-     * If the basic force is not a MxConstantForcePy, then NULL is returned. 
-     * 
-     * @param f 
-     * @return MxConstantForcePy* 
-     */
-    static MxConstantForcePy *fromForce(MxForce *f);
-
-};
-
 /**
  * @brief Berendsen force. 
  * 
@@ -356,12 +323,6 @@ HRESULT toFile(const MxConstantForce &dataElement, const MxMetaData &metaData, M
 
 template <>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForce *dataElement);
-
-template <>
-HRESULT toFile(const MxConstantForcePy &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
-
-template <>
-HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForcePy *dataElement);
 
 template <>
 HRESULT toFile(const MxForceSum &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);

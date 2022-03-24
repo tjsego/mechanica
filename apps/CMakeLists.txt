@@ -4,34 +4,37 @@
 ####  mx-pyrun  ################################################################
 ################################################################################
 
-configure_file(mx-pyrun.h.in mx-pyrun.h)
+if(MX_WITH_PYTHON)
 
-add_executable(
-  mx-pyrun
-  mx-pyrun.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/mx-pyrun.h
+  configure_file(mx-pyrun.h.in mx-pyrun.h)
+
+  add_executable(
+    mx-pyrun
+    mx-pyrun.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/mx-pyrun.h
   )
 
-target_include_directories(mx-pyrun PRIVATE ${Python_INCLUDE_DIRS})
+  target_include_directories(mx-pyrun PRIVATE ${Python_INCLUDE_DIRS})
 
-target_include_directories(mx-pyrun PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+  target_include_directories(mx-pyrun PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-if(WIN32 OR CYGWIN)
+  if(WIN32 OR CYGWIN)
 
-  # weird bug with CMake / clang on windows, need to add link dir here
-  target_link_directories(mx-pyrun PUBLIC ${Python_LIBRARY_DIRS})
+    # weird bug with CMake / clang on windows, need to add link dir here
+    target_link_directories(mx-pyrun PUBLIC ${Python_LIBRARY_DIRS})
 
-  # Link against the Python shared library on Windows
-  # target_link_libraries(mechanica_py PRIVATE Python::Python)
-  target_link_libraries(mx-pyrun  ${Python_LIBRARY_RELEASE})
-else()
-  target_link_libraries(mx-pyrun Python::Python)
-endif()
+    # Link against the Python shared library on Windows
+    # target_link_libraries(mechanica_py PRIVATE Python::Python)
+    target_link_libraries(mx-pyrun  ${Python_LIBRARY_RELEASE})
+  else()
+    target_link_libraries(mx-pyrun Python::Python)
+  endif()
 
-target_link_libraries(mx-pyrun
-  Mechanica::PythonLib
+  target_link_libraries(mx-pyrun
+    Mechanica::PythonLib
   )
 
+endif(MX_WITH_PYTHON)
 
 ################################################################################
 ####  mx-glinfo  ###############################################################

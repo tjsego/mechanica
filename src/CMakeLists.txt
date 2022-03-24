@@ -200,41 +200,45 @@ set(HEADERS
 
 # Python source
 
-list(APPEND SRC 
-  langs/py/MxPy.cpp
+if(MX_WITH_PYTHON)
 
-  langs/py/MxApplicationPy.cpp 
-  langs/py/MxBoundaryConditionsPy.cpp 
-  langs/py/MxEventPy.cpp 
-  langs/py/MxEventPyExecutor.cpp 
-  langs/py/MxForcePy.cpp 
-  langs/py/MxKeyEventPy.cpp 
-  langs/py/MxParticleEventPy.cpp 
-  langs/py/MxParticleEventSinglePy.cpp 
-  langs/py/MxParticleTimeEventPy.cpp 
-  langs/py/MxPotentialPy.cpp 
-  langs/py/MxSimulatorPy.cpp 
-  langs/py/MxSystemPy.cpp 
-  langs/py/MxTimeEventPy.cpp
-)
+  list(APPEND SRC 
+    langs/py/MxPy.cpp
 
-list(APPEND HEADERS 
-  langs/py/MxPy.h
-  
-  langs/py/MxApplicationPy.h 
-  langs/py/MxBoundaryConditionsPy.h 
-  langs/py/MxEventPy.h 
-  langs/py/MxEventPyExecutor.h 
-  langs/py/MxForcePy.h 
-  langs/py/MxKeyEventPy.h 
-  langs/py/MxParticleEventPy.h 
-  langs/py/MxParticleEventSinglePy.h 
-  langs/py/MxParticleTimeEventPy.h 
-  langs/py/MxPotentialPy.h 
-  langs/py/MxSimulatorPy.h 
-  langs/py/MxSystemPy.h 
-  langs/py/MxTimeEventPy.h
-)
+    langs/py/MxApplicationPy.cpp 
+    langs/py/MxBoundaryConditionsPy.cpp 
+    langs/py/MxEventPy.cpp 
+    langs/py/MxEventPyExecutor.cpp 
+    langs/py/MxForcePy.cpp 
+    langs/py/MxKeyEventPy.cpp 
+    langs/py/MxParticleEventPy.cpp 
+    langs/py/MxParticleEventSinglePy.cpp 
+    langs/py/MxParticleTimeEventPy.cpp 
+    langs/py/MxPotentialPy.cpp 
+    langs/py/MxSimulatorPy.cpp 
+    langs/py/MxSystemPy.cpp 
+    langs/py/MxTimeEventPy.cpp
+  )
+
+  list(APPEND HEADERS 
+    langs/py/MxPy.h
+    
+    langs/py/MxApplicationPy.h 
+    langs/py/MxBoundaryConditionsPy.h 
+    langs/py/MxEventPy.h 
+    langs/py/MxEventPyExecutor.h 
+    langs/py/MxForcePy.h 
+    langs/py/MxKeyEventPy.h 
+    langs/py/MxParticleEventPy.h 
+    langs/py/MxParticleEventSinglePy.h 
+    langs/py/MxParticleTimeEventPy.h 
+    langs/py/MxPotentialPy.h 
+    langs/py/MxSimulatorPy.h 
+    langs/py/MxSystemPy.h 
+    langs/py/MxTimeEventPy.h
+  )
+
+endif()
 
 # CUDA source
 
@@ -300,9 +304,12 @@ target_include_directories(mechanica_obj PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  ${Python_INCLUDE_DIRS}
   $<INSTALL_INTERFACE:include/mechanica>
 )
+
+if(MX_WITH_PYTHON)
+  target_include_directories(mechanica_obj PUBLIC ${Python_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(mechanica_obj
   DirectXMath
@@ -362,11 +369,14 @@ target_include_directories(mechanica_shared PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  ${Python_INCLUDE_DIRS}
   ${ASSIMP_INCLUDE_DIRS}
   ${JSON_INCLUDE_DIRS}
   $<INSTALL_INTERFACE:include/mechanica>
 )
+
+if(MX_WITH_PYTHON)
+  target_include_directories(mechanica_shared PUBLIC ${Python_INCLUDE_DIRS})
+endif()
 
 if(MX_WITHCUDA)
   target_include_directories(mechanica_shared PUBLIC
@@ -397,12 +407,14 @@ target_link_libraries(mechanica_shared
   )
 
 
-# weird bug with CMake / clang on windows, need to add link dir here
-target_link_directories(mechanica_shared   PUBLIC ${Python_LIBRARY_DIRS})
+if(MX_WITH_PYTHON)
+  # weird bug with CMake / clang on windows, need to add link dir here
+  target_link_directories(mechanica_shared PUBLIC ${Python_LIBRARY_DIRS})
 
-# Link against the Python shared library on Windows
-# target_link_libraries(mechanica_py PRIVATE Python::Python)
-target_link_libraries(mechanica_shared  PUBLIC ${Python_LIBRARY_RELEASE})
+  # Link against the Python shared library on Windows
+  # target_link_libraries(mechanica_py PRIVATE Python::Python)
+  target_link_libraries(mechanica_shared PUBLIC ${Python_LIBRARY_RELEASE})
+endif()
 
 if(APPLE)
   if(ARG_SHARED)

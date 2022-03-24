@@ -46,9 +46,6 @@ elseif(WIN32)
   set(MX_WINDOWS 1)
 endif()
 
-# directory where we build the mechanica python package
-set(MX_PYPKG_DIR ${CMAKE_BINARY_DIR}/mechanica)
-
 # using magnum, so whole project needs C++11
 set(CMAKE_CXX_STANDARD 17)
 
@@ -236,63 +233,76 @@ else()
   find_package(Threads REQUIRED)
 endif()
 
-find_package(Python 3.7.0...3.9.99 REQUIRED COMPONENTS Interpreter Development)
+# Language options
 
-message("Python_FOUND: ${Python_FOUND}")
-message("Python_Interpeter_FOUND: ${Python_Interpeter_FOUND}")
-message("Python_VERSION: ${Python_VERSION}")
-message("Python_Development_FOUND: ${Python_Development_FOUND}")
+option(MX_WITH_PYTHON   "Generate the Python language interface for Mechanica." ON)
 
-message("Python_Development_FOUND: ${Python_Development_FOUND}")
-message("Python_INCLUDE_DIRS: ${Python_INCLUDE_DIRS}")
-message("Python_LIBRARIES: ${Python_LIBRARIES}")
-message("Python_LIBRARY_DIRS: ${Python_LIBRARY_DIRS}")
-message("Python_RUNTIME_LIBRARY_DIRS: ${Python_RUNTIME_LIBRARY_DIRS}")
-message("Python_EXECUTABLE: ${Python_EXECUTABLE}")
+# Python setup
 
-execute_process(
-  COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var(name='prefix'))" 
-  OUTPUT_VARIABLE PY_ROOT_DIR
-)
-string(STRIP ${PY_ROOT_DIR} PY_ROOT_DIR)
-file(TO_CMAKE_PATH "${PY_ROOT_DIR}" PY_ROOT_DIR)
-message("PY_ROOT_DIR: ${PY_ROOT_DIR}")
+if(MX_WITH_PYTHON)
 
-execute_process(
-  COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path(name='platlib'))" 
-  OUTPUT_VARIABLE PY_SITEPACKAGES
-)
-string(STRIP ${PY_SITEPACKAGES} PY_SITEPACKAGES)
-file(TO_CMAKE_PATH "${PY_SITEPACKAGES}" PY_SITEPACKAGES)
-message("PY_SITEPACKAGES: ${PY_SITEPACKAGES}")
+  # directory where we build the mechanica python package
+  set(MX_PYPKG_DIR ${CMAKE_BINARY_DIR}/mechanica)
 
-if(Python_Development_FOUND)
-  get_target_property(TMP Python::Python IMPORTED_LOCATION_DEBUG)
-  message("Python IMPORTED_LOCATION_DEBUG: ${TMP}")
+  find_package(Python 3.7.0...3.9.99 REQUIRED COMPONENTS Interpreter Development)
 
-  get_target_property(TMP Python::Python IMPORTED_LOCATION_RELEASE)
-  message("Python IMPORTED_LOCATION_RELEASE: ${TMP}")
-endif()
+  message("Python_FOUND: ${Python_FOUND}")
+  message("Python_Interpeter_FOUND: ${Python_Interpeter_FOUND}")
+  message("Python_VERSION: ${Python_VERSION}")
+  message("Python_Development_FOUND: ${Python_Development_FOUND}")
 
-if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
-  # hack to get eclipse C++ indexer to pick up python headers
-  message("setting eclipse include dirs: ${Python_INCLUDE_DIRS}")
-  include_directories(${Python_INCLUDE_DIRS})
-endif()
+  message("Python_Development_FOUND: ${Python_Development_FOUND}")
+  message("Python_INCLUDE_DIRS: ${Python_INCLUDE_DIRS}")
+  message("Python_LIBRARIES: ${Python_LIBRARIES}")
+  message("Python_LIBRARY_DIRS: ${Python_LIBRARY_DIRS}")
+  message("Python_RUNTIME_LIBRARY_DIRS: ${Python_RUNTIME_LIBRARY_DIRS}")
+  message("Python_EXECUTABLE: ${Python_EXECUTABLE}")
 
-# Determine install site-packages location using info from environment if not provided
-if(DEFINED MX_INSTALL_PREFIX_PYTHON)
-  SET(MX_SITEPACKAGES ${MX_INSTALL_PREFIX_PYTHON})
-else()
   execute_process(
-    COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
-    OUTPUT_VARIABLE MX_SITEPACKAGES_REL
+    COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var(name='prefix'))" 
+    OUTPUT_VARIABLE PY_ROOT_DIR
   )
-  string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
-  file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
-  set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
-endif()
-message("MX_SITEPACKAGES: ${MX_SITEPACKAGES}")
+  string(STRIP ${PY_ROOT_DIR} PY_ROOT_DIR)
+  file(TO_CMAKE_PATH "${PY_ROOT_DIR}" PY_ROOT_DIR)
+  message("PY_ROOT_DIR: ${PY_ROOT_DIR}")
+
+  execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path(name='platlib'))" 
+    OUTPUT_VARIABLE PY_SITEPACKAGES
+  )
+  string(STRIP ${PY_SITEPACKAGES} PY_SITEPACKAGES)
+  file(TO_CMAKE_PATH "${PY_SITEPACKAGES}" PY_SITEPACKAGES)
+  message("PY_SITEPACKAGES: ${PY_SITEPACKAGES}")
+
+  if(Python_Development_FOUND)
+    get_target_property(TMP Python::Python IMPORTED_LOCATION_DEBUG)
+    message("Python IMPORTED_LOCATION_DEBUG: ${TMP}")
+
+    get_target_property(TMP Python::Python IMPORTED_LOCATION_RELEASE)
+    message("Python IMPORTED_LOCATION_RELEASE: ${TMP}")
+  endif()
+
+  if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
+    # hack to get eclipse C++ indexer to pick up python headers
+    message("setting eclipse include dirs: ${Python_INCLUDE_DIRS}")
+    include_directories(${Python_INCLUDE_DIRS})
+  endif()
+
+  # Determine install site-packages location using info from environment if not provided
+  if(DEFINED MX_INSTALL_PREFIX_PYTHON)
+    SET(MX_SITEPACKAGES ${MX_INSTALL_PREFIX_PYTHON})
+  else()
+    execute_process(
+      COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
+      OUTPUT_VARIABLE MX_SITEPACKAGES_REL
+    )
+    string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
+    file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
+    set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
+  endif()
+  message("MX_SITEPACKAGES: ${MX_SITEPACKAGES}")
+
+endif(MX_WITH_PYTHON)
 
 # needed for jpeg image writer
 if(UNIX)
@@ -394,7 +404,7 @@ add_subdirectory(examples)
 add_subdirectory(package)
 
 # try to make eclipse see the system python include dir.
-if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
+if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION AND MX_WITH_PYTHON)
   # hack to get eclipse C++ indexer to pick up python headers
   message("setting eclipse include dirs: ${Python_INCLUDE_DIRS}")
   include_directories(${Python_INCLUDE_DIRS})

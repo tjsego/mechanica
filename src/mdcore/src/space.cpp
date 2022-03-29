@@ -537,7 +537,7 @@ int space_getpos ( struct space *s , int id , FPTYPE *x ) {
     /* Sanity check. */
     if ( s == NULL || x == NULL )
         return error(space_err_null);
-    if ( id >= s->nr_parts )
+    if ( id >= s->size_parts )
         return error(space_err_range);
 
     /* Copy the position to x. */
@@ -566,7 +566,7 @@ int space_setpos ( struct space *s , int id , FPTYPE *x ) {
     /* Sanity check. */
     if ( s == NULL || x == NULL )
         return error(space_err_null);
-    if ( id >= s->nr_parts )
+    if ( id >= s->size_parts )
         return error(space_err_range);
 
     MxParticle *p = s->partlist[id];

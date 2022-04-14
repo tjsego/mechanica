@@ -52,6 +52,8 @@ Particles and Clusters
 
     .. autoproperty:: type_id
 
+    .. autoproperty:: cluster_id
+
     .. autoproperty:: species
 
     .. autoproperty:: bonds

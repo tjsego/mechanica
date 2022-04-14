@@ -103,6 +103,11 @@ struct CAPI_EXPORT MxUniverse  {
      * @return MxParticleList* 
      */
     static MxParticleList *particles();
+
+    /**
+     * @brief Reset all species in all particles
+     * 
+     */
     static void resetSpecies();
 
     /**
@@ -146,12 +151,42 @@ struct CAPI_EXPORT MxUniverse  {
      * @return double 
      */
     double getTemperature();
+
+    /**
+     * @brief Get the current time
+     * 
+     * @return double 
+     */
     double getTime();
+
+    /**
+     * @brief Get the period of a time step
+     * 
+     * @return double 
+     */
     double getDt();
     MxEventList *getEventList();
     MxBoundaryConditions *getBoundaryConditions();
+
+    /**
+     * @brief Get the current system kinetic energy
+     * 
+     * @return double 
+     */
     double getKineticEnergy();
+
+    /**
+     * @brief Get the current number of registered particle types
+     * 
+     * @return int 
+     */
     int getNumTypes();
+
+    /**
+     * @brief Get the global interaction cutoff distance
+     * 
+     * @return double 
+     */
     double getCutoff();
 };
 

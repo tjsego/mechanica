@@ -28,9 +28,9 @@ MxEventPyExecutor_extender(MxParticleTimeEventPyPredicatePyExecutor, MxParticleT
         :param distribution: distribution by which the next event time is selected
         :type start_time: str
         :param start_time: time after which the event can occur
-        :type end_time: str
+        :type end_time: float
         :param end_time: time before which the event can occur; a negative value is interpreted as until 'forever'
-        :type selector: str
+        :type selector: float
         :param selector: name of particle selector
         """
         invoke_ex = initMxParticleTimeEventPyInvokePyExecutor(invoke_method)

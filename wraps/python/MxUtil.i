@@ -142,7 +142,7 @@
         :rtype: list of :class:`MxVector3f`
         """
     
-        return list(mechanica.MxFilledCubeUniform(MxVector3f(corner1), MxVector3f(corner2), num_particles))
+        return list(MxFilledCubeUniform(MxVector3f(corner1), MxVector3f(corner2), num_particles))
 
     def icosphere(subdivisions: int, phi0: float, phi1: float):
         """
@@ -155,9 +155,9 @@
         :rtype: (list of :class:`MxVector3f`, list of int)
         """
 
-        verts = mechanica.vectorMxVector3f()
-        inds = mechanica.vectorl()
-        mechanica.Mx_Icosphere(subdivisions, phi0, phi1, verts, inds)
+        verts = vectorMxVector3f()
+        inds = vectorl()
+        Mx_Icosphere(subdivisions, phi0, phi1, verts, inds)
         return list(verts), list(inds)
 
     def color3_names():

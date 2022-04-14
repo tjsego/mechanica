@@ -19,6 +19,7 @@
 
 
 // select support for old C++ stuff
+#ifdef __cplusplus
 #ifndef __GNUC__
 namespace std {
   template<typename A, typename R>
@@ -28,6 +29,7 @@ namespace std {
   };
 };
 #endif // __GNUC__
+#endif // __cplusplus
 
 
 /**
@@ -40,6 +42,8 @@ typedef size_t         Mx_ssize_t;
 
 #ifndef __cplusplus
 typedef uint8_t bool;
+#define true 1
+#define false 0
 #endif
 
 

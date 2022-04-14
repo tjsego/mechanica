@@ -235,7 +235,14 @@ endif()
 
 # Language options
 
+option(MX_WITH_C        "Generate the C language interface for Mechanica."      ON)
 option(MX_WITH_PYTHON   "Generate the Python language interface for Mechanica." ON)
+
+if(MX_WITH_C) 
+
+  set(MX_WRAPS_C_INSTALL_PREFIX include/mechanica/wraps/C)
+
+endif()
 
 # Python setup
 
@@ -318,7 +325,7 @@ message("JPEG_INCLUDE_DIRS: ${JPEG_INCLUDE_DIRS}")
 message("JPEG_LIBRARIES: ${JPEG_LIBRARIES}")
 message("JPEG_VERSION: ${JPEG_VERSION}")
 
-set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install location for Mechancia")
+set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install location for Mechanica")
 
 set(BUILD_SHARED_LIBS ON CACHE BOOL "build shared/dynamic library")
 
@@ -411,7 +418,7 @@ if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION AND MX_WITH_PYTHON)
 endif()
 
 
-set(CMAKE_INFO_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Install location for Mechancia basic info")
+set(CMAKE_INFO_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Install location for Mechanica basic info")
 set(MX_INFO_FILES
   README.md 
   LICENSE.txt 

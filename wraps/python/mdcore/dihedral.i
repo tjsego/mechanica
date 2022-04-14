@@ -42,6 +42,11 @@
             return self.getPotential()
 
         @property
+        def id(self):
+            """angle id"""
+            return self.getId()
+
+        @property
         def dissociation_energy(self):
             """bond dissociation energy"""
             return self.getDissociationEnergy()
@@ -58,6 +63,11 @@
         @half_life.setter
         def half_life(self, half_life):
             self.setHalfLife(half_life)
+
+        @property
+        def active(self):
+            """active flag"""
+            return self.getActive()
 
         @property
         def style(self):

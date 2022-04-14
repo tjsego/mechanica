@@ -157,6 +157,11 @@
             return self.getTypeId()
 
         @property
+        def cluster_id(self):
+            """Cluster particle id, if any; -1 if particle is not in a cluster"""
+            return self.getClusterId()
+
+        @property
         def flags(self):
             return self.getFlags()
 

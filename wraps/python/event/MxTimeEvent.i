@@ -24,9 +24,9 @@ MxEventPyExecutor_extender(MxTimeEventPyInvokePyExecutor, MxTimeEventPy)
             Takes a :class:`MxTimeEvent` instance as argument and returns 1 to trigger event, -1 on error and 0 otherwise
         :type distribution: str
         :param distribution: distribution by which the next event time is selected
-        :type start_time: str
+        :type start_time: float
         :param start_time: time after which the event can occur
-        :type end_time: str
+        :type end_time: float
         :param end_time: time before which the event can occur; a negative value is interpreted as until 'forever'
         """
         invoke_ex = initMxTimeEventPyInvokePyExecutor(invoke_method)

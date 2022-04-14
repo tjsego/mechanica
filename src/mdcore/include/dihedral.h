@@ -171,10 +171,12 @@ struct MxDihedralHandle {
     double getEnergy();
     std::vector<int32_t> getParts();
     MxPotential *getPotential();
+    uint32_t getId();
     float getDissociationEnergy();
     void setDissociationEnergy(const float &dissociation_energy);
     float getHalfLife();
     void setHalfLife(const float &half_life);
+    bool getActive();
     MxStyle *getStyle();
     void setStyle(MxStyle *style);
     double getAge();

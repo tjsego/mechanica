@@ -349,6 +349,11 @@ int16_t MxParticleHandle::getTypeId() {
     return self->typeId;
 }
 
+int32_t MxParticleHandle::getClusterId() {
+    PARTICLE_SELFW(this, -1)
+    return self->clusterId;
+}
+
 uint16_t MxParticleHandle::getFlags() {
     PARTICLE_SELFW(this, 0)
     return self->flags;
@@ -915,6 +920,14 @@ HRESULT MxParticle_Become(MxParticle *part, MxParticleType *type) {
     part->typeId = type->id;
     
     part->flags = type->particle_flags;
+    
+    if(!part->style) {
+        bool visible = type->style->flags & STYLE_VISIBLE;
+        if(visible != currentType->style->flags & STYLE_VISIBLE) {
+            if(part->flags & PARTICLE_LARGE) _Engine.s.nr_visible_large_parts += visible ? 1 : -1;
+            else _Engine.s.nr_visible_parts += visible ? 1 : -1;
+        }
+    }
     
     if(part->state_vector) {
         MxStateVector *oldState = part->state_vector;

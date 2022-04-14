@@ -312,7 +312,6 @@ if(MX_WITH_PYTHON)
 endif()
 
 target_link_libraries(mechanica_obj
-  DirectXMath
   glfw 
   ${GLFW_LIBRARIES} 
   LibSBML::LibSBML

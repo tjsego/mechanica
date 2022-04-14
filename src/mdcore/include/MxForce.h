@@ -45,7 +45,7 @@ struct Friction;
  * 
  * Forces are one of the fundamental processes in Mechanica that cause objects to move. 
  */
-struct MxForce {
+struct CAPI_EXPORT MxForce {
     MXFORCE_TYPE type = FORCE_FORCE;
 
     MxForce_EvalFcn func;
@@ -152,7 +152,7 @@ struct MxForce {
     static MxForce *fromString(const std::string &str);
 };
 
-struct MxForceSum : MxForce {
+struct CAPI_EXPORT MxForceSum : MxForce {
     MxForce *f1, *f2;
 
     /**
@@ -166,7 +166,7 @@ struct MxForceSum : MxForce {
     static MxForceSum *fromForce(MxForce *f);
 };
 
-MxForce *MxForce_add(MxForce *f1, MxForce *f2);
+CAPI_FUNC(MxForce*) MxForce_add(MxForce *f1, MxForce *f2);
 
 struct MxConstantForce;
 using MxUserForceFuncType = MxVector3f(*)(MxConstantForce*);
@@ -179,7 +179,7 @@ using MxUserForceFuncType = MxVector3f(*)(MxConstantForce*);
  * This object acts like a constant force, but also acts like a time event,
  * in that it periodically calls a custom function to update the applied force. 
  */
-struct MxConstantForce : MxForce {
+struct CAPI_EXPORT MxConstantForce : MxForce {
     MxUserForceFuncType *userFunc;
     float updateInterval;
     double lastUpdate;
@@ -238,7 +238,7 @@ struct MxConstantForce : MxForce {
  * 
  * Create one with :meth:`MxForce.berendsen_tstat`. 
  */
-struct Berendsen : MxForce {
+struct CAPI_EXPORT Berendsen : MxForce {
     /**
      * @brief time constant
      */
@@ -260,7 +260,7 @@ struct Berendsen : MxForce {
  * 
  * Create one with :meth:`MxForce.random`. 
  */
-struct Gaussian : MxForce {
+struct CAPI_EXPORT Gaussian : MxForce {
     /**
      * @brief standard deviation of magnitude
      */
@@ -292,7 +292,7 @@ struct Gaussian : MxForce {
  * 
  * Create one with :meth:`MxForce.friction`. 
  */
-struct Friction : MxForce {
+struct CAPI_EXPORT Friction : MxForce {
     /**
      * @brief time constant
      */

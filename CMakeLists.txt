@@ -406,7 +406,6 @@ find_package(Magnum REQUIRED
 
 
 add_subdirectory(apps)
-# add_subdirectory(testing)
 add_subdirectory(examples)
 add_subdirectory(package)
 

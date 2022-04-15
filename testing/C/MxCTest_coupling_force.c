@@ -20,6 +20,7 @@ int main(int argc, char** argv) {
     MXCTEST_CHECK(MxCBoundaryConditionsArgsContainer_setValueAll(&bargs, bcKindEnum.SPACE_FREESLIP_FULL));
 
     MXCTEST_CHECK(MxCSimulator_Config_init(&config));
+    MXCTEST_CHECK(MxCSimulator_Config_setWindowless(&config, 1));
     MXCTEST_CHECK(MxCSimulator_Config_getUniverseConfig(&config, &uconfig));
     MXCTEST_CHECK(MxCUniverseConfig_setBoundaryConditions(&uconfig, &bargs));
     MXCTEST_CHECK(MxCUniverseConfig_setDim(&uconfig, dim));

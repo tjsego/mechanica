@@ -16,6 +16,7 @@ int main(int argc, char** argv) {
 
     struct MxSimulator_ConfigHandle config;
     MXCTEST_CHECK(MxCSimulator_Config_init(&config));
+    MXCTEST_CHECK(MxCSimulator_Config_setWindowless(&config, 1));
     struct MxUniverseConfigHandle uconfig;
     MXCTEST_CHECK(MxCSimulator_Config_getUniverseConfig(&config, &uconfig));
     MXCTEST_CHECK(MxCUniverseConfig_setDim(&uconfig, dim));

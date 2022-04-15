@@ -10,7 +10,7 @@ elif [[ ! -d "${MXINSTALLDIR}" ]]; then
     exit 1
 fi
 
-set MXTESTS_BUILDDIR=${this_dir}/build
+MXTESTS_BUILDDIR=${this_dir}/build
 
 mkdir ${MXTESTS_BUILDDIR}
 

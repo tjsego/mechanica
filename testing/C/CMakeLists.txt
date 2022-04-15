@@ -1,11 +1,15 @@
 find_library(mechanica_clib 
     PATHS ${MX_INSTALL_ROOT} 
     PATH_SUFFIXES bin lib 
-    NAMES mechanica_c 
+    NAMES mechanica_c libmechanica_c
     REQUIRED
 )
 
 set(MxCTest_LIBS ${mechanica_clib})
+if(UNIX)
+    list(APPEND MxCTest_LIBS m)
+endif()
+
 set(MxCTest_INCLUDES 
     ${MX_INSTALL_ROOT}/include/mechanica 
     ${MX_INSTALL_ROOT}/include/mechanica/wraps/C 

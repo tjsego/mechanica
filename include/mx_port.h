@@ -13,8 +13,10 @@
 
 #ifdef __cplusplus
 #include <cstdio>
+#include <cstring>
 #else
 #include <stdio.h>
+#include <string.h>
 #endif
 
 

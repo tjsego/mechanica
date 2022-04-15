@@ -27,4 +27,4 @@ HRESULT MxCTest_runQuiet(unsigned int numSteps) {
 }
 
 
-#endif #include <mechanica_c.h>
+#endif // _TESTING_C_MXCTEST_H_

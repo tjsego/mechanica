@@ -5,12 +5,14 @@
 #include <MxCSpecies.h>
 #include <MxCStyle.h>
 #include <MxCStateVector.h>
-#include <MxCLogger.h>
 
 
 int main(int argc, char** argv) {
     
-    MXCTEST_CHECK(MxCSimulator_init(argv, argc));
+    struct MxSimulator_ConfigHandle config;
+    MXCTEST_CHECK(MxCSimulator_Config_init(&config));
+    MXCTEST_CHECK(MxCSimulator_Config_setWindowless(&config, 1));
+    MXCTEST_CHECK(MxCSimulator_initC(&config, NULL, 0));
 
     struct MxSpeciesHandle S1, S2, S3;
     MXCTEST_CHECK(MxCSpecies_initS(&S1, "S1"));

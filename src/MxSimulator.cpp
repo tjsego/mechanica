@@ -128,7 +128,7 @@ struct ArgumentsWrapper  {
     int argsIntReference;
 };
 
-static HRESULT initSimConfigFromFile(const std::string &loadFilePath, MxSimulator_Config &conf) {
+HRESULT initSimConfigFromFile(const std::string &loadFilePath, MxSimulator_Config &conf) {
 
     if(MxFIO::currentRootElement != NULL) {
         mx_error(E_FAIL, "Cannot load from multiple files");

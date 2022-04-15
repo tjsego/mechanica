@@ -3,8 +3,8 @@
 MXBUILD_CONFIG=Release
 this_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" ; pwd -P )"
 
-set MXTESTS_ROOT=$(pwd)/testing
-set MXTESTS_BUILDDIR=${MXTESTS_ROOT}/build
+MXTESTS_ROOT=$(pwd)/testing
+MXTESTS_BUILDDIR=${MXTESTS_ROOT}/build
 
 mkdir ${MXTESTS_BUILDDIR}
 

@@ -5,8 +5,8 @@
 #include <MxCBind.h>
 
 
-float lam = -0.5;
-float mu = 1.0;
+double lam = -0.5;
+double mu = 1.0;
 unsigned int s = 3;
 
 
@@ -33,20 +33,20 @@ double dgdr(double r, unsigned int n) {
     double result = 0.0;
     for(unsigned int k = 0; k < s; k++) {
         if(2 * k >= n) {
-            result += factorial(2 * k) / factorial(2 * k - n) * (lam + k) * pow(mu, k) / factorial(k) * pow(r, 2 * k);
+            result += (double)factorial(2 * k) / (double)factorial(2 * k - n) * (lam + (double)k) * pow(mu, (double)k) / (double)factorial(k) * pow(r, 2.0 * (double)k);
         }
     }
     return result / pow(r, (double)n);
 }
 
 double u_n(double r, unsigned int n) {
-    return pow(-1, n) * He(r, n) * lam * expf(-mu * pow(r, 2.0));
+    return pow(-1, (double)n) * He(r, n) * lam * exp(-mu * pow(r, 2.0));
 }
 
 double f_n(double r, unsigned int n) {
     double w_n = 0.0;
     for(unsigned int j = 0; j <= n; j++) {
-        w_n += factorial(n) / factorial(j) / factorial(n - j) * dgdr(r, j) * u_n(r, n - j);
+        w_n += (double)factorial(n) / (double)factorial(j) / (double)factorial(n - j) * dgdr(r, j) * u_n(r, n - j);
     }
     return 10.0 * (u_n(r, n) + w_n / lam);
 }
@@ -67,6 +67,7 @@ int main(int argc, char** argv) {
     MXCTEST_CHECK(MxCBoundaryConditionsArgsContainer_setVelocity(&bargs, "right", bcvel));
 
     MXCTEST_CHECK(MxCSimulator_Config_init(&config));
+    MXCTEST_CHECK(MxCSimulator_Config_setWindowless(&config, 1));
     MXCTEST_CHECK(MxCSimulator_Config_getUniverseConfig(&config, &uconfig));
     MXCTEST_CHECK(MxCUniverseConfig_setCutoff(&uconfig, 5.0));
     MXCTEST_CHECK(MxCUniverseConfig_setBoundaryConditions(&uconfig, &bargs));

@@ -39,7 +39,10 @@ HRESULT passthrough(struct MxTimeEventHandle *e) {
 int main(int argc, char** argv) {
     double ATypeRadius = 0.1;
 
-    MXCTEST_CHECK(MxCSimulator_init(NULL, 0));
+    struct MxSimulator_ConfigHandle config;
+    MXCTEST_CHECK(MxCSimulator_Config_init(&config));
+    MXCTEST_CHECK(MxCSimulator_Config_setWindowless(&config, 1));
+    MXCTEST_CHECK(MxCSimulator_initC(&config, NULL, 0));
 
     struct MxParticleTypeHandle AType;
     MXCTEST_CHECK(MxCParticleType_init(&AType));

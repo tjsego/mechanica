@@ -65,9 +65,6 @@ parts[0,  24, 0][0].become(Sink)
 parts[24,  0, 0][0].become(Sink)
 parts[24, 24, 0][0].become(Sink)
 
-# set the species values to thier init conditions based on type definitions.
-mx.reset_species()
-
 mx.step(100*mx.Universe.dt)
 
 

@@ -5,7 +5,7 @@ import numpy as np
 dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim)
+mx.init(dim=dim, windowless=True)
 
 
 class PType(mx.ParticleType):

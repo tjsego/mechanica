@@ -1,6 +1,6 @@
 import mechanica as mx
 
-mx.init(window_size=[1000, 1000])
+mx.init(window_size=[1000, 1000], windowless=True)
 
 
 class NaType(mx.ParticleType):

@@ -50,7 +50,7 @@ dim = [30., 30., 40.]
 mx.init(dim=dim,
         cutoff=5,
         integrator=mx.FORWARD_EULER,
-        dt=0.001)
+        dt=0.001, windowless=True)
 
 
 class CellType(mx.ParticleType):

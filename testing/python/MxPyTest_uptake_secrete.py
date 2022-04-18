@@ -1,6 +1,6 @@
 import mechanica as mx
 
-mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL)
+mx.init(dim=[6.5, 6.5, 6.5], bc=mx.FREESLIP_FULL, windowless=True)
 
 
 class AType(mx.ParticleType):

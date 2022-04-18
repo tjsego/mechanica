@@ -11,7 +11,7 @@ dim = [10., 10., 10.]
 mx.init(dim=dim,
         window_size=[900, 900],
         perfcounter_period=100,
-        clip_planes=[([2, 2, 2], [1, 1, 0.5]), ([5, 5, 5], [-1, 1, -1])])
+        clip_planes=[([2, 2, 2], [1, 1, 0.5]), ([5, 5, 5], [-1, 1, -1])], windowless=True)
 
 # create a potential representing a 12-6 Lennard-Jones potential
 # A The first parameter of the Lennard-Jones potential.

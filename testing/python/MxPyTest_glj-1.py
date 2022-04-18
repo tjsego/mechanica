@@ -6,7 +6,7 @@ count = 3
 # dimensions of universe
 dim = [20., 20., 20.]
 
-mx.init(dim=dim, cutoff=cutoff)
+mx.init(dim=dim, cutoff=cutoff, windowless=True)
 
 
 class BType(mx.ParticleType):

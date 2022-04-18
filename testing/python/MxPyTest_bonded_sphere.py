@@ -1,7 +1,7 @@
 import mechanica as mx
 import numpy as np
 
-mx.init(dim=[25., 25., 25.], cutoff=3, dt=0.005, bc=mx.BOUNDARY_NONE)
+mx.init(dim=[25., 25., 25.], cutoff=3, dt=0.005, bc=mx.BOUNDARY_NONE, windowless=True)
 
 
 class BlueType(mx.ParticleType):

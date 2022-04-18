@@ -11,7 +11,7 @@ dim = np.array([20., 20., 20.])
 center = dim / 2
 
 # new simulator
-mx.init(dim=dim.tolist(), cutoff=cutoff)
+mx.init(dim=dim.tolist(), cutoff=cutoff, windowless=True)
 
 
 class BeadType(mx.ParticleType):

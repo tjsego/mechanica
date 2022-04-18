@@ -1,7 +1,7 @@
 import mechanica as mx
 
 
-mx.init(dim=[25., 25., 25.], dt=0.0005, cutoff=3, bc=mx.BOUNDARY_NONE)
+mx.init(dim=[25., 25., 25.], dt=0.0005, cutoff=3, bc=mx.BOUNDARY_NONE, windowless=True)
 
 
 class GreenType(mx.ParticleType):

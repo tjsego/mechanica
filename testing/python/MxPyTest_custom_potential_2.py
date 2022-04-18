@@ -9,7 +9,7 @@ import mechanica as mx
 from math import acos, cos, pi, sin
 from random import random
 
-mx.init(bc={'x': 'noslip', 'y': 'noslip', 'z': 'noslip'}, cutoff=5.0)
+mx.init(bc={'x': 'noslip', 'y': 'noslip', 'z': 'noslip'}, cutoff=5.0, windowless=True)
 
 
 class FrozenType(mx.ParticleType):

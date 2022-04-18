@@ -9,7 +9,7 @@ mx.init(dim=dim,
         cutoff=7,
         integrator=mx.FORWARD_EULER,
         cells=[3, 3, 3],
-        dt=0.01)
+        dt=0.01, windowless=True)
 
 
 class AType(mx.ParticleType):

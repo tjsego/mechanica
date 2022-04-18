@@ -5,7 +5,7 @@ import mechanica as mx
 from math import exp, factorial
 import sys
 
-mx.init(cutoff=5, bc={'x': 'noslip'})
+mx.init(cutoff=5, bc={'x': 'noslip'}, windowless=True)
 
 
 class WellType(mx.ParticleType):

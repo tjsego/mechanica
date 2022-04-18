@@ -7,7 +7,7 @@ cutoff = 1
 dim = [10., 10., 10.]
 
 # new simulator
-mx.init(dim=dim)
+mx.init(dim=dim, windowless=True)
 
 
 class MyCellType(mx.ParticleType):

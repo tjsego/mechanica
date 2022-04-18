@@ -9,7 +9,7 @@ count = 300
 dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim, cutoff=cutoff)
+mx.init(dim=dim, cutoff=cutoff, windowless=True)
 
 
 class BigType(mx.ParticleType):

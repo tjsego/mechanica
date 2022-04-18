@@ -1,6 +1,6 @@
 import mechanica as mx
 
-mx.init(cutoff=3)
+mx.init(cutoff=3, windowless=True)
 
 
 class AType(mx.ParticleType):

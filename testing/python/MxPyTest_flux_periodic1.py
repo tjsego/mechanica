@@ -1,6 +1,6 @@
 import mechanica as mx
 
-mx.init(dt=0.1, dim=[15, 6, 6], cells=[9, 3, 3], bc={'x': ('periodic', 'reset')}, cutoff=3)
+mx.init(dt=0.1, dim=[15, 6, 6], cells=[9, 3, 3], bc={'x': ('periodic', 'reset')}, cutoff=3, windowless=True)
 
 
 class AType(mx.ParticleType):

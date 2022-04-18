@@ -8,7 +8,7 @@ cutoff = 1
 dim = [10., 10., 10.]
 
 # new simulator
-mx.init(dim=dim)
+mx.init(dim=dim, windowless=True)
 
 # create a potential representing a 12-6 Lennard-Jones potential
 # A The first parameter of the Lennard-Jones potential.

@@ -1,7 +1,7 @@
 import mechanica as mx
 import numpy as n
 
-mx.init()
+mx.init(windowless=True)
 
 print(mx.Species("S1"))
 

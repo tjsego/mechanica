@@ -9,7 +9,7 @@ receptor_count = 500
 dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim, cutoff=cutoff, cells=[4, 4, 4], integrator=mx.RUNGE_KUTTA_4)
+mx.init(dim=dim, cutoff=cutoff, cells=[4, 4, 4], integrator=mx.RUNGE_KUTTA_4, windowless=True)
 
 
 class BigType(mx.ParticleType):

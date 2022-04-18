@@ -14,7 +14,7 @@ dim = [20., 20., 20.]
 # new simulator
 mx.init(dim=dim,
         cutoff=cutoff,
-        clip_planes=[([8, 8, 8], [1, 1, 0]), ([11, 11, 11], [-1, -1, 0])])
+        clip_planes=[([8, 8, 8], [1, 1, 0]), ([11, 11, 11], [-1, -1, 0])], windowless=True)
 
 
 class AType(mx.ParticleType):

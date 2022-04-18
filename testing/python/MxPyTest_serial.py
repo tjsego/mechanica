@@ -26,7 +26,7 @@ def validate(obj, attr_list: List[str]):
     validate_copy(obj, pickle.loads(pickle.dumps(obj)), attr_list)
 
 
-mx.init(bc={'z': 'potential', 'x': 'potential', 'y': 'potential'})
+mx.init(bc={'z': 'potential', 'x': 'potential', 'y': 'potential'}, windowless=True)
 
 
 class AType(mx.ParticleType):

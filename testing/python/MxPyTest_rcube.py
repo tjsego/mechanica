@@ -1,6 +1,6 @@
 import mechanica as mx
 
-mx.init(dim=[20., 20., 20.], cutoff=8, bc=mx.BOUNDARY_NONE)
+mx.init(dim=[20., 20., 20.], cutoff=8, bc=mx.BOUNDARY_NONE, windowless=True)
 
 
 class BeadType(mx.ParticleType):

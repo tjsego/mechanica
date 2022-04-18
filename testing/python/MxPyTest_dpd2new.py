@@ -5,7 +5,7 @@ mx.init(dt=0.1, dim=[15, 12, 10],
             'y': 'periodic',
             'bottom': 'no_slip',
             'top': {'velocity': [-0.4, 0, 0]}},
-        perfcounter_period=100)
+        perfcounter_period=100, windowless=True)
 
 # lattice spacing
 a = 0.3

@@ -13,7 +13,7 @@ mx.init(dim=dim,
         cells=[3, 3, 3],
         integrator=mx.FORWARD_EULER,
         dt=0.01,
-        bc={'z': 'potential', 'x': 'potential', 'y': 'potential'})
+        bc={'z': 'potential', 'x': 'potential', 'y': 'potential'}, windowless=True)
 
 
 class AType(mx.ParticleType):

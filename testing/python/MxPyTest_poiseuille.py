@@ -4,7 +4,8 @@ mx.init(dt=0.1, dim=[15, 12, 10], cells=[7, 6, 5], cutoff=0.5,
         bc={'x': 'periodic',
             'y': 'periodic',
             'top': {'velocity': [0, 0, 0]},
-            'bottom': {'velocity': [0, 0, 0]}})
+            'bottom': {'velocity': [0, 0, 0]}}, 
+        windowless=True)
 
 # lattice spacing
 a = 0.15

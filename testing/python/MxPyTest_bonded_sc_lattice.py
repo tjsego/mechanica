@@ -1,7 +1,7 @@
 import mechanica as mx
 import numpy as np
 
-mx.init(dt=0.1, dim=[15, 12, 10])
+mx.init(dt=0.1, dim=[15, 12, 10], windowless=True)
 
 # lattice spacing
 a = 0.65

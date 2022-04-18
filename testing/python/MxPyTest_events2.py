@@ -3,7 +3,7 @@ import numpy as np
 
 cutoff = 1
 
-mx.init(dim=[10., 10., 10.])
+mx.init(dim=[10., 10., 10.], windowless=True)
 
 
 class ArgonType(mx.ParticleType):

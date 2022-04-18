@@ -9,7 +9,7 @@ receptor_count = 1000
 dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim, cutoff=cutoff, cells=[4, 4, 4], threads=8)
+mx.init(dim=dim, cutoff=cutoff, cells=[4, 4, 4], threads=8, windowless=True)
 
 
 class NucleusType(mx.ParticleType):

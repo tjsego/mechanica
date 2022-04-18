@@ -20,7 +20,7 @@ mx.init(dim=dim,
         dt=0.001,
         max_distance=0.2,
         threads=8,
-        cells=[5, 5, 5])
+        cells=[5, 5, 5], windowless=True)
 
 clump_radius = 8
 

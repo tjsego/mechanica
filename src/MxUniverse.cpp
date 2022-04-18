@@ -166,7 +166,7 @@ MxParticleList *MxUniverse::particles() {
 void MxUniverse::resetSpecies() {
     UNIVERSE_TRY();
     
-    for(int i = 0; i < _Engine.s.nr_parts; ++i) {
+    for(int i = 0; i < _Engine.s.size_parts; ++i) {
         MxParticle *part = _Engine.s.partlist[i];
         if(part && part->state_vector) {
             part->state_vector->reset();

@@ -2,7 +2,7 @@ import mechanica as mx
 
 mx.init(dt=0.1, dim=[15, 12, 10],
         bc={'x': 'periodic', 'y': 'periodic', 'z': 'no_slip'},
-        perfcounter_period=100)
+        perfcounter_period=100, windowless=True)
 
 # lattice spacing
 a = 0.7

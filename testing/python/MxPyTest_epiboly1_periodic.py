@@ -9,7 +9,7 @@ count = 300
 dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim, cutoff=cutoff, bc=mx.BOUNDARY_NONE)
+mx.init(dim=dim, cutoff=cutoff, bc=mx.BOUNDARY_NONE, windowless=True)
 
 
 class YolkType(mx.ParticleType):

@@ -12,6 +12,7 @@
 #include <mdcore/src/MxBind.hpp>
 #include <MxParticle.h>
 #include <MxForce.h>
+#include <engine.h>
 
 
 #define MXCBIND_CHECKHANDLE(h) if(!h || !h->MxObj) return E_FAIL;

@@ -5,6 +5,7 @@
 #include <MxCPotential.h>
 #include <MxCForce.h>
 #include <MxCUtil.h>
+#include <MxCBind.h>
 
 
 int main(int argc, char** argv) {

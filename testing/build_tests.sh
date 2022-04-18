@@ -24,12 +24,6 @@ CMAKE_CONFIG_ARGS+=(-DMX_INSTALL_ROOT:PATH=${MXINSTALLDIR})
 
 if [[ $(uname) == Darwin ]]; then
     export MACOSX_DEPLOYMENT_TARGET=${MXOSX_SYSROOT}
-    CMAKE_CONFIG_ARGS+=(-DCMAKE_OSX_SYSROOT:PATH=${CONDA_BUILD_SYSROOT})
-
-    if [[ ! -d "${CONDA_BUILD_SYSROOT}" ]]; then
-        echo "SDK not found"
-        exit 2
-    fi
 else
     CMAKE_CONFIG_ARGS+=(-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld)
 

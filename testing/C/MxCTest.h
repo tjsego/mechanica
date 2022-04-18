@@ -8,6 +8,8 @@
 #ifndef _TESTING_C_MXCTEST_H_
 #define _TESTING_C_MXCTEST_H_
 
+#include <stdlib.h>
+
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
 #endif

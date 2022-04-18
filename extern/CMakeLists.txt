@@ -1,3 +1,8 @@
+# Fixing seeming libxml2 bug not finding unicode headers on osx
+if(MX_APPLE)
+  include_directories(${CMAKE_FIND_ROOT_PATH}/include)
+endif()
+
 # build libsbml
 
 set(LIBSBML_SHARED_VERSION OFF CACHE BOOL "dont build shared libsbml")

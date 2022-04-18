@@ -66,6 +66,12 @@ add_library(mechanica_c SHARED ${SOURCES} ${HEADERS})
 
 target_compile_definitions(mechanica_c PRIVATE C_BUILDING_DLL)
 
+set_target_properties(mechanica_c PROPERTIES
+  CXX_VISIBILITY_PRESET hidden
+  VISIBILITY_INLINES_HIDDEN 1 
+  POSITION_INDEPENDENT_CODE 1
+)
+
 if(MX_WITHCUDA)
   target_include_directories(mechanica_c PUBLIC
     ${CUDAToolkit_INCLUDE_DIRS}

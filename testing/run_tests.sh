@@ -6,9 +6,7 @@ MXTESTS_TESTSDIR=${this_dir}/build
 if [[ ! -d "${MXENV}" ]]; then
     exit 1
 fi
-if [[ $(uname) == Darwin ]]; then
-    export DYLD_LIBRARY_PATH=${MXENV}/lib:${DYLD_LIBRARY_PATH}
-else
+if [[ $(uname) != Darwin ]]; then
     export LD_LIBRARY_PATH=${MXENV}/lib:${LD_LIBRARY_PATH}
 fi
 cd ${MXTESTS_TESTSDIR}

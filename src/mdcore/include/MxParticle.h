@@ -92,7 +92,7 @@ struct MxClusterParticleHandle;
  * If you're building a model, you should probably instead be working with a 
  * MxParticleHandle. 
  */
-struct MxParticle  {
+struct CAPI_EXPORT MxParticle  {
     
     /**
      * Particle force
@@ -296,7 +296,7 @@ HRESULT MxParticle_Verify();
  * 
  * This is a safe way to work with a particle. 
  */
-struct MxParticleHandle {
+struct CAPI_EXPORT MxParticleHandle {
     int id;
     int typeId;
 
@@ -432,6 +432,7 @@ struct MxParticleHandle {
     void setForceInit(MxVector3f force);
     int getId();
     int16_t getTypeId();
+    int32_t getClusterId();
     uint16_t getFlags();
     MxStateVector *getSpecies();
 

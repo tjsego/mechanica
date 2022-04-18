@@ -893,6 +893,10 @@ MxPotential *MxDihedralHandle::getPotential() {
     return this->get()->potential;
 }
 
+uint32_t MxDihedralHandle::getId() {
+    return this->id;
+}
+
 float MxDihedralHandle::getDissociationEnergy() {
     return this->get()->dissociation_energy;
 }
@@ -909,6 +913,12 @@ float MxDihedralHandle::getHalfLife() {
 void MxDihedralHandle::setHalfLife(const float &half_life) {
     auto *d = this->get();
     d->half_life = half_life;
+}
+
+bool MxDihedralHandle::getActive() {
+    auto *d = this->get();
+    if (d) return (bool)(d->flags & DIHEDRAL_ACTIVE);
+    return false;
 }
 
 MxStyle *MxDihedralHandle::getStyle() {

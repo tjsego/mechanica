@@ -26,7 +26,7 @@ struct Mx3DFStructure;
  * @brief 3D data file mesh data
  * 
  */
-struct Mx3DFMeshData {
+struct CAPI_EXPORT Mx3DFMeshData {
     
     /** Parent structure */
     Mx3DFStructure *structure = NULL;
@@ -182,7 +182,7 @@ struct Mx3DFMeshData {
     HRESULT scaleFrom(const float &scale, const MxVector3f &scalePt);
     
     /**
-     * @brief Scale the structure about its centroid
+     * @brief Scale the mesh about its centroid
      * 
      * @param scales 
      * @return HRESULT 
@@ -190,7 +190,7 @@ struct Mx3DFMeshData {
     HRESULT scale(const MxVector3f &scales);
     
     /**
-     * @brief Scale the structure uniformly about its centroid
+     * @brief Scale the mesh uniformly about its centroid
      * 
      * @param scale 
      * @return HRESULT 

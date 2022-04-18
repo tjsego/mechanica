@@ -16,6 +16,8 @@
 #include "../../mx_error.h"
 #include "../../MxLogger.h"
 
+#include <math.h>
+
 #include <sstream>
 #pragma clang diagnostic ignored "-Wwritable-strings"
 #include <iostream>

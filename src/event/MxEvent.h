@@ -9,7 +9,6 @@
 #define SRC_EVENT_MXEVENT_H_
 
 #include "../../mechanica_private.h"
-#include "MxEventPyExecutor.h"
 
 #include <forward_list>
 #include <iostream>
@@ -118,41 +117,5 @@ private:
  * @return MxEvent* 
  */
 CAPI_FUNC(MxEvent*) MxOnEvent(MxEventMethod *invokeMethod, MxEventMethod *predicateMethod);
-
-
-// python support
-
-struct MxEventPy;
-
-struct MxEventPyPredicatePyExecutor : MxEventPyExecutor<MxEventPy> {
-    HRESULT _result = 0;
-};
-
-struct MxEventPyInvokePyExecutor : MxEventPyExecutor<MxEventPy> {
-    HRESULT _result = 0;
-};
-
-struct CAPI_EXPORT MxEventPy : MxEventBase {
-    MxEventPy(MxEventPyInvokePyExecutor *invokeExecutor, MxEventPyPredicatePyExecutor *predicateExecutor=NULL);
-    ~MxEventPy();
-
-    HRESULT predicate();
-    HRESULT invoke();
-    HRESULT eval(const double &time);
-
-private:
-    MxEventPyInvokePyExecutor *invokeExecutor; 
-    MxEventPyPredicatePyExecutor *predicateExecutor;
-};
-
-/**
- * @brief Creates an event using prescribed invoke and predicate python function executors
- * 
- * @param invokeExecutor an invoke python function executor; evaluated when an event occurs
- * @param predicateExecutor a predicate python function executor; evaluated to determine if an event occurs
- * @return MxEventPy* 
- */
-CAPI_FUNC(MxEventPy*) MxOnEventPy(MxEventPyInvokePyExecutor *invokeExecutor, MxEventPyPredicatePyExecutor *predicateExecutor=NULL);
-
 
 #endif // SRC_EVENT_MXEVENT_H_

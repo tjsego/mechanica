@@ -16,7 +16,7 @@ mx.Fluxes.flux(A, A, "S1", 2)
 a1 = A(mx.Universe.center - [0, 1, 0])
 a2 = A(mx.Universe.center + [-5, 1, 0], velocity=[0.5, 0, 0])
 
-a1.species.S1 = 3
+a1.species.S1 = 1
 a2.species.S1 = 0
 
 mx.run()

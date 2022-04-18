@@ -6,6 +6,8 @@
  * 
  */
 
+#include <mechanica_private.h>
+
 #include "Mx3DFIO.h"
 #include "MxFIO.h"
 
@@ -14,7 +16,7 @@
  * @brief Mechanica import/export interface
  * 
  */
-struct MxIO {
+struct CAPI_EXPORT MxIO {
     /**
      * @brief Load a 3D format file
      * 

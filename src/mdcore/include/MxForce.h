@@ -26,8 +26,7 @@ enum MXFORCE_TYPE {
     FORCE_GAUSSIAN      = 1 << 1, 
     FORCE_FRICTION      = 1 << 2, 
     FORCE_SUM           = 1 << 3, 
-    FORCE_CONSTANT      = 1 << 4, 
-    FORCE_CONSTANTPY    = 1 << 5
+    FORCE_CONSTANT      = 1 << 4
 };
 
 /**
@@ -46,7 +45,7 @@ struct Friction;
  * 
  * Forces are one of the fundamental processes in Mechanica that cause objects to move. 
  */
-struct MxForce {
+struct CAPI_EXPORT MxForce {
     MXFORCE_TYPE type = FORCE_FORCE;
 
     MxForce_EvalFcn func;
@@ -153,7 +152,7 @@ struct MxForce {
     static MxForce *fromString(const std::string &str);
 };
 
-struct MxForceSum : MxForce {
+struct CAPI_EXPORT MxForceSum : MxForce {
     MxForce *f1, *f2;
 
     /**
@@ -167,7 +166,7 @@ struct MxForceSum : MxForce {
     static MxForceSum *fromForce(MxForce *f);
 };
 
-MxForce *MxForce_add(MxForce *f1, MxForce *f2);
+CAPI_FUNC(MxForce*) MxForce_add(MxForce *f1, MxForce *f2);
 
 struct MxConstantForce;
 using MxUserForceFuncType = MxVector3f(*)(MxConstantForce*);
@@ -180,7 +179,7 @@ using MxUserForceFuncType = MxVector3f(*)(MxConstantForce*);
  * This object acts like a constant force, but also acts like a time event,
  * in that it periodically calls a custom function to update the applied force. 
  */
-struct MxConstantForce : MxForce {
+struct CAPI_EXPORT MxConstantForce : MxForce {
     MxUserForceFuncType *userFunc;
     float updateInterval;
     double lastUpdate;
@@ -234,44 +233,12 @@ struct MxConstantForce : MxForce {
     static MxConstantForce *fromForce(MxForce *f);
 };
 
-struct MxConstantForcePy : MxConstantForce {
-    PyObject *callable;
-
-    MxConstantForcePy();
-    MxConstantForcePy(const MxVector3f &f, const float &period=std::numeric_limits<float>::max());
-
-    /**
-     * @brief Creates an instance from an underlying custom python function
-     * 
-     * @param f python function. Takes no arguments and returns a three-component vector. 
-     * @param period period at which the force is updated. 
-     */
-    MxConstantForcePy(PyObject *f, const float &period=std::numeric_limits<float>::max());
-    virtual ~MxConstantForcePy();
-
-    void onTime(double time);
-    MxVector3f getValue();
-
-    void setValue(PyObject *_userFunc=NULL);
-
-    /**
-     * @brief Convert basic force to MxConstantForcePy. 
-     * 
-     * If the basic force is not a MxConstantForcePy, then NULL is returned. 
-     * 
-     * @param f 
-     * @return MxConstantForcePy* 
-     */
-    static MxConstantForcePy *fromForce(MxForce *f);
-
-};
-
 /**
  * @brief Berendsen force. 
  * 
  * Create one with :meth:`MxForce.berendsen_tstat`. 
  */
-struct Berendsen : MxForce {
+struct CAPI_EXPORT Berendsen : MxForce {
     /**
      * @brief time constant
      */
@@ -293,7 +260,7 @@ struct Berendsen : MxForce {
  * 
  * Create one with :meth:`MxForce.random`. 
  */
-struct Gaussian : MxForce {
+struct CAPI_EXPORT Gaussian : MxForce {
     /**
      * @brief standard deviation of magnitude
      */
@@ -325,7 +292,7 @@ struct Gaussian : MxForce {
  * 
  * Create one with :meth:`MxForce.friction`. 
  */
-struct Friction : MxForce {
+struct CAPI_EXPORT Friction : MxForce {
     /**
      * @brief time constant
      */
@@ -356,12 +323,6 @@ HRESULT toFile(const MxConstantForce &dataElement, const MxMetaData &metaData, M
 
 template <>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForce *dataElement);
-
-template <>
-HRESULT toFile(const MxConstantForcePy &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
-
-template <>
-HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForcePy *dataElement);
 
 template <>
 HRESULT toFile(const MxForceSum &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);

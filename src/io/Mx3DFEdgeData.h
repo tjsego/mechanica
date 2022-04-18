@@ -24,7 +24,7 @@ struct Mx3DFStructure;
  * @brief 3D data file edge data
  * 
  */
-struct Mx3DFEdgeData {
+struct CAPI_EXPORT Mx3DFEdgeData {
     
     /** Parent structure */
     Mx3DFStructure *structure = NULL;

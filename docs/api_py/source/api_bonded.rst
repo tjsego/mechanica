@@ -127,6 +127,8 @@ Bonds
 
     .. autoproperty:: half_life
 
+    .. autoproperty:: active
+
     .. autoproperty:: style
 
     .. autoproperty:: age

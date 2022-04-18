@@ -15,7 +15,6 @@
 #include <random>
 #include <../../state/MxStateVector.h>
 #include "../../state/MxSpeciesList.h"
-#include <MxPy.h>
 #include <../../MxUtil.h>
 
 static Berendsen *berendsen_create(float tau);
@@ -51,74 +50,6 @@ float MxConstantForce::getPeriod() {
 
 void MxConstantForce::setPeriod(const float &period) {
     updateInterval = period;
-}
-
-MxVector3f pyConstantForceFunction(PyObject *callable) {
-    Log(LOG_TRACE);
-
-    PyObject *result = PyObject_CallObject(callable, NULL);
-
-    if(result == NULL) {
-        PyObject *err = PyErr_Occurred();
-        Log(LOG_CRITICAL) << pyerror_str();
-        PyErr_Clear();
-        return MxVector3f();
-    }
-    MxVector3f out = mx::cast<PyObject, MxVector3f>(result);
-    Py_DECREF(result);
-    return out;
-}
-
-MxConstantForcePy::MxConstantForcePy() : 
-    MxConstantForce() 
-{
-    type = FORCE_CONSTANTPY;
-}
-
-MxConstantForcePy::MxConstantForcePy(const MxVector3f &f, const float &period) : 
-    MxConstantForce(f, period)
-{
-    type = FORCE_CONSTANTPY;
-    callable = NULL;
-}
-
-MxConstantForcePy::MxConstantForcePy(PyObject *f, const float &period) : 
-    MxConstantForce(), 
-    callable(f)
-{
-    type = FORCE_CONSTANTPY;
-
-    setPeriod(period);
-    if(PyList_Check(f)) {
-        MxVector3f fv = mx::cast<PyObject, MxVector3f>(f);
-        callable = NULL;
-        MxConstantForce::setValue(fv);
-    }
-    else if(callable) {
-        Py_IncRef(callable);
-    }
-}
-
-MxConstantForcePy::~MxConstantForcePy(){
-    if(callable) Py_DecRef(callable);
-}
-
-void MxConstantForcePy::onTime(double time)
-{
-    if(callable && time >= lastUpdate + updateInterval) {
-        lastUpdate = time;
-        setValue(callable);
-    }
-}
-
-MxVector3f MxConstantForcePy::getValue() {
-    if(callable && callable != Py_None) return pyConstantForceFunction(callable);
-    return force;
-}
-
-void MxConstantForcePy::setValue(PyObject *_userFunc) {
-    if(_userFunc) callable = _userFunc;
-    if(callable && callable != Py_None) MxConstantForce::setValue(getValue());
 }
 
 HRESULT MxForce::bind_species(MxParticleType *a_type, const std::string &coupling_symbol) {
@@ -345,12 +276,6 @@ MxConstantForce *MxConstantForce::fromForce(MxForce *f) {
     return (MxConstantForce*)f;
 }
 
-MxConstantForcePy *MxConstantForcePy::fromForce(MxForce *f) {
-    if(f->type != FORCE_CONSTANTPY) 
-        return 0;
-    return (MxConstantForcePy*)f;
-}
-
 Berendsen *Berendsen::fromForce(MxForce *f) {
     if(f->type != FORCE_BERENDSEN) 
         return 0;
@@ -432,38 +357,6 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxC
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "lastUpdate", &dataElement->lastUpdate);
     MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "force", &dataElement->force);
     dataElement->userFunc = NULL;
-
-    return S_OK;
-}
-
-template <>
-HRESULT toFile(const MxConstantForcePy &dataElement, const MxMetaData &metaData, MxIOElement *fileElement) {
-    
-    MxIOElement *fe;
-
-    MXFORCEIOTOEASY(fe, "type", dataElement.type);
-    MXFORCEIOTOEASY(fe, "stateVectorIndex", dataElement.stateVectorIndex);
-    MXFORCEIOTOEASY(fe, "updateInterval", dataElement.updateInterval);
-    MXFORCEIOTOEASY(fe, "lastUpdate", dataElement.lastUpdate);
-    MXFORCEIOTOEASY(fe, "force", dataElement.force);
-
-    fileElement->type = "ConstantPyForce";
-
-    return S_OK;
-}
-
-template <>
-HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForcePy *dataElement) {
-
-    MxIOChildMap::const_iterator feItr;
-
-    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "type", &dataElement->type);
-    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "stateVectorIndex", &dataElement->stateVectorIndex);
-    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "updateInterval", &dataElement->updateInterval);
-    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "lastUpdate", &dataElement->lastUpdate);
-    MXFORCEIOFROMEASY(feItr, fileElement.children, metaData, "force", &dataElement->force);
-    dataElement->userFunc = NULL;
-    dataElement->callable = NULL;
 
     return S_OK;
 }
@@ -603,8 +496,6 @@ HRESULT toFile(MxForce *dataElement, const MxMetaData &metaData, MxIOElement *fi
         return toFile(*(Berendsen*)dataElement, metaData, fileElement);
     else if(dataElement->type & FORCE_CONSTANT) 
         return toFile(*(MxConstantForce*)dataElement, metaData, fileElement);
-    else if(dataElement->type & FORCE_CONSTANTPY) 
-        return toFile(*(MxConstantForcePy*)dataElement, metaData, fileElement);
     else if(dataElement->type & FORCE_FRICTION) 
         return toFile(*(Friction*)dataElement, metaData, fileElement);
     else if(dataElement->type & FORCE_GAUSSIAN) 
@@ -639,13 +530,6 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxF
     }
     else if(fType & FORCE_CONSTANT) {
         MxConstantForce *f = new MxConstantForce();
-        if(fromFile(fileElement, metaData, f) != S_OK) 
-            return E_FAIL;
-        *dataElement = f;
-        return S_OK;
-    }
-    else if(fType & FORCE_CONSTANTPY) {
-        MxConstantForcePy *f = new MxConstantForcePy();
         if(fromFile(fileElement, metaData, f) != S_OK) 
             return E_FAIL;
         *dataElement = f;

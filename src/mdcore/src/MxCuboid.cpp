@@ -13,13 +13,21 @@
 #define CUBOID_SELF(handle) \
     MxCuboid *self = &_Engine.s.cuboids[((MxCuboidHandle*)handle)->id]; \
     if(self == NULL) { \
-        PyErr_SetString(PyExc_ReferenceError, "Cuboid has been destroyed or is invalid"); \
+        throw std::runtime_error("Cuboid has been destroyed or is invalid"); \
+        return NULL; \
+    }
+
+#define CUBOID_SELF_NORET(handle) \
+    MxCuboid *self = &_Engine.s.cuboids[((MxCuboidHandle*)handle)->id]; \
+    if(self == NULL) { \
+        throw std::runtime_error("Cuboid has been destroyed or is invalid"); \
     }
 
 #define CUBOID_PROP_SELF(handle) \
     MxCuboid *self = &_Engine.s.cuboids[((MxCuboidHandle*)handle)->id]; \
     if(self == NULL) { \
-        PyErr_SetString(PyExc_ReferenceError, "Cuboid has been destroyed or is invalid"); \
+        throw std::runtime_error("Cuboid has been destroyed or is invalid"); \
+        return -1; \
     }
 
 
@@ -90,7 +98,7 @@ void MxCuboidHandle::init(const MxVector3f &pos, const MxVector3f &size, const M
 
 void MxCuboidHandle::scale(const MxVector3f &scale) {
     try {
-        CUBOID_SELF(this);
+        CUBOID_SELF_NORET(this);
         self->size = MxMatrix4f::scaling(scale).transformVector(self->size);
     }
     catch(const std::exception &e) {

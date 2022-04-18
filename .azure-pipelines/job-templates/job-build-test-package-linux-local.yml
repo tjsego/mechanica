@@ -48,10 +48,13 @@ jobs:
 
       # Test
       - script: |
-          source $(INSTALL_DIR)/etc/mx_vars.sh
+          source $(SOURCE_DIR)/package/local/linux/mx_install_vars.sh
           source activate ${MXENV}
-          $(EXEC_PYTHON) $(SOURCE_DIR)/.azure-pipelines/tests-temp/test.py
-        displayName: Run supplementary test
+          conda install -y pytest
+          bash $(SOURCE_DIR)/testing/build_tests.sh
+          source $(INSTALL_DIR)/etc/mx_vars.sh
+          bash $(SOURCE_DIR)/testing/run_tests.sh
+        displayName: Run tests
 
       # Package
       - script: |

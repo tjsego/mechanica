@@ -82,4 +82,10 @@ Events
 
     .. autoproperty:: key_name
 
+    .. autoproperty:: key_alt
+
+    .. autoproperty:: key_ctrl
+
+    .. autoproperty:: key_shift
+
 .. autofunction:: on_keypress

@@ -94,7 +94,7 @@ set(mechanica_py_LIBS
   Magnum::Primitives
   Magnum::MeshTools
   LibSBML::LibSBML
-  JPEG::JPEG 
+  MagnumPlugins::StbImageConverter
   TgaImageConverter
   assimp::assimp
 )

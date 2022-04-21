@@ -28,8 +28,23 @@ with specifications made using :ref:`Style <style>` objects, ::
     mx.system.setShininess(0.5 * mx.system.getShininess())
     # Move camera location
     mx.system.setLightDirection(mx.MxVector3f(1, 1, 1))
-    # Save a screenshot with decorations and a white background
-    mx.system.screenshot('mysim.jpg', decorate=True, bgcolor=[1, 1, 1])
+
+Screenshots can be taken of the current view and saved to file. Temporary modifications
+to select features can be applied when generating a screenshot, like disabling scene
+decorations and altering the background color of the scene, ::
+
+    # Save a .png screenshot of the current scene as it's displayed
+    mx.system.screenshot('mysim.png')
+    # Save a .jpg screenshot without decorations and a white background
+    mx.system.screenshot('mysim.jpg', decorate=False, bgcolor=[1, 1, 1])
+
+Mechanica currently supports generating screenshots and saving with the following file formats,
+
+* Windows Bitmap (.bmp)
+* JPEG (.jpg/.jpeg/.jpe)
+* Radiance HDR (.hdr)
+* PNG (.png)
+* Truevision TGA (.tga)
 
 Controlling the Camera
 ^^^^^^^^^^^^^^^^^^^^^^^

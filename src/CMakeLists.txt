@@ -293,7 +293,6 @@ set_target_properties(mechanica_obj PROPERTIES
 
 
 target_include_directories(mechanica_obj PRIVATE
-  ${JPEG_INCLUDE_DIRS}
   ${ASSIMP_INCLUDE_DIRS}
   ${JSON_INCLUDE_DIRS}
   )
@@ -318,10 +317,13 @@ target_link_libraries(mechanica_obj
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
+  MagnumPlugins::StbImageConverter
   assimp::assimp
   ${OPENGL_LIBRARIES}
   mdcore_single
 )
+
+add_dependencies(mechanica_obj MagnumPlugins::StbImageConverter)
 
 if(MX_WITHCUDA)
   target_link_libraries(mechanica_obj
@@ -400,7 +402,7 @@ target_link_libraries(mechanica_shared
   Magnum::Primitives
   Magnum::MeshTools
   LibSBML::LibSBML
-  JPEG::JPEG 
+  MagnumPlugins::StbImageConverter
   TgaImageConverter
   assimp::assimp
   )

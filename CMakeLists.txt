@@ -311,20 +311,6 @@ if(MX_WITH_PYTHON)
 
 endif(MX_WITH_PYTHON)
 
-# needed for jpeg image writer
-if(UNIX)
-  # link statically with JPEG, so we dont have to ship a dylib,
-  # brew installs newer JPEG, so that conflicts with stuff
-  find_library(libJPEG NAMES libjpeg.a REQUIRED)
-  message("libjpeg path: ${libJPEG}")
-  set(JPEG_LIBRARY_RELEASE ${libJPEG})
-endif()
-find_package(JPEG REQUIRED)
-
-message("JPEG_INCLUDE_DIRS: ${JPEG_INCLUDE_DIRS}")
-message("JPEG_LIBRARIES: ${JPEG_LIBRARIES}")
-message("JPEG_VERSION: ${JPEG_VERSION}")
-
 set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install location for Mechanica")
 
 set(BUILD_SHARED_LIBS ON CACHE BOOL "build shared/dynamic library")
@@ -385,6 +371,10 @@ endforeach()
 
 # process dependencies first
 add_subdirectory(extern)
+
+find_package(MagnumPlugins REQUIRED 
+  StbImageConverter
+)
 
 add_subdirectory(include)
 add_subdirectory(src)

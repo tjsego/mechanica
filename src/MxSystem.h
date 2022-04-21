@@ -34,7 +34,15 @@ struct CAPI_EXPORT MxSystem {
    static std::tuple<char*, size_t> imageData();
 
    /**
-    * @brief Save a screenshot of the current scene
+    * @brief Save a screenshot of the current scene. 
+    * 
+    * File formats currently supported are 
+    * 
+    * - Windows Bitmap (.bmp)
+    * - Radiance HDR (.hdr)
+    * - JPEG (.jpe, .jpg, .jpeg)
+    * - PNG (.png)
+    * - Truevision TGA (.tga)
     * 
     * @param filePath path of file to save
     * @return HRESULT 
@@ -42,7 +50,15 @@ struct CAPI_EXPORT MxSystem {
    static HRESULT screenshot(const std::string &filePath);
    
    /**
-    * @brief Save a screenshot of the current scene
+    * @brief Save a screenshot of the current scene. 
+    * 
+    * File formats currently supported are 
+    * 
+    * - Windows Bitmap (.bmp)
+    * - Radiance HDR (.hdr)
+    * - JPEG (.jpe, .jpg, .jpeg)
+    * - PNG (.png)
+    * - Truevision TGA (.tga)
     * 
     * @param filePath path of file to save
     * @param decorate flag to decorate the scene in the screenshot

@@ -305,6 +305,10 @@ protected:
 };
 
 Corrade::Containers::Array<char> MxJpegImageData();
+Corrade::Containers::Array<char> MxBMPImageData();
+Corrade::Containers::Array<char> MxHDRImageData();
+Corrade::Containers::Array<char> MxPNGImageData();
+Corrade::Containers::Array<char> MxTGAImageData();
 
 std::tuple<char*, size_t> MxTestImage();
 

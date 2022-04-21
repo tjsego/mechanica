@@ -26,7 +26,6 @@ requirements:
   host:
     - python {{ python }}
     - numpy
-    - jpeg
     - bzip2
     - libxml2
     - assimp=5
@@ -64,7 +63,6 @@ requirements:
   run:
     - python
     - {{ pin_compatible('numpy') }}
-    - jpeg
     - matplotlib
     - assimp=5
     - nlohmann_json

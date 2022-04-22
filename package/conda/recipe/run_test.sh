@@ -34,5 +34,8 @@ cmake -G "Ninja" \
 
 cmake --build "${MXTESTS_BUILDDIR}" --config ${MXBUILD_CONFIG}
 
+if [[ $(uname) != Darwin ]]; then
+    export LD_LIBRARY_PATH=${PREFIX}/lib:${LD_LIBRARY_PATH}
+fi
 cd ${MXTESTS_BUILDDIR}
 ctest --output-on-failure

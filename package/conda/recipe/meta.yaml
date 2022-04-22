@@ -28,7 +28,7 @@ requirements:
     - numpy
     - bzip2
     - libxml2
-    - assimp=5
+    - assimp>=5.0.0,<5.2.3
     - nlohmann_json
     - pthreads-win32 # [win]
     - vs2019_win-64<=19.28 # [win]
@@ -64,7 +64,7 @@ requirements:
     - python
     - {{ pin_compatible('numpy') }}
     - matplotlib
-    - assimp=5
+    - assimp>=5.0.0,<5.2.3
     - nlohmann_json
     - pthreads-win32 # [win]
 

@@ -351,7 +351,7 @@ find_package(assimp REQUIRED)
 if(assimp_FOUND)
   message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
 else()
-  message("ASSIMP not found")
+  message("Assimp not found")
 endif()
 
 if(DEFINED ENV{JSON_INCLUDE_DIRS})
@@ -359,7 +359,7 @@ if(DEFINED ENV{JSON_INCLUDE_DIRS})
 else()
   set(JSON_INCLUDE_DIRS ${CMAKE_FIND_ROOT_PATH}/include)
 endif()
-message("JSON inlucde: ${JSON_INCLUDE_DIRS}")
+message("JSON include: ${JSON_INCLUDE_DIRS}")
 
 
 message("before extern include path: ${CMAKE_INCLUDE_PATH}")

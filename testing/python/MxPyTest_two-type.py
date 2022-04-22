@@ -9,7 +9,7 @@ count = 300
 dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim, cutoff=cutoff, windowless=True)
+mx.init(dim=dim, cutoff=cutoff, cells=[4, 4, 4], windowless=True)
 
 
 class BigType(mx.ParticleType):
@@ -20,7 +20,6 @@ class BigType(mx.ParticleType):
 class SmallType(mx.ParticleType):
     mass = 0.1
     radius = 0.2
-    target_temperature = 0
 
 
 Big = BigType.get()

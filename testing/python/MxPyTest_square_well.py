@@ -3,13 +3,13 @@ import mechanica as mx
 # potential cutoff distance
 cutoff = 8
 
-receptor_count = 1000
+receptor_count = 100
 
 # dimensions of universe
 dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim, cutoff=cutoff, cells=[4, 4, 4], threads=8, windowless=True)
+mx.init(dim=dim, cutoff=cutoff, cells=[4, 4, 4], windowless=True)
 
 
 class NucleusType(mx.ParticleType):
@@ -18,10 +18,8 @@ class NucleusType(mx.ParticleType):
 
 
 class ReceptorType(mx.ParticleType):
-    mass = 0.2
+    mass = 1.0
     radius = 0.05
-    target_temperature = 1
-    # dynamics = mx.Overdamped
 
 
 Nucleus = NucleusType.get()
@@ -38,8 +36,7 @@ mx.bind.types(pot_rr, Receptor, Receptor)
 mx.bind.types(pot_nr, Nucleus, Receptor)
 
 # create a random force (Brownian motion), zero mean of given amplitide
-tstat = mx.Force.random(mean=0, std=3)
-vtstat = mx.Force.random(mean=0, std=5)
+tstat = mx.Force.random(mean=0, std=0.1)
 
 # bind it just like any other force
 mx.bind.force(tstat, Receptor)

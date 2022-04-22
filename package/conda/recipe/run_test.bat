@@ -25,6 +25,6 @@ if errorlevel 1 exit 2
 cmake --build "%MXTESTS_BUILDDIR%" --config %MXBUILD_CONFIG%
 if errorlevel 1 exit 3
 
-set PATH=%LIBRARY_PREFIX%\bin;%PATH%
+set PATH=%LIBRARY_BIN%;%PATH%
 cd %MXTESTS_BUILDDIR%
 ctest --output-on-failure

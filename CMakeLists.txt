@@ -141,6 +141,15 @@ if(MX_HAVECUDA)
   endif()
 endif()
 
+# Find assimp before magnum-plugins to avoid fixes that don't seem relevant for current versions
+find_package(assimp REQUIRED)
+
+if(assimp_FOUND)
+  message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
+else()
+  message("Assimp not found")
+endif()
+
 # quiet linker warnings on Apple
 # set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
@@ -345,14 +354,6 @@ include_directories(${OPENGL_INCLUDE_DIR})
 #  message("LLVM_VERSION_STRING: ${LLVM_VERSION_STRING}")
 #
 #endif()
-
-find_package(assimp REQUIRED)
-
-if(assimp_FOUND)
-  message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
-else()
-  message("Assimp not found")
-endif()
 
 if(DEFINED ENV{JSON_INCLUDE_DIRS})
   set(JSON_INCLUDE_DIRS "$ENV{JSON_INCLUDE_DIRS}" CACHE STRING "")

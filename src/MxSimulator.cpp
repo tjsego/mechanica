@@ -9,7 +9,9 @@
 #include <rendering/MxUI.h>
 #include <rendering/MxTestView.h>
 
+#include <Magnum/Magnum.h>
 #include <Magnum/GL/Context.h>
+#include <Magnum/Platform/Implementation/DpiScaling.h>
 
 #include "rendering/MxApplication.h"
 #include "rendering/MxUniverseRenderer.h"
@@ -25,6 +27,7 @@
 #include <mx_error.h>
 #include <mx_parse.h>
 #include <io/MxFIO.h>
+#include <types/MxMagnum.h>
 
 // mdcore errs.h
 #include <errs.h>
@@ -79,7 +82,7 @@ MxSimulator_Config::MxSimulator_Config():
 
 MxSimulator::GLConfig::GLConfig():
 _colorBufferSize{8, 8, 8, 0}, _depthBufferSize{24}, _stencilBufferSize{0},
-_sampleCount{0}, _version{GL::Version::None},
+_sampleCount{0}, _version{mx::cast<GL::Version, std::int32_t>(GL::Version::None)},
 #ifndef MAGNUM_TARGET_GLES
 _flags{Flag::ForwardCompatible},
 #else

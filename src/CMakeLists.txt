@@ -95,6 +95,7 @@ set(SRC
   state/MxStateVector.cpp
 
   types/mx_cast.cpp
+  types/MxMagnum.cpp
   )
 
 
@@ -188,6 +189,7 @@ set(HEADERS
 
   types/mx_cast.h
   types/mx_types.h
+  types/MxMagnum.h
   types/MxVector.h
   types/MxVector2.h
   types/MxVector3.h

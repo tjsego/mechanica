@@ -24,7 +24,7 @@
 #include <Magnum/Image.h>
 #include <Magnum/GL/Context.h>
 #include <Magnum/GL/Version.h>
-
+#include <Magnum/Platform/GLContext.h>
 
 #include <Magnum/SceneGraph/Scene.h>
 #include <Magnum/SceneGraph/Camera.h>

@@ -18,6 +18,8 @@ Python API that's designed to be used for model and simulation specification in
 executable Python scripts, an IPython console and a Jupyter Notebook. 
 Mechanica currently supports installations on 64-bit Windows, Linux and MacOS systems. 
 
+To get the latest version of Mechanica, [![Anaconda-Server Badge](https://anaconda.org/mechanica/mechanica/badges/installer/conda.svg)](https://conda.anaconda.org/mechanica)
+
 To run Mechanica online in JupyterLab, [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/tjsego/mechanica-binder/HEAD)
 
 ## Build Status ##

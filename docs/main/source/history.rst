@@ -3,6 +3,34 @@
 History
 ========
 
+Version 0.32.0
+--------------
+Minor features and bug fix release
+
+* Adds C API
+* Adds and integrates test suite
+* Finishes all current features in lattice python module
+* Updates Jupyter deployment and widgets
+* Adds notebooks to distributed examples
+* Adds rendered notebooks and gallery to docs examples
+* Adds settable particle position, velocity and force
+* Adds automatic destruction of angles and dihedrals connected to a destroyed particle
+* Adds improved checks to particle handle and type
+* Adds key modifiers to key events
+* Adds support for multiple new screenshot file formats
+* Splits language support and bindings into separate, self-contained modules
+* Major cleanup of codebase
+* Minor bug fixes
+
+  * Fixes particle position details very close to boundaries
+  * Removes redundant random force in Friction
+  * Refactores Berendsen to correct typo
+  * Fixes/improves argument handling in python particle construction
+  * Fixes inventory tracking during particle destruction
+  * Fixes cluster particle factory
+  * Fixes visible types in particle become
+  * Adds templates for universe grid
+
 Version 0.31.0
 --------------
 Huge release, with completion of (hopefully) all features for Version 1.0.0

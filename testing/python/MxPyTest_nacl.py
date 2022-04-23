@@ -1,6 +1,6 @@
 import mechanica as mx
 
-mx.init(window_size=[1000, 1000], windowless=True)
+mx.init(windowless=True)
 
 
 class NaType(mx.ParticleType):
@@ -18,8 +18,6 @@ Na, Cl = NaType.get(), ClType.get()
 uc = mx.lattice.bcc(0.9, [Na, Cl])
 
 mx.lattice.create_lattice(uc, [10, 10, 10])
-
-mx.step(100*mx.Universe.dt)
 
 
 def test_pass():

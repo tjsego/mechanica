@@ -10,6 +10,7 @@
 
 #include "MxEventList.h"
 
+#include <limits>
 #include <unordered_map>
 
 struct MxTimeEvent;

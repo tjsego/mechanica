@@ -1,3 +1,8 @@
+# Fixing seeming libxml2 bug not finding unicode headers on osx
+if(MX_APPLE)
+  include_directories(${CMAKE_FIND_ROOT_PATH}/include)
+endif()
+
 # build libsbml
 
 set(LIBSBML_SHARED_VERSION OFF CACHE BOOL "dont build shared libsbml")
@@ -186,7 +191,9 @@ set(WITH_TGAIMAGECONVERTER ON CACHE BOOL "Build TGA Image Converter" FORCE)
 
 add_subdirectory(magnum)
 
-# add_subdirectory(magnum-plugins)
+set(WITH_STBIMAGECONVERTER ON CACHE BOOL "Build Stb Image Converter" FORCE)
+
+add_subdirectory(magnum-plugins EXCLUDE_FROM_ALL)
 
 # SUNDIALS options
 set(BUILD_ARKODE         OFF CACHE BOOL "Build this SUNDIALS feature" FORCE)

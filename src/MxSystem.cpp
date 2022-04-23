@@ -326,6 +326,258 @@ HRESULT MxSystem::cameraTranslateMouse(const MxVector2i &mousePos) {
     }
 }
 
+HRESULT MxSystem::cameraTranslateDown() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateDown();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateUp() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateUp();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateRight() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateRight();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateLeft() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateLeft();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateForward() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateForward();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraTranslateBackward() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraTranslateBackward();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRotateDown() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRotateDown();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRotateUp() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRotateUp();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRotateLeft() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRotateLeft();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRotateRight() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRotateRight();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRollLeft() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRollLeft();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraRollRight() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraRollRight();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraZoomIn() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraZoomIn();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
+HRESULT MxSystem::cameraZoomOut() {
+    try {
+        Log(LOG_TRACE);
+        
+        MxSimulator *sim = MxSimulator::get();
+        
+        MxUniverseRenderer *renderer = sim->app->getRenderer();
+        
+        renderer->cameraZoomOut();
+        
+        return S_OK;
+    }
+    catch(const std::exception &e) {
+        mx_exp(e);
+        return E_FAIL;
+    }
+}
+
 HRESULT MxSystem::cameraInitMouse(const MxVector2i &mousePos) {
     try {
         MxSimulator *sim = MxSimulator::get();
@@ -897,108 +1149,6 @@ std::unordered_map<std::string, std::string> MxSystem::test_headless() {
 #else
 #error no windowless application available on this platform
 #endif
-
-PyObject *MxSystemPy::test_image() {
-    return MxTestImage(Py_None);
-}
-
-PyObject *MxSystemPy::image_data() {
-    return MxFramebufferImageData(Py_None);
-}
-
-bool MxSystemPy::is_terminal_interactive() {
-    return Mx_TerminalInteractiveShell();
-}
-
-bool MxSystemPy::is_jupyter_notebook() {
-    return Mx_ZMQInteractiveShell();
-}
-
-PyObject *MxSystemPy::jwidget_init(PyObject *args, PyObject *kwargs) {
-    
-    PyObject* moduleString = PyUnicode_FromString((char*)"mechanica.jwidget");
-    
-    if(!moduleString) {
-        return NULL;
-    }
-    
-    #if defined(__has_feature)
-    #  if __has_feature(thread_sanitizer)
-        std::cout << "thread sanitizer, returning NULL" << std::endl;
-        return NULL;
-    #  endif
-    #endif
-    
-    PyObject* module = PyImport_Import(moduleString);
-    if(!module) {
-        mx_error(E_FAIL, "could not import mechanica.jwidget package");
-        return NULL;
-    }
-    
-    // Then getting a reference to your function :
-
-    PyObject* init = PyObject_GetAttrString(module,(char*)"init");
-    
-    if(!init) {
-        mx_error(E_FAIL, "mechanica.jwidget package does not have an init function");
-        return NULL;
-    }
-
-    PyObject* result = PyObject_Call(init, args, kwargs);
-    
-    Py_DECREF(moduleString);
-    Py_DECREF(module);
-    Py_DECREF(init);
-    
-    if(!result) {
-        Log(LOG_ERROR) << "error calling mechanica.jwidget.init: " << mx::pyerror_str();
-    }
-    
-    return result;
-}
-
-PyObject *MxSystemPy::jwidget_run(PyObject *args, PyObject *kwargs) {
-    PyObject* moduleString = PyUnicode_FromString((char*)"mechanica.jwidget");
-    
-    if(!moduleString) {
-        return NULL;
-    }
-    
-    #if defined(__has_feature)
-    #  if __has_feature(thread_sanitizer)
-        std::cout << "thread sanitizer, returning NULL" << std::endl;
-        return NULL;
-    #  endif
-    #endif
-    
-    PyObject* module = PyImport_Import(moduleString);
-    if(!module) {
-        mx_error(E_FAIL, "could not import mechanica.jwidget package");
-        return NULL;
-    }
-    
-    // Then getting a reference to your function :
-
-    PyObject* run = PyObject_GetAttrString(module,(char*)"run");
-    
-    if(!run) {
-        mx_error(E_FAIL, "mechanica.jwidget package does not have an run function");
-        return NULL;
-    }
-
-    PyObject* result = PyObject_Call(run, args, kwargs);
-
-    if (!result) {
-        Log(LOG_ERROR) << "error calling mechanica.jwidget.run: " << mx::pyerror_str();
-    }
-
-    Py_DECREF(moduleString);
-    Py_DECREF(module);
-    Py_DECREF(run);
-    
-    return result;
-    
-}
 
 void MxPrintPerformanceCounters() {
     MxLoggingBuffer log(LOG_NOTICE, NULL, NULL, -1);

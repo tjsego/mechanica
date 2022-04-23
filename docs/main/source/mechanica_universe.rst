@@ -1,5 +1,7 @@
 .. _mechanica_universe:
 
+.. py:currentmodule:: mechanica
+
 The Mechanica Universe
 -----------------------
 
@@ -29,13 +31,14 @@ has no intrinsic units except those implied by the objects and interactions
 it contains.
 
 For convenience, the universe can always be accessed as a top-level variable
-``Universe`` in Python.
+:py:attr:`Universe` in Python.
 In C++, a pointer to the universe can always be accessed with the function
 ``getUniverse`` (defined in *MxUniverse.h*).
 The universe contains a number of useful properties and methods that
 provide information about both the universe and everything in it in its
 current configuration. For example, the current time and time step can be
-accessed with the universe properties ``time`` and ``dt``, respectively (methods
-:meth:`MxUniverse::getTime` and :meth:`MxUniverse::getDt`, respectively, in C++).
-Likewise, an inventory of all particles and bonds can be :ref:`accessed <accessing>`
-with the universe methods :meth:`particles` and :meth:`bonds`.
+accessed with the universe properties :attr:`time <MxUniverse.time>` and
+:attr:`dt <MxUniverse.dt>`, respectively (methods :meth:`MxUniverse::getTime`
+and :meth:`MxUniverse::getDt`, respectively, in C++). Likewise, an inventory of
+all particles and bonds can be :ref:`accessed <accessing>` with the universe methods
+:meth:`particles <MxUniverse.particles>` and :meth:`bonds <MxUniverse.bonds>`.

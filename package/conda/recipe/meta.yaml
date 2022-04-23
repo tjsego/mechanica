@@ -8,6 +8,7 @@ about:
   license_family: LGPL
   license_file: ../../../LICENSE.txt
   summary: Interactive, particle-based physics, chemistry and biology modeling and simulation environment
+  doc_url: https://mechanica-documentation.readthedocs.io/en/latest/
 
 extra:
   maintainers: T.J. Sego
@@ -25,7 +26,6 @@ requirements:
   host:
     - python {{ python }}
     - numpy
-    - jpeg
     - bzip2
     - libxml2
     - assimp=5
@@ -63,12 +63,22 @@ requirements:
   run:
     - python
     - {{ pin_compatible('numpy') }}
-    - jpeg
     - matplotlib
     - assimp=5
     - nlohmann_json
     - pthreads-win32 # [win]
 
 test:
+  requires:
+    - cmake>=3.20.3 # [linux or osx]
+    - pytest # [linux or osx]
+    - ninja # [linux or osx]
+    - clang=12 # [linux]
+    - clangxx=12 # [linux]
+    - lld # [linux]
+    - {{ compiler('c') }} # [linux or osx]
+    - {{ compiler('cxx') }} # [linux or osx]
+  source_files:
+    - testing # [linux or osx]
   imports:
-    mechanica
+    - mechanica # [win]

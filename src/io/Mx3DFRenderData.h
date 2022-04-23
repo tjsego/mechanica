@@ -14,7 +14,7 @@
 #include <mechanica_private.h>
 
 
-struct Mx3DFRenderData {
+struct CAPI_EXPORT Mx3DFRenderData {
 
     MxVector3f color = {0.f, 0.f, 0.f};
 

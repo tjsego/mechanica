@@ -391,6 +391,28 @@ struct MxParticle *space_cell_add ( struct space_cell *c , struct MxParticle *p 
 
 }
 
+int space_cell_remove(struct space_cell *c, struct MxParticle *p, struct MxParticle **partlist) {
+	/* check inputs */
+	if ( c == NULL || p == NULL ) {
+		return cell_err_null;
+	}
+
+	// index of cell in cell particle array.
+    size_t cid = p - c->parts;
+
+	assert(p == &c->parts[cid] && "pointer arithmetic error");
+
+	c->count -= 1;
+    if (cid < c->count) {
+        c->parts[cid] = c->parts[c->count];
+		if(partlist != NULL) {
+			partlist[c->parts[cid].id] = &(c->parts[cid]);
+		}
+    }
+
+	return cell_err_ok;
+}
+
 
 /**
  * @brief Initialize the given cell.

@@ -12,6 +12,7 @@
 
 #include <MxUtil.h>
 #include <MxThreadPool.hpp>
+#include <MxLogger.h>
 #include <mx_error.h>
 
 #include <mdcore_config.h>
@@ -48,11 +49,11 @@ MxRandomType &MxRandomEngine() {
     return *MxRandom_p;
 }
 
-unsigned int getSeed() {
+unsigned int MxGetSeed() {
     return randomSeed;
 }
 
-HRESULT setSeed(const unsigned int *_seed) {
+HRESULT MxSetSeed(const unsigned int *_seed) {
 
     unsigned int seed;
 
@@ -772,7 +773,7 @@ Magnum::Color3 Color3_Parse(const std::string &s)
     
     std::string warning = std::string("Warning, \"") + s + "\" is not a valid color name.";
     
-    PyErr_WarnEx(PyExc_Warning, warning.c_str(), 0);
+    Log(LOG_WARNING) << warning.c_str();
 
     return Magnum::Color3{};
 }
@@ -948,6 +949,31 @@ HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,
     }
 
     return S_OK;
+}
+
+MxVector3f MxRandomVector(float mean, float std) {
+    std::normal_distribution<> dist{mean,std};
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
+    MxRandomType &MxRandom = MxRandomEngine();
+    float theta = 2 * M_PI * uniform01(MxRandom);
+    float phi = acos(1 - 2 * uniform01(MxRandom));
+    float r = dist(MxRandom);
+    float x = r * sin(phi) * cos(theta);
+    float y = r * sin(phi) * sin(theta);
+    float z = r * cos(phi);
+    return MxVector3f{x, y, z};
+}
+
+MxVector3f MxRandomUnitVector() {
+    std::uniform_real_distribution<double> uniform01(0.0, 1.0);
+    MxRandomType &MxRandom = MxRandomEngine();
+    float theta = 2 * M_PI * uniform01(MxRandom);
+    float phi = acos(1 - 2 * uniform01(MxRandom));
+    float r = 1.;
+    float x = r * sin(phi) * cos(theta);
+    float y = r * sin(phi) * sin(theta);
+    float z = r * cos(phi);
+    return MxVector3f{x, y, z};
 }
 
 static void energy_find_neighborhood(std::vector<MxVector3f> const &points,

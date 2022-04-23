@@ -9,7 +9,7 @@ Forces
 
     .. automethod:: bind_species
 
-    .. automethod:: berenderson_tstat
+    .. automethod:: berendsen_tstat
 
     .. automethod:: random
 

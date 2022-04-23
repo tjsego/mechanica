@@ -1,0 +1,48 @@
+import mechanica as mx
+import numpy as np
+
+# dimensions of universe
+dim = [30., 30., 30.]
+
+mx.init(dim=dim,
+        cutoff=10,
+        integrator=mx.FORWARD_EULER,
+        cells=[3, 3, 3],
+        dt=0.001, windowless=True)
+
+
+class AType(mx.ParticleType):
+    radius = 1
+    dynamics = mx.Newtonian
+    mass = 20
+    style = {"color": "MediumSeaGreen"}
+
+
+A = AType.get()
+
+p = mx.Potential.glj(e=50, m=6, max=3)
+cp = mx.Potential.coulomb(q=5000, min=0.05, max=10)
+
+mx.bind.cuboid(p, A)
+mx.bind.types(cp, A, A)
+
+rforce = mx.Force.friction(0.01)
+
+# bind it just like any other force
+mx.bind.force(rforce, A)
+
+c = mx.Cuboid.create(mx.Universe.center + [0, 0, 0], size=[25, 31, 5])
+
+c.spin = [0.0, 8.5, 0.0]
+
+# uniform random cube
+positions = np.random.uniform(low=0, high=30, size=(2500, 3))
+
+for p in positions:
+    A(p, velocity=[0, 0, 0])
+
+mx.step(100*mx.Universe.dt)
+
+
+def test_pass():
+    pass

@@ -51,4 +51,4 @@ for p in pts:
     Cell(p)
 
 # run the simulator interactive
-mx.Simulator.run()
+mx.run()

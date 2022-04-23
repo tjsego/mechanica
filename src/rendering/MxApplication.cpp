@@ -24,7 +24,7 @@
 
 
 #include <Corrade/Utility/Directory.h>
-#include <rendering/MxImageConverters.h>
+#include <Corrade/Utility/String.h>
 #include <Magnum/Math/Color.h>
 
 #include <MxUtil.h>
@@ -92,19 +92,7 @@ std::tuple<char*, size_t> MxTestImage() {
     return std::make_tuple(jpegData.data(), jpegData.size());
 }
 
-PyObject* MxTestImage(PyObject* dummyo) {
-
-    char *data;
-    size_t size;
-    std::tie(data, size) = MxTestImage();
-
-    if (data == NULL)
-        return NULL;
-    
-    return PyBytes_FromStringAndSize(data, size);
-}
-
-Corrade::Containers::Array<char> _MxJpegImageData() {
+Magnum::GL::AbstractFramebuffer *MxGetFrameBuffer() {
     PerformanceTimer t1(engine_timer_image_data);
     PerformanceTimer t2(engine_timer_render_total);
     
@@ -112,18 +100,51 @@ Corrade::Containers::Array<char> _MxJpegImageData() {
     
     if(!Magnum::GL::Context::hasCurrent()) {
         mx_error(E_FAIL, "No current OpenGL context");
-        return Corrade::Containers::Array<char>();
+        return NULL;
     }
     
     MxSimulator *sim = MxSimulator::get();
     
     sim->app->redraw();
     
-    Magnum::GL::AbstractFramebuffer &framebuffer = sim->app->framebuffer();
+    return &sim->app->framebuffer();
+}
 
-    Image2D image = framebuffer.read(framebuffer.viewport(), PixelFormat::RGBA8Unorm);
+typedef Corrade::Containers::Array<char> (*imgCnv_t)(ImageView2D);
+typedef Corrade::Containers::Array<char> (*imgGen_t)();
+
+Corrade::Containers::Array<char> MxImageData(imgCnv_t imgCnv, const PixelFormat &format) {
+    PerformanceTimer t1(engine_timer_image_data);
+    PerformanceTimer t2(engine_timer_render_total);
     
-    return convertImageDataToJpeg(image);
+    Log(LOG_TRACE);
+    
+    Magnum::GL::AbstractFramebuffer *framebuffer = MxGetFrameBuffer();
+
+    if(!framebuffer) 
+        return Corrade::Containers::Array<char>();
+
+    return imgCnv(framebuffer->read(framebuffer->viewport(), format));
+}
+
+Corrade::Containers::Array<char> MxJpegImageData() {
+    return MxImageData((imgCnv_t)[](ImageView2D image) { return convertImageDataToJpeg(image, 100); }, PixelFormat::RGB8Unorm);
+}
+
+Corrade::Containers::Array<char> MxBMPImageData() {
+    return MxImageData((imgCnv_t)convertImageDataToBMP, PixelFormat::RGB8Unorm);
+}
+
+Corrade::Containers::Array<char> MxHDRImageData() {
+    return MxImageData((imgCnv_t)convertImageDataToHDR, PixelFormat::RGB32F);
+}
+
+Corrade::Containers::Array<char> MxPNGImageData() {
+    return MxImageData((imgCnv_t)convertImageDataToPNG, PixelFormat::RGBA8Unorm);
+}
+
+Corrade::Containers::Array<char> MxTGAImageData() {
+    return MxImageData((imgCnv_t)convertImageDataToTGA, PixelFormat::RGBA8Unorm);
 }
 
 std::tuple<char*, size_t> MxFramebufferImageData() {
@@ -132,26 +153,34 @@ std::tuple<char*, size_t> MxFramebufferImageData() {
     
     Log(LOG_TRACE);
     
-    auto jpegData = _MxJpegImageData();
+    auto jpegData = MxJpegImageData();
 
     return std::make_tuple(jpegData.data(), jpegData.size());
 }
 
-PyObject* MxFramebufferImageData(PyObject *dummyo) {
-
-    Log(LOG_TRACE);
-    
-    auto jpegData = _MxJpegImageData();
-    char *data = jpegData.data();
-    size_t size = jpegData.size();
-    
-    return PyBytes_FromStringAndSize(data, size);
-}
-
 HRESULT MxScreenshot(const std::string &filePath) {
     Log(LOG_TRACE);
+
+    std::string filePath_l = Utility::String::lowercase(filePath);
+
+    imgGen_t imgGen;
+
+    if(Utility::String::endsWith(filePath_l, ".bmp"))
+        imgGen = MxBMPImageData;
+    else if(Utility::String::endsWith(filePath_l, ".hdr"))
+        imgGen = MxHDRImageData;
+    else if(Utility::String::endsWith(filePath_l, ".jpe") || Utility::String::endsWith(filePath_l, ".jpg") || Utility::String::endsWith(filePath_l, ".jpeg"))
+        imgGen = MxJpegImageData;
+    else if(Utility::String::endsWith(filePath_l, ".png"))
+        imgGen = MxPNGImageData;
+    else if(Utility::String::endsWith(filePath_l, ".tga"))
+        imgGen = MxTGAImageData;
+    else {
+        Log(LOG_ERROR) << "Cannot determined file format from file path: " << filePath;
+        return E_FAIL;
+    }
     
-    if(!Utility::Directory::write(filePath, _MxJpegImageData())) {
+    if(!Utility::Directory::write(filePath, imgGen())) {
         std::string msg = "Cannot write to file: " + filePath;
         mx_error(E_FAIL, msg.c_str());
         return E_FAIL;

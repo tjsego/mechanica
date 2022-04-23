@@ -1,5 +1,7 @@
 .. _file_io:
 
+.. py:currentmodule:: mechanica
+
 I/O Operations
 ---------------
 
@@ -16,7 +18,7 @@ Loading and Saving a Simulation
 
 Mechanica supports saving the state of a simulation to file at any time during simulation. Almost
 all simulation data can be written to file in JSON format using
-the ``io`` module command :meth:`toFile`, ::
+the ``io`` module command :meth:`toFile <MxIO.toFile>`, ::
 
     import mechanica as mx
     from os import path
@@ -28,9 +30,9 @@ the ``io`` module command :meth:`toFile`, ::
     fp = path.join(path.dirname(path.abspath(__file__)), 'fileexport.json')  # Path of file to export
     mx.io.toFile(fp)                                                         # Export to file
 
-Data files exported using :meth:`toFile` can be imported and used to initialize a simulation in
-approximately the same state as when the exported file was generated. The path to a file containing
-exported data can be passed directly to the keyword ``load_file`` of :meth:`init` when initializing
+Data files exported using :meth:`toFile <MxIO.toFile>` can be imported and used to initialize a simulation
+in approximately the same state as when the exported file was generated. The path to a file containing
+exported data can be passed directly to the keyword ``load_file`` of :func:`init` when initializing
 Mechanica, ::
 
     import mechanica as mx
@@ -105,8 +107,8 @@ with 3D model formats, and so
 are also supported by Mechanica.
 
 Mechanica can also import mesh data in a 3D file and make it available for constructing
-a simulation. The ``io`` method :meth:`fromFile3DF` returns a structure of mesh data as imported
-from a 3D file, ::
+a simulation. The ``io`` method :meth:`fromFile3DF <MxIO.fromFile3DF>` returns a structure of
+mesh data as imported from a 3D file, ::
 
     fp_mesh = path.join(path.dirname(path.abspath(__file__)), 'mesh.obj')  # Path of mesh to import
     io_struct = mx.io.fromFile3DF(fp_mesh)                                 # Import mesh
@@ -117,10 +119,10 @@ from a 3D file, ::
     print(io_struct.num_nodes, 'nodes')
     print('Mesh centroid:', io_struct.centroid)
 
-The :class:`Structure3DF` (:class:`MxStructure3DF` in C++) instance returned by :meth:`fromFile3DF`
-contains all vertices, edges, faces and meshes imported from the 3D file, and provides a few useful
-methods for using the mesh data in a simulation (`e.g.`, building a simulation from a mesh designed
-in Blender), ::
+The :py:attr:`Structure3DF` (:class:`Mx3DFStructure` in C++) instance returned by
+:meth:`fromFile3DF <MxIO.fromFile3DF>` contains all vertices, edges, faces and meshes imported from
+the 3D file, and provides a few useful methods for using the mesh data in a simulation (`e.g.`,
+building a simulation from a mesh designed in Blender), ::
 
     import math
 
@@ -147,8 +149,8 @@ Serializing Mechanica Objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Mechanica supports serialization of most objects using JSON strings for sharing individual model
-objects. Any object that can be serialized has the methods :meth:`toString`, and its class has the static
-method :meth:`fromString`. :meth:`toString` returns a JSON-formatted string of the state of the object,
+objects. Any object that can be serialized has the method ``toString``, and its class has the static
+method ``fromString``. ``toString`` returns a JSON-formatted string of the state of the object,
 which can be exported for sharing, ::
 
     # A Mechanica simulation written by Modeler A.
@@ -165,7 +167,7 @@ which can be exported for sharing, ::
     with open(fp, 'w') as f:
         f.write(A.toString())
 
-The generated string can later be used by the :meth:`fromString` method of the class that generated the
+The generated string can later be used by the ``fromString`` method of the class that generated the
 string to recreate the object, ::
 
     # A Mechanica simulation written by Modeler B.
@@ -191,8 +193,8 @@ All objects that support pickling can be seemlessly integrated into multithreadi
     with Pool(8) as p:
         energy_diffs = p.map(energy_diff, [bh.get() for bh in mx.Universe.bonds()])
 
-All objects that can be pickled have the method :meth:`__reduce__` marked in the
-documentation of their class in the :ref:`Mechanica API Reference <api_reference>`.
+All objects that can be pickled have the method ``__reduce__`` marked in the
+documentation of their class in the :doc:`Mechanica Python API Reference <docs_api_py:index>`.
 
 .. note:: Special care must be taken to account for that deserialized Mechanica objects are copies of
     their original object, and that the Mechanica engine is not available in separate processes. As such,

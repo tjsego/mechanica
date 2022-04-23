@@ -1,5 +1,7 @@
 .. _cuda:
 
+.. py:currentmodule:: mechanica
+
 GPU Acceleration
 =================
 
@@ -28,8 +30,8 @@ Mechanica simulations also utilizes available GPUs.
     Mechanica currently supports acceleration using a single GPU.
     Future releases will support deploying computations on multiple GPUs by computational feature.
 
-Mechanica includes a flag to check whether GPU acceleration is supported by the installation
-(:meth:`mxHasCuda` in C++), ::
+Mechanica includes a flag :py:attr:`has_cuda` to check whether GPU acceleration is supported by the
+installation (:meth:`mxHasCuda` in C++), ::
 
     import mechanica as mx
 
@@ -38,14 +40,14 @@ Mechanica includes a flag to check whether GPU acceleration is supported by the 
 GPU-Accelerated Simulator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:class:`Simulator` provides access to runtime control of GPU-accelerated simulaton features.
+:py:attr:`Simulator` provides access to runtime control of GPU-accelerated simulaton features.
 Each GPU-accelerated simulation feature has its own runtime control interface for configuring and
 deploying on a GPU. GPU runtime control of simulation modules can be accessed directly from
-:class:`Simulator`, ::
+:py:attr:`Simulator`, ::
 
     cuda_config_sim: mx.SimulatorCUDAConfig = mx.Simulator.getCUDAConfig()
 
-The returned :class:`SimulatorCUDAConfig` (:class:`MxSimulatorCUDAConfig` in C++) provides
+The returned :py:attr:`SimulatorCUDAConfig` (:class:`MxSimulatorCUDAConfig` in C++) provides
 convenient access to all current GPU-accelerated simulation features.
 
 GPU-Accelerated Engine
@@ -53,9 +55,9 @@ GPU-Accelerated Engine
 
 Engine GPU acceleration is a GPU-accelerated simulation feature that offloads nonbonded potential
 interactions, fluxes, particle sorting and space partitioning onto a GPU.
-All runtime controls of engine GPU acceleration are available on :class:`EngineCUDAConfig`
+All runtime controls of engine GPU acceleration are available on :py:attr:`EngineCUDAConfig`
 (:class:`MxEngineCUDAConfig` in C++), which is an attribute with name ``engine``
-on :class:`SimulatorCUDAConfig`, ::
+on :py:attr:`SimulatorCUDAConfig`, ::
 
     cuda_config_engine = mx.Simulator.getCUDAConfig().engine  # Get engine cuda runtime interface
 
@@ -75,19 +77,9 @@ particles in a subspace of the simulation space).
 Setting a number of threads per block specifies the number of threads launched per block to work on each
 engine task.
 
-.. figure:: cuda_benchmark.png
-    :align: center
-    :width: 600px
-    :alt: alternate text
-    :figclass: align-center
-
-    Speedup from GPU acceleration using a NVIDIA GeForce GTX 750 Ti compared to multithreading with 8
-    cores on an Intel i7-4790K. Error bars show three standard deviations upward and downward from ten
-    trials of each example script.
-
 Many Mechanica operations automatically update data when running on a GPU.
-However, some operations (*e.g.*, :ref:`binding <binding>` a :class:`Potential`)
-require manual refreshing of engine data for changes to be reflected when running on a GPU.
+However, some operations (*e.g.*, :ref:`binding <binding>` a :py:attr:`Potential`)
+requires manual refreshing of engine data for changes to be reflected when running on a GPU.
 Engine GPU acceleration runtime control provides methods to explicitly tell Mechanica to
 refresh data on a GPU at various levels of granularity, ::
 
@@ -110,9 +102,9 @@ GPU-Accelerated Bonds
 ^^^^^^^^^^^^^^^^^^^^^^
 Bond GPU acceleration is a GPU-accelerated simulation feature that offloads
 :ref:`bonded interactions <bonded_interactions>` onto a GPU.
-All runtime controls of bond GPU acceleration are available on :class:`BondCUDAConfig`
+All runtime controls of bond GPU acceleration are available on :py:attr:`BondCUDAConfig`
 (:class:`MxBondCUDAConfig` in C++), which is an attribute with name ``bonds``
-on :class:`SimulatorCUDAConfig`, ::
+on :py:attr:`SimulatorCUDAConfig`, ::
 
     cuda_config_bonds = mx.Simulator.getCUDAConfig().bonds  # Get bond cuda runtime interface
 
@@ -146,9 +138,9 @@ angle interactions onto a GPU.
 The angle GPU acceleration runtime control interface is pratically identical to that
 of bond GPU acceleration (*e.g.*, ``refreshAngles`` for angle GPU acceleration is analogous
 to ``refreshBonds`` for bond GPU acceleration).
-The angle GPU acceleration runtime control interface is accessible on :class:`AngleCUDAConfig`
+The angle GPU acceleration runtime control interface is accessible on :py:attr:`AngleCUDAConfig`
 (:class:`MxAngleCUDAConfig` in C++), which is available as an attribute with name ``angles``
-on :class:`MxSimulatorCUDAConfig`, ::
+on :py:attr:`SimulatorCUDAConfig`, ::
 
     cuda_config_angles = mx.Simulator.getCUDAConfig().angles  # Get angle cuda runtime interface
 

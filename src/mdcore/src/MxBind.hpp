@@ -16,9 +16,6 @@
 
 #include <utility>
 
-// TODO: document interface of MxBind
-
-
 struct CAPI_EXPORT MxBind {
 
     /**

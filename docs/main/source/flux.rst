@@ -31,10 +31,11 @@ In general, the time evolution of a chemical species attached to the
 where the rate of change of the chemical species attached to a particle is equal
 to the sum of the transport flux :math:`Q^T` and local reactions :math:`Q^R_i`.
 
-Species can be added to a particle type by simply adding a :attr:`species`
-attribute to a particle type class definition and assigning a list of names, each
-of which names a species. Mechancia automatically instantiates each corresponding
-particle of the particle type with a species of each specified name. ::
+Species can be added to a particle type by simply adding a
+:attr:`species <ParticleType.species>` attribute to a particle type class
+definition and assigning a list of names, each of which names a species.
+Mechancia automatically instantiates each corresponding particle of the particle
+type with a species of each specified name. ::
 
     import mechanica as mx
 
@@ -43,21 +44,21 @@ particle of the particle type with a species of each specified name. ::
 
 An instance of a particle type with attached chemical species has a vector of
 chemical species attached to it, which is accessible via the attribute
-:attr:`species`. Likewise each particle with attached chemical species has a state
-vector with a value assigned to each attached species, which is also accessible
-via the attribute :attr:`species`. ::
+:attr:`species <MxParticleType.species>`. Likewise each particle with attached
+chemical species has a state vector with a value assigned to each attached species,
+which is also accessible via the attribute :attr:`species <MxParticleHandle.species>`. ::
 
     A = AType.get()
     print(A.species)  # prints SpeciesList(['S1', 'S2', 'S3'])
     a = A()
     print(a.species)  # prints StateVector([S1:0, S2:0, S3:0])
 
-:class:`SpeciesList` (:class:`MxSpeciesList` in C++) is a special list of SBML
-species definitions. :class:`SpeciesList` can also be created with additional
+:py:attr:`SpeciesList` (:class:`MxSpeciesList` in C++) is a special list of SBML
+species definitions. :py:attr:`SpeciesList` can also be created with additional
 information about the species by instantiating with instances of the Mechanica
-class :class:`Species` (:class:`MxSpecies` in C++).
+class :py:attr:`Species` (:class:`MxSpecies` in C++).
 
-The state vector of type :class:`StateVector` (:class:`MxStateVector` in C++)
+The state vector of type :py:attr:`StateVector` (:class:`MxStateVector` in C++)
 attached to each particle is array-like but, in addition to the numerical
 values of the species, also contains metadata of the species
 definitions. The concentration of a particular species in a particle can be
@@ -74,31 +75,32 @@ accessed by index or name. ::
 Working with Species
 ^^^^^^^^^^^^^^^^^^^^^
 
-By default, Mechanica creates :class:`Species` instances that are
+By default, Mechanica creates :py:attr:`Species` instances that are
 *floating* species, or species with a concentration that varies in time, and
 that participate in reaction and flux processes. However, Mechanica also
 supports other kinds of species such as *boundary* species, as well as additional
 information about the species like its initial values.
 
-The Mechanica :any:`Species` class is *essentially* a wrap around the
+The Mechanica :py:attr:`Species` class is *essentially* a wrap around the
 `libSBML <https://sbml.org/software/libsbml/>`_ ``Species`` class, but
 provides some conveniences in generated languages. For example, in Python Mechanica
 uses convential Python `snake_case` sytax, and all SBML Species properties are
-avialable via simple properties on a Mechanica :class:`Species` object. Many SBML
+avialable via simple properties on a Mechanica :py:attr:`Species` object. Many SBML
 concepts such as `initial_amount`, `constant`, etc. are optional features in
 Mechanica that may or may not be set. For example, to set an initial concentration
-on a :class:`Species` instance ``s``, ::
+on a :py:attr:`Species` instance ``s``, ::
 
     s.initial_concentration = 5.0
 
 Such operations internally update the libSBML Species instance contained within
-the Mechanica :class:`Species` instance, and Mechanica will use the information
-accordingly. In the case of ``initial_concentration``, the value determines the
-initial concentration of created particles when the :class:`Species` belongs to a
-particular particle type. Likewise, setting the attribute ``constant`` of a
-:class:`Species` belonging to a particle type to ``True`` makes all created
+the Mechanica :py:attr:`Species` instance, and Mechanica will use the information
+accordingly. In the case of :attr:`initial_concentration <MxSpecies.initial_concentration>`,
+the value determines the initial concentration of created particles when the
+:py:attr:`Species` belongs to a particular particle type. Likewise, setting the
+attribute :attr:`constant <MxSpecies.constant>` of a
+:py:attr:`Species` belonging to a particle type to ``True`` makes all created
 particles of that type maintaing a constant concentration (and for a particular
-particle when the :class:`Species` instance belongs to a particle), ::
+particle when the :py:attr:`Species` instance belongs to a particle), ::
 
     # Make all particles of type 'a' have constant concentration...
     a.species.S1.constant = True
@@ -106,7 +108,7 @@ particle when the :class:`Species` instance belongs to a particle), ::
     a_part = a()
     a_part.species.species.S1.constant = False
 
-In the simplest case, a Mechanica :class:`Species` instance can be created by
+In the simplest case, a Mechanica :py:attr:`Species` instance can be created by
 constructing with only the name of the species. ::
 
     s = mx.Species("S1")
@@ -118,24 +120,24 @@ condition) by adding ``"$"`` in the argument. ::
     print(bs.id)        # prints 'S2'
     print(bs.boundary)  # prints True
 
-The :class:`Species` constructor also supports specifying initial values,
+The :py:attr:`Species` constructor also supports specifying initial values,
 which can be made using an equality statement. ::
 
     ia = mx.Species("S3 = 1.2345")
     print(ia.id)              # prints 'S3'
     print(ia.initial_amount)  # prints 1.2345
 
-When constructing a :class:`SpeciesList` with :class:`Species` instances, an empty
-:class:`SpeciesList` instance is first created, to which :class:`Species` instances
-are appended using the :class:`SpeciesList` method :meth:`insert`. ::
+When constructing a :py:attr:`SpeciesList` with :py:attr:`Species` instances, an empty
+:py:attr:`SpeciesList` instance is first created, to which :py:attr:`Species` instances
+are appended using the :py:attr:`SpeciesList` method :meth:`insert <MxSpeciesList.insert>`. ::
 
     s_list = mx.SpeciesList()
     s_list.insert(s)
     s_list.insert(ia)
     print(s_list)  # prints SpeciesList(['S1', 'S3'])
 
-Each species in a :class:`SpeciesList` instance can be accessed using the
-:class:`SpeciesList` method :meth:`item`. ::
+Each species in a :py:attr:`SpeciesList` instance can be accessed using the
+:py:attr:`SpeciesList` method :meth:`item <MxSpeciesList.item>`. ::
 
     print(s_list.item("S1").id)  # prints 'S1'
 
@@ -166,12 +168,12 @@ A *flux* describes the transport of species between particles. Fluxes are
 similar to pair-wise forces between particles, in that a flux transports
 a particular species between nearby particles of particular particle types.
 A flux that implements a Fickian diffusion process of chemical species located
-at particles can be created with the static method :meth:`flux` on a top-level
-class :class:`Fluxes` (:class:`MxFluexes` in C++). Mechanica implements a
-diffusion process of chemical species located at particles using the basic
-passive (Fickian) flux type, with the :py:func:`flux`. Fickian flux implements
-a diffusive transport of species concentration :math:`S` located on a pair
-of nearby objects :math:`a` and :math:`b` with the analogous reaction:
+at particles can be created with the static method :meth:`flux <MxFluxes.flux>`
+on a top-level class :py:attr:`Fluxes` (:class:`MxFluxes` in C++). Mechanica
+implements a diffusion process of chemical species located at particles using
+the basic passive (Fickian) flux type, with :meth:`flux <MxFluxes.flux>`. Fickian
+flux implements a diffusive transport of species concentration :math:`S` located
+on a pair of nearby objects :math:`a` and :math:`b` with the analogous reaction:
 
 .. math::
 
@@ -207,10 +209,11 @@ Production and Consumption
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Mechanica supports modeling active pumping for applications like membrane
-ion pumps, or other forms of active transport with the methods :func:`secrete`
-and :func:`uptake`, which are also defined on :class:`Fluxes`.
+ion pumps, or other forms of active transport with the methods
+:meth:`secrete <MxFluxes.secrete>` and :meth:`uptake <MxFluxes.uptake>`,
+which are also defined on :py:attr:`Fluxes`.
 
-The :func:`secrete` flux implements the reaction:
+The :meth:`secrete <MxFluxes.secrete>` flux implements the reaction:
 
 .. math::
 
@@ -220,7 +223,7 @@ The :func:`secrete` flux implements the reaction:
    b.S \rightarrow 0   &;  \frac{d}{2} b.S
    \end{align*}
 
-The :func:`uptake` flux implements the reaction:
+The :meth:`uptake <MxFluxes.uptake>` flux implements the reaction:
 
 .. math::
 
@@ -233,8 +236,8 @@ The :func:`uptake` flux implements the reaction:
 Here :math:`S_{target}` is a target concentration, and all other symbols are
 as previously defined. Note that changes in sign due to the difference of the
 present and target concentrations are permissible. Both methods require the
-same arguments as :meth:`flux` and a fourth argument defining the target
-concentration. ::
+same arguments as :meth:`flux <MxFluxes.flux>` and a fourth argument defining
+the target concentration. ::
 
     mx.Fluxes.secrete(A, B, 'S1', 10.0, 1.0)
 
@@ -243,8 +246,8 @@ An optional decay term can also be included for both methods as a fifth argument
     mx.Fluxes.uptake(B, A, 'S1', 10.0, 1.0, 0.001)
 
 Species can also be secreted directly from a particle to its surroundings.
-A species attached to a particle has a method :meth:`secrete` that takes the argument
-of an amount to be released over the current time step. ::
+A species attached to a particle has a method :meth:`secrete <MxFluxes.secrete>`
+that takes the argument of an amount to be released over the current time step. ::
 
     a = A()
     a.species.S1.secrete(10.0)
@@ -256,6 +259,6 @@ from a particle using the keyword argument ``distance``. ::
     b.species.S1.secrete(5.0, distance=1.0)
 
 The neighborhood can also be defined in terms of particles by passing a
-:class:`ParticleList` instance to the keyword argument ``to``. ::
+:py:attr:`ParticleList` instance to the keyword argument ``to``. ::
 
     b.species.S1.secrete(5.0, to=b.neighbors())

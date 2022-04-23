@@ -8,35 +8,8 @@ Constants
 Geometry Constants
 ^^^^^^^^^^^^^^^^^^^
 
-.. attribute:: Sphere
-    :module: mechanica
-
-    On a sphere
-
-.. attribute:: SolidSphere
-    :module: mechanica
-
-    In a sphere
-
-.. attribute:: Disk
-    :module: mechanica
-
-    On a disk
-
-.. attribute:: SolidCube
-    :module: mechanica
-
-    In a cube
-
-.. attribute:: Cube
-    :module: mechanica
-
-    On a cube
-
-.. attribute:: Ring
-    :module: mechanica
-
-    On a ring
+.. autoclass:: PointsType
+    :members:
 
 Boundary Condition Constants
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

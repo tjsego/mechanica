@@ -34,7 +34,7 @@ MxRandomType &MxRandomEngine();
  * @brief Get the current seed for the pseudo-random number generator
  * 
  */
-CAPI_FUNC(unsigned int) getSeed();
+CAPI_FUNC(unsigned int) MxGetSeed();
 
 /**
  * @brief Set the current seed for the pseudo-random number generator
@@ -42,7 +42,7 @@ CAPI_FUNC(unsigned int) getSeed();
  * @param _seed 
  * @return HRESULT 
  */
-CAPI_FUNC(HRESULT) setSeed(const unsigned int *_seed=0);
+CAPI_FUNC(HRESULT) MxSetSeed(const unsigned int *_seed=0);
 
 enum class MxPointsType : unsigned int {
     Sphere,
@@ -53,7 +53,13 @@ enum class MxPointsType : unsigned int {
     Ring
 };
 
+/**
+ * @brief Get the names of all available colors
+ * 
+ * @return std::vector<std::string> 
+ */
 std::vector<std::string> MxColor3_Names();
+
 Magnum::Color3 Color3_Parse(const std::string &str);
 
 template <typename Type, typename Klass>
@@ -92,17 +98,49 @@ inline void* MxAligned_Malloc(size_t size, size_t alignment)
 #define MxAligned_Free(mem) free(mem)
 #endif
 
+/**
+ * @brief Get the coordinates of a random point in a kind of shape. 
+ * 
+ * Currently supports sphere, disk, solid cube and solid sphere. 
+ * 
+ * @param kind kind of shape
+ * @param dr thickness parameter; only applicable to solid sphere kind
+ * @param phi0 angle lower bound; only applicable to solid sphere kind
+ * @param phi1 angle upper bound; only applicable to solid sphere kind
+ * @return MxVector3f 
+ */
 MxVector3f MxRandomPoint(const MxPointsType &kind, 
                          const float &dr=0, 
                          const float &phi0=0, 
                          const float &phi1=M_PI);
 
+/**
+ * @brief Get the coordinates of random points in a kind of shape. 
+ * 
+ * Currently supports sphere, disk, solid cube and solid sphere.
+ * 
+ * @param kind kind of shape
+ * @param n number of points
+ * @param dr thickness parameter; only applicable to solid sphere kind
+ * @param phi0 angle lower bound; only applicable to solid sphere kind
+ * @param phi1 angle upper bound; only applicable to solid sphere kind
+ * @return std::vector<MxVector3f> 
+ */
 std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind, 
                                        const int &n=1, 
                                        const float &dr=0, 
                                        const float &phi0=0, 
                                        const float &phi1=M_PI);
 
+/**
+ * @brief Get the coordinates of uniform points in a kind of shape. 
+ * 
+ * Currently supports ring and sphere. 
+ * 
+ * @param kind kind of shape
+ * @param n number of points
+ * @return std::vector<MxVector3f> 
+ */
 std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n=1);
 
 /**
@@ -133,9 +171,37 @@ std::vector<MxVector3f> MxFilledCubeRandom(const MxVector3f &corner1, const MxVe
 
 extern const char* MxColor3Names[];
 
+/**
+ * @brief Get the coordinates of an icosphere. 
+ * 
+ * @param subdivisions number of subdivisions
+ * @param phi0 angle lower bound
+ * @param phi1 angle upper bound
+ * @param verts returned vertices
+ * @param inds returned indices
+ * @return HRESULT 
+ */
 HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,
                      std::vector<MxVector3f> &verts,
                      std::vector<int32_t> &inds);
+
+/**
+ * @brief Generates a randomly oriented vector with random magnitude 
+ * with given mean and standard deviation according to a normal 
+ * distribution.
+ * 
+ * @param mean magnitude mean
+ * @param std magnitude standard deviation
+ * @return MxVector3f 
+ */
+MxVector3f MxRandomVector(float mean, float std);
+
+/**
+ * @brief Generates a randomly oriented unit vector.
+ * 
+ * @return MxVector3f 
+ */
+MxVector3f MxRandomUnitVector();
 
 namespace mx {
     template<class T>
@@ -495,6 +561,13 @@ public:
 
 CAPI_FUNC(uint64_t) MxMath_NextPrime(const uint64_t &start_prime);
 
+/**
+ * @brief Get prime numbers, beginning with a starting prime number.
+ * 
+ * @param start_prime Starting prime number
+ * @param n Number of prime numbers to get
+ * @return std::vector<uint64_t> 
+ */
 std::vector<uint64_t> MxMath_FindPrimes(const uint64_t &start_prime, int n);
 
 CAPI_FUNC(HRESULT) MxMath_FindPrimes(uint64_t start_prime, int n, uint64_t *result);

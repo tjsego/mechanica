@@ -9,10 +9,12 @@
 #ifndef SRC_MX_IO_MX3DFIO_H_
 #define SRC_MX_IO_MX3DFIO_H_
 
+#include <mechanica_private.h>
+
 #include "Mx3DFStructure.h"
 
 
-struct Mx3DFIO {
+struct CAPI_EXPORT Mx3DFIO {
     /**
      * @brief Load a 3D format file
      * 

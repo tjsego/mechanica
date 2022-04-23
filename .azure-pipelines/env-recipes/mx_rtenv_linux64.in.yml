@@ -4,7 +4,6 @@ channels:
 dependencies:
   - python=@PYTHON_VERSION@
   - numpy
-  - jpeg
   - bzip2
   - libxml2
   - matplotlib

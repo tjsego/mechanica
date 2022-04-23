@@ -46,9 +46,6 @@ elseif(WIN32)
   set(MX_WINDOWS 1)
 endif()
 
-# directory where we build the mechanica python package
-set(MX_PYPKG_DIR ${CMAKE_BINARY_DIR}/mechanica)
-
 # using magnum, so whole project needs C++11
 set(CMAKE_CXX_STANDARD 17)
 
@@ -130,8 +127,8 @@ else()
   set(MX_HAVECUDA OFF)
 endif()
 
-set(MX_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include/mechanica)
-set(MX_RESOURCE_DIR ${CMAKE_INSTALL_PREFIX}/resources/mechanica)
+set(MX_INCLUDE_DIR include/mechanica)
+set(MX_RESOURCE_DIR resources/mechanica)
 
 if(MX_HAVECUDA)
   enable_language(CUDA)
@@ -142,6 +139,15 @@ if(MX_HAVECUDA)
   if(DEFINED ENV{MX_WITHCUDA})
     set(MX_WITHCUDA ON)
   endif()
+endif()
+
+# Find assimp before magnum-plugins to avoid fixes that don't seem relevant for current versions
+find_package(assimp REQUIRED)
+
+if(assimp_FOUND)
+  message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
+else()
+  message("Assimp not found")
 endif()
 
 # quiet linker warnings on Apple
@@ -236,89 +242,91 @@ else()
   find_package(Threads REQUIRED)
 endif()
 
-find_package(Python 3.7.0...3.9.99 REQUIRED COMPONENTS Interpreter Development)
+# Language options
 
-message("Python_FOUND: ${Python_FOUND}")
-message("Python_Interpeter_FOUND: ${Python_Interpeter_FOUND}")
-message("Python_VERSION: ${Python_VERSION}")
-message("Python_Development_FOUND: ${Python_Development_FOUND}")
+option(MX_WITH_C        "Generate the C language interface for Mechanica."      ON)
+option(MX_WITH_PYTHON   "Generate the Python language interface for Mechanica." ON)
 
-message("Python_Development_FOUND: ${Python_Development_FOUND}")
-message("Python_INCLUDE_DIRS: ${Python_INCLUDE_DIRS}")
-message("Python_LIBRARIES: ${Python_LIBRARIES}")
-message("Python_LIBRARY_DIRS: ${Python_LIBRARY_DIRS}")
-message("Python_RUNTIME_LIBRARY_DIRS: ${Python_RUNTIME_LIBRARY_DIRS}")
-message("Python_EXECUTABLE: ${Python_EXECUTABLE}")
+if(MX_WITH_C) 
 
-execute_process(
-  COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var(name='prefix'))" 
-  OUTPUT_VARIABLE PY_ROOT_DIR
-)
-string(STRIP ${PY_ROOT_DIR} PY_ROOT_DIR)
-file(TO_CMAKE_PATH "${PY_ROOT_DIR}" PY_ROOT_DIR)
-message("PY_ROOT_DIR: ${PY_ROOT_DIR}")
+  set(MX_WRAPS_C_INSTALL_PREFIX include/mechanica/wraps/C)
 
-execute_process(
-  COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path(name='platlib'))" 
-  OUTPUT_VARIABLE PY_SITEPACKAGES
-)
-string(STRIP ${PY_SITEPACKAGES} PY_SITEPACKAGES)
-file(TO_CMAKE_PATH "${PY_SITEPACKAGES}" PY_SITEPACKAGES)
-message("PY_SITEPACKAGES: ${PY_SITEPACKAGES}")
-
-if(Python_Development_FOUND)
-  get_target_property(TMP Python::Python IMPORTED_LOCATION_DEBUG)
-  message("Python IMPORTED_LOCATION_DEBUG: ${TMP}")
-
-  get_target_property(TMP Python::Python IMPORTED_LOCATION_RELEASE)
-  message("Python IMPORTED_LOCATION_RELEASE: ${TMP}")
 endif()
 
-if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
-  # hack to get eclipse C++ indexer to pick up python headers
-  message("setting eclipse include dirs: ${Python_INCLUDE_DIRS}")
-  include_directories(${Python_INCLUDE_DIRS})
-endif()
+# Python setup
 
-# Determine install site-packages location using info from environment if not provided
-if(DEFINED MX_INSTALL_PREFIX_PYTHON)
-  SET(MX_SITEPACKAGES ${MX_INSTALL_PREFIX_PYTHON})
-else()
+if(MX_WITH_PYTHON)
+
+  # directory where we build the mechanica python package
+  set(MX_PYPKG_DIR ${CMAKE_BINARY_DIR}/mechanica)
+
+  find_package(Python 3.7.0...3.9.99 REQUIRED COMPONENTS Interpreter Development)
+
+  message("Python_FOUND: ${Python_FOUND}")
+  message("Python_Interpeter_FOUND: ${Python_Interpeter_FOUND}")
+  message("Python_VERSION: ${Python_VERSION}")
+  message("Python_Development_FOUND: ${Python_Development_FOUND}")
+
+  message("Python_Development_FOUND: ${Python_Development_FOUND}")
+  message("Python_INCLUDE_DIRS: ${Python_INCLUDE_DIRS}")
+  message("Python_LIBRARIES: ${Python_LIBRARIES}")
+  message("Python_LIBRARY_DIRS: ${Python_LIBRARY_DIRS}")
+  message("Python_RUNTIME_LIBRARY_DIRS: ${Python_RUNTIME_LIBRARY_DIRS}")
+  message("Python_EXECUTABLE: ${Python_EXECUTABLE}")
+
   execute_process(
-    COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
-    OUTPUT_VARIABLE MX_SITEPACKAGES_REL
+    COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var(name='prefix'))" 
+    OUTPUT_VARIABLE PY_ROOT_DIR
   )
-  string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
-  file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
-  set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
-endif()
-message("MX_SITEPACKAGES: ${MX_SITEPACKAGES}")
+  string(STRIP ${PY_ROOT_DIR} PY_ROOT_DIR)
+  file(TO_CMAKE_PATH "${PY_ROOT_DIR}" PY_ROOT_DIR)
+  message("PY_ROOT_DIR: ${PY_ROOT_DIR}")
 
-# needed for jpeg image writer
-if(UNIX)
-  # link statically with JPEG, so we dont have to ship a dylib,
-  # brew installs newer JPEG, so that conflicts with stuff
-  find_library(libJPEG NAMES libjpeg.a REQUIRED)
-  message("libjpeg path: ${libJPEG}")
-  set(JPEG_LIBRARY_RELEASE ${libJPEG})
-endif()
-find_package(JPEG REQUIRED)
+  execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path(name='platlib'))" 
+    OUTPUT_VARIABLE PY_SITEPACKAGES
+  )
+  string(STRIP ${PY_SITEPACKAGES} PY_SITEPACKAGES)
+  file(TO_CMAKE_PATH "${PY_SITEPACKAGES}" PY_SITEPACKAGES)
+  message("PY_SITEPACKAGES: ${PY_SITEPACKAGES}")
 
-message("JPEG_INCLUDE_DIRS: ${JPEG_INCLUDE_DIRS}")
-message("JPEG_LIBRARIES: ${JPEG_LIBRARIES}")
-message("JPEG_VERSION: ${JPEG_VERSION}")
+  if(Python_Development_FOUND)
+    get_target_property(TMP Python::Python IMPORTED_LOCATION_DEBUG)
+    message("Python IMPORTED_LOCATION_DEBUG: ${TMP}")
 
-set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install location for Mechancia")
+    get_target_property(TMP Python::Python IMPORTED_LOCATION_RELEASE)
+    message("Python IMPORTED_LOCATION_RELEASE: ${TMP}")
+  endif()
+
+  if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
+    # hack to get eclipse C++ indexer to pick up python headers
+    message("setting eclipse include dirs: ${Python_INCLUDE_DIRS}")
+    include_directories(${Python_INCLUDE_DIRS})
+  endif()
+
+  # Determine install site-packages location using info from environment if not provided
+  if(DEFINED MX_INSTALL_PREFIX_PYTHON)
+    SET(MX_SITEPACKAGES ${MX_INSTALL_PREFIX_PYTHON})
+  else()
+    execute_process(
+      COMMAND ${Python_EXECUTABLE} -c "import sysconfig, os; print(os.path.relpath(sysconfig.get_path(name='platlib'), sysconfig.get_config_var(name='prefix')))" 
+      OUTPUT_VARIABLE MX_SITEPACKAGES_REL
+    )
+    string(STRIP ${MX_SITEPACKAGES_REL} MX_SITEPACKAGES_REL)
+    file(TO_CMAKE_PATH "${MX_SITEPACKAGES_REL}" MX_SITEPACKAGES_REL)
+    set(MX_SITEPACKAGES ${CMAKE_INSTALL_PREFIX}/${MX_SITEPACKAGES_REL})
+  endif()
+  message("MX_SITEPACKAGES: ${MX_SITEPACKAGES}")
+
+endif(MX_WITH_PYTHON)
+
+set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install location for Mechanica")
 
 set(BUILD_SHARED_LIBS ON CACHE BOOL "build shared/dynamic library")
-
-set(MX_MODEL_DIR ${PROJECT_SOURCE_DIR}/testing/models CACHE PATH "directory for mechanica models" FORCE)
 
 find_package(OpenGL REQUIRED)
 
 #find_package(LLVM)
-
-#find_package(OpenMM)
 
 add_definitions(-DCX3D_SUPPORT_OPENGL)
 
@@ -347,35 +355,13 @@ include_directories(${OPENGL_INCLUDE_DIR})
 #
 #endif()
 
-find_package(assimp REQUIRED)
-
-if(assimp_FOUND)
-  message("Assimp found: ${ASSIMP_INCLUDE_DIRS}")
-else()
-  message("ASSIMP not found")
-endif()
-
 if(DEFINED ENV{JSON_INCLUDE_DIRS})
   set(JSON_INCLUDE_DIRS "$ENV{JSON_INCLUDE_DIRS}" CACHE STRING "")
 else()
   set(JSON_INCLUDE_DIRS ${CMAKE_FIND_ROOT_PATH}/include)
 endif()
-message("JSON inlucde: ${JSON_INCLUDE_DIRS}")
+message("JSON include: ${JSON_INCLUDE_DIRS}")
 
-
-# finds: GLFW_FOUND GLFW_INCLUDE_DIR GLFW_LIBRARIES
-# find_package(GLFW 3.2 REQUIRED)
-
-
-#include_directories(${GLFW_INCLUDE_DIRS})
-
-#message("GLFW_INCLUDE_DIR ${GLFW_INCLUDE_DIR}")
-
-#include_directories(${YOUR_DIRECTORY})
-
-#include_directories(${GLFW_INCLUDE_DIR})
-
-#message("GLFW_LIBRARIES: ${GLFW_LIBRARIES}")
 
 message("before extern include path: ${CMAKE_INCLUDE_PATH}")
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
@@ -383,24 +369,18 @@ foreach(dir ${dirs})
   message( "dir='${dir}'")
 endforeach()
 
-#if(MSVC)
-#  string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-#  string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-#  string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
-#endif(MSVC)
-
-
 
 # process dependencies first
 add_subdirectory(extern)
 
-
-message("getting mdcore interface incude:  ${MDCORE_INCLUDE_DIR}")
+find_package(MagnumPlugins REQUIRED 
+  StbImageConverter
+)
 
 add_subdirectory(include)
 add_subdirectory(src)
 add_subdirectory(models)
-
+add_subdirectory(wraps)
 
 # CMake policies: enable MACOSX_RPATH by default
 if(POLICY CMP0042)
@@ -417,20 +397,18 @@ find_package(Magnum REQUIRED
 
 
 add_subdirectory(apps)
-add_subdirectory(testing)
-#add_subdirectory(magnum_examples)
 add_subdirectory(examples)
 add_subdirectory(package)
 
 # try to make eclipse see the system python include dir.
-if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION)
+if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION AND MX_WITH_PYTHON)
   # hack to get eclipse C++ indexer to pick up python headers
   message("setting eclipse include dirs: ${Python_INCLUDE_DIRS}")
   include_directories(${Python_INCLUDE_DIRS})
 endif()
 
 
-set(CMAKE_INFO_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Install location for Mechancia basic info")
+set(CMAKE_INFO_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Install location for Mechanica basic info")
 set(MX_INFO_FILES
   README.md 
   LICENSE.txt 

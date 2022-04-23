@@ -56,4 +56,4 @@ for i in range(1, xx.size):
     bead = n
 
 # run the simulator interactive
-mx.Simulator.run()
+mx.run()

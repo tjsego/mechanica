@@ -4,6 +4,9 @@
 [submodule "extern/magnum"]
 	path = extern/magnum
 	url = https://github.com/tjsego/magnum.git
+[submodule "extern/magnum-plugins"]
+	path = extern/magnum-plugins
+	url = https://github.com/tjsego/magnum-plugins.git
 [submodule "extern/corrade"]
 	path = extern/corrade
 	url = https://github.com/tjsego/corrade.git

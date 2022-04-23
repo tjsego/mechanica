@@ -16,6 +16,7 @@
 #include <Magnum/Image.h>
 #include <Magnum/GL/Context.h>
 #include <Magnum/GL/Version.h>
+#include <Magnum/Platform/GLContext.h>
 
 #include "MxGlInfo.h"
 #include <MxLogger.h>

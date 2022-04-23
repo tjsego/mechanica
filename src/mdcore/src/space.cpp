@@ -52,6 +52,7 @@
 
 #include <vector>
 #include <random>
+#include <float.h>
 
 #pragma clang diagnostic ignored "-Wwritable-strings"
 
@@ -233,7 +234,7 @@ int space_prepare ( struct space *s ) {
             
             // yes, we are using up to k=4 here, clear the force, and number density.
             for ( k = 0 ; k < 3 ; k++ ) {
-                s->cells[cid].parts[pid].f[k] = 0.0;
+                s->cells[cid].parts[pid].f[k] = s->cells[cid].parts[pid].force_i[k];
             }
             s->cells[cid].parts[pid].f[3] = self_number_density;
         }
@@ -435,13 +436,14 @@ int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct M
     }
     
     /* get the hypothetical cell coordinate */
-    for ( k = 0 ; k < 3 ; k++ )
+    for ( k = 0 ; k < 3 ; k++ ) {
+        x[k] = std::max<double>(s->origin[k] * (1.0 + DBL_EPSILON), std::min<double>((s->dim[k] + s->origin[k]) * (1.0 - DBL_EPSILON), x[k]));
         ind[k] = (x[k] - s->origin[k]) * s->ih[k];
-    
-    /* is this particle within the space? */
-    for ( k = 0 ; k < 3 ; k++ )
+        /* is this particle within the space? */
         if ( ind[k] < 0 || ind[k] >= s->cdim[k] )
             return error(space_err_range);
+    }
+        
     
     // treat large particles in the large parts cell
     if(p->flags & PARTICLE_LARGE) {
@@ -535,7 +537,7 @@ int space_getpos ( struct space *s , int id , FPTYPE *x ) {
     /* Sanity check. */
     if ( s == NULL || x == NULL )
         return error(space_err_null);
-    if ( id >= s->nr_parts )
+    if ( id >= s->size_parts )
         return error(space_err_range);
 
     /* Copy the position to x. */
@@ -547,15 +549,60 @@ int space_getpos ( struct space *s , int id , FPTYPE *x ) {
 
 }
 
+/**
+ * @brief Set the absolute position of a particle. 
+ * 
+ * @param s The #space in which the particle resides.
+ * @param id The local id of the #part.
+ * @param x A pointer to a vector of at least three @c doubles in
+ *      which to store the particle position.
+ */
+
 int space_setpos ( struct space *s , int id , FPTYPE *x ) {
 
     int k;
+    struct space_cell *cell_current, *cell_next;
 
     /* Sanity check. */
     if ( s == NULL || x == NULL )
         return error(space_err_null);
-    if ( id >= s->nr_parts )
+    if ( id >= s->size_parts )
         return error(space_err_range);
+
+    MxParticle *p = s->partlist[id];
+    
+    /* Adjust cell if necessary */
+    if(p->flags & PARTICLE_LARGE) {}
+    else {
+        int ind[3];
+
+        /* force this particle into the space */
+        for(k = 0; k < 3; k++) {
+            x[k] = std::max<double>(s->origin[k] * (1.0 + DBL_EPSILON), std::min<double>((s->dim[k] + s->origin[k]) * (1.0 - DBL_EPSILON), x[k]));
+            ind[k] = (x[k] - s->origin[k]) * s->ih[k];
+            /* is this particle within the space? */
+            if ( ind[k] < 0 || ind[k] >= s->cdim[k] )
+                return error(space_err_range);
+        }
+
+        cell_current = s->celllist[id];
+        cell_next = &(s->cells[space_cellid(s, ind[0], ind[1], ind[2])]);
+
+        if(cell_current != cell_next) {
+            // Add to next cell
+            if(space_cell_add(cell_next, p, s->partlist) == NULL) 
+                return mx_error(E_FAIL, "Adding particle to cell failed");
+
+            // Remove from current cell
+            if(space_cell_remove(cell_current, p, s->partlist) != cell_err_ok) {
+                std::string msg = "Removing particle from cell failed with error: ";
+                msg += std::to_string(cell_err);
+                return mx_error(E_FAIL, msg.c_str());
+            }
+
+            s->celllist[id] = cell_next;
+        }
+    }
 
     /* Copy the position to x. */
     for ( k = 0 ; k < 3 ; k++ )
@@ -1524,19 +1571,6 @@ CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
     s->partlist[pid] = NULL;
     s->celllist[pid] = NULL;
 
-    // index of cell in cell particle array.
-    size_t cid = p - cell->parts;
-
-    assert(p == &cell->parts[cid] && "pointer arithmetic error");
-
-    cell->count -= 1;
-    if ( cid < cell->count ) {
-        cell->parts[cid] = cell->parts[cell->count];
-        s->partlist[cell->parts[cid].id ] = &( cell->parts[cid] );
-    }
-
-    s->nr_parts -= 1;
-    
     MxParticleType *type = &_Engine.types[p->typeId];
     MxStyle *style = p->style ? p->style : type->style;
     
@@ -1548,6 +1582,14 @@ CAPI_FUNC(HRESULT) space_del_particle(struct space *s, int pid)
             s->nr_visible_parts -= 1;
         }
     }
+
+    if(space_cell_remove(cell, p, s->partlist) != cell_err_ok) {
+        std::string msg = "Removing particle from cell failed with error: ";
+        msg += std::to_string(cell_err);
+        return mx_error(E_FAIL, msg.c_str());
+    }
+
+    s->nr_parts -= 1;
 
     return S_OK;
 }
@@ -1583,6 +1625,8 @@ HRESULT space_update_style( struct space *s ) {
     
     for(int i = 0; i < s->nr_parts; ++i) {
         MxParticle *p = s->partlist[i];
+        if(!p) 
+            continue;
         MxParticleType *type = &_Engine.types[p->typeId];
         MxStyle *style = p->style ? p->style : type->style;
         

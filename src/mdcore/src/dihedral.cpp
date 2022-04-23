@@ -893,6 +893,10 @@ MxPotential *MxDihedralHandle::getPotential() {
     return this->get()->potential;
 }
 
+uint32_t MxDihedralHandle::getId() {
+    return this->id;
+}
+
 float MxDihedralHandle::getDissociationEnergy() {
     return this->get()->dissociation_energy;
 }
@@ -909,6 +913,12 @@ float MxDihedralHandle::getHalfLife() {
 void MxDihedralHandle::setHalfLife(const float &half_life) {
     auto *d = this->get();
     d->half_life = half_life;
+}
+
+bool MxDihedralHandle::getActive() {
+    auto *d = this->get();
+    if (d) return (bool)(d->flags & DIHEDRAL_ACTIVE);
+    return false;
 }
 
 MxStyle *MxDihedralHandle::getStyle() {
@@ -953,6 +963,18 @@ bool MxDihedral_decays(MxDihedral *d, std::uniform_real_distribution<double> *un
     if(created) delete uniform01;
 
     return result;
+}
+
+std::vector<int32_t> MxDihedral_IdsForParticle(int32_t pid) {
+    std::vector<int32_t> dihedrals;
+    for (int i = 0; i < _Engine.nr_dihedrals; ++i) {
+        MxDihedral *d = &_Engine.dihedrals[i];
+        if((d->flags & DIHEDRAL_ACTIVE) && (d->i == pid || d->j == pid || d->k == pid || d->l == pid)) {
+            assert(i == d->id);
+            dihedrals.push_back(d->id);
+        }
+    }
+    return dihedrals;
 }
 
 

@@ -238,6 +238,34 @@ struct MxUniverseRenderer : MxRenderer {
 
     void viewportEvent(Platform::GlfwApplication::ViewportEvent& event);
 
+    void cameraTranslateDown();
+
+    void cameraTranslateUp();
+
+    void cameraTranslateRight();
+
+    void cameraTranslateLeft();
+
+    void cameraTranslateForward();
+
+    void cameraTranslateBackward();
+
+    void cameraRotateDown();
+
+    void cameraRotateUp();
+
+    void cameraRotateLeft();
+
+    void cameraRotateRight();
+
+    void cameraRollLeft();
+
+    void cameraRollRight();
+
+    void cameraZoomIn();
+
+    void cameraZoomOut();
+
     /**
      * @brief Key press event handling. 
      * 
@@ -252,8 +280,8 @@ struct MxUniverseRenderer : MxRenderer {
      * - Arrow up: translate camera up
      * - Ctrl + D: toggle discretization rendering
      * - Ctrl + arrow down: zoom camera out
-     * - Ctrl + arrow left: rotate camera left
-     * - Ctrl + arrow right: rotate camera right
+     * - Ctrl + arrow left: roll camera left
+     * - Ctrl + arrow right: roll camera right
      * - Ctrl + arrow up: zoom camera in
      * - Shift + B: bottom view
      * - Shift + F: front view

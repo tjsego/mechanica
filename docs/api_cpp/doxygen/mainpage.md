@@ -1,7 +1,7 @@
-Mechanica C/C++ API Reference
-==============================
+Mechanica C++ API Reference
+============================
 
-Welcome to the Mechanica C/C++ API Reference!
+Welcome to the Mechanica C++ API Reference!
 
 **Funding**
 

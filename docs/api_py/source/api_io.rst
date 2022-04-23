@@ -27,6 +27,8 @@ File I/O
     .. autoproperty:: color
 
 
+.. autoclass:: Structure3DF
+
 .. autoclass:: Mx3DFStructure
 
     .. autoproperty:: centroid
@@ -96,6 +98,8 @@ File I/O
     .. automethod:: scale
 
 
+.. autoclass:: Mesh3DFData
+
 .. autoclass:: Mx3DFMeshData
 
     .. autoproperty:: structure
@@ -153,6 +157,8 @@ File I/O
     .. automethod:: scale
 
 
+.. autoclass:: Face3DFData
+
 .. autoclass:: Mx3DFFaceData
 
     .. autoproperty:: structure
@@ -192,6 +198,8 @@ File I/O
     .. automethod:: is_in
 
 
+.. autoclass:: Edge3DFData
+
 .. autoclass:: Mx3DFEdgeData
 
     .. autoproperty:: structure
@@ -228,6 +236,8 @@ File I/O
 
     .. automethod:: is_in
 
+
+.. autoclass:: Vertex3DFData
 
 .. autoclass:: Mx3DFVertexData
 

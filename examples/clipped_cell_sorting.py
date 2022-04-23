@@ -61,4 +61,4 @@ for p in np.random.random((B_count, 3)) * 15 + 2.5:
     B(p)
 
 # run the simulator
-mx.Simulator.run()
+mx.run()

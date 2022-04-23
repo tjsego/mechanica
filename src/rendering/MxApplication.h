@@ -13,6 +13,7 @@
 #include <MxSimulator.h>
 #include <Magnum/GL/Context.h>
 #include <GLFW/glfw3.h>
+#include "MxImageConverters.h"
 
 enum MxWindowAttributes {
     MX_FOCUSED = GLFW_FOCUSED,
@@ -296,18 +297,22 @@ protected:
     bool _dynamicBoundary = true;
     
     
-    Float _boundaryOffset = 0.0f; /* For boundary animation */
+    Magnum::Float _boundaryOffset = 0.0f; /* For boundary animation */
     
     int currentStep = 0;
 
 
 };
 
+Corrade::Containers::Array<char> MxJpegImageData();
+Corrade::Containers::Array<char> MxBMPImageData();
+Corrade::Containers::Array<char> MxHDRImageData();
+Corrade::Containers::Array<char> MxPNGImageData();
+Corrade::Containers::Array<char> MxTGAImageData();
+
 std::tuple<char*, size_t> MxTestImage();
-PyObject* MxTestImage(PyObject* dummyo);
 
 std::tuple<char*, size_t> MxFramebufferImageData();
-PyObject* MxFramebufferImageData(PyObject *dummyo);
 
 /**
  * @brief Save a screenshot of the current scene

@@ -1,3 +1,7 @@
+.. _metrics:
+
+.. py:currentmodule:: mechanica
+
 Metrics and Derived Quantities
 -------------------------------
 
@@ -37,11 +41,10 @@ A term in the definition of the pressure tensor is known as the `virial`
 tensor, which is defined as
 
 .. math::
-   V_{\alpha,\beta} = \sum^{N-1}_{i=1} \
-       \sum^{N}_{j>i} \
-       (\mathbf{r}_{ij})_{\alpha} \
-       (\mathbf{f}_{ij})_{\beta}.
-   :label: eqn-virial
+    V_{\alpha,\beta} = \sum^{N-1}_{i=1} \
+        \sum^{N}_{j>i} \
+        (\mathbf{r}_{ij})_{\alpha} \
+        (\mathbf{f}_{ij})_{\beta}.
 
 The virial tensor represents half of the the product of the stress due to the net
 force between pairs of particles and the distance between them. Since the volume
@@ -50,7 +53,7 @@ using different volume metrics for computing the virial tensor and corresopnding
 pressure tensor.
 
 The pressure tensor for the entire simulation domain, or for a specific region,
-can be calculated using the method :meth:`virial` on the
+can be calculated using the method :meth:`virial <MxUniverse.virial>` on the
 :ref:`universe <mechanica_universe>`. ::
 
     import mechanica as mx
@@ -59,7 +62,7 @@ can be calculated using the method :meth:`virial` on the
     virial_region = mx.Universe.virial(origin=[5.0, 6.0, 7.0], radius=2.0)
 
 The viritual tensor about a particle can also be computed with the particle method
-:meth:`virial` within a specific distance. ::
+:meth:`virial <MxUniverse.virial>` within a specific distance. ::
 
     class MyParticleType(mx.ParticleType):
         pass
@@ -78,13 +81,14 @@ is defined as
 
    \mathbf{C} = \frac{1}{N} \sum_{i=1}^N \mathbf{r}_i,
 
-The centroid of a cluster is avilable using the property :attr:`centroid`.
+The centroid of a cluster is avilable using the property
+:attr:`centroid <MxClusterParticleHandle.centroid>`.
 
 Radius of Gyration
 ^^^^^^^^^^^^^^^^^^^
 
 The radius of gyration is a measure of the dimensions of a group
-(:any:`Cluster`) of particles. The radius of gyration of a group of
+(:py:attr:`Cluster`) of particles. The radius of gyration of a group of
 :math:`N` particles is defined as
 
 .. math:: 
@@ -94,7 +98,7 @@ The radius of gyration is a measure of the dimensions of a group
 
 where :math:`\mathbf{C}` is the centroid of the particles.
 The radius of gyration for a cluster is available using the property
-:attr:`radius_of_gyration`.
+:attr:`radius_of_gyration <MxClusterParticleHandle.radius_of_gyration>`.
 
 Center of Mass
 ^^^^^^^^^^^^^^^
@@ -115,7 +119,7 @@ where each :math:`i\mathrm{th}` particle has mass :math:`m_i` and position
 
 where :math:`M` is the sum of the masses of all of the particles.
 The center of mass of a cluster is available using the property
-:attr:`center_of_mass`.
+:attr:`center_of_mass <MxClusterParticleHandle.center_of_mass>`.
 
 Moment of Inertia
 ^^^^^^^^^^^^^^^^^^
@@ -155,4 +159,4 @@ Here :math:`m_{k}` is the mass of the :math:`k\mathrm{th}` particle, and
 with respect to the centroid of the cluster along the first, second and
 third dimensions, respectively.
 The moment of inertia tensor of a cluster is available using the property
-:attr:`moment_of_inertia`.
+:attr:`moment_of_inertia <MxClusterParticleHandle.moment_of_inertia>`.

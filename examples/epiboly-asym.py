@@ -73,7 +73,7 @@ B.style.visible = False
 
 
 def update(e):
-    print(B.items().center_of_mass.as_list())
+    print(B.items().center_of_mass)
 
 
 mx.on_time(invoke_method=update, period=0.01)

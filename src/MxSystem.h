@@ -9,12 +9,8 @@
 #define SRC_MXSYSTEM_H_
 
 #include "mechanica_private.h"
-#include "MxModel.h"
-#include "MxPropagator.h"
-#include "MxController.h"
 #include <MxUtil.h>
 #include <MxLogger.h>
-#include "MxView.h"
 #include <rendering/MxGlInfo.h>
 #include <rendering/MxEglInfo.h>
 
@@ -38,7 +34,15 @@ struct CAPI_EXPORT MxSystem {
    static std::tuple<char*, size_t> imageData();
 
    /**
-    * @brief Save a screenshot of the current scene
+    * @brief Save a screenshot of the current scene. 
+    * 
+    * File formats currently supported are 
+    * 
+    * - Windows Bitmap (.bmp)
+    * - Radiance HDR (.hdr)
+    * - JPEG (.jpe, .jpg, .jpeg)
+    * - PNG (.png)
+    * - Truevision TGA (.tga)
     * 
     * @param filePath path of file to save
     * @return HRESULT 
@@ -46,7 +50,15 @@ struct CAPI_EXPORT MxSystem {
    static HRESULT screenshot(const std::string &filePath);
    
    /**
-    * @brief Save a screenshot of the current scene
+    * @brief Save a screenshot of the current scene. 
+    * 
+    * File formats currently supported are 
+    * 
+    * - Windows Bitmap (.bmp)
+    * - Radiance HDR (.hdr)
+    * - JPEG (.jpe, .jpg, .jpeg)
+    * - PNG (.png)
+    * - Truevision TGA (.tga)
     * 
     * @param filePath path of file to save
     * @param decorate flag to decorate the scene in the screenshot
@@ -135,6 +147,104 @@ struct CAPI_EXPORT MxSystem {
    /* Translate the camera from the previous (screen) mouse position to
    the current (screen) mouse position */
    static HRESULT cameraTranslateMouse(const MxVector2i &mousePos);
+
+   /**
+    * @brief Translate the camera down
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateDown();
+
+   /**
+    * @brief Translate the camera up
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateUp();
+
+   /**
+    * @brief Translate the camera right
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateRight();
+
+   /**
+    * @brief Translate the camera left
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateLeft();
+   
+   /**
+    * @brief Translate the camera forward
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateForward();
+   
+   /**
+    * @brief Translate the camera backward
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraTranslateBackward();
+   
+   /**
+    * @brief Rotate the camera down
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRotateDown();
+   
+   /**
+    * @brief Rotate the camera up
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRotateUp();
+   
+   /**
+    * @brief Rotate the camera left
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRotateLeft();
+   
+   /**
+    * @brief Rotate the camera right
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRotateRight();
+   
+   /**
+    * @brief Roll the camera left
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRollLeft();
+   
+   /**
+    * @brief Rotate the camera right
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraRollRight();
+
+   /**
+    * @brief Zoom the camera in
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraZoomIn();
+
+   /**
+    * @brief Zoom the camera out
+    * 
+    * @return HRESULT 
+    */
+   static HRESULT cameraZoomOut();
 
    /* Rotate the camera from the previous (screen) mouse position to the
    current (screen) position */
@@ -495,35 +605,6 @@ public:
    MxSystem() {};
    ~MxSystem() {};
 
-};
-
-struct CAPI_EXPORT MxSystemPy : MxSystem {
-
-public:
-   MxSystemPy() {};
-   ~MxSystemPy() {};
-
-   static PyObject *test_image();
-   static PyObject *image_data();
-
-   /**
-    * @brief Test whether Mechanica is running in an interactive terminal
-    * 
-    * @return true if running in an interactive terminal
-    * @return false 
-    */
-   static bool is_terminal_interactive();
-
-   /**
-    * @brief Test whether Mechanica is running in a Jupyter notebook
-    * 
-    * @return true if running in a Jupyter notebook
-    * @return false 
-    */
-   static bool is_jupyter_notebook();
-
-   static PyObject *jwidget_init(PyObject *args, PyObject *kwargs);
-   static PyObject *jwidget_run(PyObject *args, PyObject *kwargs);
 };
 
 #endif /* SRC_MXSYSTEM_H_ */

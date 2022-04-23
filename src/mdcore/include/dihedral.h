@@ -171,10 +171,12 @@ struct MxDihedralHandle {
     double getEnergy();
     std::vector<int32_t> getParts();
     MxPotential *getPotential();
+    uint32_t getId();
     float getDissociationEnergy();
     void setDissociationEnergy(const float &dissociation_energy);
     float getHalfLife();
     void setHalfLife(const float &half_life);
+    bool getActive();
     MxStyle *getStyle();
     void setStyle(MxStyle *style);
     double getAge();
@@ -217,6 +219,10 @@ bool MxDihedral_decays(MxDihedral *d, std::uniform_real_distribution<double> *un
 int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *epot_out );
 int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f , double *epot_out );
 
+/**
+ * find all the dihedrals that interact with the given particle id
+ */
+std::vector<int32_t> MxDihedral_IdsForParticle(int32_t pid);
 
 namespace mx { namespace io {
 

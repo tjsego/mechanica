@@ -75,4 +75,4 @@ mx.bind.types(pb, C, B, bound=True)
 mx.bind.types(pub, C, B, bound=False)
 mx.bind.types(py, Yolk, B)
 
-mx.Simulator.run()
+mx.run()

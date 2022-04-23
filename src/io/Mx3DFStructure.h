@@ -13,6 +13,8 @@
 #ifndef SRC_MX_IO_MX3DFSTRUCTURE_H_
 #define SRC_MX_IO_MX3DFSTRUCTURE_H_
 
+#include <mx_port.h>
+
 #include "Mx3DFVertexData.h"
 #include "Mx3DFEdgeData.h"
 #include "Mx3DFFaceData.h"
@@ -21,7 +23,7 @@
 #include <unordered_map>
 
 
-struct Mx3DFComponentContainer {
+struct CAPI_EXPORT Mx3DFComponentContainer {
     std::vector<Mx3DFVertexData*> vertices;
     std::vector<Mx3DFEdgeData*> edges;
     std::vector<Mx3DFFaceData*> faces;
@@ -42,7 +44,7 @@ struct Mx3DFComponentContainer {
  * parent edges added when a vertex is added. 
  * 
  */
-struct Mx3DFStructure {
+struct CAPI_EXPORT Mx3DFStructure {
 
     /** Inventory of structure objects */
     Mx3DFComponentContainer inventory;

@@ -19,6 +19,7 @@ Concepts
     cleavage
     events
     flux
+    lattices
     metrics
     style
     controls

@@ -28,7 +28,7 @@ mx.on_particletime(ptype=Argon, invoke_method=destroy, period=1, distribution='e
 pot = mx.Potential.lennard_jones_12_6(0.275, cutoff, 9.5075e-06, 6.1545e-03, 1.0e-3)
 mx.bind.types(pot, Argon, Argon)
 
-tstat = mx.Force.berenderson_tstat(10)
+tstat = mx.Force.berendsen_tstat(10)
 
 mx.bind.force(tstat, Argon)
 

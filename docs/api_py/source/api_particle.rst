@@ -46,9 +46,13 @@ Particles and Clusters
 
     .. autoproperty:: force
 
+    .. autoproperty:: force_init
+
     .. autoproperty:: id
 
     .. autoproperty:: type_id
+
+    .. autoproperty:: cluster_id
 
     .. autoproperty:: species
 
@@ -173,6 +177,8 @@ Particles and Clusters
     .. automethod:: get
 
     .. automethod:: items
+
+    .. automethod:: isCluster
 
     .. automethod:: to_cluster
 

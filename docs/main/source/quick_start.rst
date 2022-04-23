@@ -1,5 +1,7 @@
 .. _quickstart:
 
+.. py:currentmodule:: mechanica
+
 Quickstart
 ===========
 
@@ -48,7 +50,7 @@ particle type that Mechanica is also using to simulate our model. ::
     Mechanica follows this paradigm to facilitate model archiving and sharing, as well as basic
     model-specific operations that do not require simulation functionality.
 
-Particles can interact via `Potentials` (:class:`Potential` in Python). Mechanica provides a variety of
+Particles can interact via `Potentials` (:py:attr:`Potential` in Python). Mechanica provides a variety of
 built-in potentials, as well as the ability to create custom interactions. For now, we will use the
 built-in Lennard-Jones 12-6 potential. All we have to do is create an instance of a potential and *bind*
 it to objects that interact according to our model. To create a Lennard-Jones 12-6 potential, ::
@@ -64,8 +66,8 @@ all particles of our new particle type, we *bind* our potential to our new type:
     mx.bind.types(pot, Argon, Argon)
 
 .. note::
-    ``Argon`` is passed as both the second and third arguments of ``bind.types`` because
-    we are here describing an interaction between particles of two types. We could do the
+    ``Argon`` is passed as both the second and third arguments of :meth:`bind.types <MxBind.types>`
+    because we are here describing an interaction between particles of two types. We could do the
     same to describe an interaction between ``Argon`` particles and particles of some other type that
     we might create.
 
@@ -84,9 +86,9 @@ create particles of our new particle type by using it like a function::
         Argon(pos)
 
 Now all that's left is to run our simulation. The Mechanica Python module has two methods to
-run a simulation: ``run`` and ``irun``. The ``run`` method runs the simulation, and
+run a simulation: :func:`run` and :func:`irun`. The :func:`run` method runs the simulation, and
 (if no final time is passed as argument) continues until the window is closed, or some stop condition.
-If running Mechanica from `IPython`, the ``irun`` method starts the simulation but leaves the console
+If running Mechanica from `IPython`, the :func:`irun` method starts the simulation but leaves the console
 open for further input. ::
 
     # run the simulator interactive

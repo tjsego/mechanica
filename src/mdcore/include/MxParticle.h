@@ -92,7 +92,7 @@ struct MxClusterParticleHandle;
  * If you're building a model, you should probably instead be working with a 
  * MxParticleHandle. 
  */
-struct MxParticle  {
+struct CAPI_EXPORT MxParticle  {
     
     /**
      * Particle force
@@ -111,6 +111,15 @@ struct MxParticle  {
             float __dummy0[3];
             float number_density;
         };
+    };
+    
+    /**
+     * Initial particle force
+     *
+     * At each step, the total force acting on a particle is reset to this settable value. 
+     */
+    union {
+        MX_ALIGNED(MxVector3f, 16) force_i;
     };
 
 
@@ -287,7 +296,7 @@ HRESULT MxParticle_Verify();
  * 
  * This is a safe way to work with a particle. 
  */
-struct MxParticleHandle {
+struct CAPI_EXPORT MxParticleHandle {
     int id;
     int typeId;
 
@@ -416,12 +425,14 @@ struct MxParticleHandle {
     std::string getName2();
     MxVector3f getPosition();
     void setPosition(MxVector3f position);
-    MxVector3f getVelocity();
+    MxVector3f &getVelocity();
     void setVelocity(MxVector3f velocity);
     MxVector3f getForce();
-    void setForce(MxVector3f force);
+    MxVector3f &getForceInit();
+    void setForceInit(MxVector3f force);
     int getId();
     int16_t getTypeId();
+    int32_t getClusterId();
     uint16_t getFlags();
     MxStateVector *getSpecies();
 
@@ -702,16 +713,6 @@ CAPI_FUNC(MxParticleType*) MxParticleType_FindFromName(const char* name);
  * corresponding particle pointer, NULL otherwise
  */
 CAPI_FUNC(MxParticle*) MxParticle_Get(MxParticleHandle *pypart);
-
-
-/**
- * internal function that absoltuly has to be moved to a util file,
- * TODO: quick hack putting it here.
- *
- * points in a random direction with given magnitide mean, std
- */
-MxVector3f MxRandomVector(float mean, float std);
-MxVector3f MxRandomUnitVector();
 
 
 /**

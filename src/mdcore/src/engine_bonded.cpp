@@ -1052,7 +1052,7 @@ int engine_dihedral_alloc(struct engine *e, MxDihedral **out) {
                 break;
             }
         }
-        assert(dihedral_id > 0 && dihedral_id < e->dihedrals_size);
+        assert(dihedral_id >= 0 && dihedral_id < e->dihedrals_size);
 	}
 	else {
 		/* Do we need to grow the dihedral array? */
@@ -1099,7 +1099,7 @@ int engine_angle_alloc (struct engine *e, MxAngle **out) {
                 break;
             }
         }
-        assert(angle_id > 0 && angle_id < e->angles_size);
+        assert(angle_id >= 0 && angle_id < e->angles_size);
     }
     else {
 		/* Do we need to grow the angles array? */
@@ -1329,7 +1329,7 @@ int engine_bond_alloc (struct engine *e , MxBond **out ) {
                 break;
             }
         }
-        assert(bond_id > 0 && bond_id < e->bonds_size);
+        assert(bond_id >= 0 && bond_id < e->bonds_size);
     }
     else {
         /* Do we need to grow the bonds array? */

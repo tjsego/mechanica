@@ -24,7 +24,7 @@ struct Mx3DFStructure;
  * @brief 3D data file vertex data
  * 
  */
-struct Mx3DFVertexData {
+struct CAPI_EXPORT Mx3DFVertexData {
     
     /** Parent structure */
     Mx3DFStructure *structure = NULL;

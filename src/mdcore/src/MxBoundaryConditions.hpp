@@ -9,7 +9,6 @@
 #define SRC_MDCORE_SRC_BOUNDARYCONDITIONS_H_
 
 #include <platform.h>
-#include <MxPy.h>
 #include "../../types/mx_types.h"
 #include "../../io/mx_io.h"
 
@@ -152,6 +151,7 @@ struct MxBoundaryConditions {
     uint32_t periodic;
 
     static unsigned boundaryKindFromString(const std::string &s);
+    static unsigned boundaryKindFromStrings(const std::vector<std::string> &kinds);
 
     std::string str();
 
@@ -201,7 +201,6 @@ struct MxBoundaryConditionsArgsContainer {
                                       std::unordered_map<std::string, unsigned int> *_bcVals=NULL, 
                                       std::unordered_map<std::string, MxVector3f> *_bcVels=NULL, 
                                       std::unordered_map<std::string, float> *_bcRestores=NULL);
-    MxBoundaryConditionsArgsContainer(PyObject *obj);
 
 private:
     void switchType(const bool &allSides);

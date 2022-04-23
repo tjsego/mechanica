@@ -32,7 +32,7 @@ mx.bind.types(pot, Argon, Argon)
 
 # create a thermostat, coupling time constant determines how rapidly the
 # thermostat operates, smaller numbers mean thermostat acts more rapidly
-tstat = mx.Force.berenderson_tstat(10)
+tstat = mx.Force.berendsen_tstat(10)
 
 # bind it just like any other force
 mx.bind.force(tstat, Argon)
@@ -49,4 +49,4 @@ for (pos, vel) in zip(positions, velocities):
     Argon(pos, vel)
 
 # run the simulator interactive
-mx.Simulator.run()
+mx.run()

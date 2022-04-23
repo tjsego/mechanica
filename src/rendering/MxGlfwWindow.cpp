@@ -9,7 +9,6 @@
 #include <rendering/MxGlfwWindow.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
 
-#include <MxPy.h>
 #include <iostream>
 
 using namespace Magnum;

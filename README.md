@@ -18,7 +18,16 @@ Python API that's designed to be used for model and simulation specification in
 executable Python scripts, an IPython console and a Jupyter Notebook. 
 Mechanica currently supports installations on 64-bit Windows, Linux and MacOS systems. 
 
+To get the latest version of Mechanica, [![Anaconda-Server Badge](https://anaconda.org/mechanica/mechanica/badges/installer/conda.svg)](https://conda.anaconda.org/mechanica)
+
+To run Mechanica online in JupyterLab, [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/tjsego/mechanica-binder/HEAD)
+
 ## Build Status ##
+
+### Binaries ###
+
+The latest Mechanica developments are archived at the 
+[Mechanica Azure project](https://dev.azure.com/Mechanica-sim/Mechanica).
 
 | Platform | Status |
 | :------: | :----: |
@@ -26,11 +35,27 @@ Mechanica currently supports installations on 64-bit Windows, Linux and MacOS sy
 | MacOS    | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Mac)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop)     |
 | Windows  | [![Build Status](https://dev.azure.com/Mechanica-sim/Mechanica/_apis/build/status/mechanica.develop?branchName=develop&stageName=Local%20build%20for%20Windows)](https://dev.azure.com/Mechanica-sim/Mechanica/_build/latest?definitionId=4&branchName=develop) |
 
+### Documentation ###
+
+Mechanica documentation is available online, 
+
+| Document                 | Link                                                                         | Status |
+| :----------------------: | :--------------------------------------------------------------------------: | :----: |
+| Mechanica Documentation  | [link](https://mechanica-documentation.readthedocs.io/en/latest/)            | [![Documentation Status](https://readthedocs.org/projects/mechanica-documentation/badge/?version=latest)](https://mechanica-documentation.readthedocs.io/en/latest/?badge=latest) |
+| C++ API Documentation    | [link](https://mechanica-c-api-documentation.readthedocs.io/en/latest/)      | [![Documentation Status](https://readthedocs.org/projects/mechanica-c-api-documentation/badge/?version=latest)](https://mechanica-c-api-documentation.readthedocs.io/en/latest/?badge=latest) |
+| Python API Documentation | [link](https://mechanica-python-api-documentation.readthedocs.io/en/latest/) | [![Documentation Status](https://readthedocs.org/projects/mechanica-python-api-documentation/badge/?version=latest)](https://mechanica-python-api-documentation.readthedocs.io/en/latest/?badge=latest) |
+
 # Installation #
 
 ## Pre-Built Binaries ##
 
-Pre-built binaries of the latest Mechanica developments are archived at the 
+Binary distributions of Mechanica are available via conda from the `mechanica` channel, 
+
+```bash
+conda install -c mechanica mechanica
+```
+
+Pre-built binaries of the latest Mechanica developments are also archived at the 
 [Mechanica Azure project](https://dev.azure.com/Mechanica-sim/Mechanica). 
 Installing pre-built binaries requires [Miniconda](https://docs.conda.io/en/latest/miniconda.html). 
 Binaries on Linux require the Mesa packages `libgl1-mesa-dev` and `libegl1-mesa-dev`. 

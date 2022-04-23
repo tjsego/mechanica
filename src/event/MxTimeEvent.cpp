@@ -11,7 +11,6 @@
 #include <MxLogger.h>
 #include <engine.h>
 #include <MxUniverse.h>
-#include <MxPy.h>
 
 
 HRESULT defaultMxTimeEventPredicateEval(const double &next_time, const double &start_time, const double &end_time) {
@@ -106,66 +105,4 @@ MxTimeEvent* MxOnTimeEventN(const double &period,
     MxTimeEventTimeSetterEnum nextTimeSetterEnum = itr->second;
 
     return MxOnTimeEvent(period, invokeMethod, predicateMethod, (unsigned)nextTimeSetterEnum, start_time, end_time);
-}
-
-MxTimeEventPy::~MxTimeEventPy() {
-    if(invokeExecutor) {
-        delete invokeExecutor;
-        invokeExecutor = 0;
-    }
-    if(predicateExecutor) {
-        delete predicateExecutor;
-        predicateExecutor = 0;
-    }
-}
-
-HRESULT defaultMxTimeEventPyPredicateEval(const MxTimeEventPy &e) {
-    auto current_time = _Engine.time * _Engine.dt;
-    HRESULT result = current_time >= e.next_time && current_time >= e.start_time && current_time <= e.end_time;
-
-    return result;
-}
-
-HRESULT MxTimeEventPy::predicate() {
-    if(!predicateExecutor) return defaultMxTimeEventPyPredicateEval(*this);
-    else if(!predicateExecutor->hasExecutorPyCallable()) return 1;
-    return predicateExecutor->invoke(*this);
-}
-
-HRESULT MxTimeEventPy::invoke() {
-    if(invokeExecutor && invokeExecutor->hasExecutorPyCallable()) invokeExecutor->invoke(*this);
-    return 0;
-}
-
-HRESULT MxTimeEventPy::eval(const double &time) {
-    auto result = MxEventBase::eval(time);
-    if(result) this->next_time = getNextTime(time);
-    return result;
-}
-
-double MxTimeEventPy::getNextTime(const double &current_time) {
-    if(!nextTimeSetter || nextTimeSetter == NULL) return current_time + this->period;
-    return (*this->nextTimeSetter)(*(MxTimeEvent*)this, current_time);
-}
-
-MxTimeEventPy* MxOnTimeEventPy(const double &period, 
-                               MxTimeEventPyInvokePyExecutor *invokeExecutor, 
-                               MxTimeEventPyPredicatePyExecutor *predicateExecutor, 
-                               const std::string &distribution, 
-                               const double &start_time, 
-                               const double &end_time) {
-    Log(LOG_TRACE);
-
-    auto itr = MxTimeEventNextTimeSetterNameMap.find(distribution);
-    if(itr == MxTimeEventNextTimeSetterNameMap.end()) {
-        mx_error(E_FAIL, "Invalid distribution");
-        return NULL;
-    }
-    MxTimeEventTimeSetterEnum nextTimeSetterEnum = itr->second;
-
-    MxTimeEventNextTimeSetter *nextTimeSetter = getMxTimeEventNextTimeSetter((MxTimeEventTimeSetterEnum)nextTimeSetterEnum);
-
-    auto event = new MxTimeEventPy(period, invokeExecutor, predicateExecutor, nextTimeSetter, start_time, end_time);
-    MxUniverse::get()->events->addEvent(event);
-    return event;
 }

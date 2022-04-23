@@ -10,7 +10,6 @@
 
 #include <MxUniverse.h>
 #include <MxForce.h>
-#include <MxPy.h>
 #include <MxSimulator.h>
 #include <MxUtil.h>
 #include <metrics.h>
@@ -20,7 +19,6 @@
 #include <MxThreadPool.hpp>
 #include <MxCuboid.hpp>
 #include <MxBind.hpp>
-#include <MxPy.h>
 #include <state/MxStateVector.h>
 #include <state/MxSpeciesList.h>
 #include <MxSystem.h>
@@ -168,7 +166,7 @@ MxParticleList *MxUniverse::particles() {
 void MxUniverse::resetSpecies() {
     UNIVERSE_TRY();
     
-    for(int i = 0; i < _Engine.s.nr_parts; ++i) {
+    for(int i = 0; i < _Engine.s.size_parts; ++i) {
         MxParticle *part = _Engine.s.partlist[i];
         if(part && part->state_vector) {
             part->state_vector->reset();
@@ -614,14 +612,8 @@ HRESULT toFile(const MxUniverse &dataElement, const MxMetaData &metaData, MxIOEl
         if(f != NULL) {
             bool storeForce = true;
             if(f->isConstant()) {
-                if(f->type == FORCE_CONSTANTPY) {
-                    MxConstantForcePy *cf = (MxConstantForcePy*)f;
-                    storeForce = cf->callable == NULL;
-                }
-                else {
-                    MxConstantForce *cf = (MxConstantForce*)f;
-                    storeForce = cf->userFunc == NULL;
-                }
+                MxConstantForce *cf = (MxConstantForce*)f;
+                storeForce = cf->userFunc == NULL;
             }
             if(storeForce) {
                 forces.push_back(f);

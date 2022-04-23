@@ -17,6 +17,4 @@ Binding
 
     .. automethod:: force
 
-    .. automethod:: force
-
     .. automethod:: bonds

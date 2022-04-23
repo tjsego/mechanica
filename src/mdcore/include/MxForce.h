@@ -26,8 +26,7 @@ enum MXFORCE_TYPE {
     FORCE_GAUSSIAN      = 1 << 1, 
     FORCE_FRICTION      = 1 << 2, 
     FORCE_SUM           = 1 << 3, 
-    FORCE_CONSTANT      = 1 << 4, 
-    FORCE_CONSTANTPY    = 1 << 5
+    FORCE_CONSTANT      = 1 << 4
 };
 
 /**
@@ -46,7 +45,7 @@ struct Friction;
  * 
  * Forces are one of the fundamental processes in Mechanica that cause objects to move. 
  */
-struct MxForce {
+struct CAPI_EXPORT MxForce {
     MXFORCE_TYPE type = FORCE_FORCE;
 
     MxForce_EvalFcn func;
@@ -99,7 +98,7 @@ struct MxForce {
      * @param tau time constant that determines how rapidly the thermostat effects the system.
      * @return Berendsen* 
      */
-    static Berendsen* berenderson_tstat(const float &tau);
+    static Berendsen* berendsen_tstat(const float &tau);
 
     /**
      * @brief Creates a random force. 
@@ -124,20 +123,16 @@ struct MxForce {
      * 
      * @f[
      * 
-     *      - \frac{|| \mathbf{v} ||}{\tau} \mathbf{v} + \mathbf{f}_{r} ,
+     *      - \frac{|| \mathbf{v} ||}{\tau} \mathbf{v} ,
      * 
      * @f]
      * 
-     * where @f$ \mathbf{v} @f$ is the velocity of a particle, @f$ \tau @f$ is a time constant and 
-     * @f$ \mathbf{f}_r @f$ is a random force. 
+     * where @f$ \mathbf{v} @f$ is the velocity of a particle and @f$ \tau @f$ is a time constant. 
      * 
      * @param coef time constant
-     * @param std standard deviation of random force magnitude
-     * @param mean mean of random force magnitude
-     * @param duration duration of force. Defaults to 0.1. 
      * @return Friction* 
      */
-    static Friction* friction(const float &coef, const float &std=0.0, const float &mean=0.0, const float &duration=0.1);
+    static Friction* friction(const float &coef);
 
     MxForce& operator+(const MxForce& rhs);
 
@@ -157,7 +152,7 @@ struct MxForce {
     static MxForce *fromString(const std::string &str);
 };
 
-struct MxForceSum : MxForce {
+struct CAPI_EXPORT MxForceSum : MxForce {
     MxForce *f1, *f2;
 
     /**
@@ -171,7 +166,7 @@ struct MxForceSum : MxForce {
     static MxForceSum *fromForce(MxForce *f);
 };
 
-MxForce *MxForce_add(MxForce *f1, MxForce *f2);
+CAPI_FUNC(MxForce*) MxForce_add(MxForce *f1, MxForce *f2);
 
 struct MxConstantForce;
 using MxUserForceFuncType = MxVector3f(*)(MxConstantForce*);
@@ -184,7 +179,7 @@ using MxUserForceFuncType = MxVector3f(*)(MxConstantForce*);
  * This object acts like a constant force, but also acts like a time event,
  * in that it periodically calls a custom function to update the applied force. 
  */
-struct MxConstantForce : MxForce {
+struct CAPI_EXPORT MxConstantForce : MxForce {
     MxUserForceFuncType *userFunc;
     float updateInterval;
     double lastUpdate;
@@ -238,44 +233,12 @@ struct MxConstantForce : MxForce {
     static MxConstantForce *fromForce(MxForce *f);
 };
 
-struct MxConstantForcePy : MxConstantForce {
-    PyObject *callable;
-
-    MxConstantForcePy();
-    MxConstantForcePy(const MxVector3f &f, const float &period=std::numeric_limits<float>::max());
-
-    /**
-     * @brief Creates an instance from an underlying custom python function
-     * 
-     * @param f python function. Takes no arguments and returns a three-component vector. 
-     * @param period period at which the force is updated. 
-     */
-    MxConstantForcePy(PyObject *f, const float &period=std::numeric_limits<float>::max());
-    virtual ~MxConstantForcePy();
-
-    void onTime(double time);
-    MxVector3f getValue();
-
-    void setValue(PyObject *_userFunc=NULL);
-
-    /**
-     * @brief Convert basic force to MxConstantForcePy. 
-     * 
-     * If the basic force is not a MxConstantForcePy, then NULL is returned. 
-     * 
-     * @param f 
-     * @return MxConstantForcePy* 
-     */
-    static MxConstantForcePy *fromForce(MxForce *f);
-
-};
-
 /**
  * @brief Berendsen force. 
  * 
- * Create one with :meth:`MxForce.berenderson_tstat`. 
+ * Create one with :meth:`MxForce.berendsen_tstat`. 
  */
-struct Berendsen : MxForce {
+struct CAPI_EXPORT Berendsen : MxForce {
     /**
      * @brief time constant
      */
@@ -297,7 +260,7 @@ struct Berendsen : MxForce {
  * 
  * Create one with :meth:`MxForce.random`. 
  */
-struct Gaussian : MxForce {
+struct CAPI_EXPORT Gaussian : MxForce {
     /**
      * @brief standard deviation of magnitude
      */
@@ -329,26 +292,11 @@ struct Gaussian : MxForce {
  * 
  * Create one with :meth:`MxForce.friction`. 
  */
-struct Friction : MxForce {
+struct CAPI_EXPORT Friction : MxForce {
     /**
      * @brief time constant
      */
     float coef;
-
-    /**
-     * @brief standard deviation of random force magnitude
-     */
-    float std;
-
-    /**
-     * @brief mean of random force magnitude
-     */
-    float mean;
-
-    /**
-     * @brief duration of force, in time steps
-     */
-    unsigned durration_steps;
 
     /**
      * @brief Convert basic force to Friction. 
@@ -375,12 +323,6 @@ HRESULT toFile(const MxConstantForce &dataElement, const MxMetaData &metaData, M
 
 template <>
 HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForce *dataElement);
-
-template <>
-HRESULT toFile(const MxConstantForcePy &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);
-
-template <>
-HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxConstantForcePy *dataElement);
 
 template <>
 HRESULT toFile(const MxForceSum &dataElement, const MxMetaData &metaData, MxIOElement *fileElement);

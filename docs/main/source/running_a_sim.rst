@@ -1,5 +1,7 @@
 .. _running_a_sim:
 
+.. py:currentmodule:: mechanica
+
 Running a Simulation
 ---------------------
 
@@ -19,19 +21,19 @@ provides additional methods to finely control displaying, time stepping and stop
 a simulation. For example, calling the module method :func:`show`
 (:func:`MxSimulator::show` in C++) only displays the application window and starts the
 internals of Mechanica without performing any time stepping.
-The module :meth:`start`, :meth:`step`, :meth:`stop` methods
+The module :func:`start`, :func:`step`, :func:`stop` methods
 (:meth:`MxUniverse::start`, :meth:`MxUniverse::step`, :meth:`MxUniverse::stop` in C++)
 start the :ref:`universe <mechanica_universe>` time evolution,
 perform a single time step, and stop the time evolution, respectively.
-If the universe is stopped, the :meth:`Universe.start` method can be called to continue
-where the universe was stopped. All methods to build and manipulate the universe are
-available either with the universe stopped or running.
+If the universe is stopped, the :meth:`Universe.start <MxUniverse.start>` method can be
+called to continue where the universe was stopped. All methods to build and manipulate
+the universe are available either with the universe stopped or running.
 
-When passing no arguments to :meth:``run`` (when passing a negative value to
+When passing no arguments to :func:`run` (when passing a negative value to
 :func:`MxSimulator::run` in C++), the main window opens, and the simulation runs and
 only returns when the window closes. When an argument is passed, the value is understood
 as the simulation time at which the simulation should stop, at which point the windw closes.
-With :meth:``irun`` in IPython, the main window opens, and the simulation runs and
+With :func:`irun` in IPython, the main window opens, and the simulation runs and
 responds to user interactions with it and its objects in real time while it runs.
 
 For convenience, all simulation control methods are aliased as top-level methods in Python, ::
@@ -83,8 +85,8 @@ during initialization with the keyword argument ``windowless``, ::
 
     mx.init(windowless=True)
 
-Execution of a simulation occurs through the module method ``step`` (rather than
-``run``), where each call executes one simulation step, ::
+Execution of a simulation occurs through the module method :func:`step` (rather than
+:func:`run`), where each call executes one simulation step, ::
 
     num_steps = int(1E6)  # Number of steps to execute
     for step_num in range(num_steps):
@@ -104,4 +106,4 @@ initialization with the keyword argument ``seed``, as well as at any time during
 simulation, ::
 
     mx.init(seed=1)               # Set the seed during initialization...
-    mx.setSeed(mx.getSeed() + 1)  # ... or after initialization.
+    mx.set_seed(mx.get_seed() + 1)  # ... or after initialization.

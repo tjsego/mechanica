@@ -44,7 +44,6 @@ set(PUBLIC_HEADERS
   "${MDCORE_SOURCE_DIR}/include/cycle.h"
   "${MDCORE_SOURCE_DIR}/include/fptype.h"
   "${MDCORE_SOURCE_DIR}/include/mdcore_config.h"
-  "${MDCORE_SOURCE_DIR}/include/MxPy.h"
   "${MDCORE_SOURCE_DIR}/include/MxForce.h"
   "${MDCORE_SOURCE_DIR}/include/MxReactivePotential.h"
   "${MDCORE_SOURCE_DIR}/include/metrics.h"
@@ -114,7 +113,6 @@ SET(SOURCES
   runner_dosort.cpp
   task.cpp
   runner_verlet.cpp
-  MxPy.cpp
   MxForce.cpp
   MxReactivePotential.cpp
   MxConstraint.cpp
@@ -152,17 +150,7 @@ if(MDCORE_USE_MPI)
 endif()
 
 # CUDA sources
-#if HAVECUDA
-#    SOURCES_CUDA = engine_cuda.cu runner_cuda.cu
-#    CUDA_MYFLAGS = -O3 -g -DCPU_TPS=2.67e9 -lineinfo -src-in-ptx --maxrregcount 32 -Xptxas="-v" -Xptxas -dlcm=cg -arch sm_20 -ftz=true -fmad=true -DFPTYPE_SINGLE -DWITH_CUDA
-#.cu: runner_cuda.h runner_cuda_main.h
-#.cu.o:
-#	$(NVCC) -c $(NVCCFLAGS) $(CUDA_CFLAGS) $(CUDA_MYFLAGS) $< -o $@
-#.cu.lo:
-#	$(top_srcdir)/cudalt.py $@ $(NVCC) -c $(NVCCFLAGS) $(CUDA_CFLAGS) $(CUDA_MYFLAGS) $<
-#else
-#    SOURCES_CUDA =
-#endif
+
 find_package(CUDAToolkit)
 if(CUDAToolkit_FOUND AND MX_WITHCUDA)
   set(MDCORE_HAVECUDA ON)
@@ -274,11 +262,6 @@ function(add_mdcore_single)
   )
 
 target_link_libraries(mdcore_single PUBLIC ${MDCORE_LIBS})
-
-
-message("pybind header: ${PYBIND11_INCLUDE_DIR}")
-
-target_include_directories(mdcore_single PRIVATE ${PYBIND11_INCLUDE_DIR})
 
 message("setting mdcore_single interface includes: ${MDCORE_INCLUDE_DIR}")
 

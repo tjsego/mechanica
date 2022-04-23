@@ -26,7 +26,7 @@ cp = mx.Potential.power(k=-100, alpha=0.1, r0=0, min=0.05, max=10, tol=0.001)
 mx.bind.cuboid(p, A)
 mx.bind.types(cp, A, A)
 
-rforce = mx.Force.friction(0.01, 0, 100)
+rforce = mx.Force.friction(0.01)
 
 # bind it just like any other force
 mx.bind.force(rforce, A)

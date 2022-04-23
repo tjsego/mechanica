@@ -41,6 +41,11 @@ If you're looking for something specific, refer to the following,
 
 * To dive into the code, refer to :ref:`Mechanica API Reference <api_reference>`.
 
+* To run Mechanica online in JupyterLab, |BinderBadgeMain|.
+
+.. |BinderBadgeMain| image:: https://mybinder.org/badge_logo.svg
+    :target: https://mybinder.org/v2/gh/tjsego/mechanica-binder/HEAD
+
 .. note::
 
    Mechanica supports modeling and simulation in multiple programming languages.

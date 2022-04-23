@@ -936,6 +936,18 @@ double MxAngleHandle::getAge() {
     return 0;
 }
 
+std::vector<int32_t> MxAngle_IdsForParticle(int32_t pid) {
+    std::vector<int32_t> angles;
+    for (int i = 0; i < _Engine.nr_angles; ++i) {
+        MxAngle *a = &_Engine.angles[i];
+        if((a->flags & ANGLE_ACTIVE) && (a->i == pid || a->j == pid || a->k == pid)) {
+            assert(i == a->id);
+            angles.push_back(a->id);
+        }
+    }
+    return angles;
+}
+
 
 namespace mx { namespace io {
 

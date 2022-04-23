@@ -17,9 +17,6 @@
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
 
-// python type info
-#include <structmember.h>
-#include <MxPy.h>
 #include "engine.h"
 #include "space.h"
 #include "mx_runtime.h"
@@ -135,11 +132,7 @@ int MxCluster_ComputeAggregateQuantities(struct MxCluster *cluster) {
     
     MxVector3f pos;
     
-    // compute in global coordinates, particles can belong to different
-    // space cells.
-    /* Copy the position to x. */
-    //for ( k = 0 ; k < 3 ; k++ )
-    //    x[k] = s->partlist[id]->x[k] + s->celllist[id]
+    // compute in global coordinates, particles can belong to different space cells.
     
     for(int i = 0; i < cluster->nr_parts; ++i) {
         MxParticle *p = _Engine.s.partlist[cluster->parts[i]];
@@ -350,6 +343,7 @@ MxMatrix3f MxClusterParticleHandle::getMomentOfInertia() {
  * adds an existing particle to the cluster.
  */
 int MxCluster_AddParticle(struct MxCluster *cluster, struct MxParticle *part) {
+    part->flags |= PARTICLE_BOUND;
     cluster->addpart(part->id);
     return S_OK;
 }
@@ -374,13 +368,7 @@ MxParticle *MxCluster_CreateParticle(MxCluster *cluster,
     auto handle = MxParticle_New(particleType, position, velocity, &cluster->id);
     if (!handle) return NULL;
 
-    auto particle = handle->part();
-    if(MxCluster_AddParticle(cluster, particle) != S_OK) {
-        handle->destroy();
-        return NULL;
-    }
-
-    return particle;
+    return handle->part();
 
 }
 

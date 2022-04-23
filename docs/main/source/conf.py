@@ -15,10 +15,27 @@
 
 import sys
 import os
+import shutil
 import mechanica
+from sphinx.ext import intersphinx
 
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+examples_dir_source = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+    'examples')
+examples_dir_build = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), 'examples'
+)
+
+# Grab examples from source
+if os.path.isdir(examples_dir_build):
+    print('Found previous examples build. Removing.')
+    shutil.rmtree(examples_dir_build)
+shutil.copytree(examples_dir_source, examples_dir_build)
+
+# Signal building docs for Jupyter notebooks examples
+os.environ['MXDOCS'] = '1'
 
 
 def getver():
@@ -49,7 +66,10 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosectionlabel',
-    'sphinx.ext.autosummary'
+    'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx',
+    'nbsphinx',
+    'sphinx_gallery.load_style'
 ]
 
 
@@ -136,6 +156,18 @@ autosectionlabel_prefix_document = True
 # Auto-generation specification
 autosummary_generate = True
 autoclass_content = "both"
+
+# -- Options for Intersphinx ----------------------------------------------
+
+intersphinx_mapping = {
+    'docs_api_cpp': ('https://mechanica-c-api-documentation.readthedocs.io/en/latest/', None),
+    'docs_api_py': ('https://mechanica-python-api-documentation.readthedocs.io/en/latest/', None)
+}
+
+# -- Options for nbsphinx -------------------------------------------------
+
+nbsphinx_execute = 'always'
+nbsphinx_timeout = 60
 
 # -- Options for HTML output ----------------------------------------------
 

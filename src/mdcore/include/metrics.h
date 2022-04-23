@@ -88,13 +88,6 @@ HRESULT MxParticles_CenterOfGeometry(int32_t *parts, uint16_t nr_parts, float* r
 HRESULT MxParticles_MomentOfInertia(int32_t *parts, uint16_t nr_parts, float* result);
 
 /**
- * converts cartesian to spherical in global coord space.
- * createsa a numpy array.
- */
-PyObject* MPyCartesianToSpherical(const MxVector3f& postion, const MxVector3f& origin);
-
-
-/**
  * converts cartesian to spherical, writes spherical
  * coords in to result array.
  * return MxVector3f{radius, theta, phi};

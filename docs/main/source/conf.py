@@ -166,7 +166,7 @@ intersphinx_mapping = {
 
 # -- Options for nbsphinx -------------------------------------------------
 
-nbsphinx_execute = 'always'
+# nbsphinx_execute = 'always'
 nbsphinx_timeout = 60
 
 # -- Options for HTML output ----------------------------------------------

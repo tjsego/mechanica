@@ -159,7 +159,7 @@ def show():
         from IPython.display import Image
         for _ in range(docs_steps_term):
             m.step()
-        display(Image(m.system.image_data(), width=window_width))
+        display(Image(m.system.image_data(), width=window_width, format='png'))
         return
 
     w = widgets.Image(value=m.system.image_data(), width=window_width)

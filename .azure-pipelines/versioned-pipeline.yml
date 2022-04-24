@@ -11,7 +11,7 @@ pr:
     - master
 
 variables:
-  mx_version: '0.32.0'
+  mx_version: '0.32.1'
   mx_buildnum: 0
   mx_buildqual: 'release'
 

@@ -3,6 +3,15 @@
 History
 ========
 
+Version 0.32.1
+--------------
+Patch release
+
+* Added links to C API docs
+* Reduced cost of docs build to support rendered notebooks online
+* Mitigated bug related to pre-rendered notebooks with jpeg output
+* Relaxed python library testing to mitigate random, erroneous errors on Azure for osx
+
 Version 0.32.0
 --------------
 Minor features and bug fix release

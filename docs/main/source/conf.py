@@ -161,7 +161,8 @@ autoclass_content = "both"
 
 intersphinx_mapping = {
     'docs_api_cpp': ('https://mechanica-c-api-documentation.readthedocs.io/en/latest/', None),
-    'docs_api_py': ('https://mechanica-python-api-documentation.readthedocs.io/en/latest/', None)
+    'docs_api_py': ('https://mechanica-python-api-documentation.readthedocs.io/en/latest/', None),
+    'docs_api_c': ('https://mechanica-c-library-api-documentation.readthedocs.io/en/latest/', None)
 }
 
 # -- Options for nbsphinx -------------------------------------------------

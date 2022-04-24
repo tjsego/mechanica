@@ -39,11 +39,12 @@ The latest Mechanica developments are archived at the
 
 Mechanica documentation is available online, 
 
-| Document                 | Link                                                                         | Status |
-| :----------------------: | :--------------------------------------------------------------------------: | :----: |
-| Mechanica Documentation  | [link](https://mechanica-documentation.readthedocs.io/en/latest/)            | [![Documentation Status](https://readthedocs.org/projects/mechanica-documentation/badge/?version=latest)](https://mechanica-documentation.readthedocs.io/en/latest/?badge=latest) |
-| C++ API Documentation    | [link](https://mechanica-c-api-documentation.readthedocs.io/en/latest/)      | [![Documentation Status](https://readthedocs.org/projects/mechanica-c-api-documentation/badge/?version=latest)](https://mechanica-c-api-documentation.readthedocs.io/en/latest/?badge=latest) |
-| Python API Documentation | [link](https://mechanica-python-api-documentation.readthedocs.io/en/latest/) | [![Documentation Status](https://readthedocs.org/projects/mechanica-python-api-documentation/badge/?version=latest)](https://mechanica-python-api-documentation.readthedocs.io/en/latest/?badge=latest) |
+| Document                    | Link                                                                            | Status |
+| :-------------------------: | :-----------------------------------------------------------------------------: | :----: |
+| Mechanica Documentation     | [link](https://mechanica-documentation.readthedocs.io/en/latest/)               | [![Documentation Status](https://readthedocs.org/projects/mechanica-documentation/badge/?version=latest)](https://mechanica-documentation.readthedocs.io/en/latest/?badge=latest) |
+| C++ API Documentation       | [link](https://mechanica-c-api-documentation.readthedocs.io/en/latest/)         | [![Documentation Status](https://readthedocs.org/projects/mechanica-c-api-documentation/badge/?version=latest)](https://mechanica-c-api-documentation.readthedocs.io/en/latest/?badge=latest) |
+| Python API Documentation    | [link](https://mechanica-python-api-documentation.readthedocs.io/en/latest/)    | [![Documentation Status](https://readthedocs.org/projects/mechanica-python-api-documentation/badge/?version=latest)](https://mechanica-python-api-documentation.readthedocs.io/en/latest/?badge=latest) |
+| C Library API Documentation | [link](https://mechanica-c-library-api-documentation.readthedocs.io/en/latest/) | [![Documentation Status](https://readthedocs.org/projects/mechanica-c-library-api-documentation/badge/?version=latest)](https://mechanica-c-library-api-documentation.readthedocs.io/en/latest/?badge=latest) |
 
 # Installation #
 

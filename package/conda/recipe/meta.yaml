@@ -69,16 +69,5 @@ requirements:
     - pthreads-win32 # [win]
 
 test:
-  requires:
-    - cmake>=3.20.3 # [linux or osx]
-    - pytest # [linux or osx]
-    - ninja # [linux or osx]
-    - clang=12 # [linux]
-    - clangxx=12 # [linux]
-    - lld # [linux]
-    - {{ compiler('c') }} # [linux or osx]
-    - {{ compiler('cxx') }} # [linux or osx]
-  source_files:
-    - testing # [linux or osx]
   imports:
-    - mechanica # [win]
+    - mechanica

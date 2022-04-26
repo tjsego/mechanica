@@ -68,6 +68,7 @@ set(PRIVATE_HEADERS
   MxCluster.hpp
   engine_advance.h
   MxSecreteUptake.hpp
+  MxSubEngine.h
   SpaceQueue.hpp
   DissapativeParticleDynamics.hpp
   MxBoundaryConditions.hpp
@@ -128,6 +129,7 @@ SET(SOURCES
   Cell.cpp
   Flux.cpp
   MxSecreteUptake.cpp
+  MxSubEngine.cpp
   SpaceQueue.cpp
   DissapativeParticleDynamics.cpp
   MxBoundaryConditions.cpp

@@ -118,7 +118,7 @@ double engine_steps_per_second() {
 #define error(id)				( engine_err = errs_register( id , engine_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
 
 /* list of error messages. */
-const char *engine_err_msg[30] = {
+const char *engine_err_msg[31] = {
 		"Nothing bad happened.",
 		"An unexpected NULL pointer was encountered.",
 		"A call to malloc failed, probably due to insufficient memory.",
@@ -149,6 +149,7 @@ const char *engine_err_msg[30] = {
 		"Cell cutoff size doesn't work with METIS",
 		"METIS library undefined",
         "Particles moving too fast",
+		"An error occured when calling a subengine.",
 };
 
 
@@ -1636,12 +1637,21 @@ int engine_nonbond_eval ( struct engine *e ) {
  * are updated and the particles are re-sorted in the #space.
  */
 int engine_step ( struct engine *e ) {
+	int i;
     WallTime wt;
     PerformanceTimer t(engine_timer_step);
     update_steps_per_second();
     
 	/* increase the time stepper */
 	e->time += 1;
+
+	// Pre-step subengines
+	for(auto &se : e->subengines) 
+		if((i = se->preStepStart()) != engine_err_ok) 
+			return error(engine_err_subengine);
+	for(auto &se : e->subengines) 
+		if((i = se->preStepJoin()) != engine_err_ok) 
+			return error(engine_err_subengine);
 
 	engine_advance(e);
 
@@ -1657,6 +1667,14 @@ int engine_step ( struct engine *e ) {
     for(MxConstantForce* p : e->constant_forces) {
         p->onTime(e->time * e->dt);
     }
+
+	// Post-step subengines
+	for(auto &se : e->subengines) 
+		if((i = se->postStepStart()) != engine_err_ok) 
+			return error(engine_err_subengine);
+	for(auto &se : e->subengines) 
+		if((i = se->postStepJoin()) != engine_err_ok) 
+			return error(engine_err_subengine);
 
 	/* return quietly */
 	return engine_err_ok;
@@ -1870,6 +1888,11 @@ int engine_finalize ( struct engine *e ) {
 		if(engine_fromCUDA(e) < 0)
 			return error(engine_err);
 	#endif
+
+	// Finalize subengines
+	for(auto &se : e->subengines) 
+		if((j = se->finalize()) != engine_err_ok) 
+			return error(engine_err_subengine);
 
     /* Shut down the runners, if they were started. */
     if ( e->runners != NULL ) {

@@ -25,6 +25,7 @@
 #include "space.h"
 #include "cycle.h"
 #include "MxBoundaryConditions.hpp"
+#include "MxSubEngine.h"
 #include <mutex>
 #include <thread>
 
@@ -60,6 +61,7 @@
 #define engine_err_cutoff		 		 -27
 #define engine_err_nometis				 -28
 #define engine_err_toofast               -29
+#define engine_err_subengine 			 -30
 
 
 /* some constants */
@@ -424,6 +426,12 @@ typedef struct engine {
 	EngineIntegrator integrator;
 
     MxBoundaryConditions boundary_conditions;
+
+	/**
+	 * @brief Borrowed references to registered subengines.
+	 * 
+	 */
+	std::vector<MxSubEngine*> subengines;
     
     
     /**

@@ -211,6 +211,17 @@ MX_ALWAYS_INLINE void potential_eval_r (struct MxPotential *p , FPTYPE r , FPTYP
 
 MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
                             MxPotential *pot, MxParticle *part_i, MxParticle *part_j,
+                            float *dx, float r2, float *epot);
+
+static bool _potential_eval_super_ex(const space_cell *cell,
+                            MxPotential *pot, MxParticle *part_i, MxParticle *part_j,
+                            float *dx, float r2, float *epot) 
+{
+    return potential_eval_super_ex(cell, pot, part_i, part_j, dx, r2, epot);
+}
+
+bool potential_eval_super_ex(const space_cell *cell,
+                            MxPotential *pot, MxParticle *part_i, MxParticle *part_j,
                             float *dx, float r2, float *epot) {
     
     float e;
@@ -264,8 +275,8 @@ MX_ALWAYS_INLINE bool potential_eval_super_ex(const space_cell *cell,
     }
     else if(pot->kind == POTENTIAL_KIND_COMBINATION) {
         if(pot->flags & POTENTIAL_SUM) {
-            potential_eval_super_ex(cell, pot->pca, part_i, part_j, _dx, _r2, epot);
-            potential_eval_super_ex(cell, pot->pcb, part_i, part_j, _dx, _r2, epot);
+            _potential_eval_super_ex(cell, pot->pca, part_i, part_j, _dx, _r2, epot);
+            _potential_eval_super_ex(cell, pot->pcb, part_i, part_j, _dx, _r2, epot);
             result = true;
         }
     }

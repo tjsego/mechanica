@@ -9,6 +9,7 @@
 
 #include "engine.h"
 #include "../../io/MxFIO.h"
+#include <cstdarg>
 
 void MxParticleTypeList::free() {}
 

@@ -120,8 +120,18 @@ MX_ALWAYS_INLINE bool apply_update_pos_vel(MxParticle *p, space_cell *c, const f
     return delta[0] == 0 && delta[1] == 0 && delta[2] == 0;
 };
 
-
 MX_ALWAYS_INLINE bool boundary_potential_eval_ex(const struct space_cell *cell,
+                            MxPotential *pot, MxParticle *part, MxBoundaryCondition *bc,
+                            float *dx, float r2, float *epot);
+
+static bool _boundary_potential_eval_ex(const struct space_cell *cell,
+                            MxPotential *pot, MxParticle *part, MxBoundaryCondition *bc,
+                            float *dx, float r2, float *epot) 
+{
+    return boundary_potential_eval_ex(cell, pot, part, bc, dx, r2, epot);
+}
+
+bool boundary_potential_eval_ex(const struct space_cell *cell,
                             MxPotential *pot, MxParticle *part, MxBoundaryCondition *bc,
                             float *dx, float r2, float *epot) {
     float e = 0;
@@ -170,8 +180,8 @@ MX_ALWAYS_INLINE bool boundary_potential_eval_ex(const struct space_cell *cell,
     }
     else if(pot->kind == POTENTIAL_KIND_COMBINATION) {
         if(pot->flags & POTENTIAL_SUM) {
-            boundary_potential_eval_ex(cell, pot->pca, part, bc, dx, r2, epot);
-            boundary_potential_eval_ex(cell, pot->pcb, part, bc, dx, r2, epot);
+            _boundary_potential_eval_ex(cell, pot->pca, part, bc, dx, r2, epot);
+            _boundary_potential_eval_ex(cell, pot->pcb, part, bc, dx, r2, epot);
             result = true;
         }
     }

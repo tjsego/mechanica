@@ -829,6 +829,21 @@ CAPI_FUNC(HRESULT) MxCParticleType_createParticle(struct MxParticleTypeHandle *h
 CAPI_FUNC(HRESULT) MxCParticleType_createParticleS(struct MxParticleTypeHandle *handle, int *pid, const char *str);
 
 /**
+ * @brief Particle factory constructor, for making lots of particles quickly. 
+ * 
+ * At minimum, arguments must specify the number of particles to create, whether 
+ * specified explicitly or through one or more vector arguments.
+ * 
+ * @param handle populated handle
+ * @param pids ids of created particle, optional
+ * @param nr_parts number of particles to create
+ * @param positions initial particle positions, optional
+ * @param velocities initial particle velocities, optional
+ * @return S_OK on success
+ */
+CAPI_FUNC(HRESULT) MxCParticleType_factory(struct MxParticleTypeHandle *handle, int **pids, unsigned int nr_parts, float *positions, float *velocities);
+
+/**
  * @brief Particle type constructor. 
  * 
  * New type is constructed from the definition of the calling type. 

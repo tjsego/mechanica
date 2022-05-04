@@ -23,13 +23,8 @@ Argon = ArgonType.get()
 # bind the potential with the *TYPES* of the particles
 mx.bind.types(pot, Argon, Argon)
 
-# uniform random cube
-positions = np.random.uniform(low=0, high=10, size=(10000, 3))
-
-for pos in positions:
-    # calling the particle constructor implicitly adds
-    # the particle to the universe
-    Argon(pos)
+# create lots of particles in a uniform random cube
+Argon.factory(positions=np.random.uniform(low=0, high=10, size=(10000, 3)))
 
 # run the simulator interactive
 mx.run()

@@ -26,7 +26,7 @@ Argon = ArgonType.get()
 mx.bind.types(pot, Argon, Argon)
 
 # uniform cube
-[Argon() for _ in range(2500)]
+Argon.factory(nr_parts=2500)
 
 # run the simulator
 mx.step(100*mx.Universe.dt)

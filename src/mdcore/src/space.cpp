@@ -395,7 +395,31 @@ int space_shuffle_local ( struct space *s ) {
 
 }
 
+int space_growparts(struct space *s, unsigned int size_incr) { 
+    int k;
+    struct MxParticle **temp;
+    struct space_cell **tempc;
 
+    int size_parts = s->size_parts;
+    s->size_parts += size_incr;
+
+    if ( ( temp = (struct MxParticle **)malloc( sizeof(struct MxParticle *) * s->size_parts ) ) == NULL )
+        return error(space_err_malloc);
+    if ( ( tempc = (struct space_cell **)malloc( sizeof(struct space_cell *) * s->size_parts ) ) == NULL )
+        return error(space_err_malloc);
+    memcpy( temp , s->partlist , sizeof(struct MxParticle *) * size_parts );
+    memcpy( tempc , s->celllist , sizeof(struct space_cell *) * size_parts );
+    free( s->partlist );
+    free( s->celllist );
+    s->partlist = temp;
+    s->celllist = tempc;
+    for(k = size_parts; k < s->size_parts; k++) {
+        s->partlist[k] = NULL;
+        s->celllist[k] = NULL;
+    }
+
+    return space_err_ok;
+}
 
 int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct MxParticle **result ) {
 
@@ -410,17 +434,8 @@ int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct M
 
     /* do we need to extend the partlist? */
     if ( s->nr_parts == s->size_parts ) {
-        s->size_parts += space_partlist_incr;
-        if ( ( temp = (struct MxParticle **)malloc( sizeof(struct MxParticle *) * s->size_parts ) ) == NULL )
-            return error(space_err_malloc);
-        if ( ( tempc = (struct space_cell **)malloc( sizeof(struct space_cell *) * s->size_parts ) ) == NULL )
-            return error(space_err_malloc);
-        memcpy( temp , s->partlist , sizeof(struct MxParticle *) * s->nr_parts );
-        memcpy( tempc , s->celllist , sizeof(struct space_cell *) * s->nr_parts );
-        free( s->partlist );
-        free( s->celllist );
-        s->partlist = temp;
-        s->celllist = tempc;
+        if(space_growparts(s, space_partlist_incr) != space_err_ok) 
+            return error(space_err);
 
         #if defined(HAVE_CUDA)
             if(_Engine.flags & engine_flag_cuda && engine_cuda_refresh_particles(&_Engine) < 0)
@@ -1001,6 +1016,10 @@ int space_init (struct space *s , const double *origin , const double *dim ,
         return error(space_err_malloc);
     s->nr_parts = 0;
     s->size_parts = space_partlist_incr;
+    for(k = 0; k < s->size_parts; k++) {
+        s->partlist[k] = NULL;
+        s->celllist[k] = NULL;
+    }
 
     /* init the cellpair mutexes */
     if ( pthread_mutex_init( &s->tasks_mutex , NULL ) != 0 ||

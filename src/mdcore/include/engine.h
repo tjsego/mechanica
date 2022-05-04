@@ -28,6 +28,7 @@
 #include "MxSubEngine.h"
 #include <mutex>
 #include <thread>
+#include <set>
 
 
 /* engine error codes */
@@ -268,6 +269,9 @@ typedef struct engine {
 
 	/** Lists of cells to exchange with other nodes. */
 	struct engine_comm *send, *recv;
+
+	/** Recycled particle ids */
+	std::set<unsigned int> pids_avail;
 
 	/** List of bonds. */
 	struct MxBond *bonds;

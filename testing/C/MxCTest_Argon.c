@@ -40,9 +40,7 @@ int main(int argc, char** argv) {
     MXCTEST_CHECK(MxCBind_types(&pot, &Argon, &Argon, 0));
 
     // uniform cube
-    int pid;
-    for(unsigned int i = 0; i < 2500; i++) 
-        MXCTEST_CHECK(MxCParticleType_createParticle(&Argon, &pid, NULL, NULL));
+    MXCTEST_CHECK(MxCParticleType_factory(&Argon, NULL, 2500, NULL, NULL));
 
     // run the simulator
     MXCTEST_CHECK(MxCTest_runQuiet(100));

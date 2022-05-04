@@ -2221,16 +2221,14 @@ CAPI_FUNC(struct MxParticleType*) engine_type(int id)
 
 int engine_next_partid(struct engine *e)
 {
-    // TODO: not the most effecient algorithm...
-    space *s = &e->s;
-    int i;
+	if(e->pids_avail.empty()) 
+		return e->s.nr_parts;
 
-    for(i = 0; i < s->nr_parts; ++i) {
-        if(s->partlist[i] == NULL) {
-            return i;
-        }
-    }
-    return i;
+	std::set<unsigned int>::iterator itr = e->pids_avail.begin();
+	unsigned int pid = *itr;
+	e->pids_avail.erase(itr);
+
+	return pid;
 }
 
 CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
@@ -2273,6 +2271,8 @@ CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
 	for(int i = 0; i < dihedrals.size(); ++i) {
 		MxDihedral_Destroy(&_Engine.dihedrals[dihedrals[i]]);
 	}
+
+	e->pids_avail.insert(pid);
 
     return space_del_particle(&e->s, pid);
 }

@@ -822,6 +822,36 @@ HRESULT MxCParticleType_createParticleS(struct MxParticleTypeHandle *handle, int
     return S_OK;
 }
 
+HRESULT MxCParticleType_factory(struct MxParticleTypeHandle *handle, int **pids, unsigned int nr_parts, float *positions, float *velocities) {
+    MXPTYPEHANDLE_GET(handle);
+    if(nr_parts == 0) 
+        return E_FAIL;
+
+    unsigned int nr_parts_ui = (unsigned int)nr_parts;
+
+    std::vector<MxVector3f> _positions, *_positions_p = NULL;
+    std::vector<MxVector3f> _velocities, *_velocities_p = NULL;
+
+    if(positions) {
+        _positions.reserve(nr_parts);
+        for(unsigned int i = 0; i < nr_parts; i++) 
+            _positions.push_back(MxVector3f::from(&positions[3 * i]));
+        _positions_p = &_positions;
+    }
+    if(velocities) {
+        _velocities.reserve(nr_parts);
+        for(unsigned int i = 0; i < nr_parts; i++) 
+            _velocities.push_back(MxVector3f::from(&velocities[3 * i]));
+        _velocities_p = &_velocities;
+    }
+
+    std::vector<int> _pids_v = ptype->factory(nr_parts_ui, _positions_p, _velocities_p);
+    if(pids) 
+        std::copy(_pids_v.begin(), _pids_v.end(), *pids);
+
+    return S_OK;
+}
+
 HRESULT MxCParticleType_newType(struct MxParticleTypeHandle *handle, const char *_name, struct MxParticleTypeHandle *newTypehandle) {
     MXPTYPEHANDLE_GET(handle);
     MXCPTRCHECK(_name);

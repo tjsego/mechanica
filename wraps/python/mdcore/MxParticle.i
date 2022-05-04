@@ -6,6 +6,7 @@
 // Currently swig isn't playing nicely with MxVector3f pointers for MxParticleType::operator(), 
 //  so we'll handle them manually for now
 %rename(_call) MxParticleType::operator();
+%rename(_factory) MxParticleType::factory(unsigned int, std::vector<MxVector3f>*, std::vector<MxVector3f>*, std::vector<int>*);
 %rename(to_cluster) MxParticleHandle::operator MxClusterParticleHandle*();
 %rename(to_cluster) MxParticleType::operator MxClusterParticleType*();
 
@@ -226,6 +227,24 @@
             if part_str is not None:
                 return self._call(part_str, cluster_id)
             return self._call(pos, vel, cluster_id)
+
+        def factory(self, nr_parts=0, positions=None, velocities=None, cluster_ids=None):
+            _positions = None
+            if positions is not None:
+                _positions = vectorMxVector3f()
+                [_positions.push_back(MxVector3f(x)) for x in positions]
+
+            _velocities = None
+            if velocities is not None:
+                _velocities = vectorMxVector3f()
+                [_velocities.push_back(MxVector3f(x)) for x in velocities]
+
+            _cluster_ids = None
+            if cluster_ids is not None:
+                _cluster_ids = vectori()
+                [_cluster_ids.push_back(x) for x in cluster_ids]
+
+            return self._factory(nr_parts=nr_parts, positions=_positions, velocities=_velocities, clusterIds=_cluster_ids)
 
         @property
         def frozen(self):

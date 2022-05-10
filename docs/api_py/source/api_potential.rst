@@ -75,8 +75,6 @@ Potentials
 
     .. automethod:: dpd
 
-    .. automethod:: custom
-
 .. autoclass:: DPDPotential
     :show-inheritance:
 
@@ -93,3 +91,8 @@ Potentials
     .. automethod:: fromString
 
     .. automethod:: __reduce__
+
+.. autoclass:: MxPotentialPy
+    :show-inheritance:
+
+    .. autoattribute:: custom

@@ -173,8 +173,14 @@ double MxParticleHandle::getMass() {
 }
 
 void MxParticleHandle::setMass(const double &mass) {
+    if(mass <= 0.f) {
+        mx_error(E_FAIL, "Mass must be positive");
+        return;
+    }
+
     PARTICLE_SELFW(this, )
     self->mass = mass;
+    self->imass = 1.f / mass;
 }
 
 bool MxParticleType::getFrozen() {

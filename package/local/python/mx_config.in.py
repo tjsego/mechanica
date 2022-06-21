@@ -16,11 +16,14 @@ if mx_dir_bin_rel is not None:
 
 if sys.platform.startswith('win'):
     if mx_dir_bin is not None:
-        try:
-            env_str = os.environ['PATH']
-        except KeyError:
-            env_str = ''
-        env_str_list = env_str.split(';')
+        if sys.version_info >= (3, 8):
+            os.add_dll_directory(mx_dir_bin)
+        else:
+            try:
+                env_str = os.environ['PATH']
+            except KeyError:
+                env_str = ''
+            env_str_list = env_str.split(';')
 
-        if mx_dir_bin not in env_str_list:
-            os.environ['PATH'] = ';'.join([mx_dir_bin] + env_str_list)
+            if mx_dir_bin not in env_str_list:
+                os.environ['PATH'] = ';'.join([mx_dir_bin] + env_str_list)

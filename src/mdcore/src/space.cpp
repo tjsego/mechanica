@@ -1014,7 +1014,7 @@ int space_init (struct space *s , const double *origin , const double *dim ,
     // init the large particles cell
     // the large particle cell is at the global origin,
     // so has zero offset for loc.
-    l[0] = l[1] = l[1] = 0;
+    l[0] = l[1] = l[2] = 0;
     
     //if(LOG_TRACE <= CLogger::getLevel()) {
     //    for(int i = 0; i < s->nr_tasks; ++i) {

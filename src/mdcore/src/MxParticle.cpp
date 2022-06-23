@@ -286,6 +286,9 @@ double MxParticleHandle::getRadius() {
 void MxParticleHandle::setRadius(const double &radius) {
     PARTICLE_SELFW(this, )
     self->radius = radius;
+    if((radius > _Engine.s.cutoff && !(self->flags & PARTICLE_LARGE)) || (radius <= _Engine.s.cutoff && self->flags & PARTICLE_LARGE)) {
+        Log(LOG_WARNING) << "An invalid particle state change occurred (large particle)";
+    }
 }
 
 std::string MxParticleHandle::getName() {

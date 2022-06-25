@@ -45,8 +45,6 @@ Potentials
 
     .. automethod:: lennard_jones_12_6_coulomb
 
-    .. automethod:: soft_sphere
-
     .. automethod:: ewald
 
     .. automethod:: coulomb

@@ -6,7 +6,7 @@ cutoff = 1
 # new simulator
 mx.init(dim=[20., 20., 20.], windowless=True)
 
-pot = mx.Potential.soft_sphere(kappa=10, epsilon=0.1, r0=0.6, eta=3, tol=0.1, min=0.05, max=4)
+pot = mx.Potential.coulomb(q=10, min=0.1, max=1.0)
 
 
 class CellType(mx.ParticleType):

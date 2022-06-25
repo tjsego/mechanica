@@ -59,8 +59,9 @@ int main(int argc, char** argv) {
     struct MxPotentialHandle p;
     double p_d = 100.0;
     double p_a = 1.0;
-    double p_max = 5.0;
-    MXCTEST_CHECK(MxCPotential_create_morse(&p, &p_d, &p_a, NULL, NULL, &p_max, NULL));
+    double p_min = -3.0;
+    double p_max = 4.0;
+    MXCTEST_CHECK(MxCPotential_create_morse(&p, &p_d, &p_a, NULL, &p_min, &p_max, NULL));
 
     MXCTEST_CHECK(MxCBind_types(&p, &AType, &SphereType, 0));
     MXCTEST_CHECK(MxCBind_types(&p, &AType, &TestType, 0));

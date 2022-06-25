@@ -62,11 +62,11 @@ c = C(position=mx.Universe.center + [0., 0., cshift])
 
 [c(B) for _ in range(4000)]
 
-pb = mx.Potential.soft_sphere(kappa=300, epsilon=6, r0=0.5, eta=2, tol=0.05, min=0.01, max=3)
+pb = mx.Potential.morse(d=1, a=6, r0=0.5, min=0.01, max=3, shifted=False)
 
-pub = mx.Potential.soft_sphere(kappa=400, epsilon=0, r0=0.5, eta=2, tol=0.05, min=0.01, max=1.5)
+pub = mx.Potential.morse(d=1, a=6, r0=0.5, min=0.01, max=3, shifted=False)
 
-py = mx.Potential.soft_sphere(kappa=300, epsilon=25, r0=1, eta=2, tol=0.04, min=0.01, max=10, shift=True)
+py = mx.Potential.morse(d=0.1, a=6, r0=0.0, min=-5, max=1.0)
 
 rforce = mx.Force.random(mean=0, std=1)
 

@@ -27,9 +27,8 @@ Big = BigType.get()
 Small = SmallType.get()
 
 
-pot_bs = mx.Potential.soft_sphere(kappa=100, epsilon=1, r0=3.2, eta=3, tol=0.1, min=0.1, max=8)
-
-pot_ss = mx.Potential.soft_sphere(kappa=1, epsilon=0.1, r0=0.2, eta=2, tol=0.05, min=0.01, max=4)
+pot_bs = mx.Potential.morse(d=1, a=6, min=0.1, max=8, r0=3.2, shifted=False)
+pot_ss = mx.Potential.morse(d=1, a=6, min=0.01, max=4, r0=0.2, shifted=False)
 
 # bind the potential with the *TYPES* of the particles
 mx.bind.types(pot_bs, Big, Small)

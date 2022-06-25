@@ -259,15 +259,6 @@ int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *ep
         for(int i = 0; i < pots.size(); i++) {
             pot = pots[i];
 
-            /* printf( "dihedral_eval: dihedral %i is %e rad.\n" , did , cphi ); */
-            if ( cphi < pot->a || cphi > pot->b ) {
-                printf( "dihedral_eval: dihedral %i (%s-%s-%s-%s) out of range [%e,%e], cphi=%e.\n" ,
-                    did , e->types[pi->typeId].name , e->types[pj->typeId].name ,
-                    e->types[pk->typeId].name , e->types[pl->typeId].name , pot->a ,
-                    pot->b , cphi );
-                cphi = fmax( pot->a , fmin( pot->b , cphi ) );
-                }
-
             if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
                 std::fill(std::begin(fi), std::end(fi), 0.0);
                 std::fill(std::begin(fl), std::end(fl), 0.0);
@@ -286,8 +277,11 @@ int dihedral_eval ( struct MxDihedral *d , int N , struct engine *e , double *ep
             else {
 
                 #ifdef VECTORIZE
+                    if(cphi > pot->b) 
+                        continue;
+
                     /* add this dihedral to the interaction queue. */
-                    cphiq[icount] = cphi;
+                    cphiq[icount] = FPTYPE_FMAX(cphi, pot->a);
                     diq[icount*3] = dxi[0];
                     diq[icount*3+1] = dxi[1];
                     diq[icount*3+2] = dxi[2];
@@ -608,15 +602,6 @@ int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f
 
         for(int i = 0; i < pots.size(); i++) {
             pot = pots[i];
-        
-            /* printf( "dihedral_eval: dihedral %i is %e rad.\n" , did , cphi ); */
-            if ( cphi < pot->a || cphi > pot->b ) {
-                printf( "dihedral_evalf: dihedral %i (%s-%s-%s-%s) out of range [%e,%e], cphi=%e.\n" ,
-                    did , e->types[pi->typeId].name , e->types[pj->typeId].name ,
-                    e->types[pk->typeId].name , e->types[pl->typeId].name , pot->a ,
-                    pot->b , cphi );
-                cphi = fmax( pot->a , fmin( pot->b , cphi ) );
-                }
 
             if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
                 std::fill(std::begin(fi), std::end(fi), 0.0);
@@ -636,8 +621,11 @@ int dihedral_evalf ( struct MxDihedral *d , int N , struct engine *e , FPTYPE *f
             else {
             
                 #ifdef VECTORIZE
+                    if(cphi > pot->b) 
+                        continue;
+
                     /* add this dihedral to the interaction queue. */
-                    cphiq[icount] = cphi;
+                    cphiq[icount] = FPTYPE_FMAX(cphi, pot->a);
                     diq[icount*3] = dxi[0];
                     diq[icount*3+1] = dxi[1];
                     diq[icount*3+2] = dxi[2];
@@ -794,6 +782,11 @@ MxDihedralHandle *MxDihedral::create(MxPotential *potential,
                                  	 MxParticleHandle *p3, 
                                  	 MxParticleHandle *p4) 
 {
+    if(potential->flags & POTENTIAL_SCALED || potential->flags & POTENTIAL_SHIFTED) {
+        throw std::runtime_error("dihedrals do not support scaled or shifted potentials");
+        return NULL;
+    }
+
     MxDihedral *dihedral = NULL;
 
     int id = engine_dihedral_alloc(&_Engine, &dihedral);

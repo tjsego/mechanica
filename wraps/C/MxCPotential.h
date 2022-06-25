@@ -624,15 +624,6 @@ CAPI_FUNC(HRESULT) MxCPotential_setR0(struct MxPotentialHandle *handle, float r0
 CAPI_FUNC(HRESULT) MxCPotential_getRSquare(struct MxPotentialHandle *handle, float *r2);
 
 /**
- * @brief Set the equilibrium distance of the potential
- * 
- * @param handle populated handle
- * @param r2 squared equilibrium distance
- * @return S_OK on success 
- */
-CAPI_FUNC(HRESULT) MxCPotential_setRSquare(struct MxPotentialHandle *handle, float r2);
-
-/**
  * @brief Get whether the potential is shifted
  * 
  * @param handle populated handle
@@ -640,15 +631,6 @@ CAPI_FUNC(HRESULT) MxCPotential_setRSquare(struct MxPotentialHandle *handle, flo
  * @return S_OK on success 
  */
 CAPI_FUNC(HRESULT) MxCPotential_getShifted(struct MxPotentialHandle *handle, bool *shifted);
-
-/**
- * @brief Set whether the potential is shifted
- * 
- * @param handle populated handle
- * @param shifted flag signifying whether the potential is shifted
- * @return S_OK on success 
- */
-CAPI_FUNC(HRESULT) MxCPotential_setShifted(struct MxPotentialHandle *handle, bool shifted);
 
 /**
  * @brief Get whether the potential is periodic
@@ -701,24 +683,6 @@ CAPI_FUNC(HRESULT) MxCPotential_create_lennard_jones_12_6(struct MxPotentialHand
  * @return MxPotential* 
  */
 CAPI_FUNC(HRESULT) MxCPotential_create_lennard_jones_12_6_coulomb(struct MxPotentialHandle *handle, double min, double max, double A, double B, double q, double *tol);
-
-/**
- * @brief Creates a soft sphere interaction potential. 
- * 
- * The soft sphere is a generalized Lennard-Jones-type potential, but with settable exponents to create a softer interaction.
- * 
- * @param handle Handle to populate
- * @param kappa 
- * @param epsilon 
- * @param r0 
- * @param eta 
- * @param min 
- * @param max 
- * @param tol 
- * @param shift 
- * @return MxPotential* 
- */
-CAPI_FUNC(HRESULT) MxCPotential_create_soft_sphere(struct MxPotentialHandle *handle, double kappa, double epsilon, double r0, int eta, double *min, double *max, double *tol, bool *shift);
 
 /**
  * @brief Creates a real-space Ewald potential. 

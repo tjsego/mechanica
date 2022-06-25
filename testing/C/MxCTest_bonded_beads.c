@@ -37,15 +37,14 @@ int main(int argc, char** argv) {
 
     struct MxPotentialHandle pot_bb, pot_bond, pot_ang;
 
-    double bb_min = 0.01, bb_max = 0.5, bb_tol = 0.01;
-    int bb_shift = 0;
-    MXCTEST_CHECK(MxCPotential_create_soft_sphere(&pot_bb, 0.2, 0.05, 0.2, 4, &bb_min, &bb_max, &bb_tol, &bb_shift));
+    double bb_min = 0.1, bb_max = 1.0;
+    MXCTEST_CHECK(MxCPotential_create_coulomb(&pot_bb, 0.1, &bb_min, &bb_max, NULL, NULL));
     MXCTEST_CHECK(MxCBind_types(&pot_bb, &BeadType, &BeadType, 0));
 
-    double bond_max = 2.0;
-    MXCTEST_CHECK(MxCPotential_create_harmonic(&pot_bond, 0.4, 0.2, NULL, &bond_max, NULL));
+    double bond_min=0.0, bond_max = 2.0;
+    MXCTEST_CHECK(MxCPotential_create_harmonic(&pot_bond, 0.4, 0.2, &bond_min, &bond_max, NULL));
 
-    double ang_tol = 0.1;
+    double ang_tol = 0.01;
     MXCTEST_CHECK(MxCPotential_create_harmonic_angle(&pot_ang, 0.2, 0.85 * M_PI, NULL, NULL, &ang_tol));
 
     struct GaussianHandle force_rnd;

@@ -48,9 +48,9 @@ class BType(mx.ParticleType):
 B = BType.get()
 
 # create three potentials, for each kind of particle interaction
-pot_aa = mx.Potential.morse(d=3, a=5, max=3)
-pot_bb = mx.Potential.morse(d=3, a=5, max=3)
-pot_ab = mx.Potential.morse(d=0.3, a=5, max=3)
+pot_aa = mx.Potential.morse(d=3, a=5, min=-0.8, max=2)
+pot_bb = mx.Potential.morse(d=3, a=5, min=-0.8, max=2)
+pot_ab = mx.Potential.morse(d=0.3, a=5, min=-0.8, max=2)
 
 
 # bind the potential with the *TYPES* of the particles
@@ -103,6 +103,8 @@ def benchmark(e: mx.KeyEvent):
     print('Execution time (CPU):', tcpu_f / 1E6, 'ms')
 
     print('Measured speedup:', tcpu_f / tgpu_f if tgpu_f > 0 else 0)
+
+    mx.Simulator.redraw()
 
 
 mx.on_keypress(invoke_method=benchmark)

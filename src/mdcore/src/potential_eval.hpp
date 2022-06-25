@@ -49,6 +49,21 @@ void potential_eval_r ( struct potential *p , FPTYPE r , FPTYPE *e , FPTYPE *f )
 
 #include <iostream>
 
+MX_ALWAYS_INLINE float potential_eval_adjust_distance(struct MxPotential *p, FPTYPE ri, FPTYPE rj, FPTYPE r) {
+    if(p->flags & POTENTIAL_SCALED) {
+        r = r / (ri + rj);
+    }
+    else if(p->flags & POTENTIAL_SHIFTED) {
+        r = r - (ri + rj) + p->r0_plusone;
+    }
+    return r;
+}
+
+MX_ALWAYS_INLINE float potential_eval_adjust_distance2(struct MxPotential *p, FPTYPE ri, FPTYPE rj, FPTYPE r2) {
+    FPTYPE r = potential_eval_adjust_distance(p, ri, rj, FPTYPE_SQRT(r2));
+    return r * r;
+}
+
 
 /**
  * @brief Evaluates the given potential at the given point (interpolated).
@@ -116,28 +131,15 @@ MX_ALWAYS_INLINE bool potential_eval_ex(
     r = FPTYPE_SQRT(r2);
     ro = r < epsilon ? epsilon : r;
     
+    r = potential_eval_adjust_distance(p, ri, rj, r);
+    
     // cutoff min value, eval at lowest func interpolation.
     r = r < p->a ? p->a : r;
-    
-    if(p->flags & POTENTIAL_SCALED) {
-        r = r / (ri + rj);
-    }
-    else if(p->flags & POTENTIAL_SHIFTED) {
-        r = r - (ri + rj) + p->r0_plusone;
-    }
-
-    /* is r in the house? */
-    /* if ( r < p->a || r > p->b )
-     printf("potential_eval: requested potential at r=%e, not in [%e,%e].\n",r,p->a,p->b); */
 
     /* compute the index */
     ind = std::max( FPTYPE_ZERO , p->alpha[0] + r * (p->alpha[1] + r * p->alpha[2]) );
 
     if(r > p->b || ind > p->n) {
-        //*e = 0;
-        //*f = 0;
-        //std::cerr << "potential_eval particle out of range, scaled r: " <<
-        //r << ", min: " << p->a << ", max: " << p->b << std::endl;
         return false;
     }
 
@@ -186,9 +188,9 @@ MX_ALWAYS_INLINE void potential_eval_r (struct MxPotential *p , FPTYPE r , FPTYP
     /* compute the index */
     ind = FPTYPE_FMAX( FPTYPE_ZERO , p->alpha[0] + r * (p->alpha[1] + r * p->alpha[2] ) );
 
-    /* is r in the house? */
-    /* if ( ind > p->n )
-        printf("potential_eval_r: requested potential at r=%e (ind=%.8e), not in [%e,%e].\n",r , p->alpha[0] + r * (p->alpha[1] + r * (p->alpha[2] + r * p->alpha[3])),p->a,p->b); */
+    if(ind > p->n) {
+        return;
+    }
 
     /* get the table offset */
     c = &(p->c[ind * potential_chunk]);
@@ -224,6 +226,12 @@ bool potential_eval_super_ex(const space_cell *cell,
                             MxPotential *pot, MxParticle *part_i, MxParticle *part_j,
                             float *dx, float r2, float *epot) {
     
+    if(pot->kind == POTENTIAL_KIND_COMBINATION) {
+        if(pot->flags & POTENTIAL_SUM) {
+            return _potential_eval_super_ex(cell, pot->pca, part_i, part_j, dx, r2, epot) || _potential_eval_super_ex(cell, pot->pcb, part_i, part_j, dx, r2, epot);
+        }
+    }
+    
     float e;
     bool result = false;
     float _dx[3], _r2;
@@ -235,19 +243,6 @@ bool potential_eval_super_ex(const space_cell *cell,
     else {
         _r2 = r2;
         for (int k = 0; k < 3; k++) _dx[k] = dx[k];
-    }
-    
-    // if distance is less that potential min distance, define random
-    // for repulsive force.
-    if(_r2 < pot->a * pot->a) {
-        _dx[0] = space_cell_gaussian(cell->id);
-        _dx[1] = space_cell_gaussian(cell->id);
-        _dx[2] = space_cell_gaussian(cell->id);
-        float len = std::sqrt(_dx[0] * _dx[0] + _dx[1] * _dx[1] + _dx[2] * _dx[2]);
-        _dx[0] = _dx[0] * pot->a / len;
-        _dx[1] = _dx[1] * pot->a / len;
-        _dx[2] = _dx[2] * pot->a / len;
-        _r2 = pot->a * pot->a;
     }
     
     if(pot->kind == POTENTIAL_KIND_DPD) {
@@ -273,14 +268,7 @@ bool potential_eval_super_ex(const space_cell *cell,
         *epot += e;
         result = true;
     }
-    else if(pot->kind == POTENTIAL_KIND_COMBINATION) {
-        if(pot->flags & POTENTIAL_SUM) {
-            _potential_eval_super_ex(cell, pot->pca, part_i, part_j, _dx, _r2, epot);
-            _potential_eval_super_ex(cell, pot->pcb, part_i, part_j, _dx, _r2, epot);
-            result = true;
-        }
-    }
-    else {
+    else if(pot->kind != POTENTIAL_KIND_COMBINATION) {
         float f;
     
         /* update the forces if part in range */

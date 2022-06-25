@@ -112,7 +112,7 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
     struct MxPotential *pot, *potb;
     std::vector<struct MxPotential *> pots;
     struct MxBond *b;
-    FPTYPE ee, r2, w, f[3];
+    FPTYPE ee, r2, _r2, w, f[3];
     std::unordered_set<struct MxBond*> toDestroy;
     toDestroy.reserve(N);
     std::uniform_real_distribution<double> uniform01(0.0, 1.0);
@@ -196,12 +196,6 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
 
         for(int i = 0; i < pots.size(); i++) {
             pot = pots[i];
-        
-            if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
-                //printf( "bond_eval: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
-                //    bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
-                r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
-            }
 
             if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
                 std::fill(std::begin(f), std::end(f), 0.0);
@@ -217,9 +211,14 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
             }
             else {
 
+                _r2 = potential_eval_adjust_distance2(pot, pi->radius, pj->radius, r2);
+                if(_r2 > pot->b * pot->b) 
+                    continue;
+                _r2 = FPTYPE_FMAX(_r2, pot->a * pot->a);
+
                 #ifdef VECTORIZE
                     /* add this bond to the interaction queue. */
-                    r2q[icount] = r2;
+                    r2q[icount] = _r2;
                     dxq[icount*3] = dx[0];
                     dxq[icount*3+1] = dx[1];
                     dxq[icount*3+2] = dx[2];
@@ -267,9 +266,9 @@ int bond_eval ( struct MxBond *bonds , int N , struct engine *e , double *epot_o
                 #else // NOT VECTORIZE
                     /* evaluate the bond */
                     #ifdef EXPLICIT_POTENTIALS
-                        potential_eval_expl( pot , r2 , &ee , &eff );
+                        potential_eval_expl( pot , _r2 , &ee , &eff );
                     #else
-                        potential_eval( pot , r2 , &ee , &eff );
+                        potential_eval( pot , _r2 , &ee , &eff );
                     #endif
                 
                     /* update the forces */
@@ -375,7 +374,7 @@ int bond_evalf ( struct MxBond *bonds , int N , struct engine *e , FPTYPE *force
     struct MxPotential *pot, *potb;
     std::vector<struct MxPotential *> pots;
     struct MxBond *b;
-    FPTYPE ee, r2, w, f[3];
+    FPTYPE ee, r2, _r2, w, f[3];
     std::unordered_set<struct MxBond*> toDestroy;
     toDestroy.reserve(N);
     std::uniform_real_distribution<double> uniform01(0.0, 1.0);
@@ -453,12 +452,6 @@ int bond_evalf ( struct MxBond *bonds , int N , struct engine *e , FPTYPE *force
         for(int i = 0; i < pots.size(); i++) {
             pot = pots[i];
 
-            if ( r2 < pot->a*pot->a || r2 > pot->b*pot->b ) {
-                printf( "bond_evalf: bond %i (%s-%s) out of range [%e,%e], r=%e.\n" ,
-                    bid , e->types[pi->typeId].name , e->types[pj->typeId].name , pot->a , pot->b , sqrt(r2) );
-                r2 = fmax( pot->a*pot->a , fmin( pot->b*pot->b , r2 ) );
-            }
-
             if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
                 std::fill(std::begin(f), std::end(f), 0.0);
                 pot->eval_byparts(pot, pi, pj, dx, r2, &ee, f);
@@ -473,9 +466,14 @@ int bond_evalf ( struct MxBond *bonds , int N , struct engine *e , FPTYPE *force
             }
             else {
 
+                _r2 = potential_eval_adjust_distance2(pot, pi->radius, pj->radius, r2);
+                if(_r2 > pot->b * pot->b) 
+                    continue;
+                _r2 = FPTYPE_FMAX(_r2, pot->a * pot->a);
+
                 #ifdef VECTORIZE
                     /* add this bond to the interaction queue. */
-                    r2q[icount] = r2;
+                    r2q[icount] = _r2;
                     dxq[icount*3] = dx[0];
                     dxq[icount*3+1] = dx[1];
                     dxq[icount*3+2] = dx[2];
@@ -523,9 +521,9 @@ int bond_evalf ( struct MxBond *bonds , int N , struct engine *e , FPTYPE *force
                 #else
                     /* evaluate the bond */
                     #ifdef EXPLICIT_POTENTIALS
-                        potential_eval_expl( pot , r2 , &ee , &eff );
+                        potential_eval_expl( pot , _r2 , &ee , &eff );
                     #else
-                        potential_eval( pot , r2 , &ee , &eff );
+                        potential_eval( pot , _r2 , &ee , &eff );
                     #endif
                     b->potential_energy += ee;
                 

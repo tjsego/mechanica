@@ -31,7 +31,7 @@ Receptor = ReceptorType.get()
 receptor_pts = [p * 5 + mx.Universe.center for p in mx.random_points(mx.PointsType.SolidSphere, receptor_count)]
 
 pot_nr = mx.Potential.well(k=15, n=3, r0=7)
-pot_rr = mx.Potential.soft_sphere(kappa=15, epsilon=0, r0=0.3, eta=2, tol=0.05, min=0.01, max=1)
+pot_rr = mx.Potential.morse(d=1, a=6, min=0.01, max=1, r0=0.3, shifted=False)
 
 # bind the potential with the *TYPES* of the particles
 mx.bind.types(pot_rr, Receptor, Receptor)

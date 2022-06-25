@@ -1030,15 +1030,15 @@ __device__ inline void potential_eval_ex_cuda (struct MxPotentialCUDAData p, flo
     ir = rsqrtf(r2);
     r = r2*ir;
     
-    // cutoff min value, eval at lowest func interpolation.
-    r = r < p.w.x ? p.w.x : r;
-    
     if(p.flags & POTENTIAL_SCALED) {
         r = r / (ri + rj);
     }
     else if(p.flags & POTENTIAL_SHIFTED) {
         r = r - (ri + rj) + p.w.z;
     }
+    
+    // cutoff min value, eval at lowest func interpolation.
+    r = r < p.w.x ? p.w.x : r;
     
     /* compute the interval index */
     ind = fmaxf( 0.0f , p.alpha.x + r * (p.alpha.y + r * p.alpha.z) );
@@ -1077,33 +1077,24 @@ __device__ inline void dpd_eval_cuda(MxPotentialCUDAData pot, MxParticleCUDA pi,
 
     float delta = rsqrtf(cuda_dt);
     
-    float ri = pi.v.w;
-    float rj = pj.v.w;
-    bool shifted = pot.flags & POTENTIAL_SHIFTED;
-    
-    float cutoff = shifted ? (pot.w.y + ri + rj) : pot.w.y;
-    
-    if(r2 > cutoff * cutoff) {
-        *result = false;
-        return;
-    }
-    
     float r = sqrtf(r2);
+    float ro = r < FLT_MIN ? FLT_MIN : r;
     
-    if(r < pot.w.x) {
+    r = pot.flags & POTENTIAL_SHIFTED ? r - (pi.v.w + pj.v.w) : r;
+
+    if(r > pot.w.y) {
         *result = false;
         return;
     }
+    r = r >= pot.w.x ? r : pot.w.x;
     
     // unit vector
-    float3 unit_vec{dx[0] / r, dx[1] / r, dx[2] / r};
+    float3 unit_vec{dx[0] / ro, dx[1] / ro, dx[2] / ro};
     
     float3 v{pi.v.x - pj.v.x, pi.v.y - pj.v.y, pi.v.z - pj.v.z};
     
-    float shifted_r = shifted ? r - ri - rj : r;
-    
     // conservative force
-    float omega_c = shifted_r < 0.f ?  1.f : (1 - shifted_r / cutoff);
+    float omega_c = r < 0.f ?  1.f : (1 - r / pot.w.y);
     
     float fc = pot.dpd_cfs.x * omega_c;
     
@@ -1131,31 +1122,28 @@ __device__ inline void dpd_eval_cuda(MxPotentialCUDAData pot, MxParticleCUDA pi,
 }
 
 
-__device__ inline void dpd_boundary_eval_cuda(MxPotentialCUDAData pot, MxParticleCUDA pi, float3 velocity, float *dx, float r2, float *e, float *force, bool *result) {
+__device__ inline void dpd_boundary_eval_cuda(MxPotentialCUDAData pot, MxParticleCUDA pi, float rj, float3 velocity, float *dx, float r2, float *e, float *force, bool *result) {
 
     float delta = rsqrtf(cuda_dt);
     
-    float cutoff = pot.w.y;
-    
-    if(r2 > cutoff * cutoff) {
-        *result = false;
-        return;
-    }
-    
     float r = sqrtf(r2);
+    float ro = r < FLT_MIN ? FLT_MIN : r;
     
-    if(r < pot.w.x) {
+    r = pot.flags & POTENTIAL_SHIFTED ? r - (pi.x.w + rj) : r;
+
+    if(r > pot.w.y) {
         *result = false;
         return;
     }
+    r = r >= pot.w.x ? r : pot.w.x;
     
     // unit vector
-    float3 unit_vec{dx[0] / r, dx[1] / r, dx[2] / r};
+    float3 unit_vec{dx[0] / ro, dx[1] / ro, dx[2] / ro};
     
     float3 v{pi.v.x - velocity.x, pi.v.y - velocity.y, pi.v.z - velocity.z};
     
     // conservative force
-    float omega_c = 1 - r / cutoff;
+    float omega_c = r < 0.f ?  1.f : (1 - r / pot.w.y);
     
     float fc = pot.dpd_cfs.x * omega_c;
     
@@ -1195,11 +1183,8 @@ __device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDAData p_cuda,
     float e;
     *result = false;
     float _dx[3], _r2;
-    auto flags = p_cuda.flags;
-
-    auto a = p_cuda.w.x;
     
-    if(flags & POTENTIAL_PERIODIC) {
+    if(p_cuda.flags & POTENTIAL_PERIODIC) {
         // Assuming elsewhere there's a corresponding potential in the opposite direction
         _dx[0] = dx[0] - p_cuda.offset.x;
         _dx[1] = dx[1] - p_cuda.offset.y;
@@ -1212,21 +1197,6 @@ __device__ inline void _potential_eval_super_ex_cuda(MxPotentialCUDAData p_cuda,
         for (int k = 0; k < 3; k++) {
             _dx[k] = dx[k];
         }
-    }
-    
-    // if distance is less that potential min distance, define random
-    // for repulsive force.
-    if(_r2 < a * a) {
-        int tid = threadIdx.x + blockDim.x * blockIdx.x;
-        curandState *rand_norm = &cuda_rand_norm[tid];
-        _dx[0] = curand_normal(rand_norm);
-        _dx[1] = curand_normal(rand_norm);
-        _dx[2] = curand_normal(rand_norm);
-        float len = 1.f / std::sqrt(_dx[0] * _dx[0] + _dx[1] * _dx[1] + _dx[2] * _dx[2]);
-        _dx[0] = _dx[0] * p_cuda.w.x * len;
-        _dx[1] = _dx[1] * p_cuda.w.x * len;
-        _dx[2] = _dx[2] * p_cuda.w.x * len;
-        _r2 = p_cuda.w.x * p_cuda.w.x;
     }
     
     if(kind == POTENTIAL_KIND_DPD) {
@@ -1279,6 +1249,7 @@ __device__ inline void potential_eval_super_ex_cuda(MxPotentialCUDA p_cuda,
         MxPotentialCUDAData pcd = p_cuda.data[i];
 
         bool er = false;
+        
         _potential_eval_super_ex_cuda<POTENTIAL_KIND_DPD>(pcd, pi, pj, dx, r2, epot, fi, fj, &er);
         eval_result |= er;
     }
@@ -1309,28 +1280,10 @@ __device__ inline void _boundary_eval_cuda_ex_cuda(MxPotentialCUDAData p_cuda,
 {
     float e;
     *result = false;
-    float _dx[3], _r2;
-
-    auto a = p_cuda.w.x, a2 = a * a;
-    
-    // if distance is less that potential min distance, define random
-    // for repulsive force.
-    if(r2 < a2) {
-        _dx[0] = bc.normal.x * a;
-        _dx[1] = bc.normal.y * a;
-        _dx[2] = bc.normal.z * a;
-        _r2 = a2;
-    }
-    else {
-        _r2 = r2;
-        _dx[0] = dx[0];
-        _dx[1] = dx[1];
-        _dx[2] = dx[2];
-    }
     
     if(kind == POTENTIAL_KIND_DPD) {
         /* update the forces if part in range */
-        dpd_boundary_eval_cuda(p_cuda, part, bc.velocity, _dx, _r2, &e, force, result);
+        dpd_boundary_eval_cuda(p_cuda, part, bc.radius, bc.velocity, dx, r2, &e, force, result);
         
         if(*result) {
             /* tabulate the energy */
@@ -1341,12 +1294,12 @@ __device__ inline void _boundary_eval_cuda_ex_cuda(MxPotentialCUDAData p_cuda,
         float f;
     
         /* update the forces if part in range */
-        potential_eval_ex_cuda(p_cuda, part.v.w, bc.radius, _r2 , &e , &f, result);
+        potential_eval_ex_cuda(p_cuda, part.v.w, bc.radius, r2 , &e , &f, result);
         if(*result) {
             
-            force[0] -= f * _dx[0];
-            force[1] -= f * _dx[1];
-            force[2] -= f * _dx[2];
+            force[0] -= f * dx[0];
+            force[1] -= f * dx[1];
+            force[2] -= f * dx[2];
             
             /* tabulate the energy */
             *epot += e;
@@ -1369,9 +1322,7 @@ __device__ inline void boundary_eval_cuda_ex_cuda(MxPotentialCUDA p_cuda,
     #pragma unroll
     for(int i = 0; i < p_cuda.nr_dpds; i++) {
         MxPotentialCUDAData pcd = p_cuda.data[i];
-        if(r > pcd.w.y) 
-            continue;
-
+        
         bool er = false;
 
         _boundary_eval_cuda_ex_cuda<POTENTIAL_KIND_DPD>(pcd, part, bc, dx, r2, epot, force, &er);
@@ -1381,9 +1332,7 @@ __device__ inline void boundary_eval_cuda_ex_cuda(MxPotentialCUDA p_cuda,
     #pragma unroll
     for(int i = p_cuda.nr_dpds; i < p_cuda.nr_pots; i++) {
         MxPotentialCUDAData pcd = p_cuda.data[i];
-        if(r > pcd.w.y) 
-            continue;
-
+        
         bool er = false;
 
         _boundary_eval_cuda_ex_cuda<POTENTIAL_KIND_POTENTIAL>(pcd, part, bc, dx, r2, epot, force, &er);
@@ -2235,7 +2184,7 @@ __global__ void cuda_memset_float ( float *data , float val , int N ) {
 
 
 template<bool is_stateful> 
-void engine_nonbond_cuda_kernel_launch(int maxcount, dim3 nr_blocks, dim3 nr_threads, cudaStream_t stream, 
+unsigned int engine_nonbond_cuda_kernel_launch(int maxcount, dim3 nr_blocks, dim3 nr_threads, cudaStream_t stream, 
     float *forces_cuda, float *fluxes_next_cuda, int *counts_cuda, int *ind_cuda, int verlet_rebuild, unsigned int nr_states) 
 {
     switch ( (maxcount + 31) / 32 ) {
@@ -2287,7 +2236,11 @@ void engine_nonbond_cuda_kernel_launch(int maxcount, dim3 nr_blocks, dim3 nr_thr
         case 16:
             runner_run_cuda_512<is_stateful><<<nr_blocks,nr_threads,0,stream>>>(forces_cuda, fluxes_next_cuda, counts_cuda, ind_cuda, verlet_rebuild, nr_states);
             break;
+        default:
+            return 1;
         }
+    
+    return 0;
 }
 
 
@@ -2455,15 +2408,18 @@ extern "C" int engine_nonbond_cuda ( struct engine *e ) {
         dim3 nr_blocks(std::min(e->nrtasks_cuda[did], e->nr_blocks[did]), 1, 1);
         
         /* Start the appropriate kernel. */
+        unsigned int err;
         if(nr_states > 0) {
-            engine_nonbond_cuda_kernel_launch<true>(maxcount, nr_blocks, nr_threads, stream, 
+            err = engine_nonbond_cuda_kernel_launch<true>(maxcount, nr_blocks, nr_threads, stream, 
                 e->forces_cuda[did] , e->fluxes_next_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild, nr_states);
         }
         else {
-            engine_nonbond_cuda_kernel_launch<false>(maxcount, nr_blocks, nr_threads, stream, 
+            err = engine_nonbond_cuda_kernel_launch<false>(maxcount, nr_blocks, nr_threads, stream, 
                 e->forces_cuda[did] , e->fluxes_next_cuda[did] , e->counts_cuda[did] , e->ind_cuda[did] , e->s.verlet_rebuild, nr_states);
         }
-}
+        if(err > 0) 
+            return cuda_error(engine_err_cuda);
+    }
 
 	for( did = 0; did < e->nr_devices ; did ++ ) {
 	

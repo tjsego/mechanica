@@ -610,22 +610,10 @@ HRESULT MxCPotential_getRSquare(struct MxPotentialHandle *handle, float *r2) {
     return S_OK;
 }
 
-HRESULT MxCPotential_setRSquare(struct MxPotentialHandle *handle, float r2) {
-    MXPOTENTIALHANDLE_GET(handle);
-    pot->setRSquare(r2);
-    return S_OK;
-}
-
 HRESULT MxCPotential_getShifted(struct MxPotentialHandle *handle, bool *shifted) {
     MXPOTENTIALHANDLE_GET(handle);
     MXCPTRCHECK(shifted);
     *shifted = pot->getShifted();
-    return S_OK;
-}
-
-HRESULT MxCPotential_setShifted(struct MxPotentialHandle *handle, bool shifted) {
-    MXPOTENTIALHANDLE_GET(handle);
-    pot->setShifted(shifted);
     return S_OK;
 }
 
@@ -647,14 +635,6 @@ HRESULT MxCPotential_create_lennard_jones_12_6(struct MxPotentialHandle *handle,
 HRESULT MxCPotential_create_lennard_jones_12_6_coulomb(struct MxPotentialHandle *handle, double min, double max, double A, double B, double q, double *tol) {
     MXCPTRCHECK(handle);
     MxPotential *pot = MxPotential::lennard_jones_12_6_coulomb(min, max, A, B, q, tol);
-    MXCPTRCHECK(pot);
-    handle->MxObj = (void*)pot;
-    return S_OK;
-}
-
-HRESULT MxCPotential_create_soft_sphere(struct MxPotentialHandle *handle, double kappa, double epsilon, double r0, int eta, double *min, double *max, double *tol, bool *shift) {
-    MXCPTRCHECK(handle);
-    MxPotential *pot = MxPotential::soft_sphere(kappa, epsilon, r0, eta, min, max, tol, shift);
     MXCPTRCHECK(pot);
     handle->MxObj = (void*)pot;
     return S_OK;

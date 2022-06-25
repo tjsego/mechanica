@@ -30,7 +30,7 @@ MxEventPyExecutor_extender(MxParticleTimeEventPyPredicatePyExecutor, MxParticleT
         :param start_time: time after which the event can occur
         :type end_time: float
         :param end_time: time before which the event can occur; a negative value is interpreted as until 'forever'
-        :type selector: float
+        :type selector: str
         :param selector: name of particle selector
         """
         invoke_ex = initMxParticleTimeEventPyInvokePyExecutor(invoke_method)

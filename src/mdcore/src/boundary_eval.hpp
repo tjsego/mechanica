@@ -137,29 +137,9 @@ bool boundary_potential_eval_ex(const struct space_cell *cell,
     float e = 0;
     bool result = false;
     
-    if(r2 < pot->a) {
-        r2 = pot->a * pot->a;
-        dx[0] = bc->normal[0] * pot->a;
-        dx[1] = bc->normal[1] * pot->a;
-        dx[2] = bc->normal[2] * pot->a;
-    }
-
-    // if distance is less that potential min distance, define random
-    // for repulsive force.
-    if(r2 < pot->a * pot->a) {
-        dx[0] = space_cell_gaussian(cell->id);
-        dx[1] = space_cell_gaussian(cell->id);
-        dx[2] = space_cell_gaussian(cell->id);
-        float len = std::sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
-        dx[0] = dx[0] * pot->a / len;
-        dx[1] = dx[1] * pot->a / len;
-        dx[2] = dx[2] * pot->a / len;
-        r2 = pot->a * pot->a;
-    }
-    
     if(pot->kind == POTENTIAL_KIND_DPD) {
         /* update the forces if part in range */
-        if (dpd_boundary_eval((DPDPotential*)pot, space_cell_gaussian(cell->id), part, bc->velocity.data(), dx, r2 , &e)) {
+        if (dpd_boundary_eval((DPDPotential*)pot, space_cell_gaussian(cell->id), part, bc->radius, bc->velocity.data(), dx, r2 , &e)) {
             /* tabulate the energy */
             *epot += e;
             result = true;

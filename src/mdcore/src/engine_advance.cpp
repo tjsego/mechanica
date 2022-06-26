@@ -564,7 +564,7 @@ int engine_advance_runge_kutta_4 ( struct engine *e ) {
         }
 
         // ** get K2, calculate forces at x0 + 1/2 dt k1 **
-        if (engine_force( e ) < 0 ) {
+        if (engine_force_prep(e) < 0 || engine_force( e ) < 0 ) {
             return error(engine_err);
         }
 
@@ -595,7 +595,7 @@ int engine_advance_runge_kutta_4 ( struct engine *e ) {
         }
 
         // ** get K3, calculate forces at x0 + 1/2 dt k2 **
-        if (engine_force( e ) < 0 ) {
+        if (engine_force_prep(e) < 0 || engine_force( e ) < 0 ) {
             return error(engine_err);
         }
 
@@ -626,7 +626,7 @@ int engine_advance_runge_kutta_4 ( struct engine *e ) {
         }
 
         // ** get K4, calculate forces at x0 + dt k3, final position calculation **
-        if (engine_force( e ) < 0 ) {
+        if (engine_force_prep(e) < 0 || engine_force( e ) < 0 ) {
             return error(engine_err);
         }
 

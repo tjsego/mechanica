@@ -603,6 +603,14 @@ MxParticleHandle *MxParticleType::operator()(const std::string &str, int *cluste
     return ph;
 }
 
+std::vector<int> MxParticleType::factory(unsigned int nr_parts, 
+                                         std::vector<MxVector3f> *positions, 
+                                         std::vector<MxVector3f> *velocities, 
+                                         std::vector<int> *clusterIds) 
+{
+    return MxParticles_New(this, nr_parts, positions, velocities, clusterIds);
+}
+
 MxParticleType* MxParticleType::newType(const char *_name) {
     auto type = new MxParticleType(*this);
     std::strncpy(type->name, std::string(_name).c_str(), MxParticleType::MAX_NAME);
@@ -902,6 +910,67 @@ MxParticleHandle* MxParticle_New(MxParticleType *type,
     }
     
     return pyPart;
+}
+
+std::vector<int> MxParticles_New(std::vector<MxParticleType*> types, 
+                                 std::vector<MxVector3f> *positions, 
+                                 std::vector<MxVector3f> *velocities, 
+                                 std::vector<int> *clusterIds) 
+{
+    MxVector3f *position = NULL, *velocity = NULL;
+    int *clusterId = NULL;
+
+    unsigned int nr_parts = types.size();
+
+    if((positions && positions->size() != nr_parts) || (velocities && velocities->size() != nr_parts) || (clusterIds && clusterIds->size() != nr_parts)) {
+        mx_exp(std::runtime_error("Incosistent element inputs"));
+        return {};
+    }
+
+    if(_Engine.s.nr_parts + nr_parts > _Engine.s.size_parts) { 
+        int size_incr = (int((_Engine.s.nr_parts - _Engine.s.size_parts + nr_parts) / space_partlist_incr) + 1) * space_partlist_incr;
+        if(space_growparts(&_Engine.s, size_incr) != space_err_ok) { 
+            mx_exp(std::runtime_error("failed calling space_growparts"));
+            return {};
+        }
+    }
+
+    std::vector<int> result(nr_parts, -1);
+    for(unsigned int i = 0; i < nr_parts; i++) {
+        if(positions) 
+            position = &(*positions)[i];
+        if(velocities) 
+            velocity = &(*velocities)[i];
+        if(clusterIds) 
+            clusterId = &(*clusterIds)[i];
+        MxParticleHandle *p = MxParticle_New(types[i], position, velocity, clusterId);
+        if(p) 
+            result[i] = p->id;
+    }
+
+    return result;
+}
+
+std::vector<int> MxParticles_New(MxParticleType *type, 
+                                 unsigned int nr_parts, 
+                                 std::vector<MxVector3f> *positions, 
+                                 std::vector<MxVector3f> *velocities, 
+                                 std::vector<int> *clusterIds) 
+{
+    if(nr_parts == 0) {
+        if(positions) 
+            nr_parts = positions->size();
+        else if(velocities) 
+            nr_parts = velocities->size();
+        else if(clusterIds) 
+            nr_parts = clusterIds->size();
+        else {
+            mx_exp(std::runtime_error("Number of particles to create could not be determined."));
+            return {};
+        }
+    }
+
+    return MxParticles_New(std::vector<MxParticleType*>(nr_parts, type), positions, velocities, clusterIds);
 }
 
 

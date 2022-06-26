@@ -25,8 +25,10 @@
 #include "space.h"
 #include "cycle.h"
 #include "MxBoundaryConditions.hpp"
+#include "MxSubEngine.h"
 #include <mutex>
 #include <thread>
+#include <set>
 
 
 /* engine error codes */
@@ -60,6 +62,7 @@
 #define engine_err_cutoff		 		 -27
 #define engine_err_nometis				 -28
 #define engine_err_toofast               -29
+#define engine_err_subengine 			 -30
 
 
 /* some constants */
@@ -267,6 +270,9 @@ typedef struct engine {
 	/** Lists of cells to exchange with other nodes. */
 	struct engine_comm *send, *recv;
 
+	/** Recycled particle ids */
+	std::set<unsigned int> pids_avail;
+
 	/** List of bonds. */
 	struct MxBond *bonds;
 
@@ -424,6 +430,12 @@ typedef struct engine {
 	EngineIntegrator integrator;
 
     MxBoundaryConditions boundary_conditions;
+
+	/**
+	 * @brief Borrowed references to registered subengines.
+	 * 
+	 */
+	std::vector<MxSubEngine*> subengines;
     
     
     /**
@@ -675,7 +687,12 @@ CAPI_FUNC(int) engine_verlet_update ( struct engine *e );
 CAPI_FUNC(int) engine_next_partid(struct engine *e);
 
 /**
- * internal method to caluculate force on all objects
+ * internal method to clear data before calculating forces on all objects
+ */
+int engine_force_prep(struct engine *e);
+
+/**
+ * internal method to calculate forces on all objects
  */
 int engine_force(struct engine *e);
 

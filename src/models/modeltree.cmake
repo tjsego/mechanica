@@ -29,12 +29,16 @@ macro(MX_MODEL_TREE_PROC subdir)
     DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}
     DEFINITION MX_MODEL_SRCS_LOCAL
   )
-  MX_MODEL_TREE_SRC(${_TMP})
+  foreach(_TMPEL ${_TMP})
+    MX_MODEL_TREE_SRC(${_TMPEL})
+  endforeach(_TMPEL)
 
   get_directory_property(_TMP 
     DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}
     DEFINITION MX_MODEL_HDRS_LOCAL
   )
-  MX_MODEL_TREE_HDR(${_TMP})
+  foreach(_TMPEL ${_TMP})
+    MX_MODEL_TREE_HDR(${_TMPEL})
+  endforeach(_TMPEL)
 
 endmacro(MX_MODEL_TREE_PROC)

@@ -938,6 +938,15 @@ MxSubRenderer *MxUniverseRenderer::getSubRenderer(const MxSubRendererFlag &flag)
     }
 }
 
+HRESULT MxUniverseRenderer::registerSubRenderer(MxSubRenderer *subrenderer) {
+    std::vector<MxVector4f> cps(_clipPlanes.begin(), _clipPlanes.end());
+    if(subrenderer->start(cps) != S_OK) 
+        return E_FAIL;
+    for(auto &cp : _clipPlanes) 
+        subrenderer->addClipPlaneEquation(cp);
+    subRenderers.push_back(subrenderer);
+    return S_OK;
+}
 
 int MxUniverseRenderer::clipPlaneCount() const {
     return _clipPlanes.size();

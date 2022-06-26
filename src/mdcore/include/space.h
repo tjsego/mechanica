@@ -272,6 +272,8 @@ CAPI_FUNC(int) space_getsid ( struct space *s , struct space_cell **ci ,
 CAPI_FUNC(int) space_shuffle ( struct space *s );
 CAPI_FUNC(int) space_shuffle_local ( struct space *s );
 
+CAPI_FUNC(int) space_growparts(struct space *s, unsigned int size_incr);
+
 /**
  * @brief Add a #part to a #space at the given coordinates. The given
  * particle p is only used for the attributes, it itself is not added,

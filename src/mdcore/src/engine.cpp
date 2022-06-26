@@ -118,7 +118,7 @@ double engine_steps_per_second() {
 #define error(id)				( engine_err = errs_register( id , engine_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
 
 /* list of error messages. */
-const char *engine_err_msg[30] = {
+const char *engine_err_msg[31] = {
 		"Nothing bad happened.",
 		"An unexpected NULL pointer was encountered.",
 		"A call to malloc failed, probably due to insufficient memory.",
@@ -149,6 +149,7 @@ const char *engine_err_msg[30] = {
 		"Cell cutoff size doesn't work with METIS",
 		"METIS library undefined",
         "Particles moving too fast",
+		"An error occured when calling a subengine.",
 };
 
 
@@ -1636,12 +1637,23 @@ int engine_nonbond_eval ( struct engine *e ) {
  * are updated and the particles are re-sorted in the #space.
  */
 int engine_step ( struct engine *e ) {
+	int i;
     WallTime wt;
     PerformanceTimer t(engine_timer_step);
     update_steps_per_second();
     
 	/* increase the time stepper */
 	e->time += 1;
+
+	engine_force_prep(e);
+
+	// Pre-step subengines
+	for(auto &se : e->subengines) 
+		if((i = se->preStepStart()) != engine_err_ok) 
+			return error(engine_err_subengine);
+	for(auto &se : e->subengines) 
+		if((i = se->preStepJoin()) != engine_err_ok) 
+			return error(engine_err_subengine);
 
 	engine_advance(e);
 
@@ -1658,14 +1670,22 @@ int engine_step ( struct engine *e ) {
         p->onTime(e->time * e->dt);
     }
 
+	// Post-step subengines
+	for(auto &se : e->subengines) 
+		if((i = se->postStepStart()) != engine_err_ok) 
+			return error(engine_err_subengine);
+	for(auto &se : e->subengines) 
+		if((i = se->postStepJoin()) != engine_err_ok) 
+			return error(engine_err_subengine);
+
 	/* return quietly */
 	return engine_err_ok;
 }
 
-int engine_force(struct engine *e) {
+int engine_force_prep(struct engine *e) {
 
     ticks tic = getticks();
-
+	
     // clear the energy on the types
     // TODO: should go in prepare space for better performance
     engine_kinetic_energy(e);
@@ -1724,6 +1744,13 @@ int engine_force(struct engine *e) {
 
     }
 #endif
+
+    return engine_err_ok;
+}
+
+int engine_force(struct engine *e) {
+
+    ticks tic = getticks();
 
     /* Compute the non-bonded interactions. */
     tic = getticks();
@@ -1870,6 +1897,11 @@ int engine_finalize ( struct engine *e ) {
 		if(engine_fromCUDA(e) < 0)
 			return error(engine_err);
 	#endif
+
+	// Finalize subengines
+	for(auto &se : e->subengines) 
+		if((j = se->finalize()) != engine_err_ok) 
+			return error(engine_err_subengine);
 
     /* Shut down the runners, if they were started. */
     if ( e->runners != NULL ) {
@@ -2198,16 +2230,14 @@ CAPI_FUNC(struct MxParticleType*) engine_type(int id)
 
 int engine_next_partid(struct engine *e)
 {
-    // TODO: not the most effecient algorithm...
-    space *s = &e->s;
-    int i;
+	if(e->pids_avail.empty()) 
+		return e->s.nr_parts;
 
-    for(i = 0; i < s->nr_parts; ++i) {
-        if(s->partlist[i] == NULL) {
-            return i;
-        }
-    }
-    return i;
+	std::set<unsigned int>::iterator itr = e->pids_avail.begin();
+	unsigned int pid = *itr;
+	e->pids_avail.erase(itr);
+
+	return pid;
 }
 
 CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
@@ -2250,6 +2280,8 @@ CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
 	for(int i = 0; i < dihedrals.size(); ++i) {
 		MxDihedral_Destroy(&_Engine.dihedrals[dihedrals[i]]);
 	}
+
+	e->pids_avail.insert(pid);
 
     return space_del_particle(&e->s, pid);
 }

@@ -687,7 +687,12 @@ CAPI_FUNC(int) engine_verlet_update ( struct engine *e );
 CAPI_FUNC(int) engine_next_partid(struct engine *e);
 
 /**
- * internal method to caluculate force on all objects
+ * internal method to clear data before calculating forces on all objects
+ */
+int engine_force_prep(struct engine *e);
+
+/**
+ * internal method to calculate forces on all objects
  */
 int engine_force(struct engine *e);
 

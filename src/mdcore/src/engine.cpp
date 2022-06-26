@@ -1645,6 +1645,8 @@ int engine_step ( struct engine *e ) {
 	/* increase the time stepper */
 	e->time += 1;
 
+	engine_force_prep(e);
+
 	// Pre-step subengines
 	for(auto &se : e->subengines) 
 		if((i = se->preStepStart()) != engine_err_ok) 
@@ -1680,10 +1682,10 @@ int engine_step ( struct engine *e ) {
 	return engine_err_ok;
 }
 
-int engine_force(struct engine *e) {
+int engine_force_prep(struct engine *e) {
 
     ticks tic = getticks();
-
+	
     // clear the energy on the types
     // TODO: should go in prepare space for better performance
     engine_kinetic_energy(e);
@@ -1742,6 +1744,13 @@ int engine_force(struct engine *e) {
 
     }
 #endif
+
+    return engine_err_ok;
+}
+
+int engine_force(struct engine *e) {
+
+    ticks tic = getticks();
 
     /* Compute the non-bonded interactions. */
     tic = getticks();

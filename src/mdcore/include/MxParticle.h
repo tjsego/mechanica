@@ -449,7 +449,7 @@ struct CAPI_EXPORT MxParticleHandle {
  * actual particle with position, velocity, etc. However, particles 
  * of this *type* can be created with one of these. 
  */
-struct MxParticleType {
+struct CAPI_EXPORT MxParticleType {
 
     static const int MAX_NAME = 64;
 

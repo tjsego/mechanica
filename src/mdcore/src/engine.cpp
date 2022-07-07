@@ -69,6 +69,7 @@
 #include "engine_advance.h"
 #include "MxForce.h"
 #include "MxBoundaryConditions.hpp"
+#include "MxTaskScheduler.hpp"
 #include "../../MxLogger.h"
 #include "../../MxUtil.h"
 #include "../../mx_error.h"
@@ -2210,6 +2211,63 @@ int engine_addpart(struct engine *e, struct MxParticle *p, double *x,
     return engine_err_ok;
 }
 
+int engine_addparts(struct engine *e, int nr_parts, struct MxParticle **parts, double **x)
+{
+	int num_workers = mx::ThreadPool::size();
+	
+	// Check input and count particles of each type
+
+	int nr_types = e->nr_types;
+	std::vector<bool> worker_check(num_workers, false);
+	std::vector<std::vector<int> >worker_type_counts(num_workers);
+
+	auto func_check = [num_workers, nr_types, nr_parts, &worker_check, &worker_type_counts, &parts](int wid) -> void { 
+		worker_type_counts[wid] = std::vector<int>(nr_types, 0);
+		for(int i = wid; i < nr_parts; i += num_workers) {
+			if(parts[i]->typeId < 0 || parts[i]->typeId >= nr_types) {
+				worker_check[wid] = true;
+				return;
+			}
+			worker_type_counts[wid][parts[i]->typeId]++;
+		}
+	};
+	mx::parallel_for(num_workers, func_check);
+	for(int i = 0; i < worker_check.size(); i++) 
+		if(worker_check[i]) 
+			return error(engine_err_range);
+	
+	// Gather type counts
+	std::vector<int> type_counts(nr_types, 0);
+	for(int i = 0; i < nr_types; i++) 
+		for(int j = 0; j < num_workers; j++) 
+			type_counts[i] += worker_type_counts[j][i];
+
+    // Add parts
+	if(space_addparts (&(e->s), nr_parts, parts, x) != 0) {
+        return error(engine_err_space);
+    }
+
+	// Gather ids for type containers
+    std::vector<MxParticleList> ptype_lists(e->nr_types);
+	for(int i = 0; i < nr_types; i++) 
+		ptype_lists[i].reserve(type_counts[i]);
+	for(int i = 0; i < nr_parts; i++) 
+		ptype_lists[parts[i]->typeId].insert(parts[i]->id);
+	
+	// Add ids to type containers
+	auto ptypes = e->types;
+	auto func_extend = [num_workers, &ptypes, &ptype_lists](int wid) -> void {
+		for(int i = wid; i < ptype_lists.size(); i += num_workers) {
+			MxParticleList plist = ptype_lists[i];
+			if(plist.nr_parts > 0) 
+				ptypes[i].parts.extend(plist);
+		}
+	};
+	mx::parallel_for(num_workers, func_extend);
+
+    return engine_err_ok;
+}
+
 int engine_addcuboid(struct engine *e, struct MxCuboid *p, struct MxCuboid **result)
 {
 
@@ -2238,6 +2296,23 @@ int engine_next_partid(struct engine *e)
 	e->pids_avail.erase(itr);
 
 	return pid;
+}
+
+int engine_next_partids(struct engine *e, int nr_ids, int *ids) { 
+	int j = 0;
+	for(int i = 0; i < nr_ids; i++) {
+		if(!e->pids_avail.empty()) {
+			std::set<unsigned int>::iterator itr = e->pids_avail.begin();
+			ids[i] = *itr;
+			e->pids_avail.erase(itr);
+		} 
+		else {
+			ids[i] = e->s.nr_parts + j;
+			j++;
+		}
+	}
+
+	return engine_err_ok;
 }
 
 CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)

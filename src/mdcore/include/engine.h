@@ -587,6 +587,7 @@ CAPI_FUNC(struct MxParticleType*) engine_type(int id);
 CAPI_FUNC(int) engine_addpart (struct engine *e,  struct MxParticle *p,
     double *x, struct MxParticle **result);
 
+CAPI_FUNC(int) engine_addparts(struct engine *e, int nr_parts, struct MxParticle **parts, double **x);
 
 CAPI_FUNC(int) engine_addcuboid(struct engine *e, struct MxCuboid *p,
                                 struct MxCuboid **result);
@@ -685,6 +686,11 @@ CAPI_FUNC(int) engine_verlet_update ( struct engine *e );
  * gets the next available particle id to use when creating a new particle.
  */
 CAPI_FUNC(int) engine_next_partid(struct engine *e);
+
+/**
+ * gets the next available particle ids to use when creating a new particle.
+ */
+CAPI_FUNC(int) engine_next_partids(struct engine *e, int nr_ids, int *ids);
 
 /**
  * internal method to clear data before calculating forces on all objects

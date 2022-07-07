@@ -19,11 +19,9 @@ void MxParticleList::free()
 {
 }
 
-uint16_t MxParticleList::insert(int32_t id)
-{
-    /* do we need to extend the partlist? */
-    if ( nr_parts == size_parts ) {
-        size_parts += space_partlist_incr;
+HRESULT MxParticleList::reserve(size_t _nr_parts) {
+    if ( size_parts < _nr_parts ) {
+        size_parts = _nr_parts;
         int32_t* temp = NULL;
         if (( temp = (int32_t*)malloc( sizeof(int32_t) * size_parts )) == NULL ) {
             return mx_error(E_FAIL, "could not allocate space for type particles");
@@ -32,6 +30,14 @@ uint16_t MxParticleList::insert(int32_t id)
         ::free( parts );
         parts = temp;
     }
+    return S_OK;
+}
+
+uint16_t MxParticleList::insert(int32_t id)
+{
+
+    if ( nr_parts == size_parts ) 
+        reserve(size_parts + space_partlist_incr);
     
     parts[nr_parts] = id;
 
@@ -66,6 +72,7 @@ uint16_t MxParticleList::remove(int32_t id)
 }
 
 void MxParticleList::extend(const MxParticleList &other) {
+    if(other.nr_parts > size_parts) reserve(other.nr_parts);
     for(int i = 0; i < other.nr_parts; ++i) this->insert(other.parts[i]);
 }
 

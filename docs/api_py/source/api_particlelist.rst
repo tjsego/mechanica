@@ -27,6 +27,8 @@ ParticleList and ParticleTypeList
 
     .. automethod:: __getitem__
 
+    .. automethod:: reserve
+
     .. automethod:: insert
 
     .. automethod:: remove
@@ -69,6 +71,8 @@ ParticleList and ParticleTypeList
     .. automethod:: __len__
 
     .. automethod:: __getitem__
+
+    .. automethod:: reserve
 
     .. automethod:: insert
 

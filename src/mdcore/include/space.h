@@ -298,6 +298,9 @@ CAPI_FUNC(int) space_growparts(struct space *s, unsigned int size_incr);
 CAPI_FUNC(int) space_addpart (struct space *s,  struct MxParticle *p,
         double *x, struct MxParticle **result);
 
+CAPI_FUNC(int) space_addparts ( struct space *s , int nr_parts , 
+        struct MxParticle **parts , double **xparts );
+
 CAPI_FUNC(int) space_addcuboid (struct space *s, struct MxCuboid *p,
                                 struct MxCuboid **result);
 

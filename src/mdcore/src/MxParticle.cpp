@@ -31,6 +31,7 @@
 #include "MxCluster.hpp"
 #include "metrics.h"
 #include "MxParticleList.hpp"
+#include "MxTaskScheduler.hpp"
 #include "../../MxUtil.h"
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
@@ -138,11 +139,21 @@ unsigned int *MxParticle_Colors = colors;
         return ret; \
     }
 
-static int particle_init(MxParticleHandle *self, MxVector3f *position=NULL, MxVector3f *velocity=NULL, int *cluster=NULL);
-
-static int particle_init_ex(MxParticleHandle *self,  const MxVector3f &position,
-                            const MxVector3f &velocity,
-                            int clusterId);
+static HRESULT particle_ex_construct(MxParticleHandle *self,  
+                                     const MxVector3f &position, 
+                                     const MxVector3f &velocity, 
+                                     int clusterId, 
+                                     MxParticle &part);
+static HRESULT particle_ex_load(MxParticleHandle *self, MxParticle &part);
+static HRESULT particles_ex_load(std::vector<MxParticleHandle*> selfs, std::vector<MxParticle*> parts);
+static HRESULT particle_init(MxParticleHandle *self, 
+                             MxVector3f *position=NULL, 
+                             MxVector3f *velocity=NULL, 
+                             int *cluster=NULL);
+static HRESULT particle_init_ex(MxParticleHandle *self,  
+                                const MxVector3f &position,
+                                const MxVector3f &velocity,
+                                int clusterId);
 
 
 static MxParticleList *particletype_items(MxParticleType *self);
@@ -156,6 +167,33 @@ struct Offset {
 };
 
 static_assert(sizeof(Offset) == sizeof(void*), "error, void* must be 64 bit");
+
+MxVector3f particle_posdefault() { 
+    MxRandomType &MxRandom = MxRandomEngine();
+    auto eng_origin = engine_origin();
+    auto eng_dims = engine_dimensions();
+    std::uniform_real_distribution<float> x(eng_origin[0], eng_dims[0]);
+    std::uniform_real_distribution<float> y(eng_origin[1], eng_dims[1]);
+    std::uniform_real_distribution<float> z(eng_origin[2], eng_dims[2]);
+    return {x(MxRandom), y(MxRandom), z(MxRandom)};
+}
+
+MxVector3f particle_veldefault(const MxParticleType &ptype) {
+    MxVector3f _velocity;
+
+    if(ptype.target_energy <= 0) _velocity = {0.0, 0.0, 0.0};
+    else {
+        MxRandomType &MxRandom = MxRandomEngine();
+        // initial velocity, chosen to fit target temperature
+        std::uniform_real_distribution<float> v(-1.0, 1.0);
+        _velocity = {v(MxRandom), v(MxRandom), v(MxRandom)};
+        float v2 = _velocity.dot();
+        float x2 = (ptype.target_energy * 2. / (ptype.mass * v2));
+        _velocity *= std::sqrt(x2);
+    }
+
+    return _velocity;
+}
 
 double MxParticleHandle::getCharge() {
     PARTICLE_SELFW(this, 0)
@@ -917,8 +955,6 @@ std::vector<int> MxParticles_New(std::vector<MxParticleType*> types,
                                  std::vector<MxVector3f> *velocities, 
                                  std::vector<int> *clusterIds) 
 {
-    MxVector3f *position = NULL, *velocity = NULL;
-    int *clusterId = NULL;
 
     unsigned int nr_parts = types.size();
 
@@ -935,18 +971,29 @@ std::vector<int> MxParticles_New(std::vector<MxParticleType*> types,
         }
     }
 
+    // initialize vector of particles to construct
+    std::vector<MxParticle*> parts(nr_parts, 0);
+    std::vector<MxParticleHandle*> handles(nr_parts, 0);
     std::vector<int> result(nr_parts, -1);
-    for(unsigned int i = 0; i < nr_parts; i++) {
-        if(positions) 
-            position = &(*positions)[i];
-        if(velocities) 
-            velocity = &(*velocities)[i];
-        if(clusterIds) 
-            clusterId = &(*clusterIds)[i];
-        MxParticleHandle *p = MxParticle_New(types[i], position, velocity, clusterId);
-        if(p) 
-            result[i] = p->id;
+
+    // construct particles
+    for(int i = 0; i < nr_parts; i++) {
+        parts[i] = new MxParticle();
+        MxParticleHandle *self = new MxParticleHandle();
+        self->typeId = types[i]->id;
+        MxVector3f position = positions ? (*positions)[i] : particle_posdefault();
+        MxVector3f velocity = velocities ? (*velocities)[i] : particle_veldefault(*types[i]);
+        int clusterId = clusterIds ? (*clusterIds)[i] : -1;
+        particle_ex_construct(self, position, velocity, clusterId, *parts[i]);
+        handles[i] = self;
     }
+    
+    // load particles in engine
+    particles_ex_load(handles, parts);
+
+    // build results
+    for(int i = 0; i < nr_parts; i++) 
+        result[i] = handles[i]->id;
 
     return result;
 }
@@ -1169,43 +1216,19 @@ float MxParticleHandle::distance(MxParticleHandle *_other) {
     return (opos - pos).length();
 }
 
-
-int particle_init(MxParticleHandle *self, 
-                  MxVector3f *position,
-                  MxVector3f *velocity,
-                  int *cluster) 
+HRESULT particle_init(MxParticleHandle *self, 
+                      MxVector3f *position, 
+                      MxVector3f *velocity, 
+                      int *cluster) 
 {
     
     try {
         Log(LOG_TRACE);
 
         PARTICLE_TYPE(self)
-        
-        MxRandomType &MxRandom = MxRandomEngine();
 
-        MxVector3f _position;
-        if (position) _position = *position;
-        else {
-            // make a random initial position
-            auto eng_origin = engine_origin();
-            auto eng_dims = engine_dimensions();
-            std::uniform_real_distribution<float> x(eng_origin[0], eng_dims[0]);
-            std::uniform_real_distribution<float> y(eng_origin[1], eng_dims[1]);
-            std::uniform_real_distribution<float> z(eng_origin[2], eng_dims[2]);
-            _position = {x(MxRandom), y(MxRandom), z(MxRandom)};
-        }
-
-        MxVector3f _velocity;
-        if (velocity) _velocity = *velocity;
-        else if(ptype->target_energy <= 0) _velocity = {0.0, 0.0, 0.0};
-        else {
-            // initial velocity, chosen to fit target temperature
-            std::uniform_real_distribution<float> v(-1.0, 1.0);
-            _velocity = {v(MxRandom), v(MxRandom), v(MxRandom)};
-            float v2 = _velocity.dot();
-            float x2 = (ptype->target_energy * 2. / (ptype->mass * v2));
-            _velocity *= std::sqrt(x2);
-        }
+        MxVector3f _position = position ? *position : particle_posdefault();
+        MxVector3f _velocity = velocity ? *velocity : particle_veldefault(*ptype);
         
         // particle_init_ex will allocate a new particle, this can re-assign the pointers in
         // the engine particles, so need to pass cluster by id.
@@ -1219,29 +1242,29 @@ int particle_init(MxParticleHandle *self,
     }
 }
 
-int particle_init_ex(MxParticleHandle *self,  const MxVector3f &position,
-                     const MxVector3f &velocity,
-                     int clusterId) {
-    
+HRESULT particle_ex_construct(MxParticleHandle *self,  
+                              const MxVector3f &position, 
+                              const MxVector3f &velocity, 
+                              int clusterId, 
+                              MxParticle &part) 
+{
     PARTICLE_TYPE(self)
     
-    MxParticle part;
     bzero(&part, sizeof(MxParticle));
     part.radius = ptype->radius;
     part.mass = ptype->mass;
     part.imass = ptype->imass;
-    part.id = engine_next_partid(&_Engine);
     part.typeId = ptype->id;
     part.flags = ptype->particle_flags;
     part.creation_time = _Engine.time;
     part.clusterId = clusterId;
     
-    if(ptype->species) {
-        part.state_vector = new MxStateVector(ptype->species, self);
-    }
-    
     if(ptype->isCluster()) {
         Log(LOG_DEBUG) << "making cluster";
+    }
+    
+    if(ptype->species) {
+        part.state_vector = new MxStateVector(ptype->species, self);
     }
     
     part.position = position;
@@ -1251,11 +1274,17 @@ int particle_init_ex(MxParticleHandle *self,  const MxVector3f &position,
         part.flags |= PARTICLE_LARGE;
     }
     
+    return S_OK;
+}
+
+HRESULT particle_ex_load(MxParticleHandle *self, MxParticle &part) {
+    part.id = engine_next_partid(&_Engine);
+    
     MxParticle *p = NULL;
     double pos[] = {part.position[0], part.position[1], part.position[2]};
     int result = engine_addpart (&_Engine, &part, pos, &p);
     
-    if(result < 0) {
+    if(result != engine_err_ok) {
         std::string err = "error engine_addpart, ";
         err += engine_err_msg[-engine_err];
         return mx_error(result, err.c_str());
@@ -1263,16 +1292,79 @@ int particle_init_ex(MxParticleHandle *self,  const MxVector3f &position,
     
     self->id = p->id;
     
-    if(clusterId >= 0) {
-        MxParticle *cluster = _Engine.s.partlist[clusterId];
+    if(part.clusterId >= 0) {
+        MxParticle *cluster = _Engine.s.partlist[part.clusterId];
         MxCluster_AddParticle((MxCluster*)cluster, p);
     } else {
         p->clusterId = -1;
     }
     
     p->_pyparticle = self;
+
+    return S_OK;
+}
+
+HRESULT particles_ex_load(std::vector<MxParticleHandle*> selfs, std::vector<MxParticle*> parts) {
+    if(selfs.size() != parts.size()) {
+        return mx_error(E_FAIL, "data sizes are incompatible");
+    }
+
+    double **positions = (double**)malloc(sizeof(double*) * parts.size());
+    std::vector<int> part_ids(parts.size(), 0);
+    if(engine_next_partids(&_Engine, part_ids.size(), part_ids.data()) != engine_err_ok) 
+        return mx_error(engine_err, engine_err_msg[-engine_err]);
+
+    for(int i = 0; i < parts.size(); i++) {
+        MxParticle *part = parts[i];
+        part->id = part_ids[i];
+        positions[i] = (double*)malloc(sizeof(double) * 3);
+        for(int k = 0; k < 3; k++) positions[i][k] = part->position[k];
+    }
     
-    return 0;
+    if(engine_addparts(&_Engine, parts.size(), parts.data(), positions) != engine_err_ok) 
+        return mx_error(engine_err, engine_err_msg[-engine_err]);
+    
+    for(int i = 0; i < selfs.size(); i++) {
+        MxParticle *part = parts[i];
+        MxParticleHandle *self = selfs[i];
+        
+        self->id = part_ids[i];
+        MxParticle *p = self->part();
+        
+        if(part->clusterId >= 0) {
+            MxParticle *cluster = _Engine.s.partlist[part->clusterId];
+            MxCluster_AddParticle((MxCluster*)cluster, p);
+        } else {
+            p->clusterId = -1;
+        }
+        
+        p->_pyparticle = self;
+
+        free(positions[i]);
+    }
+
+    free(positions);
+
+    return S_OK;
+}
+
+HRESULT particle_init_ex(MxParticleHandle *self, 
+                         const MxVector3f &position,
+                         const MxVector3f &velocity, 
+                         int clusterId) 
+{
+    
+    MxParticle part;
+    HRESULT result;
+
+    if((result = particle_ex_construct(self, position, velocity, clusterId, part)) != S_OK) {
+        return mx_error(result, engine_err_msg[-engine_err]);
+    }
+    if((result = particle_ex_load(self, part)) != S_OK) {
+        return mx_error(result, engine_err_msg[-engine_err]);
+    }
+    
+    return S_OK;
 }
 
 MxParticleType* MxParticleType_FindFromName(const char* name) {

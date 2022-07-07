@@ -47,6 +47,7 @@
 #include <iostream>
 #include "smoothing_kernel.hpp"
 #include "MxBoundaryConditions.hpp"
+#include "MxTaskScheduler.hpp"
 #include "../../MxLogger.h"
 #include "../../mx_error.h"
 
@@ -395,6 +396,19 @@ int space_shuffle_local ( struct space *s ) {
 
 }
 
+int space_gpos_cellindices(struct space *s, double x, double y, double z, int *ind) {
+    double _x[] = {x, y, z};
+    /* get the hypothetical cell coordinate */
+    for ( int k = 0 ; k < 3 ; k++ ) {
+        _x[k] = std::max<double>(s->origin[k] * (1.0 + DBL_EPSILON), std::min<double>((s->dim[k] + s->origin[k]) * (1.0 - DBL_EPSILON), _x[k]));
+        ind[k] = (_x[k] - s->origin[k]) * s->ih[k];
+        /* is this particle within the space? */
+        if ( ind[k] < 0 || ind[k] >= s->cdim[k] )
+            return error(space_err_range);
+    }
+    return space_err_ok;
+}
+
 int space_growparts(struct space *s, unsigned int size_incr) { 
     int k;
     struct MxParticle **temp;
@@ -421,9 +435,54 @@ int space_growparts(struct space *s, unsigned int size_incr) {
     return space_err_ok;
 }
 
+int space_setpartp(struct space *s, struct MxParticle *p, double *x, struct MxParticle **result) { 
+    int k;
+    int ind[3];
+    struct space_cell *c;
+
+    /* check input */
+    if ( s == NULL || p == NULL || x == NULL )
+        return error(space_err_null);
+    
+    /* get the hypothetical cell coordinate */
+    for ( k = 0 ; k < 3 ; k++ ) {
+        x[k] = std::max<double>(s->origin[k] * (1.0 + DBL_EPSILON), std::min<double>((s->dim[k] + s->origin[k]) * (1.0 - DBL_EPSILON), x[k]));
+        ind[k] = (x[k] - s->origin[k]) * s->ih[k];
+        /* is this particle within the space? */
+        if ( ind[k] < 0 || ind[k] >= s->cdim[k] )
+            return error(space_err_range);
+    }
+
+    // treat large particles in the large parts cell
+    if(p->flags & PARTICLE_LARGE) {
+        Log(LOG_DEBUG) << "adding large particle: " << p->id;
+        c = &s->largeparts;
+    }
+    else {
+        /* get the appropriate cell */
+        c = &( s->cells[ space_cellid(s,ind[0],ind[1],ind[2]) ] );
+    }
+    
+    /* make the particle position local */
+    for ( k = 0 ; k < 3 ; k++ )
+        p->x[k] = x[k] - c->origin[k];
+
+    /* delegate the particle to the cell */
+    if ( (s->partlist[p->id] = space_cell_add( c , p , s->partlist )) == NULL )
+        return error(space_err_cell);
+    
+    s->celllist[p->id] = c;
+    
+    if(result) {
+        *result = s->partlist[p->id];
+    }
+    
+    return space_err_ok;
+}
+
 int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct MxParticle **result ) {
 
-    int k, ind[3];
+    int ind[3];
     struct MxParticle **temp;
     struct space_cell **tempc, *c;
 
@@ -450,39 +509,8 @@ int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct M
         return error(space_err_invalid_partid);
     }
     
-    /* get the hypothetical cell coordinate */
-    for ( k = 0 ; k < 3 ; k++ ) {
-        x[k] = std::max<double>(s->origin[k] * (1.0 + DBL_EPSILON), std::min<double>((s->dim[k] + s->origin[k]) * (1.0 - DBL_EPSILON), x[k]));
-        ind[k] = (x[k] - s->origin[k]) * s->ih[k];
-        /* is this particle within the space? */
-        if ( ind[k] < 0 || ind[k] >= s->cdim[k] )
-            return error(space_err_range);
-    }
-        
-    
-    // treat large particles in the large parts cell
-    if(p->flags & PARTICLE_LARGE) {
-        Log(LOG_DEBUG) << "adding large particle: " << p->id;
-        c = &s->largeparts;
-    }
-    else {
-        /* get the appropriate cell */
-        c = &( s->cells[ space_cellid(s,ind[0],ind[1],ind[2]) ] );
-    }
-
-    /* make the particle position local */
-    for ( k = 0 ; k < 3 ; k++ )
-        p->x[k] = x[k] - c->origin[k];
-
-    /* delegate the particle to the cell */
-    if ( ( s->partlist[p->id] = space_cell_add( c , p , s->partlist ) ) == NULL )
-        return error(space_err_cell);
-    
-    s->celllist[p->id] = c;
-    
-    if(result) {
-        *result = s->partlist[p->id];
-    }
+    if(space_setpartp(s, p, x, result) != space_err_ok) 
+        return error(space_err);
     
     MxParticleType *type = &_Engine.types[p->typeId];
     MxStyle *style = p->style ? p->style : type->style;
@@ -494,6 +522,95 @@ int space_addpart ( struct space *s , struct MxParticle *p , double *x, struct M
         else {
             s->nr_visible_parts++;
         }
+    }
+
+    /* end well */
+    return space_err_ok;
+}
+
+int space_addparts ( struct space *s , int nr_parts , struct MxParticle **parts , double **xparts ) {
+
+    int k, ind[3];
+    struct MxParticle **temp;
+    struct space_cell **tempc, *c;
+
+
+    /* check input */
+    if ( s == NULL || parts == NULL || xparts == NULL )
+        return error(space_err_null);
+
+    /* do we need to extend the partlist? */
+    int size_incr = (int((s->nr_parts - s->size_parts + nr_parts) / space_partlist_incr) + 1) * space_partlist_incr;
+    if ( size_incr > 0 ) {
+        if(space_growparts(s, size_incr) != space_err_ok) 
+            return error(space_err);
+
+        #if defined(HAVE_CUDA)
+            if(_Engine.flags & engine_flag_cuda && engine_cuda_refresh_particles(&_Engine) < 0)
+                return error(space_err_malloc);
+        #endif
+    }
+    
+    /* Increase the number of parts. */
+    s->nr_parts += nr_parts;
+
+    int num_workers = mx::ThreadPool::size();
+
+    // Organize indices by destination cell
+    std::vector<std::vector<std::vector<int> > > workers_ids_by_cell(num_workers);
+    int nr_cells = s->nr_cells;
+    auto func_ids_by_cell = [num_workers, nr_parts, nr_cells, &parts, &xparts, &workers_ids_by_cell, &s](int wid) -> void {
+        workers_ids_by_cell[wid] = std::vector<std::vector<int> >(nr_cells + 1);
+        int inds[3];
+        for(int i = wid; i < nr_parts; i += num_workers) {
+            if(parts[i]->flags & PARTICLE_LARGE) 
+                workers_ids_by_cell[wid][nr_cells].push_back(i);
+            else {
+                space_gpos_cellindices(s, xparts[i][0], xparts[i][1], xparts[i][2], inds);
+                workers_ids_by_cell[wid][space_cellid(s, inds[0], inds[1], inds[2])].push_back(i);
+            }
+        }
+    };
+    mx::parallel_for(num_workers, func_ids_by_cell);
+
+    // Gather indices
+    std::vector<std::vector<int> > ids_by_cell(nr_cells + 1);
+    for(int i = 0; i <= nr_cells; i++) 
+        for(int j = 0; j < num_workers; j++) 
+            for(k = 0; k < workers_ids_by_cell[j][i].size(); k++) 
+                ids_by_cell[i].push_back(workers_ids_by_cell[j][i][k]);
+
+    // Place by destination cell and count visibility
+    std::vector<int> _nr_vis_large_parts(num_workers, 0);
+    std::vector<int> _nr_vis_parts(num_workers, 0);
+    auto func = [num_workers, nr_cells, &ids_by_cell, &parts, &xparts, &s, &_nr_vis_large_parts, &_nr_vis_parts](int wid) -> void {
+        for(int cid = wid; cid <= nr_cells; cid += num_workers) {
+            std::vector<int> cell_ids = ids_by_cell[cid];
+            for(int i = 0; i < cell_ids.size(); i++) {
+                int k = cell_ids[i];
+                MxParticle *p = parts[k];
+                space_setpartp(s, p, xparts[k], 0);
+
+                MxParticleType *type = &_Engine.types[p->typeId];
+                MxStyle *style = p->style ? p->style : type->style;
+                
+                if(style->flags & STYLE_VISIBLE) {
+                    if(p->flags & PARTICLE_LARGE) {
+                        _nr_vis_large_parts[wid]++;
+                    }
+                    else {
+                        _nr_vis_parts[wid]++;
+                    }
+                }
+            }
+        }
+    };
+    mx::parallel_for(num_workers, func);
+
+    // Gather visibility
+    for(k = 0; k < num_workers; k++) {
+        s->nr_visible_large_parts += _nr_vis_large_parts[k];
+        s->nr_visible_parts += _nr_vis_parts[k];
     }
 
     /* end well */
@@ -1297,8 +1414,6 @@ int space_verlet_init ( struct space *s , int list_global ) {
 
     /* Allocate the parts and nrpairs lists if necessary. */
     if ( list_global && s->verlet_size < s->nr_parts ) {
-
-        printf("space_verlet_init: (re)allocating verlet lists...\n");
 
         /* Free old lists if necessary. */
         if ( s->verlet_list != NULL )

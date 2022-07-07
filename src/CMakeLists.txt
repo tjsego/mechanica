@@ -388,6 +388,9 @@ if(MX_WITHCUDA)
   set_target_properties(mechanica_shared PROPERTIES 
     CUDA_SEPARABLE_COMPILATION ON
   )
+  if(MX_CUDA_DEBUG)
+    target_compile_options(mechanica_shared PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>")
+  endif()
 endif()
 
 target_link_libraries(mechanica_shared

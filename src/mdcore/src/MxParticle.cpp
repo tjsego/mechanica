@@ -992,8 +992,11 @@ std::vector<int> MxParticles_New(std::vector<MxParticleType*> types,
     particles_ex_load(handles, parts);
 
     // build results
-    for(int i = 0; i < nr_parts; i++) 
+    for(int i = 0; i < nr_parts; i++) {
         result[i] = handles[i]->id;
+        delete parts[i];
+        delete handles[i];
+    }
 
     return result;
 }

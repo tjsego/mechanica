@@ -1,7 +1,9 @@
 MX_MODEL_TREE_INIT()
 
 add_subdirectory(center)
+add_subdirectory(vertex)
 MX_MODEL_TREE_PROC(center)
+MX_MODEL_TREE_PROC(vertex)
 
 foreach(hdr ${MX_MODEL_HDRS_LOCAL})
   get_filename_component(_hdr_dir ${hdr} DIRECTORY)

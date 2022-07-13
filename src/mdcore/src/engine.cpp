@@ -2257,11 +2257,9 @@ int engine_addparts(struct engine *e, int nr_parts, struct MxParticle **parts, d
 	// Add ids to type containers
 	auto ptypes = e->types;
 	auto func_extend = [num_workers, &ptypes, &ptype_lists](int wid) -> void {
-		for(int i = wid; i < ptype_lists.size(); i += num_workers) {
-			MxParticleList plist = ptype_lists[i];
-			if(plist.nr_parts > 0) 
-				ptypes[i].parts.extend(plist);
-		}
+		for(int i = wid; i < ptype_lists.size(); i += num_workers) 
+			if(ptype_lists[i].nr_parts > 0) 
+				ptypes[i].parts.extend(ptype_lists[i]);
 	};
 	mx::parallel_for(num_workers, func_extend);
 

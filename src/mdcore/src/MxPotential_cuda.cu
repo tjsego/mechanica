@@ -71,22 +71,14 @@ MxPotentialCUDAData::MxPotentialCUDAData(MxPotential *p) :
     if(p == NULL) 
         return;
     
-    this->kind = p->kind;
     this->flags = p->flags;
     this->alpha = make_float4(p->alpha[0], p->alpha[1], p->alpha[2], p->alpha[3]);
     this->w = make_float3(p->a, p->b, p->r0_plusone);
     this->offset = make_float3(p->offset[0], p->offset[1], p->offset[2]);
     this->n = p->n;
 
-    if(p->kind == POTENTIAL_KIND_DPD) {
-        DPDPotential* pc_dpd = (DPDPotential*)p;
-        this->dpd_cfs = make_float3(pc_dpd->alpha, pc_dpd->gamma, pc_dpd->sigma);
-    } 
-    else {
-        cuda_call_pots_safe(cudaMalloc(&this->c, sizeof(float) * (p->n + 1) * potential_chunk))
-        cuda_call_pots_safe(cudaMemcpy(this->c, p->c, sizeof(float) * (p->n + 1) * potential_chunk, cudaMemcpyHostToDevice))
-        this->dpd_cfs = make_float3(0.f, 0.f, 0.f);
-    }
+    cuda_call_pots_safe(cudaMalloc(&this->c, sizeof(float) * (p->n + 1) * potential_chunk))
+    cuda_call_pots_safe(cudaMemcpy(this->c, p->c, sizeof(float) * (p->n + 1) * potential_chunk, cudaMemcpyHostToDevice))
 }
 
 __host__ 
@@ -98,13 +90,26 @@ void MxPotentialCUDAData::finalize() {
 }
 
 __host__ 
+MxDPDPotentialCUDAData::MxDPDPotentialCUDAData(DPDPotential *p) : 
+    MxDPDPotentialCUDAData()
+{
+    if(p == NULL) 
+        return;
+
+    this->flags = p->flags;
+    this->w = make_float2(p->a, p->b);
+    this->dpd_cfs = make_float3(p->alpha, p->gamma, p->sigma);
+}
+
+__host__ 
 MxPotentialCUDA::MxPotentialCUDA(MxPotential *p) : 
     MxPotentialCUDA()
 {
     if(p == NULL) 
         return;
 
-    std::vector<MxPotential*> pcs_pot, pcs;
+    std::vector<MxPotential*> pcs_pot;
+    std::vector<DPDPotential*> pcs_dpd;
     if(p->kind == POTENTIAL_KIND_COMBINATION) {
         for(auto pc : p->constituents()) {
             if(pc->kind != POTENTIAL_KIND_COMBINATION) {
@@ -112,7 +117,7 @@ MxPotentialCUDA::MxPotentialCUDA(MxPotential *p) :
                     pcs_pot.push_back(pc);
                 }
                 else {
-                    pcs.push_back(pc);
+                    pcs_dpd.push_back((DPDPotential*)pc);
                 }
             }
         }
@@ -121,27 +126,31 @@ MxPotentialCUDA::MxPotentialCUDA(MxPotential *p) :
         pcs_pot.push_back(p);
     }
     else {
-        pcs.push_back(p);
+        pcs_dpd.push_back((DPDPotential*)p);
     }
 
-    this->nr_dpds = pcs.size();
-    for(auto pc : pcs_pot) {
-        pcs.push_back(pc);
-    }
+    this->nr_dpds = pcs_dpd.size();
+    this->nr_pots = pcs_pot.size();
 
-    this->nr_pots = pcs.size();
-
-    if(this->nr_pots == 0) 
+    if(this->nr_pots == 0 && this->nr_dpds == 0) 
         return;
     
-    MxPotentialCUDAData *data_h = (MxPotentialCUDAData*)malloc(this->nr_pots * sizeof(MxPotentialCUDAData));
+    MxPotentialCUDAData *data_h_pots = (MxPotentialCUDAData*)malloc(this->nr_pots * sizeof(MxPotentialCUDAData));
+    MxDPDPotentialCUDAData *data_h_dpds = (MxDPDPotentialCUDAData*)malloc(this->nr_dpds * sizeof(MxDPDPotentialCUDAData));
     
     for(int i = 0; i < this->nr_pots; i++) {
-        data_h[i] = MxPotentialCUDAData(pcs[i]);
+        data_h_pots[i] = MxPotentialCUDAData(pcs_pot[i]);
+    }
+    for(int i = 0; i < this->nr_dpds; i++) {
+        data_h_dpds[i] = MxDPDPotentialCUDAData(pcs_dpd[i]);
     }
 
-    cuda_call_pots_safe(cudaMalloc(&this->data, this->nr_pots * sizeof(MxPotentialCUDAData)))
-    cuda_call_pots_safe(cudaMemcpy(this->data, data_h, this->nr_pots * sizeof(MxPotentialCUDAData), cudaMemcpyHostToDevice))
+    cuda_call_pots_safe(cudaMalloc(&this->data_pots, this->nr_pots * sizeof(MxPotentialCUDAData)))
+    cuda_call_pots_safe(cudaMemcpy(this->data_pots, data_h_pots, this->nr_pots * sizeof(MxPotentialCUDAData), cudaMemcpyHostToDevice))
 
-    free(data_h);
+    cuda_call_pots_safe(cudaMalloc(&this->data_dpds, this->nr_dpds * sizeof(MxDPDPotentialCUDAData)))
+    cuda_call_pots_safe(cudaMemcpy(this->data_dpds, data_h_dpds, this->nr_dpds * sizeof(MxDPDPotentialCUDAData), cudaMemcpyHostToDevice))
+
+    free(data_h_pots);
+    free(data_h_dpds);
 }

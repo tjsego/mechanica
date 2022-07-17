@@ -224,22 +224,23 @@ int space_prepare ( struct space *s ) {
         for ( j = 0 ; j < s->tasks[k].nr_unlock ; j++ )
             s->tasks[k].unlock[j]->wait += 1;
 
-    /* run through the cells and re-set the potential energy and forces */
-    for ( j = 0 ; j < s->nr_marked ; j++ ) {
-        cid = s->cid_marked[j];
+    auto func_reset_cells = [&, self_number_density](int j) {
+        int cid = s->cid_marked[j];
         s->cells[cid].epot = 0.0;
+        s->cells[cid].computed_volume = 0.0;
         if ( s->cells[cid].flags & cell_flag_ghost )
-            continue;
+            return;
         
-        for ( pid = 0 ; pid < s->cells[cid].count ; pid++ ) {
+        for ( int pid = 0 ; pid < s->cells[cid].count ; pid++ ) {
             
             // yes, we are using up to k=4 here, clear the force, and number density.
-            for ( k = 0 ; k < 3 ; k++ ) {
+            for ( int k = 0 ; k < 3 ; k++ ) {
                 s->cells[cid].parts[pid].f[k] = s->cells[cid].parts[pid].force_i[k];
             }
             s->cells[cid].parts[pid].f[3] = self_number_density;
         }
-    }
+    };
+    mx::parallel_for(s->nr_marked, func_reset_cells);
 
     /* what else could happen? */
     return space_err_ok;
@@ -336,14 +337,18 @@ int space_shuffle ( struct space *s ) {
 
 int space_shuffle_local ( struct space *s ) {
 
-    int k, cid, pid, delta[3];
+    int k;
     FPTYPE h[3];
-    struct space_cell *c, *c_dest;
-    struct MxParticle *p;
 
     /* Get a local copy of h. */
     for ( k = 0 ; k < 3 ; k++ )
         h[k] = s->h[k];
+
+#ifdef HAVE_OPENMP
+
+    int cid, pid, delta[3];
+    struct space_cell *c, *c_dest;
+    struct MxParticle *p;
 
 #pragma omp parallel for schedule(static), private(cid,c,pid,p,k,delta,c_dest)
     for ( cid = 0 ; cid < s->nr_real ; cid++ ) {
@@ -390,6 +395,55 @@ int space_shuffle_local ( struct space *s ) {
                 pid += 1;
         }
     }
+#else
+    auto func_space_shuffle_local = [&, h](int _cid) -> void {
+        space_cell *_c_dest, *_c = &(s->cells[ s->cid_real[_cid] ]);
+        int _pid = 0;
+        int _k;
+        int _delta[3];
+        while ( _pid < _c->count ) {
+
+            MxParticle *_p = &( _c->parts[_pid] );
+            for ( _k = 0 ; _k < 3 ; _k++ )
+                _delta[_k] = __builtin_isgreaterequal( _p->x[_k] , h[_k] ) - __builtin_isless( _p->x[_k] , 0.0 );
+
+            /* do we have to move this particle? */
+            if ( ( _delta[0] != 0 ) || ( _delta[1] != 0 ) || ( _delta[2] != 0 ) ) {
+
+                for ( _k = 0 ; _k < 3 ; _k++ ) {
+                    _p->x[_k] -= _delta[_k] * h[_k];
+                    _p->p0[_k] -= _delta[_k] * h[_k];
+                }
+
+                _c_dest = &( s->cells[ space_cellid( s ,
+                        (_c->loc[0] + _delta[0] + s->cdim[0]) % s->cdim[0] ,
+                        (_c->loc[1] + _delta[1] + s->cdim[1]) % s->cdim[1] ,
+                        (_c->loc[2] + _delta[2] + s->cdim[2]) % s->cdim[2] ) ] );
+
+                if ( _c_dest->flags & cell_flag_marked ) {
+                    pthread_mutex_lock(&_c_dest->cell_mutex);
+                    space_cell_add_incomming( _c_dest , _p );
+                    pthread_mutex_unlock(&_c_dest->cell_mutex);
+                    s->celllist[ _p->id ] = _c_dest;
+                }
+                else {
+                    s->partlist[ _p->id ] = NULL;
+                    s->celllist[ _p->id ] = NULL;
+                }
+                s->celllist[ _p->id ] = _c_dest;
+
+                _c->count -= 1;
+                if ( _pid < _c->count ) {
+                    _c->parts[_pid] = _c->parts[_c->count];
+                    s->partlist[ _c->parts[_pid].id ] = &( _c->parts[_pid] );
+                }
+            }
+            else
+                _pid += 1;
+        }
+    };
+    mx::parallel_for(s->nr_real, func_space_shuffle_local);
+#endif
 
     /* all is well... */
     return space_err_ok;

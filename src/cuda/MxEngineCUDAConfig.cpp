@@ -160,16 +160,3 @@ HRESULT MxEngineCUDAConfig::refresh() {
 
     return S_OK;
 }
-
-HRESULT MxEngineCUDAConfig::setSeed(const unsigned int seed) {
-    if(engine_cuda_rand_norm_setSeed(&_Engine, seed, this->onDevice()) < 0) {
-        Log(LOG_CRITICAL) << "Attempting to seed engine seed failed (" << engine_err << ").";
-        return E_FAIL;
-    }
-
-    return S_OK;
-}
-
-unsigned int MxEngineCUDAConfig::getSeed() {
-    return _Engine.rand_norm_seed_cuda;
-}

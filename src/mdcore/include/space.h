@@ -70,6 +70,7 @@ enum PeriodicFlags {
 /** Converts the index triplet (@c i, @c j, @c k) to the cell id in the
     #space @c s. */
 #define space_cellid(s,i,j,k)           (  ((i)*(s)->cdim[1] + (j)) * (s)->cdim[2] + (k) )
+#define celldims_cellid(cdim,i,j,k)     (  ((i)*cdim[1] + (j)) * cdim[2] + (k) )
 
 /** Convert tuple ids into the pairid index. */
 #define space_pairind(i,j)              ( space_maxtuples*(i) - (i)*((i)+1)/2 + (j) )

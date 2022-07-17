@@ -1108,12 +1108,23 @@ std::string MxSystem::performanceCounters() {
     ss << "\t cpu_time: " << MxCPUTime() << "," << std::endl;
     ss << "\t fps: " << engine_steps_per_second() << "," << std::endl;
     ss << "\t kinetic energy: " << engine_kinetic_energy(&_Engine) << "," << std::endl;
+    ss << "\t kinetic: " << ms(_Engine.timers[engine_timer_kinetic]) << "," << std::endl;
+    ss << "\t prepare: " << ms(_Engine.timers[engine_timer_prepare]) << "," << std::endl;
+    ss << "\t verlet: " << ms(_Engine.timers[engine_timer_verlet]) << "," << std::endl;
+    ss << "\t shuffle: " << ms(_Engine.timers[engine_timer_shuffle]) << "," << std::endl;
     ss << "\t step: " << ms(_Engine.timers[engine_timer_step]) << "," << std::endl;
     ss << "\t nonbond: " << ms(_Engine.timers[engine_timer_nonbond]) << "," << std::endl;
     ss << "\t bonded: " << ms(_Engine.timers[engine_timer_bonded]) << "," << std::endl;
     ss << "\t advance: " << ms(_Engine.timers[engine_timer_advance]) << "," << std::endl;
     ss << "\t rendering: " << ms(_Engine.timers[engine_timer_render]) << "," << std::endl;
     ss << "\t total: " << ms(_Engine.timers[engine_timer_render] + _Engine.timers[engine_timer_step]) << "," << std::endl;
+    #ifdef HAVE_CUDA
+    if(_Engine.flags & engine_flag_cuda) {
+        ss << "\t cuda load: " << ms(_Engine.timers[engine_timer_cuda_load]) << "," << std::endl;
+        ss << "\t cuda pairs: " << ms(_Engine.timers[engine_timer_cuda_dopairs]) << "," << std::endl;
+        ss << "\t cuda unload: " << ms(_Engine.timers[engine_timer_cuda_unload]) << "," << std::endl;
+    }
+    #endif
     ss << "\t time_steps: " << _Engine.time  << std::endl;
     ss << "}" << std::endl;
     

@@ -14,14 +14,15 @@
 #include <cuda.h>
 
 // Diagonal entries and flux index lookup table
-__constant__ unsigned int *cuda_fxind;
+__constant__ int *cuda_fxind;
 
 // The fluxes
 __constant__ struct MxFluxesCUDA *cuda_fluxes = NULL;
-__constant__ unsigned int cuda_nr_fluxes = 0;
+__constant__ int cuda_nr_fluxes = 0;
 
 #define error(id)				( engine_err = errs_register( id , engine_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
 #define cuda_error(id)			( engine_err = errs_register( id , cudaGetErrorString(cudaGetLastError()) , __LINE__ , __FUNCTION__ , __FILE__ ) )
+#define cuda_safe_call(f)       { if(f != cudaSuccess) return cuda_error(engine_err_cuda); }
 
 
 #define MXFLUXCUDA_CUDAMALLOC(member, type, member_name)                                                        \
@@ -124,7 +125,7 @@ void MxFluxesCUDA::finalize() {
 }
 
 __device__ 
-void MxFluxCUDA_getFluxes(unsigned int **fxind_cuda, MxFluxesCUDA **fluxes_cuda) {
+void MxFluxCUDA_getFluxes(int **fxind_cuda, MxFluxesCUDA **fluxes_cuda) {
     *fxind_cuda = cuda_fxind;
     *fluxes_cuda = cuda_fluxes;
 }
@@ -193,30 +194,21 @@ extern "C" int engine_cuda_load_fluxes(struct engine *e) {
     }
     
     /* Store find and other stuff as constant. */
-    for ( did = 0 ; did < nr_devices ; did++ ) {
-        if ( cudaSetDevice( e->devices[did] ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMalloc( &e->fxind_cuda[did] , sizeof(unsigned int) * e->max_type * e->max_type ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMemcpy( e->fxind_cuda[did] , fxind , sizeof(unsigned int) * e->max_type * e->max_type , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
-        if ( cudaMemcpyToSymbol( cuda_fxind , &e->fxind_cuda[did] , sizeof(void *) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
+    for(did = 0; did < nr_devices; did++) {
+        cuda_safe_call(cudaSetDevice(e->devices[did]));
+        cuda_safe_call(cudaMalloc(&e->fxind_cuda[did], sizeof(int) * e->max_type * e->max_type));
+        cuda_safe_call(cudaMemcpy(e->fxind_cuda[did], fxind, sizeof(int) * e->max_type * e->max_type, cudaMemcpyHostToDevice));
+        cuda_safe_call(cudaMemcpyToSymbol(cuda_fxind, &e->fxind_cuda[did], sizeof(void *), 0, cudaMemcpyHostToDevice));
     }
     free(fxind);
 
     // Store the fluxes
     for(did = 0; did < nr_devices; did++) {
-        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-        if(cudaMalloc(&e->fluxes_cuda[did], sizeof(MxFluxesCUDA) * nr_fluxes) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-        if(cudaMemcpy(e->fluxes_cuda[did], fluxes_cuda, sizeof(MxFluxesCUDA) * nr_fluxes, cudaMemcpyHostToDevice) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-        if(cudaMemcpyToSymbol(cuda_fluxes, &e->fluxes_cuda[did], sizeof(void*), 0, cudaMemcpyHostToDevice) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
-        if(cudaMemcpyToSymbol(cuda_nr_fluxes, &nr_fluxes , sizeof(unsigned int) , 0 , cudaMemcpyHostToDevice ) != cudaSuccess )
-            return cuda_error(engine_err_cuda);
+        cuda_safe_call(cudaSetDevice(e->devices[did]));
+        cuda_safe_call(cudaMalloc(&e->fluxes_cuda[did], sizeof(MxFluxesCUDA) * nr_fluxes));
+        cuda_safe_call(cudaMemcpy(e->fluxes_cuda[did], fluxes_cuda, sizeof(MxFluxesCUDA) * nr_fluxes, cudaMemcpyHostToDevice));
+        cuda_safe_call(cudaMemcpyToSymbol(cuda_fluxes, &e->fluxes_cuda[did], sizeof(void*), 0, cudaMemcpyHostToDevice));
+        cuda_safe_call(cudaMemcpyToSymbol(cuda_nr_fluxes, &nr_fluxes , sizeof(int) , 0 , cudaMemcpyHostToDevice ) );
     }
     free(fluxes);
     free(fluxes_cuda);
@@ -237,10 +229,8 @@ extern "C" int engine_cuda_load_fluxes(struct engine *e) {
     // Allocate the flux buffer
     if(nr_states_next > 0) {
         for(did = 0; did < nr_devices; did++) {
-            if(cudaSetDevice(e->devices[did]) != cudaSuccess)
-                return cuda_error(engine_err_cuda);
-            if (cudaMalloc(&e->fluxes_next_cuda[did], sizeof(float) * nr_states_next * e->s.size_parts) != cudaSuccess)
-                return cuda_error(engine_err_cuda);
+            cuda_safe_call(cudaSetDevice(e->devices[did]));
+            cuda_safe_call(cudaMalloc(&e->fluxes_next_cuda[did], sizeof(float) * nr_states_next * e->s.size_parts));
         }
     }
 
@@ -250,11 +240,14 @@ extern "C" int engine_cuda_load_fluxes(struct engine *e) {
 
 __global__ 
 void engine_cuda_unload_fluxes_device(int nr_fluxes) {
-    if(nr_fluxes <= 1)
+    if(nr_fluxes < 1)
         return;
 
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
     int stride = blockDim.x * gridDim.x;
+
+    if(tid == 0) 
+        tid += stride;
 
     while(tid < nr_fluxes) {
         cuda_fluxes[tid].finalize();
@@ -277,21 +270,19 @@ extern "C" int engine_cuda_unload_fluxes(struct engine *e) {
 
     for(int did = 0; did < e->nr_devices; did++) {
 
-        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
+        cuda_safe_call(cudaSetDevice(e->devices[did]));
 
         // Free the fluxes.
         
-        if(cudaFree(e->fxind_cuda[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
+        cuda_safe_call(cudaFree(e->fxind_cuda[did]));
         
         engine_cuda_unload_fluxes_device<<<8, 512>>>(nr_states);
-        
-        if(cudaFree((MxFluxesCUDA*)e->fluxes_cuda[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
 
-        if(cudaFree(e->fluxes_next_cuda[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
+        cuda_safe_call(cudaPeekAtLastError());
+        
+        cuda_safe_call(cudaFree((MxFluxesCUDA*)e->fluxes_cuda[did]));
+
+        cuda_safe_call(cudaFree(e->fluxes_next_cuda[did]));
 
     }
 
@@ -319,11 +310,9 @@ extern "C" int engine_cuda_refresh_fluxes(struct engine *e) {
 
     for(int did = 0; did < e->nr_devices; did++) {
 
-        if(cudaSetDevice(e->devices[did]) != cudaSuccess)
-            return cuda_error(engine_err_cuda);
+        cuda_safe_call(cudaSetDevice(e->devices[did]));
 
-        if(cudaDeviceSynchronize() != cudaSuccess)
-            return cuda_error(engine_err_cuda);
+        cuda_safe_call(cudaDeviceSynchronize());
 
     }
 

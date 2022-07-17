@@ -245,6 +245,9 @@ function(add_mdcore_single)
     set_target_properties(mdcore_single PROPERTIES 
       CUDA_SEPARABLE_COMPILATION ON
     )
+    if(MX_CUDA_DEBUG) 
+      target_compile_options(mdcore_single PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>")
+    endif()
   endif()
 
   # hack for getting compile definitions through to eclipse project files,

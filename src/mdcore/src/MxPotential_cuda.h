@@ -30,8 +30,6 @@ void Mx_cudaFree(MxPotential *p);
 
 
 struct MxPotentialCUDAData {
-    uint32_t kind;
-
     /** Flags. */
     uint32_t flags;
 
@@ -47,9 +45,6 @@ struct MxPotentialCUDAData {
     /** Nr of intervals. */
     int n;
 
-    // DPD coefficients alpha, gamma, sigma
-    float3 dpd_cfs;
-
     /** The coefficients. */
     float *c;
 
@@ -63,6 +58,23 @@ struct MxPotentialCUDAData {
     void finalize();
 };
 
+struct MxDPDPotentialCUDAData {
+    /** Flags. */
+    uint32_t flags;
+
+    // a, b
+    float2 w;
+
+    // DPD coefficients alpha, gamma, sigma
+    float3 dpd_cfs;
+
+    __host__ 
+    MxDPDPotentialCUDAData() : flags{POTENTIAL_NONE} {}
+
+    __host__ 
+    MxDPDPotentialCUDAData(DPDPotential *p);
+};
+
 // A wrap of MxPotential
 struct MxPotentialCUDA {
     // Number of underlying potentials
@@ -71,8 +83,11 @@ struct MxPotentialCUDA {
     // Number of dpd potentials
     int nr_dpds;
 
-    // Data of all underlying potentials
-    MxPotentialCUDAData *data;
+    // Data of all underlying potentials, excluding dpd
+    MxPotentialCUDAData *data_pots;
+
+    // Data of all underlying dpd potentials
+    MxDPDPotentialCUDAData *data_dpds;
 
     __host__ __device__ 
     MxPotentialCUDA() : 
@@ -85,13 +100,14 @@ struct MxPotentialCUDA {
     
     __host__ 
     void finalize() {
-        if(this->nr_pots == 0) 
+        if(this->nr_pots == 0 && this->nr_dpds) 
             return;
 
         for(int i = 0; i < this->nr_pots; i++) 
-            this->data[i].finalize();
+            this->data_pots[i].finalize();
 
         this->nr_pots = 0;
+        this->nr_dpds = 0;
     }
 };
 

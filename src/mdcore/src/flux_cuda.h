@@ -56,7 +56,7 @@ struct MxFluxesCUDA {
 
 
 __device__ 
-void MxFluxCUDA_getFluxes(unsigned int **fxind_cuda, MxFluxesCUDA **fluxes_cuda);
+void MxFluxCUDA_getFluxes(int **fxind_cuda, MxFluxesCUDA **fluxes_cuda);
 
 __device__ 
 void MxFluxCUDA_getNrFluxes(unsigned int *nr_fluxes);

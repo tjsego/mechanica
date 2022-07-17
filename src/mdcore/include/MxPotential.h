@@ -204,7 +204,7 @@ typedef void (*MxPotentialClear) (struct MxPotential* p);
  * 
  * A potential can be treated just like any callable object. 
  */
-typedef struct MxPotential {
+struct CAPI_EXPORT MxPotential {
     uint32_t kind;
 
     /** Flags. */
@@ -683,7 +683,7 @@ typedef struct MxPotential {
     bool getPeriodic();
     bool getRSquare();
 
-} MxPotential;
+};
 
 
 /** Fictitious null potential. */

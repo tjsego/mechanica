@@ -118,6 +118,7 @@ enum EngineIntegrator {
 /** Timmer IDs. */
 enum {
 	engine_timer_step = 0,
+	engine_timer_kinetic, 
 	engine_timer_prepare,
 	engine_timer_verlet,
 	engine_timer_exchange1,
@@ -367,7 +368,6 @@ typedef struct engine {
 	int nr_devices, devices[ engine_maxgpu ], nr_queues_cuda;
 	float *forces_cuda[ engine_maxgpu ];
 	void *parts_cuda[ engine_maxgpu ], *part_states_cuda[engine_maxgpu];
-	void **pots_cuda[engine_maxgpu], **pots_cluster_cuda[engine_maxgpu];
 	void *parts_cuda_local, *part_states_cuda_local;
 	int *cells_cuda_local[ engine_maxgpu];
 	int cells_cuda_nr[ engine_maxgpu ];
@@ -378,9 +378,6 @@ typedef struct engine {
 	int nrtasks_cuda[ engine_maxgpu ];
 	void *streams[ engine_maxgpu ];
 	int nr_blocks[engine_maxgpu], nr_threads[engine_maxgpu];
-	void *rand_norm_cuda[engine_maxgpu];
-	int rand_norm_init_cuda[engine_maxgpu];
-	unsigned int rand_norm_seed_cuda;
 	int nr_fluxes_cuda, *fxind_cuda[engine_maxgpu];
 	void **fluxes_cuda[engine_maxgpu];
 	float *fluxes_next_cuda[engine_maxgpu];
@@ -587,6 +584,7 @@ CAPI_FUNC(struct MxParticleType*) engine_type(int id);
 CAPI_FUNC(int) engine_addpart (struct engine *e,  struct MxParticle *p,
     double *x, struct MxParticle **result);
 
+CAPI_FUNC(int) engine_addparts(struct engine *e, int nr_parts, struct MxParticle **parts, double **x);
 
 CAPI_FUNC(int) engine_addcuboid(struct engine *e, struct MxCuboid *p,
                                 struct MxCuboid **result);
@@ -687,6 +685,11 @@ CAPI_FUNC(int) engine_verlet_update ( struct engine *e );
 CAPI_FUNC(int) engine_next_partid(struct engine *e);
 
 /**
+ * gets the next available particle ids to use when creating a new particle.
+ */
+CAPI_FUNC(int) engine_next_partids(struct engine *e, int nr_ids, int *ids);
+
+/**
  * internal method to clear data before calculating forces on all objects
  */
 int engine_force_prep(struct engine *e);
@@ -759,8 +762,6 @@ CAPI_FUNC(int) engine_cuda_setdevice ( struct engine *e , int id );
 CAPI_FUNC(int) engine_cuda_setdevices ( struct engine *e , int nr_devices , int *ids );
 CAPI_FUNC(int) engine_cuda_cleardevices(struct engine *e);
 CAPI_FUNC(int) engine_split_gpu( struct engine *e, int N, int flags);
-CAPI_FUNC(int) engine_cuda_rand_norm_init(struct engine *e);
-CAPI_FUNC(int) engine_cuda_rand_norm_setSeed(struct engine *e, unsigned int seed, bool onDevice);
 
 CAPI_FUNC(int) engine_toCUDA(struct engine *e);
 CAPI_FUNC(int) engine_fromCUDA(struct engine *e);

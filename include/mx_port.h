@@ -91,7 +91,7 @@ typedef uint8_t bool;
 
 /* If no external linkage macros defined by now, create defaults */
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
   #ifdef C_BUILDING_DLL
     #define CAPI_EXPORT __declspec(dllexport)
   #else
@@ -110,7 +110,7 @@ typedef uint8_t bool;
 #endif
 
 #ifndef CAPI_DATA
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 #    define CAPI_DATA(RTYPE) extern "C" CAPI_EXPORT RTYPE
 #else
 #    define CAPI_DATA(RTYPE) extern CAPI_EXPORT RTYPE 
@@ -127,7 +127,7 @@ typedef uint8_t bool;
 #endif
 
 
-#ifndef WIN32
+#if !(defined(_WIN32) || defined(__WIN32__) || defined(WIN32))
 
 
 /**

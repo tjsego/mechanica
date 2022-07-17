@@ -49,10 +49,6 @@ GPU-Accelerated Modules
 
     .. automethod:: refresh
 
-    .. automethod:: setSeed
-
-    .. automethod:: getSeed
-
 
 .. autoclass:: BondCUDAConfig
 

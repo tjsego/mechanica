@@ -353,7 +353,7 @@ static MxVector3f random_point_solidsphere_shell(std::uniform_real_distribution<
     auto &MxRandom = MxRandomEngine();
     float theta = 2 * M_PI * uniform01(MxRandom);
     float phi = acos(cos0 - (cos0-cos1) * uniform01(MxRandom));
-    float r = std::cbrt((1-dr) + dr * uniform01(MxRandom));
+    float r = (1-dr) + dr * uniform01(MxRandom);
     float x = r * sin(phi) * cos(theta);
     float y = r * sin(phi) * sin(theta);
     float z = r * cos(phi);

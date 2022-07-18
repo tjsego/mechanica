@@ -785,15 +785,15 @@ MxParticleHandle *MxParticle_FissionSimple(MxParticle *self,
         }
         
         // pointers after engine_addpart could change...
-        self = _Engine.s.partlist[self_id];
         space_setpos(&_Engine.s, self_id, posParent.data());
+        self = _Engine.s.partlist[self_id];
         Log(LOG_DEBUG) << self->position << ", " << p->position;
         
         // all is good, set the new radii
         self->radius = r2;
         p->radius = r2;
         self->mass = p->mass = self->mass / 2.;
-        self->imass = p->imass = 1. / self->mass;
+        self->imass = p->imass = self->mass > 0 ? 1. / self->mass : 0;
 
         Log(LOG_TRACE) << "Simple fission for type " << (int)_Engine.types[self->typeId].id;
 
@@ -1482,7 +1482,7 @@ HRESULT fromFile(const MxIOElement &fileElement, const MxMetaData &metaData, MxP
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "persistent_force", &dataElement->persistent_force);
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "radius", &dataElement->radius);
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "mass", &dataElement->mass);
-    dataElement->imass = 1.f / dataElement->mass;
+    dataElement->imass = dataElement->mass > 0 ? 1.f / dataElement->mass : 0;
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "q", &dataElement->q);
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "p0", &dataElement->p0);
     MXPARTICLEIOFROMEASY(feItr, fileElement.children, metaData, "v0", &dataElement->v0);

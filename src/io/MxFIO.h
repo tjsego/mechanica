@@ -113,6 +113,14 @@ T fromString(const std::string &str) {
     return fromString<T>(str, MxMetaData());
 }
 
+/**
+ * @brief Delete a file element and all child elements
+ * 
+ * @param fileElement file element to delete; pointer is set to 0
+ * @return HRESULT 
+ */
+HRESULT deleteElement(MxIOElement **fileElement);
+
 }};
 
 /**

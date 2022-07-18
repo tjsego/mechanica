@@ -995,7 +995,6 @@ std::vector<int> MxParticles_New(std::vector<MxParticleType*> types,
     for(int i = 0; i < nr_parts; i++) {
         result[i] = handles[i]->id;
         delete parts[i];
-        delete handles[i];
     }
 
     return result;

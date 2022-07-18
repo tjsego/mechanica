@@ -42,7 +42,7 @@ f = mx.ConstantForce(lambda: [0.3, 1 * np.sin(0.4 * mx.Universe.time), 0], 0.01)
 
 mx.bind.force(f, B)
 
-pot = mx.Potential.power(r0=0.5 * a, alpha=2)
+pot = mx.Potential.power(r0=0.5 * a, alpha=2, max=10 * a)
 
 uc = mx.lattice.sc(a, A, lambda i, j: mx.Bond.create(pot, i, j, dissociation_energy=100.0))
 

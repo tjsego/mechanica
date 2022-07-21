@@ -47,7 +47,7 @@ struct MxDihedralHandle;
 struct MxParticleHandle;
 
 /** The dihedral structure */
-typedef struct MxDihedral {
+typedef struct CAPI_EXPORT MxDihedral {
 
     uint32_t flags;
 
@@ -120,7 +120,7 @@ typedef struct MxDihedral {
  * 
  * This is a safe way to work with a dihedral bond. 
  */
-struct MxDihedralHandle {
+struct CAPI_EXPORT MxDihedralHandle {
 	int id;
 
     /**

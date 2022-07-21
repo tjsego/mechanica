@@ -60,6 +60,21 @@ enum class MxPointsType : unsigned int {
  */
 std::vector<std::string> MxColor3_Names();
 
+/**
+ * @brief Get the number of color names
+ * 
+ * @return unsigned int 
+ */
+CAPI_FUNC(unsigned int) MxNumColor3Names();
+
+/**
+ * @brief Get a color name
+ * 
+ * @param idx index of color
+ * @return const char* 
+ */
+CAPI_FUNC(const char*) MxGetColorName(const unsigned int &idx);
+
 Magnum::Color3 Color3_Parse(const std::string &str);
 
 template <typename Type, typename Klass>
@@ -109,7 +124,7 @@ inline void* MxAligned_Malloc(size_t size, size_t alignment)
  * @param phi1 angle upper bound; only applicable to solid sphere kind
  * @return MxVector3f 
  */
-MxVector3f MxRandomPoint(const MxPointsType &kind, 
+CPPAPI_FUNC(MxVector3f) MxRandomPoint(const MxPointsType &kind, 
                          const float &dr=0, 
                          const float &phi0=0, 
                          const float &phi1=M_PI);
@@ -126,7 +141,7 @@ MxVector3f MxRandomPoint(const MxPointsType &kind,
  * @param phi1 angle upper bound; only applicable to solid sphere kind
  * @return std::vector<MxVector3f> 
  */
-std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind, 
+CPPAPI_FUNC(std::vector<MxVector3f>) MxRandomPoints(const MxPointsType &kind, 
                                        const int &n=1, 
                                        const float &dr=0, 
                                        const float &phi0=0, 
@@ -141,7 +156,7 @@ std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind,
  * @param n number of points
  * @return std::vector<MxVector3f> 
  */
-std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n=1);
+CPPAPI_FUNC(std::vector<MxVector3f>) MxPoints(const MxPointsType &kind, const unsigned int &n=1);
 
 /**
  * @brief Get the coordinates of a uniformly filled cube. 
@@ -153,11 +168,11 @@ std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n=1);
  * @param nParticlesZ number of particles along z-direction of filling axes (>=2)
  * @return std::vector<MxVector3f> 
  */
-std::vector<MxVector3f> MxFilledCubeUniform(const MxVector3f &corner1, 
+CPPAPI_FUNC(std::vector<MxVector3f>) MxFilledCubeUniform(const MxVector3f &corner1, 
                                             const MxVector3f &corner2, 
-                                            const int &nParticlesX=2, 
-                                            const int &nParticlesY=2, 
-                                            const int &nParticlesZ=2);
+                                            const unsigned int &nParticlesX=2, 
+                                            const unsigned int &nParticlesY=2, 
+                                            const unsigned int &nParticlesZ=2);
 
 /**
  * @brief Get the coordinates of a randomly filled cube. 
@@ -167,7 +182,7 @@ std::vector<MxVector3f> MxFilledCubeUniform(const MxVector3f &corner1,
  * @param nParticles number of points in the cube
  * @return std::vector<MxVector3f> 
  */
-std::vector<MxVector3f> MxFilledCubeRandom(const MxVector3f &corner1, const MxVector3f &corner2, const int &nParticles);
+CPPAPI_FUNC(std::vector<MxVector3f>) MxFilledCubeRandom(const MxVector3f &corner1, const MxVector3f &corner2, const int &nParticles);
 
 extern const char* MxColor3Names[];
 
@@ -181,7 +196,7 @@ extern const char* MxColor3Names[];
  * @param inds returned indices
  * @return HRESULT 
  */
-HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,
+CPPAPI_FUNC(HRESULT) Mx_Icosphere(const int subdivisions, float phi0, float phi1,
                      std::vector<MxVector3f> &verts,
                      std::vector<int32_t> &inds);
 
@@ -194,14 +209,14 @@ HRESULT Mx_Icosphere(const int subdivisions, float phi0, float phi1,
  * @param std magnitude standard deviation
  * @return MxVector3f 
  */
-MxVector3f MxRandomVector(float mean, float std);
+CPPAPI_FUNC(MxVector3f) MxRandomVector(float mean, float std);
 
 /**
  * @brief Generates a randomly oriented unit vector.
  * 
  * @return MxVector3f 
  */
-MxVector3f MxRandomUnitVector();
+CPPAPI_FUNC(MxVector3f) MxRandomUnitVector();
 
 namespace mx {
     template<class T>

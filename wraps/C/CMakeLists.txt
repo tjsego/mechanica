@@ -82,9 +82,12 @@ if(MX_WITHCUDA)
 endif()
 
 target_link_libraries(mechanica_c PUBLIC 
-    Mechanica::Mechanica 
-    mechanica_obj
-    mdcore_single
+  Mechanica::Mechanica 
+)
+target_link_libraries(mechanica_c PRIVATE 
+  mechanica_obj 
+  mdcore_single 
+  Mechanica::MagnumLibs
 )
 
 if(MX_WITHCUDA)
@@ -93,14 +96,6 @@ if(MX_WITHCUDA)
     CUDA::cuda_driver 
     CUDA::nvrtc
   )
-endif()
-
-if(MX_APPLE)
-  target_link_libraries(mechanica_c PRIVATE MagnumWindowlessCglApplication)
-elseif(MX_LINUX)
-  target_link_libraries(mechanica_c PRIVATE MagnumWindowlessEglApplication)
-elseif(MX_WINDOWS)
-  target_link_libraries(mechanica_c PRIVATE MagnumWindowlessWglApplication)
 endif()
 
 add_library(Mechanica::CLib ALIAS mechanica_c)

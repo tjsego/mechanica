@@ -10,8 +10,8 @@
 
 #include "platform.h"
 #include "fptype.h"
-#include "../../types/mx_types.h"
-#include "../../io/mx_io.h"
+#include <types/mx_types.h>
+#include <io/mx_io.h>
 
 #include <limits>
 

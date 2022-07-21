@@ -56,7 +56,10 @@ set(PUBLIC_HEADERS
   "${MDCORE_SOURCE_DIR}/include/Polygon.hpp"
   "${MDCORE_SOURCE_DIR}/include/Cell.hpp"
   "${MDCORE_SOURCE_DIR}/include/Flux.hpp"
-  "${MDCORE_SOURCE_DIR}/include/xoshiro256plus.h"
+  "${MDCORE_SOURCE_DIR}/include/MxCluster.hpp"
+  "${MDCORE_SOURCE_DIR}/include/MxSecreteUptake.hpp"
+  "${MDCORE_SOURCE_DIR}/include/DissapativeParticleDynamics.hpp"
+  "${MDCORE_SOURCE_DIR}/include/MxBoundaryConditions.hpp"
   )
 
 set(PRIVATE_HEADERS
@@ -65,19 +68,15 @@ set(PRIVATE_HEADERS
   smoothing_kernel.hpp
   # reader.h
   MxConstraint.hpp
-  MxCluster.hpp
   engine_advance.h
-  MxSecreteUptake.hpp
   MxSubEngine.h
   SpaceQueue.hpp
-  DissapativeParticleDynamics.hpp
-  MxBoundaryConditions.hpp
   potential_eval.hpp
   flux_eval.hpp
   dpd_eval.hpp
   cuboid_eval.hpp
   boundary_eval.hpp
-  MxBind.hpp
+  xoshiro256plus.h
   )
 
 if(MX_THREADING)
@@ -133,7 +132,6 @@ SET(SOURCES
   SpaceQueue.cpp
   DissapativeParticleDynamics.cpp
   MxBoundaryConditions.cpp
-  MxBind.cpp
 )
 
 set(MDCORE_COMPILEDEFS_PUBLIC MDCORE_SINGLE)
@@ -259,24 +257,27 @@ function(add_mdcore_single)
   target_include_directories(mdcore_single PUBLIC ${MDCORE_INCLUDE_DIR}
     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include> 
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src> 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:${MX_INCLUDE_DIR}/mdcore>
-    $<INSTALL_INTERFACE:${MX_INCLUDE_DIR}/mdcore/private>
+    $<INSTALL_INTERFACE:${MX_PRIVATE_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:${MX_PRIVATE_INCLUDE_DIR}/mdcore>
+    $<INSTALL_INTERFACE:${MX_PRIVATE_INCLUDE_DIR}/mdcore/private>
     ${Python_INCLUDE_DIRS}
-    #$<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
   )
 
-target_link_libraries(mdcore_single PUBLIC ${MDCORE_LIBS})
+  target_link_libraries(mdcore_single PUBLIC ${MDCORE_LIBS})
 
-message("setting mdcore_single interface includes: ${MDCORE_INCLUDE_DIR}")
+  message("setting mdcore_single interface includes: ${MDCORE_INCLUDE_DIR}")
+
+  install(FILES ${SINGLE_HEADERS} DESTINATION ${MX_PRIVATE_INCLUDE_DIR}/mdcore)
 
 endfunction(add_mdcore_single)
 
 # alwasy build the single precision version
 add_mdcore_single()
 
-install(FILES ${PUBLIC_HEADERS} DESTINATION ${MX_INCLUDE_DIR}/mdcore)
-install(FILES ${PRIVATE_HEADERS} DESTINATION ${MX_INCLUDE_DIR}/mdcore/private)
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${MX_PRIVATE_INCLUDE_DIR}/mdcore)
+install(FILES ${PRIVATE_HEADERS} DESTINATION ${MX_PRIVATE_INCLUDE_DIR}/mdcore/private)
 
 
 # Set-up for general (double-precision) case

@@ -10,12 +10,12 @@
 #define SRC_STATE_MXSPECIESLIST_H_
 
 #include "MxSpecies.h"
-#include "../io/mx_io.h"
+#include <io/mx_io.h>
 #include <mx_port.h>
 #include <string>
 #include <map>
 
-struct MxSpeciesList
+struct CAPI_EXPORT MxSpeciesList
 {
     /**
      * @brief Get the index of a species name

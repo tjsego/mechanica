@@ -14,7 +14,7 @@
  * @brief The cluster analogue to :class:`MxParticle`. 
  * 
  */
-struct MxCluster : MxParticle
+struct CAPI_EXPORT MxCluster : MxParticle
 {
 };
 
@@ -24,7 +24,7 @@ struct MxClusterParticleHandle;
  * @brief The cluster analogue to :class:`MxParticleType`. 
  * 
  */
-struct MxClusterParticleType : MxParticleType {
+struct CAPI_EXPORT MxClusterParticleType : MxParticleType {
 
     MxClusterParticleType(const bool &noReg=false);
 
@@ -64,7 +64,7 @@ struct MxClusterParticleType : MxParticleType {
  * constituent particle types, much like a :class:`MxParticleType`. 
  * 
  */
-struct MxClusterParticleHandle : MxParticleHandle {
+struct CAPI_EXPORT MxClusterParticleHandle : MxParticleHandle {
     MxClusterParticleHandle();
     MxClusterParticleHandle(const int &id, const int &typeId);
 

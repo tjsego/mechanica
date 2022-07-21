@@ -9,8 +9,8 @@
 #define SRC_MDCORE_SRC_BOUNDARYCONDITIONS_H_
 
 #include <platform.h>
-#include "../../types/mx_types.h"
-#include "../../io/mx_io.h"
+#include <types/mx_types.h>
+#include <io/mx_io.h>
 
 #include <unordered_map>
 
@@ -31,7 +31,7 @@ struct MxPotential;
  * @brief A condition on a boundary of the universe. 
  * 
  */
-struct MxBoundaryCondition {
+struct CAPI_EXPORT MxBoundaryCondition {
     BoundaryConditionKind kind;
 
     // id of this boundary, id's go from 0 to 6 (top, bottom, etc..)
@@ -91,7 +91,7 @@ struct MxBoundaryCondition {
  * instances of the :class:`MxBoundaryCondition` object
  * 
  */
-struct MxBoundaryConditions {
+struct CAPI_EXPORT MxBoundaryConditions {
 
     /**
      * @brief The top boundary
@@ -184,7 +184,7 @@ private:
                     const std::unordered_map<std::string, float> restores);
 };
 
-struct MxBoundaryConditionsArgsContainer {
+struct CAPI_EXPORT MxBoundaryConditionsArgsContainer {
     int *bcValue;
     std::unordered_map<std::string, unsigned int> *bcVals;
     std::unordered_map<std::string, MxVector3f> *bcVels;

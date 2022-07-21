@@ -8,9 +8,9 @@
 #ifndef _MDCORE_MXPARTICLELIST_H_
 #define _MDCORE_MXPARTICLELIST_H_
 
-#include "mx_port.h"
-#include "../../io/mx_io.h"
-#include "../../types/mx_types.h"
+#include <mx_port.h>
+#include <io/mx_io.h>
+#include <types/mx_types.h>
 
 #include <vector>
 

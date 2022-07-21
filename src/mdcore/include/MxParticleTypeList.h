@@ -8,7 +8,6 @@
 #ifndef _MDCORE_MXPARTICLETYPELIST_H_
 #define _MDCORE_MXPARTICLETYPELIST_H_
 
-#include "../../io/mx_io.h"
 #include "MxParticleList.hpp"
 
 struct MxParticleType;

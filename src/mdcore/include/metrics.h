@@ -26,7 +26,7 @@
  * @param comp_bc flag to compensate for boundary conditions; default true
  * @return MxVector3f relative position with respect to the given origin
  */
-MxVector3f MxRelativePosition(const MxVector3f &pos, const MxVector3f &origin, const bool &comp_bc=true);
+CPPAPI_FUNC(MxVector3f) MxRelativePosition(const MxVector3f &pos, const MxVector3f &origin, const bool &comp_bc=true);
 
 /**
  * @origin [in] origin of the sphere where we will comptute
@@ -40,7 +40,7 @@ MxVector3f MxRelativePosition(const MxVector3f &pos, const MxVector3f &origin, c
  * If periodoc, we don't include the periodic image cells, because we only
  * calculate the forces within the simulation volume.
  */
-CAPI_FUNC(HRESULT) MxCalculateVirial(FPTYPE *origin,
+CPPAPI_FUNC(HRESULT) MxCalculateVirial(FPTYPE *origin,
                                        FPTYPE radius,
                                        const std::set<short int> &typeIds,
                                        FPTYPE *tensor);
@@ -70,29 +70,29 @@ CAPI_FUNC(HRESULT) MxParticles_StressTensor(int32_t *parts,
 /**
  * @param result: pointer to float to store result.
  */
-HRESULT MxParticles_RadiusOfGyration(int32_t *parts, uint16_t nr_parts, float* result);
+CAPI_FUNC(HRESULT) MxParticles_RadiusOfGyration(int32_t *parts, uint16_t nr_parts, float* result);
 
 /**
  * @param result: pointer to float[3] to store result
  */
-HRESULT MxParticles_CenterOfMass(int32_t *parts, uint16_t nr_parts, float* result);
+CAPI_FUNC(HRESULT) MxParticles_CenterOfMass(int32_t *parts, uint16_t nr_parts, float* result);
 
 /**
  * @param result: pointer to float[3] to store result.
  */
-HRESULT MxParticles_CenterOfGeometry(int32_t *parts, uint16_t nr_parts, float* result);
+CAPI_FUNC(HRESULT) MxParticles_CenterOfGeometry(int32_t *parts, uint16_t nr_parts, float* result);
 
 /**
  * @param result: pointer to float[9] to store result.
  */
-HRESULT MxParticles_MomentOfInertia(int32_t *parts, uint16_t nr_parts, float* result);
+CAPI_FUNC(HRESULT) MxParticles_MomentOfInertia(int32_t *parts, uint16_t nr_parts, float* result);
 
 /**
  * converts cartesian to spherical, writes spherical
  * coords in to result array.
  * return MxVector3f{radius, theta, phi};
  */
-MxVector3f MxCartesianToSpherical(const MxVector3f& postion, const MxVector3f& origin);
+CPPAPI_FUNC(MxVector3f) MxCartesianToSpherical(const MxVector3f& postion, const MxVector3f& origin);
 
 /**
  * Searches and enumerates a location of space for all particles there.

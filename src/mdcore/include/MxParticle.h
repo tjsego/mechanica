@@ -21,8 +21,8 @@
 #define INCLUDE_PARTICLE_H_
 #include "platform.h"
 #include "fptype.h"
-#include "../../state/MxStateVector.h"
-#include "../../types/mx_types.h"
+#include <state/MxStateVector.h>
+#include <types/mx_types.h>
 #include "space_cell.h"
 #include "angle.h"
 #include "bond.h"

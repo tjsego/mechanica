@@ -18,7 +18,7 @@
 #include <limits>
 #include <MxThreadPool.hpp>
 #include <MxCuboid.hpp>
-#include <MxBind.hpp>
+#include <MxBind.h>
 #include <state/MxStateVector.h>
 #include <state/MxSpeciesList.h>
 #include <MxSystem.h>

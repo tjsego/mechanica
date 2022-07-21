@@ -34,7 +34,7 @@ using MxParticleEventParticleSelector = MxParticleEventParticleSelectorT<MxParti
  * @param nr_parts number of particles of the type
  * @return MxParticleHandle* 
  */
-MxParticleHandle *particleSelectorUniform(const int16_t &typeId, const int32_t &nr_parts);
+CAPI_FUNC(MxParticleHandle*) particleSelectorUniform(const int16_t &typeId, const int32_t &nr_parts);
 
 /**
  * @brief Selects largest particle by event target type
@@ -42,7 +42,7 @@ MxParticleHandle *particleSelectorUniform(const int16_t &typeId, const int32_t &
  * @param typeId id of type
  * @return MxParticleHandle* 
  */
-MxParticleHandle *particleSelectorLargest(const int16_t &typeId);
+CAPI_FUNC(MxParticleHandle*) particleSelectorLargest(const int16_t &typeId);
 
 /**
  * @brief Selects a particle according to a uniform random distribution by event target type
@@ -50,7 +50,7 @@ MxParticleHandle *particleSelectorLargest(const int16_t &typeId);
  * @param event 
  * @return MxParticleHandle* 
  */
-MxParticleHandle* MxParticleEventParticleSelectorUniform(const MxParticleEvent &event);
+CAPI_FUNC(MxParticleHandle*) MxParticleEventParticleSelectorUniform(const MxParticleEvent &event);
 
 /**
  * @brief Selects largest particle by event target type
@@ -58,7 +58,7 @@ MxParticleHandle* MxParticleEventParticleSelectorUniform(const MxParticleEvent &
  * @param event 
  * @return MxParticleHandle* 
  */
-MxParticleHandle* MxParticleEventParticleSelectorLargest(const MxParticleEvent &event);
+CAPI_FUNC(MxParticleHandle*) MxParticleEventParticleSelectorLargest(const MxParticleEvent &event);
 
 // keys for selecting a particle selector
 enum class MxParticleEventParticleSelectorEnum : unsigned int {

@@ -31,9 +31,6 @@
 // dihedral
 %include "dihedral.i"
 
-// bind
-%include "MxBind.i"
-
 // Force
 %include "MxForce.i"
 

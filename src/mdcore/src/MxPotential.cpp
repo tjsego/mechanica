@@ -41,8 +41,6 @@
 #include "fptype.h"
 #include "potential_eval.hpp"
 
-#include "MxBind.hpp"
-
 #include <iostream>
 #include <cmath>
 

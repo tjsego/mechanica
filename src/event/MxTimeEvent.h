@@ -18,10 +18,10 @@ struct MxTimeEvent;
 using MxTimeEventMethod = MxEventMethodT<MxTimeEvent>;
 using MxTimeEventNextTimeSetter = double (*)(MxTimeEvent&, const double&);
 
-HRESULT defaultMxTimeEventPredicateEval(const double &next_time, const double &start_time=-1, const double &end_time=-1);
+CAPI_FUNC(HRESULT) defaultMxTimeEventPredicateEval(const double &next_time, const double &start_time=-1, const double &end_time=-1);
 
-double MxTimeEventSetNextTimeExponential(MxTimeEvent &event, const double &time);
-double MxTimeEventSetNextTimeDeterministic(MxTimeEvent &event, const double &time);
+CAPI_FUNC(double) MxTimeEventSetNextTimeExponential(MxTimeEvent &event, const double &time);
+CAPI_FUNC(double) MxTimeEventSetNextTimeDeterministic(MxTimeEvent &event, const double &time);
 
 enum class MxTimeEventTimeSetterEnum : unsigned int {
     DEFAULT = 0, 

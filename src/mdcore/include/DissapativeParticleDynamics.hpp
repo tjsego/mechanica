@@ -13,7 +13,7 @@
 #define _DISSAPATIVEPARTICLEDYNAMICS_HPP_
 
 
-struct DPDPotential : public MxPotential {
+struct CAPI_EXPORT DPDPotential : public MxPotential {
     
     /** strength of conserative interaction */
     float alpha;

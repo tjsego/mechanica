@@ -489,6 +489,7 @@ add_library(Mechanica::Mechanica ALIAS mechanica_shared)
 add_library(Mechanica::Shared ALIAS mechanica_shared)
 
 install(TARGETS mechanica_shared 
+        EXPORT mechanica_shared_targets 
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" 
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" 
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -498,3 +499,20 @@ foreach(_PRHDR ${HEADERS_PRIVATE})
   cmake_path(GET _PRHDR PARENT_PATH _PRHDR_PARENT)
   install(FILES ${_PRHDR} DESTINATION ${MX_PRIVATE_INCLUDE_DIR}/${_PRHDR_PARENT})
 endforeach()
+
+install(EXPORT mechanica_shared_targets 
+  FILE MechanicaTargets.cmake 
+  NAMESPACE Mechanica:: 
+  DESTINATION ${MX_SHARE_DIR} 
+  EXPORT_LINK_INTERFACE_LIBRARIES 
+  COMPONENT Shared
+)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/MechanicaConfig.cmake.in 
+  ${CMAKE_CURRENT_BINARY_DIR}/MechanicaConfig.cmake 
+  INSTALL_DESTINATION ${MX_SHARE_DIR} 
+  NO_SET_AND_CHECK_MACRO
+  NO_CHECK_REQUIRED_COMPONENTS_MACRO
+)
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/MechanicaConfig.cmake DESTINATION ${MX_SHARE_DIR})

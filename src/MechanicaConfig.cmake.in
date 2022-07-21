@@ -1,0 +1,15 @@
+@PACKAGE_INIT@
+
+include ( "${CMAKE_CURRENT_LIST_DIR}/Mechanica-libSBMLTargets.cmake" )
+include ( "${CMAKE_CURRENT_LIST_DIR}/MechanicaTargets.cmake" )
+
+get_filename_component(_dir "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(_prefix "${_dir}/../../.." ABSOLUTE)
+set(MECHANICA_INCLUDE_DIRS "${_prefix}/include/mechanica;${_prefix}/include/mechanica/private;${_prefix}/include/mechanica/private/mdcore")
+
+set(MECHANICA_HAS_C @MX_WITH_C@)
+set(MECHANICA_C_INCLUDE_DIRS )
+if(MECHANICA_HAS_C)
+    include ( "${CMAKE_CURRENT_LIST_DIR}/Mechanica_CTargets.cmake" )
+    set(MECHANICA_C_INCLUDE_DIRS "${_prefix}/include/mechanica;${_prefix}/include/mechanica/wraps/C")
+endif()

@@ -22,7 +22,6 @@ set(SRC
   MxSimulator.cpp
   
   MxSystem.cpp
-  stochastic_rk.cpp
   MxUniverse.cpp
 
   MxLogger.cpp
@@ -106,11 +105,6 @@ set(HEADERS
   MxSimulator.h
 
   MxSystem.h
-
-  stochastic_rk.h
-  
-  SymmetricEigen.h
-  GteSymmetricEigensolver3x3.h
   MxUniverse.h
 
   MxLogger.h

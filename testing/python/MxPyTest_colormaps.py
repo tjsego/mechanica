@@ -40,7 +40,8 @@ def keypress(e):
         name = names[Bead.i]
         print("setting colormap to: ", name)
 
-    Bead.style.colormap = name
+    if name:
+        Bead.style.colormap = name
 
 
 mx.on_keypress(keypress)

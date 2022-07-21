@@ -4,8 +4,6 @@ import numpy as np
 # potential cutoff distance
 cutoff = 8
 
-count = 3000
-
 # dimensions of universe
 dim = [20., 20., 20.]
 

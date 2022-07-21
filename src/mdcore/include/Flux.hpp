@@ -10,7 +10,7 @@
 
 #include "platform.h"
 #include "mdcore_single_config.h"
-#include "../../io/mx_io.h"
+#include <io/mx_io.h>
 #include "space_cell.h"
 
 #include <string>
@@ -29,7 +29,7 @@ struct TypeIdPair {
     int16_t b;
 };
 
-struct MxFlux {
+struct CAPI_EXPORT MxFlux {
     int32_t       size; // temporary size until we get SIMD instructions.
     int8_t        kinds[MX_SIMD_SIZE];
     TypeIdPair    type_ids[MX_SIMD_SIZE];

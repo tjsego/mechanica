@@ -82,9 +82,12 @@ if(MX_WITHCUDA)
 endif()
 
 target_link_libraries(mechanica_c PUBLIC 
-    Mechanica::Mechanica 
-    mechanica_obj
-    mdcore_single
+  Mechanica::Mechanica 
+)
+target_link_libraries(mechanica_c PRIVATE 
+  mechanica_obj 
+  mdcore_single 
+  Mechanica::MagnumLibs
 )
 
 if(MX_WITHCUDA)
@@ -95,19 +98,28 @@ if(MX_WITHCUDA)
   )
 endif()
 
-if(MX_APPLE)
-  target_link_libraries(mechanica_c PRIVATE MagnumWindowlessCglApplication)
-elseif(MX_LINUX)
-  target_link_libraries(mechanica_c PRIVATE MagnumWindowlessEglApplication)
-elseif(MX_WINDOWS)
-  target_link_libraries(mechanica_c PRIVATE MagnumWindowlessWglApplication)
-endif()
-
 add_library(Mechanica::CLib ALIAS mechanica_c)
 
 install(TARGETS mechanica_c 
+        EXPORT mechanica_c_targets 
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" 
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" 
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
 )
 install(FILES ${HEADERS} DESTINATION ${MX_WRAPS_C_INSTALL_PREFIX})
+install(EXPORT mechanica_c_targets 
+  FILE Mechanica_CTargets.cmake 
+  NAMESPACE Mechanica:: 
+  DESTINATION ${MX_SHARE_DIR} 
+  EXPORT_LINK_INTERFACE_LIBRARIES 
+  COMPONENT CLib
+)
+
+# include(CMakePackageConfigHelpers)
+# configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/Mechanica_CConfig.cmake.in 
+#   ${CMAKE_CURRENT_BINARY_DIR}/Mechanica_CConfig.cmake 
+#   INSTALL_DESTINATION ${MX_SHARE_DIR} 
+#   NO_SET_AND_CHECK_MACRO
+#   NO_CHECK_REQUIRED_COMPONENTS_MACRO
+# )
+# INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/Mechanica_CConfig.cmake DESTINATION ${MX_SHARE_DIR})

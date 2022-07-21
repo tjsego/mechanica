@@ -16,15 +16,11 @@
 #define CA_STRICT
 #endif
 
-#ifndef _INCLUDED_MECHANICA_H_
-#include "Mechanica.h"
-#endif
-
 #ifndef _INCLUDED_CAYMAN_PRIVATE_H_
 #define _INCLUDED_CAYMAN_PRIVATE_H_
 
-
 #include <mx_port.h>
+#include <mx_config.h>
 
 // Games with importing numpy and setting up function pointers.
 // Only the main Mechanica python init module, mechanica.cpp defines

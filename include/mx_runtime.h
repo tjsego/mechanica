@@ -10,17 +10,27 @@
 
 #include <stdio.h>
 
+#ifndef MDCORE_SINGLE
+#define MDCORE_SINGLE
+#endif
+
+#include <MxSimulator.h>
+#include <MxBind.h>
+#include <MxUtil.h>
+#include <MxCluster.hpp>
+#include <Flux.hpp>
+#include <event/MxParticleEventSingle.h>
+#include <event/MxParticleTimeEvent.h>
+#include <rendering/MxClipPlane.hpp>
+#include <rendering/MxKeyEvent.hpp>
+#include <rendering/MxColorMapper.hpp>
+#include <rendering/MxStyle.hpp>
+#include <state/MxSpeciesValue.h>
 
 /**
  * Initialize the entire runtime.
  */
 CAPI_FUNC(HRESULT) Mx_Initialize(int);
-
-
-CAPI_FUNC(void) Mx_Finalize(void);
-
-
-CAPI_FUNC(void) Mx_Exit(int);
 
 
 #endif /* _INCLUDE_CA_RUNTIME_H_ */

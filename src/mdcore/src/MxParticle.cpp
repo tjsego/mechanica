@@ -25,7 +25,6 @@
 #include "engine.h"
 
 #include "space.h"
-#include "mx_runtime.h"
 
 #include "../../rendering/MxStyle.hpp"
 #include "MxCluster.hpp"
@@ -1229,8 +1228,8 @@ HRESULT particle_init(MxParticleHandle *self,
 
         PARTICLE_TYPE(self)
 
-        MxVector3f _position = position ? *position : particle_posdefault();
-        MxVector3f _velocity = velocity ? *velocity : particle_veldefault(*ptype);
+        MxVector3f _position = position ? MxVector3f(position) : particle_posdefault();
+        MxVector3f _velocity = velocity ? MxVector3f(velocity) : particle_veldefault(*ptype);
         
         // particle_init_ex will allocate a new particle, this can re-assign the pointers in
         // the engine particles, so need to pass cluster by id.

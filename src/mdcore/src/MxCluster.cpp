@@ -19,7 +19,6 @@
 
 #include "engine.h"
 #include "space.h"
-#include "mx_runtime.h"
 #include "space_cell.h"
 
 #include "../../rendering/MxStyle.hpp"

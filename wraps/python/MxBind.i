@@ -1,5 +1,5 @@
 %{
-    #include "MxBind.hpp"
+    #include "MxBind.h"
 
 %}
 
@@ -7,7 +7,7 @@
 %ignore MxBind::bonds;
 %ignore MxBind::sphere;
 
-%include "MxBind.hpp"
+%include "MxBind.h"
 
 %template(pairParticleList_BondHandle) std::pair<MxParticleList*, std::vector<MxBondHandle*>*>;
 %template(pairParticleType_ParticleType) std::pair<MxParticleType*, MxParticleType*>;

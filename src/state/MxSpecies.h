@@ -10,7 +10,7 @@
 #define SRC_STATE_MXSPECIES_H_
 
 #include <mx_port.h>
-#include "../io/mx_io.h"
+#include <io/mx_io.h>
 #include <string>
 
 namespace libsbml{
@@ -31,7 +31,7 @@ enum MxSpeciesFlags {
  * 
  * Mostly, this is a wrap of libSBML Species. 
  */
-struct MxSpecies {
+struct CAPI_EXPORT MxSpecies {
     libsbml::Species *species;
     int32_t flags() const;
     std::string str() const;

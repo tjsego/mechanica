@@ -10,7 +10,7 @@
 
 #include <platform.h>
 #include <MxParticle.h>
-#include "../../types/mx_types.h"
+#include <types/mx_types.h>
 #include <Magnum/Math/Range.h>
 
 struct MxBodyHandle;

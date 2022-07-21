@@ -128,7 +128,9 @@ else()
 endif()
 
 set(MX_INCLUDE_DIR include/mechanica)
+set(MX_PRIVATE_INCLUDE_DIR ${MX_INCLUDE_DIR}/private)
 set(MX_RESOURCE_DIR resources/mechanica)
+set(MX_SHARE_DIR share/cmake/mechanica)
 
 if(MX_HAVECUDA)
   enable_language(CUDA)
@@ -242,6 +244,12 @@ else()
   find_package(Threads REQUIRED)
 endif()
 
+# Install options
+
+set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install location for Mechanica")
+set(BUILD_SHARED_LIBS ON CACHE BOOL "build shared/dynamic library")
+set(CMAKE_INFO_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Install location for Mechanica basic info")
+
 # Language options
 
 option(MX_WITH_C        "Generate the C language interface for Mechanica."      ON)
@@ -319,10 +327,6 @@ if(MX_WITH_PYTHON)
   message("MX_SITEPACKAGES: ${MX_SITEPACKAGES}")
 
 endif(MX_WITH_PYTHON)
-
-set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local/mechanica" CACHE PATH "Install location for Mechanica")
-
-set(BUILD_SHARED_LIBS ON CACHE BOOL "build shared/dynamic library")
 
 find_package(OpenGL REQUIRED)
 
@@ -408,7 +412,6 @@ if(MX_APPLE AND DEFINED CMAKE_ECLIPSE_VERSION AND MX_WITH_PYTHON)
 endif()
 
 
-set(CMAKE_INFO_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Install location for Mechanica basic info")
 set(MX_INFO_FILES
   README.md 
   LICENSE.txt 

@@ -109,6 +109,14 @@ typedef uint8_t bool;
 #  endif
 #endif
 
+#ifndef CPPAPI_FUNC
+#  ifdef __cplusplus
+#    define CPPAPI_FUNC(RTYPE) extern CAPI_EXPORT RTYPE
+#  else
+#    define CPPAPI_FUNC(RTYPE) RTYPE
+#  endif
+#endif
+
 #ifndef CAPI_DATA
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 #    define CAPI_DATA(RTYPE) extern "C" CAPI_EXPORT RTYPE

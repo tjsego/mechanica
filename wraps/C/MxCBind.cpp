@@ -9,7 +9,7 @@
 
 #include "mechanica_c_private.h"
 
-#include <mdcore/src/MxBind.hpp>
+#include <MxBind.h>
 #include <MxParticle.h>
 #include <MxForce.h>
 #include <engine.h>

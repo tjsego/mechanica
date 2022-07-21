@@ -54,7 +54,7 @@ struct MxParticleHandle;
  * If you're building a model, you should probably instead be working with a 
  * MxAngleHandle. 
  */
-typedef struct MxAngle {
+typedef struct CAPI_EXPORT MxAngle {
 
     uint32_t flags;
 
@@ -129,7 +129,7 @@ typedef struct MxAngle {
  * 
  * This is a safe way to work with an angle bond. 
  */
-struct MxAngleHandle {
+struct CAPI_EXPORT MxAngleHandle {
     int id;
 
     /**

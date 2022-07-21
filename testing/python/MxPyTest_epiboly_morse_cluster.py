@@ -46,7 +46,7 @@ class YolkType(mx.ParticleType):
     radius = 10
     mass = 1000000
     dynamics = mx.Overdamped
-    flozen = True
+    frozen = True
     style = {"color": "gold"}
 
 

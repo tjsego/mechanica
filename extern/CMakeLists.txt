@@ -58,6 +58,20 @@ target_include_directories(libsbml-static-interface INTERFACE "$<TARGET_PROPERTY
 
 add_library(LibSBML::LibSBML ALIAS libsbml-static-interface)
 
+install(TARGETS libsbml-static-interface 
+  EXPORT libsbml-static-interface_targets 
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" 
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" 
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+)
+install(EXPORT libsbml-static-interface_targets 
+  FILE Mechanica-libSBMLTargets.cmake 
+  NAMESPACE Mechanica:: 
+  DESTINATION ${MX_SHARE_DIR} 
+  EXPORT_LINK_INTERFACE_LIBRARIES 
+  COMPONENT libSBML
+)
+
 # build glfw here, set up variables so magnum does not try to find it
 
 set(WITH_PNGIMPORTER OFF CACHE BOOL "build PNG importer"    FORCE)

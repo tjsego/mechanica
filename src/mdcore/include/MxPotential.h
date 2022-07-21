@@ -23,7 +23,7 @@
 
 #include "platform.h"
 #include "fptype.h"
-#include "../../io/mx_io.h"
+#include <io/mx_io.h>
 
 #include <limits>
 #include <utility>

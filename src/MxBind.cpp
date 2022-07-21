@@ -5,13 +5,13 @@
  *      Author: andy
  */
 
-#include <MxBind.hpp>
+#include "MxBind.h"
 #include <MxParticle.h>
 #include <engine.h>
 #include <string>
-#include "../../mx_error.h"
-#include "../../MxLogger.h"
-#include "../../MxUtil.h"
+#include "mx_error.h"
+#include "MxLogger.h"
+#include "MxUtil.h"
 
 
 HRESULT universe_bind_potential(MxPotential *p, MxParticle *a, MxParticle *b) {

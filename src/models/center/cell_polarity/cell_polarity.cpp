@@ -15,7 +15,7 @@
 #include <MxLogger.h>
 #include <mx_error.h>
 #include <event/MxTimeEvent.h>
-#include <MxBind.hpp>
+#include <MxBind.h>
 #include <io/MxFIO.h>
 
 #include <unordered_set>

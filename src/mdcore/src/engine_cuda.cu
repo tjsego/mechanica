@@ -63,12 +63,12 @@
 #include "runner_cuda.h"
 #include "../../mx_cuda.h"
 
+/* As of here there is only CUDA-related stuff. */
+#ifdef HAVE_CUDA
+
 /* the error macro. */
 #define error(id)				( engine_err = errs_register( id , engine_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
 #define cuda_error(id)			( engine_err = errs_register( id , cudaGetErrorString(cudaGetLastError()) , __LINE__ , __FUNCTION__ , __FILE__ ) )
-
-/* As of here there is only CUDA-related stuff. */
-#ifdef HAVE_CUDA
 
 
 /* The parts (non-texture access). */
@@ -174,7 +174,7 @@ extern "C" int engine_cuda_setdevices ( struct engine *e , int nr_devices , int 
             return cuda_error(engine_err_cuda);
             
         // Do auto configuration
-        engine_cuda_setthreads(e, ids[k], MxCUDA::maxThreadsPerBlock(ids[k]));
+        engine_cuda_setthreads(e, ids[k], cuda_defthreads);
         engine_cuda_setblocks(e, ids[k], MxCUDA::maxBlockDimX(ids[k]));
         
         }

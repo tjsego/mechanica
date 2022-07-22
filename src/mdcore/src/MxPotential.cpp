@@ -41,8 +41,6 @@
 #include "fptype.h"
 #include "potential_eval.hpp"
 
-#include "MxBind.hpp"
-
 #include <iostream>
 #include <cmath>
 
@@ -140,6 +138,15 @@ double potential_switch_p ( double r , double A , double B ) {
 	else
 		return 0.0;
 
+}
+
+static void potential_scale(MxPotential *p) {
+	p->flags |= POTENTIAL_SCALED;
+}
+
+static void potential_shift(MxPotential *p, const float &r0) {
+	p->flags |= POTENTIAL_SHIFTED;
+	p->r0_plusone = r0 + 1;
 }
 
 static MxPotential *_do_create_periodic_potential(MxPotential* (*potCtor)(double, double, unsigned int), 
@@ -1123,354 +1130,6 @@ double Power(double base, double exp) {
 
 #define MLog(x) std::log(x)
 
-static double potential_create_SS_e;
-static double potential_create_SS_k;
-static double potential_create_SS_r0;
-static double potential_create_SS_v0_r;
-
-static double potential_create_SS_linear_f(double eta, double r) {
-    return potential_create_SS_k - (Power(2,1/eta)*potential_create_SS_k*r)/potential_create_SS_r0;
-}
-
-static double potential_create_SS_linear_dfdr(double eta) {
-    return -((Power(2,1/eta)*potential_create_SS_k)/potential_create_SS_r0);
-}
-
-/* the potential functions */
-// {Solve[ff == 0, r][[1]], ff, D[ff, {r, 1}], D[ff, {r, 6}]} /. \[Eta] -> 1 // Simplify
-// {{r -> r0/2}, (e r0 (-2 r + r0))/r^2, (2 e (r - r0) r0)/r^3, -((720 e (2 r - 7 r0) r0)/r^8)}
-// List(List(Rule(r,r0/2.)),(e*r0*(-2*r + r0))/Power(r,2),(2*e*(r - r0)*r0)/Power(r,3),(-720*e*(2*r - 7*r0)*r0)/Power(r,8))
-
-static double potential_create_SS1_f ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return potential_create_SS_linear_f(1, r);
-    }
-    else {
-        return (e*r0*(-2*r + r0))/Power(r,2);
-    }
-}
-
-static double potential_create_SS1_dfdr ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return potential_create_SS_linear_dfdr(1);
-    }
-    else {
-        return (2*e*(r - r0)*r0)/Power(r,3);
-    }
-}
-
-static double potential_create_SS1_d6fdr6 ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return 0;
-    }
-    else {
-        return (-720*e*(2*r - 7*r0)*r0)/Power(r,8);
-    }
-}
-
-struct MxPotential *potential_create_SS1(double k, double e, double r0, double a , double b ,double tol) {
-    
-    struct MxPotential *p = new MxPotential();
-    
-    p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
-    p->name = "Soft Sphere 1";
-    
-    potential_create_SS_e = e;
-    potential_create_SS_k = k;
-    potential_create_SS_r0 = r0;
-    potential_create_SS_v0_r = r0/2.;
-    
-    int err = 0;
-    
-    if((err = potential_init(p ,&potential_create_SS1_f,
-        &potential_create_SS1_dfdr , &potential_create_SS1_d6fdr6 , a , b , tol )) < 0 ) {
-        
-        Log(LOG_TRACE) << "error creating potential: " << potential_err_msg[-err];
-		MxAligned_Free(p);
-        return NULL;
-    }
-    
-    /* return it */
-    return p;
-}
-
-
-/* the potential functions */
-// {Solve[ff == 0, r][[1]], ff, D[ff, {r, 1}], D[ff, {r, 6}]} /. \[Eta] -> 2 // Simplify
-// {{r -> r0/Sqrt[2]},
-// (e r0^2 (-2 r^2 + r0^2))/r^4,
-// (4 e r0^2 (r^2 - r0^2))/r^5,
-// -((10080 e r0^2 (r^2 - 6 r0^2))/r^10)}
-// Rule(r,r0/Sqrt(2)),
-// (e*Power(r0,2)*(-2*Power(r,2) + Power(r0,2)))/Power(r,4),
-// (4*e*Power(r0,2)*(Power(r,2) - Power(r0,2)))/Power(r,5),
-// (-10080*e*Power(r0,2)*(Power(r,2) - 6*Power(r0,2)))/Power(r,10))
-
-static double potential_create_SS2_f ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return potential_create_SS_linear_f(2, r);
-    }
-    else {
-        return (e*Power(r0,2)*(-2*Power(r,2) + Power(r0,2)))/Power(r,4);
-    }
-}
-
-static double potential_create_SS2_dfdr ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return potential_create_SS_linear_dfdr(2);
-    }
-    else {
-        return (4*e*Power(r0,2)*(Power(r,2) - Power(r0,2)))/Power(r,5);
-    }
-}
-
-static double potential_create_SS2_d6fdr6 ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return 0;
-    }
-    else {
-        // -((10080 e r0^2 (r^2 - 6 r0^2))/r^10)}
-        return (-10080*e*Power(r0,2)*(Power(r,2) - 6*Power(r0,2)))/Power(r,10);
-    }
-}
-
-struct MxPotential *potential_create_SS2(double k, double e, double r0, double a , double b ,double tol) {
-    
-    struct MxPotential *p = new MxPotential();
-    
-    p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
-    p->name = "Soft Sphere 2";
-    
-    potential_create_SS_e = e;
-    potential_create_SS_k = k;
-    potential_create_SS_r0 = r0;
-    potential_create_SS_v0_r = r0/std::sqrt(2.);
-    
-    int err = 0;
-    
-    if((err = potential_init(p ,&potential_create_SS2_f,
-                             &potential_create_SS2_dfdr ,
-                             &potential_create_SS2_d6fdr6 , a , b , tol )) < 0 ) {
-        
-        Log(LOG_TRACE) << "error creating potential: " << potential_err_msg[-err];
-		MxAligned_Free(p);
-        return NULL;
-    }
-    
-    /* return it */
-    return p;
-}
-
-/* the potential functions */
-// {Solve[ff == 0, r][[1]], ff, D[ff, {r, 1}],D[ff, {r, 6}]} /. \[Eta] -> 3 // Simplify
-// {{r -> r0/2^(1/3)},
-// (e r0^3 (-2 r^3 + r0^3))/r^6,
-// (6 e r0^3 (r^3 - r0^3))/r^7,
-// -((10080 e (4 r^3 r0^3 - 33 r0^6))/r^12)}
-// Rule(r,r0/Power(2,0.3333333333333333)),
-// (e*Power(r0,3)*(-2*Power(r,3) + Power(r0,3)))/Power(r,6),
-// (6*e*Power(r0,3)*(Power(r,3) - Power(r0,3)))/Power(r,7),
-// (-10080*e*(4*Power(r,3)*Power(r0,3) - 33*Power(r0,6)))/Power(r,12)
-
-
-static double potential_create_SS3_f ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return potential_create_SS_linear_f(3, r);
-    }
-    else {
-        return (e*Power(r0,3)*(-2*Power(r,3) + Power(r0,3)))/Power(r,6);
-    }
-}
-
-static double potential_create_SS3_dfdr ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return potential_create_SS_linear_dfdr(3);
-    }
-    else {
-        return (6*e*Power(r0,3)*(Power(r,3) - Power(r0,3)))/Power(r,7);
-    }
-}
-
-static double potential_create_SS3_d6fdr6 ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return 0;
-    }
-    else {
-        // -((10080 e (4 r^3 r0^3 - 33 r0^6))/r^12)
-        return (-10080*e*(4*Power(r,3)*Power(r0,3) - 33*Power(r0,6)))/Power(r,12);
-    }
-}
-
-struct MxPotential *potential_create_SS3(double k, double e, double r0, double a , double b ,double tol) {
-    
-    struct MxPotential *p = new MxPotential();
-    
-    p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
-    p->name = "Soft Sphere 3";
-    
-    potential_create_SS_e = e;
-    potential_create_SS_k = k;
-    potential_create_SS_r0 = r0;
-    potential_create_SS_v0_r = r0/Power(2,0.3333333333333333);
-    
-    int err = 0;
-    
-    if((err = potential_init(p ,&potential_create_SS3_f,
-                             &potential_create_SS3_dfdr ,
-                             &potential_create_SS3_d6fdr6 , a , b , tol )) < 0 ) {
-        
-        Log(LOG_TRACE) << "error creating potential: " << potential_err_msg[-err];
-		MxAligned_Free(p);
-        return NULL;
-    }
-    
-    /* return it */
-    return p;
-}
-
-
-
-/* the potential functions */
-// {Solve[ff == 0, r][[1]], ff, D[ff, {r, 1}], D[ff, {r, 6}]} /. \[Eta] -> 4 // Simplify
-// {r -> r0/2^(1/4)},
-// (e r0^4 (-2 r^4 + r0^4))/r^8,
-// (8 e r0^4 (r^4 - r0^4))/r^9, -((8640 e (14 r^4 r0^4 - 143 r0^8))/r^14)
-// List(Rule(r,r0/Power(2,0.25))),
-// (e*Power(r0,4)*(-2*Power(r,4) + Power(r0,4)))/Power(r,8),
-// (8*e*Power(r0,4)*(Power(r,4) - Power(r0,4)))/Power(r,9),
-// (-8640*e*(14*Power(r,4)*Power(r0,4) - 143*Power(r0,8)))/Power(r,14)
-
-
-static double potential_create_SS4_f ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return potential_create_SS_linear_f(4, r);
-    }
-    else {
-        return (e*Power(r0,4)*(-2*Power(r,4) + Power(r0,4)))/Power(r,8);
-    }
-}
-
-static double potential_create_SS4_dfdr ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return potential_create_SS_linear_dfdr(4);
-    }
-    else {
-        return (8*e*Power(r0,4)*(Power(r,4) - Power(r0,4)))/Power(r,9);
-    }
-}
-
-static double potential_create_SS4_d6fdr6 ( double r ) {
-    double e =    potential_create_SS_e;
-    double r0 =   potential_create_SS_r0;
-    double v0_r = potential_create_SS_v0_r;
-    
-    if(r < v0_r) {
-        return 0;
-    }
-    else {
-        // (8 e r0^4 (r^4 - r0^4))/r^9, -((8640 e (14 r^4 r0^4 - 143 r0^8))/r^14)
-        return (-8640*e*(14*Power(r,4)*Power(r0,4) - 143*Power(r0,8)))/Power(r,14);
-    }
-}
-
-struct MxPotential *potential_create_SS4(double k, double e, double r0, double a , double b ,double tol) {
-    
-    struct MxPotential *p = new MxPotential();
-    
-    p->flags =  POTENTIAL_R2 | POTENTIAL_LJ126 | POTENTIAL_SWITCH ;
-    p->name = "Soft Sphere 4";
-    
-    potential_create_SS_e = e;
-    potential_create_SS_k = k;
-    potential_create_SS_r0 = r0;
-    potential_create_SS_v0_r = r0/Power(2,0.25);
-    
-    int err = 0;
-    
-    if((err = potential_init(p ,&potential_create_SS4_f,
-                             &potential_create_SS4_dfdr ,
-                             &potential_create_SS4_d6fdr6 , a , b , tol )) < 0 ) {
-        
-        Log(LOG_TRACE) << "error creating potential: " << potential_err_msg[-err];
-		MxAligned_Free(p);
-        return NULL;
-    }
-    
-    /* return it */
-    return p;
-}
-
-
-struct MxPotential *potential_create_SS(int eta, double k, double e, double r0,
-                                        double a , double b , double tol, bool shift) {
-    
-    MxPotential *result = NULL;
-    
-    if(eta == 1) {
-        result =  potential_create_SS1(k, e, r0, a, b, tol);
-    }
-    else if(eta == 2) {
-        result =  potential_create_SS2(k, e, r0, a, b, tol);
-    }
-    else if(eta == 3) {
-        result = potential_create_SS3(k, e, r0, a, b, tol);
-    }
-    else if(eta == 4) {
-        result = potential_create_SS4(k, e, r0, a, b, tol);
-    }
-    
-    if(result && shift) {
-        result->flags |= POTENTIAL_SHIFTED;
-        result->r0_plusone = r0 + 1;
-    }
-    
-    return result;
-}
-
 /**
  * @brief Free the memory associated with the given potential.
  * 
@@ -1574,7 +1233,7 @@ struct MxPotential *potential_create_overlapping_sphere(double mu, double k,
     overlapping_sphere_harmonic_r0 = harmonic_r0;
     
     
-    p->flags =  POTENTIAL_R2  | POTENTIAL_LJ126 | POTENTIAL_SCALED;
+    p->flags =  POTENTIAL_R2  | POTENTIAL_LJ126;
     
     if(harmonic_k == 0.0) {
         p->name = "Overlapping Sphere";
@@ -1593,6 +1252,8 @@ struct MxPotential *potential_create_overlapping_sphere(double mu, double k,
         MxAligned_Free(p);
         return NULL;
     }
+	
+	potential_scale(p);
     
     /* return it */
     return p;
@@ -1656,7 +1317,7 @@ struct MxPotential *potential_create_power(double k, double r0, double alpha, do
     power_r0 = r0;
     power_alpha = alpha;
     
-    p->flags =  POTENTIAL_R2  | POTENTIAL_SCALED;
+    p->flags =  POTENTIAL_R2;
     
     p->name = "Power(r - r0)^alpha";
     
@@ -1684,8 +1345,7 @@ struct MxPotential *potential_create_power(double k, double r0, double alpha, do
         return NULL;
     }
     
-    p->a = a;
-    p->b = b;
+	potential_scale(p);
     
     /* return it */
     return p;
@@ -2864,22 +2524,6 @@ MxPotential *MxPotential::lennard_jones_12_6_coulomb(double min, double max, dou
     }
 }
 
-MxPotential *MxPotential::soft_sphere(double kappa, double epsilon, double r0, int eta, double *min, double *max, double *tol, bool *shift) {
-    Log(LOG_TRACE);
-
-    try {
-		auto _min = potential_defarg(min, 0.0);
-		auto _max = potential_defarg(max, 2.0);
-        return potential_checkerr(potential_create_SS(eta, kappa, epsilon, r0, _min, _max, 
-													  potential_defarg(tol, 0.001 * (_max - _min)), 
-													  potential_defarg(shift, false)));
-    }
-    catch (const std::exception &e) {
-        mx_exp(e);
-        return NULL;
-    }
-}
-
 MxPotential *MxPotential::ewald(double min, double max, double q, double kappa, double *tol, unsigned int *periodicOrder) {
     Log(LOG_TRACE);
 
@@ -3171,7 +2815,7 @@ MxPotential *MxPotential::glj(double e, double *m, double *n, double *k, double 
     }
 }
 
-MxPotential *MxPotential::morse(double *d, double *a, double *r0, double *min, double *max, double *tol) {
+MxPotential *MxPotential::morse(double *d, double *a, double *r0, double *min, double *max, double *tol, bool *shifted) {
     Log(LOG_TRACE);
 
     try {
@@ -3180,7 +2824,8 @@ MxPotential *MxPotential::morse(double *d, double *a, double *r0, double *min, d
 														 potential_defarg(r0, 0.0), 
 														 potential_defarg(min, 0.0001), 
 														 potential_defarg(max, 3.0), 
-														 potential_defarg(tol, 0.001)));
+														 potential_defarg(tol, 0.001), 
+														 potential_defarg(shifted, true)));
     }
     catch (const std::exception &e) {
         mx_exp(e);
@@ -3344,11 +2989,6 @@ bool MxPotential::getShifted() {
     return (bool)flags & POTENTIAL_SHIFTED;
 }
 
-void MxPotential::setShifted(const bool &_shifted) {
-    if(_shifted) flags |= POTENTIAL_SHIFTED;
-    else flags &= ~POTENTIAL_SHIFTED;
-}
-
 bool MxPotential::getPeriodic() {
 	return (bool) flags & POTENTIAL_PERIODIC;
 }
@@ -3356,12 +2996,6 @@ bool MxPotential::getPeriodic() {
 bool MxPotential::getRSquare() {
     return (bool)flags & POTENTIAL_R2;
 }
-
-void MxPotential::setRSquare(const bool &_rSquare) {
-    if(_rSquare) flags |= POTENTIAL_R2;
-    else flags &= POTENTIAL_R2;
-}
-
 
 static double potential_create_well_k;
 static double potential_create_well_r0;
@@ -3466,7 +3100,7 @@ MxPotential *potential_create_glj(double e, double m, double n, double k,
                    << n << ", k:" << k << ", min: " << min << ", max: " << max << ", tol: " << tol;
     MxPotential *p = new MxPotential();
     
-    p->flags =  POTENTIAL_R2  | POTENTIAL_LJ126 | POTENTIAL_SCALED;
+    p->flags =  POTENTIAL_R2  | POTENTIAL_LJ126;
     p->name = "Generalized Lennard-Jones";
     
     /* fill this potential */
@@ -3484,12 +3118,13 @@ MxPotential *potential_create_glj(double e, double m, double n, double k,
         MxAligned_Free(p);
         return NULL;
     }
-    
-    if(shifted) {
-        p->r0_plusone = r0 + 1;
-        p->flags &= ~POTENTIAL_SCALED;
-        p->flags |= POTENTIAL_SHIFTED;
-    }
+
+	if(shifted) {
+		potential_shift(p, r0);
+	} 
+	else {
+		potential_scale(p);
+	}
     
     /* return it */
     return p;
@@ -3497,20 +3132,47 @@ MxPotential *potential_create_glj(double e, double m, double n, double k,
 
 static double morse_d;
 static double morse_a;
-
+static double morse_r0;
 
 /* the potential functions */
 static double potential_create_morse_f ( double r ) {
     
     double d = morse_d;
     double a = morse_a;
+	double r0 = morse_r0;
+    
+    return d * (Power(M_E, 2 * a * (r0 - r)) - 2 * Power(M_E, a * (r0 - r)));
+}
 
+static double potential_create_morse_dfdr ( double r ) {
+    
+    double d = morse_d;
+    double a = morse_a;
+	double r0 = morse_r0;
+    
+    return - 2 * a * d * (Power(M_E, 2 * a * (r0 - r)) - Power(M_E, a * (r0 - r)));
+}
+
+static double potential_create_morse_d6fdr6 ( double r ) {
+    
+    double d = morse_d;
+    double a = morse_a;
+	double r0 = morse_r0;
+    
+    return 2 * Power(a, 6) * d * (32 * Power(M_E, 2 * a * (r0 - r)) - Power(M_E, a * (r0 - r)));
+}
+
+
+
+static double potential_create_morse_shifted_f ( double r ) {
+    
+    double d = morse_d;
+    double a = morse_a;
     
     return d*(Power(M_E,-2*a*(-1 + r)) - 2/Power(M_E,a*(-1 + r)));
 }
 
-/* the potential functions */
-static double potential_create_morse_dfdr ( double r ) {
+static double potential_create_morse_shifted_dfdr ( double r ) {
     
     double d = morse_d;
     double a = morse_a;
@@ -3518,9 +3180,7 @@ static double potential_create_morse_dfdr ( double r ) {
     return d*((-2*a)/Power(M_E,2*a*(-1 + r)) + (2*a)/Power(M_E,a*(-1 + r)));
 }
 
-
-/* the potential functions */
-static double potential_create_morse_d6fdr6 ( double r ) {
+static double potential_create_morse_shifted_d6fdr6 ( double r ) {
     
     double d = morse_d;
     double a = morse_a;
@@ -3532,31 +3192,31 @@ static double potential_create_morse_d6fdr6 ( double r ) {
 
 
 MxPotential *potential_create_morse(double d, double a, double r0,
-                                   double min, double max, double tol)
+                                   double min, double max, double tol, bool shifted)
 {
     MxPotential *p = new MxPotential();
     
-    p->flags =  POTENTIAL_R2  | POTENTIAL_SHIFTED;
+    p->flags =  POTENTIAL_R2;
     p->name = "Morse";
-    
-    p->flags &= ~POTENTIAL_SCALED;
-    p->flags |= POTENTIAL_SHIFTED;
     
     /* fill this potential */
     morse_d = d;
     morse_a = a;
-    
-    p->r0_plusone = r0 + 1;
-    
-    if (potential_init(p ,
-                       &potential_create_morse_f ,
-                       &potential_create_morse_dfdr ,
-                       &potential_create_morse_d6fdr6 ,
-                       min , max , tol ) < 0 ) {
-        MxAligned_Free(p);
-        return NULL;
-    }
-    
+	morse_r0 = r0;
+
+	if(shifted) {
+		if(potential_init(p, &potential_create_morse_shifted_f, &potential_create_morse_shifted_dfdr, &potential_create_morse_shifted_d6fdr6, min + 1, max + 1, tol) < 0) {
+			MxAligned_Free(p);
+			return NULL;
+		}
+		potential_shift(p, r0);
+	} 
+	else {
+		if(potential_init(p, &potential_create_morse_f, &potential_create_morse_dfdr, &potential_create_morse_d6fdr6, min, max, tol) < 0) {
+			MxAligned_Free(p);
+			return NULL;
+		}
+	}
 
     /* return it */
     return p;

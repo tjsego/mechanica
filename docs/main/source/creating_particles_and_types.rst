@@ -21,6 +21,8 @@ Particles in Mechanica can be created and destroyed, interact
 with each other and other objects, and even carry cargo that
 can be transported between particles.
 
+.. _particle_types:
+
 Particle Types
 ---------------
 
@@ -208,6 +210,15 @@ critically important aspects of its computational performance. ::
     position = particle_handle.position
     position[1] = 2
     particle_handle.position = position
+
+.. note::
+
+   When the radius of a particle exceeds the global :ref:`cutoff distance<cutoff_distance>`, the
+   particle is classified as a :ref:`large particle<large_particles>`. While some scenarios may
+   warrant the usage of large particles, their support in Mechanica is limited and, in general,
+   their usage is discouraged in favor of adjusting the size, scale and cutoff distance of the
+   simulation such that all particles are smaller than the cutoff distance. For more information,
+   see :ref:`Numerical Details<numerical_details>`.
 
 .. _clusters-label:
 

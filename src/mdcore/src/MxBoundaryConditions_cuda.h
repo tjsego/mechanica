@@ -23,8 +23,6 @@ struct MxBoundaryConditionCUDA {
 
     float pad;
 
-    MxPotentialCUDA *pots, *pots_h;
-
     __host__ __device__ 
     MxBoundaryConditionCUDA() {}
 
@@ -46,9 +44,6 @@ struct MxBoundaryConditionsCUDA {
     
     __host__ 
     MxBoundaryConditionsCUDA(const MxBoundaryConditions &_bcs);
-
-    __host__ 
-    void finalize();
 
 };
 

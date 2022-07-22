@@ -20,9 +20,8 @@ corrade_add_resource(MxMeshShaderProgramRes MxMeshShaderProgram.res)
 set(SRC
 
   MxSimulator.cpp
-  
+  MxBind.cpp
   MxSystem.cpp
-  stochastic_rk.cpp
   MxUniverse.cpp
 
   MxLogger.cpp
@@ -104,13 +103,8 @@ set(HEADERS
   mechanica_private.h
   
   MxSimulator.h
-
+  MxBind.h
   MxSystem.h
-
-  stochastic_rk.h
-  
-  SymmetricEigen.h
-  GteSymmetricEigensolver3x3.h
   MxUniverse.h
 
   MxLogger.h
@@ -246,12 +240,16 @@ endif()
 
 if(MX_WITHCUDA)
   list(APPEND SRC 
+    mx_cuda.cpp
+
     cuda/MxAngleCUDAConfig.cpp 
     cuda/MxBondCUDAConfig.cpp 
     cuda/MxEngineCUDAConfig.cpp 
     cuda/MxSimulatorCUDAConfig.cpp
   )
   list(APPEND HEADERS 
+    mx_cuda.h
+    
     cuda/MxAngleCUDAConfig.h 
     cuda/MxBondCUDAConfig.h 
     cuda/MxEngineCUDAConfig.h 
@@ -269,11 +267,6 @@ add_subdirectory(models)
 MX_MODEL_TREE_INIT()
 MX_MODEL_TREE_PROC(models)
 set(SRC ${SRC} ${MX_MODEL_SRCS_LOCAL})
-
-if(MX_WITHCUDA)
-  list(APPEND HEADERS mx_cuda.h)
-  list(APPEND SRC mx_cuda.cpp)
-endif()
 
 # this is the "object library" target: compiles the sources only once
 # need at least one src file in a project for xcode to build it, xcode
@@ -305,30 +298,34 @@ target_include_directories(mechanica_obj PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  $<INSTALL_INTERFACE:include/mechanica>
+  $<INSTALL_INTERFACE:${MX_INCLUDE_DIR}> 
+  $<INSTALL_INTERFACE:${MX_PRIVATE_INCLUDE_DIR}>
 )
 
 if(MX_WITH_PYTHON)
   target_include_directories(mechanica_obj PUBLIC ${Python_INCLUDE_DIRS})
 endif()
 
-target_link_libraries(mechanica_obj
-  glfw 
-  ${GLFW_LIBRARIES} 
-  LibSBML::LibSBML
+
+target_link_libraries(mechanica_obj PRIVATE 
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
   MagnumPlugins::StbImageConverter
+  mdcore_single
+)
+target_link_libraries(mechanica_obj PUBLIC 
+  GLFW::GLFW 
+  ${GLFW_LIBRARIES} 
+  LibSBML::LibSBML
   assimp::assimp
   ${OPENGL_LIBRARIES}
-  mdcore_single
 )
 
 add_dependencies(mechanica_obj MagnumPlugins::StbImageConverter)
 
 if(MX_WITHCUDA)
-  target_link_libraries(mechanica_obj
+  target_link_libraries(mechanica_obj PUBLIC 
     CUDA::cudart 
     CUDA::cuda_driver 
     CUDA::nvrtc
@@ -374,7 +371,8 @@ target_include_directories(mechanica_shared PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   ${ASSIMP_INCLUDE_DIRS}
   ${JSON_INCLUDE_DIRS}
-  $<INSTALL_INTERFACE:include/mechanica>
+  $<INSTALL_INTERFACE:${MX_INCLUDE_DIR}> 
+  $<INSTALL_INTERFACE:${MX_PRIVATE_INCLUDE_DIR}>
 )
 
 if(MX_WITH_PYTHON)
@@ -388,14 +386,16 @@ if(MX_WITHCUDA)
   set_target_properties(mechanica_shared PROPERTIES 
     CUDA_SEPARABLE_COMPILATION ON
   )
+  if(MX_CUDA_DEBUG)
+    target_compile_options(mechanica_shared PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>")
+  endif()
 endif()
 
-target_link_libraries(mechanica_shared
-  PUBLIC
-  mdcore_single
-  glfw 
-  ${GLFW_LIBRARIES} 
-  LibSBML::LibSBML
+# Alias Magnum dependencies for convenient private linking, since export sets currently aren't available
+# todo: clean this up for importing projects, or at least document
+
+add_library(mechanica-magnum-interface INTERFACE)
+target_link_libraries(mechanica-magnum-interface INTERFACE 
   Magnum::Application
   Magnum::Magnum
   Magnum::Shaders
@@ -403,11 +403,36 @@ target_link_libraries(mechanica_shared
   Magnum::SceneGraph
   Magnum::Primitives
   Magnum::MeshTools
-  LibSBML::LibSBML
   MagnumPlugins::StbImageConverter
   TgaImageConverter
+)
+if(MX_APPLE)
+  target_link_libraries(mechanica-magnum-interface INTERFACE MagnumWindowlessCglApplication)
+elseif(MX_LINUX)
+  target_link_libraries(mechanica-magnum-interface INTERFACE MagnumWindowlessEglApplication)
+elseif(MX_WINDOWS)
+  target_link_libraries(mechanica-magnum-interface INTERFACE MagnumWindowlessWglApplication)
+endif()
+
+add_library(Mechanica::MagnumLibs ALIAS mechanica-magnum-interface)
+install(TARGETS mechanica-magnum-interface 
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" 
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" 
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+)
+
+
+target_link_libraries(mechanica_shared PRIVATE 
+  mdcore_single
+  Mechanica::MagnumLibs
+)
+
+target_link_libraries(mechanica_shared PUBLIC
+  GLFW::GLFW 
+  ${GLFW_LIBRARIES} 
+  LibSBML::LibSBML
   assimp::assimp
-  )
+)
 
 
 if(MX_WITH_PYTHON)
@@ -434,14 +459,6 @@ if(MX_WITHCUDA)
   )
 endif()
 
-if(MX_APPLE)
-  target_link_libraries(mechanica_shared PRIVATE MagnumWindowlessCglApplication)
-elseif(MX_LINUX)
-  target_link_libraries(mechanica_shared PRIVATE MagnumWindowlessEglApplication)
-elseif(MX_WINDOWS)
-  target_link_libraries(mechanica_shared PRIVATE MagnumWindowlessWglApplication)
-endif()
-
 
 #add_library(mechanica_static STATIC
 #  $<TARGET_OBJECTS:mechanica_obj> mechanica.cpp)
@@ -449,7 +466,7 @@ endif()
 #set_target_properties(mechanica_static PROPERTIES OUTPUT_NAME mechanica)
 
 #target_link_libraries(mechanica_static
-#  glfw
+#  GLFW::GLFW
 #  assimp::assimp
 #  Magnum::Application
 #  Magnum::Magnum
@@ -472,6 +489,7 @@ add_library(Mechanica::Mechanica ALIAS mechanica_shared)
 add_library(Mechanica::Shared ALIAS mechanica_shared)
 
 install(TARGETS mechanica_shared 
+        EXPORT mechanica_shared_targets 
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" 
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" 
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -479,5 +497,22 @@ install(TARGETS mechanica_shared
 
 foreach(_PRHDR ${HEADERS_PRIVATE})
   cmake_path(GET _PRHDR PARENT_PATH _PRHDR_PARENT)
-  install(FILES ${_PRHDR} DESTINATION include/mechanica/private/${_PRHDR_PARENT})
+  install(FILES ${_PRHDR} DESTINATION ${MX_PRIVATE_INCLUDE_DIR}/${_PRHDR_PARENT})
 endforeach()
+
+install(EXPORT mechanica_shared_targets 
+  FILE MechanicaTargets.cmake 
+  NAMESPACE Mechanica:: 
+  DESTINATION ${MX_SHARE_DIR} 
+  EXPORT_LINK_INTERFACE_LIBRARIES 
+  COMPONENT Shared
+)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/MechanicaConfig.cmake.in 
+  ${CMAKE_CURRENT_BINARY_DIR}/MechanicaConfig.cmake 
+  INSTALL_DESTINATION ${MX_SHARE_DIR} 
+  NO_SET_AND_CHECK_MACRO
+  NO_CHECK_REQUIRED_COMPONENTS_MACRO
+)
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/MechanicaConfig.cmake DESTINATION ${MX_SHARE_DIR})

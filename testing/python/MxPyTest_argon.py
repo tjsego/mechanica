@@ -1,5 +1,4 @@
 import mechanica as mx
-import numpy as np
 
 # dimensions of universe
 dim = [10., 10., 10.]
@@ -25,8 +24,8 @@ Argon = ArgonType.get()
 # bind the potential with the *TYPES* of the particles
 mx.bind.types(pot, Argon, Argon)
 
-# uniform cube
-[Argon() for _ in range(2500)]
+# random cube
+Argon.factory(nr_parts=2500)
 
 # run the simulator
 mx.step(100*mx.Universe.dt)

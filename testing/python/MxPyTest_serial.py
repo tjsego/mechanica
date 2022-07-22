@@ -142,7 +142,7 @@ validate(b.items(), ['radius_of_gyration', 'nr_parts'])
 validate(B.types, ['radius_of_gyration', 'nr_parts'])
 
 # test regular potential
-pot_bb = mx.Potential.soft_sphere(kappa=0.2, epsilon=0.05, r0=0.2, eta=4, tol=0.01, min=0.01, max=0.5)
+pot_bb = mx.Potential.harmonic(k=1, r0=0.1, max=3)
 validate(pot_bb, ['min',
                   'max',
                   'cutoff',

@@ -13,6 +13,7 @@
 #if defined(_MSC_VER) || defined(_WIN32)
 #  pragma warning(push)
 #  pragma warning(disable: 4510 4610 4512 4005)
+#  include <corecrt.h>
 #  if defined(_DEBUG)
 #    define MX_DEBUG_MARKER
 #    undef _DEBUG

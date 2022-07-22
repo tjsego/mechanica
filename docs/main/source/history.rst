@@ -3,6 +3,27 @@
 History
 ========
 
+Version 0.33.0
+--------------
+Minor features and bug fix release
+
+* Improved performance of particle creation
+* Upgrades to Python support for Windows
+* Improved potential consistency, checks and performance
+* Removed limitation on local populations in CUDA acceleration
+* Added integration support in cmake projects
+* Improved library interface
+* Added C++ tests submodule
+* Improved documentation
+* Bug fixes
+
+  * Disabled unreliable automated tests in pipelines conda build
+  * Minor build fixes for gcc
+  * Corrected pointers during fission
+  * Fixed memory leak in I/O
+  * Fixed incorrect install headers
+
+
 Version 0.32.1
 --------------
 Patch release

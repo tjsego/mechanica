@@ -203,8 +203,22 @@ __attribute__ ((flatten)) int runner_dopair ( struct runner *r ,
                 continue;
 
             #if defined(VECTORIZE)
+
+            if(pot->kind == POTENTIAL_KIND_COMBINATION && pot->flags & POTENTIAL_SUM) {
+                pots = pot->constituents();
+            } 
+            else {
+                pots = {pot};
+            }
+
+            for(auto &p : pots) {
+                _r2 = potential_eval_adjust_distance2(p, pi->radius, pj->radius, r2);
+                if(_r2 > p->b * p->b) 
+                    continue;
+                _r2 = FPTYPE_FMAX(_r2, p->a * p->a);
+
                 /* add this interaction to the interaction queue. */
-                r2q[icount] = r2;
+                r2q[icount] = _r2;
                 dxq[icount*3] = dx[0];
                 dxq[icount*3+1] = dx[1];
                 dxq[icount*3+2] = dx[2];
@@ -243,7 +257,8 @@ __attribute__ ((flatten)) int runner_dopair ( struct runner *r ,
                     /* re-set the counter. */
                     icount = 0;
 
-                    }
+                }
+            }
             #else
             
                 /* eval the flux if we have any */
@@ -457,6 +472,7 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
     struct engine *eng;
     FPTYPE cutoff, cutoff2, r2;
     FPTYPE *pif;
+    std::vector<MxPotential*> pots;
 #if defined(VECTORIZE)
     struct MxPotential *potq[VEC_SIZE];
     int icount = 0, l;
@@ -467,6 +483,7 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
     FPTYPE e[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE f[VEC_SIZE] __attribute__ ((aligned (VEC_ALIGN)));
     FPTYPE dxq[VEC_SIZE*3];
+    FPTYPE _r2;
 #else
     float number_density;
     FPTYPE dx[4], pix[4];
@@ -558,14 +575,28 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
                 continue;
 
             #if defined(VECTORIZE)
+
+            if(pot->kind == POTENTIAL_KIND_COMBINATION && pot->flags & POTENTIAL_SUM) {
+                pots = pot->constituents();
+            } 
+            else {
+                pots = {pot};
+            }
+
+            for(auto &p : pots) {
+                _r2 = potential_eval_adjust_distance2(p, pi->radius, pj->radius, r2);
+                if(_r2 > p->b * p->b) 
+                    continue;
+                _r2 = FPTYPE_FMAX(_r2, p->a * p->a);
+
                 /* add this interaction to the interaction queue. */
-                r2q[icount] = r2;
+                r2q[icount] = _r2;
                 dxq[icount*3] = dx[0];
                 dxq[icount*3+1] = dx[1];
                 dxq[icount*3+2] = dx[2];
                 effi[icount] = pif;
                 effj[icount] = part_j->f;
-                potq[icount] = pot;
+                potq[icount] = p;
                 icount += 1;
 
                 /* evaluate the interactions if the queue is full. */
@@ -599,7 +630,9 @@ __attribute__ ((flatten)) int runner_doself ( struct runner *r , struct space_ce
                     /* re-set the counter. */
                     icount = 0;
 
-                    }
+                }
+            }
+
             #else // defined(VECTORIZE)
             
                 /* eval the flux if we have any */

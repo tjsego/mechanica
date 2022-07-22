@@ -21,30 +21,25 @@ MX_ALWAYS_INLINE bool dpd_eval(DPDPotential *p, float gaussian,
                                MxParticle *pi, MxParticle *pj, float* dx, float r2 , FPTYPE *energy) {
     
     static const float delta = 1.f / std::sqrt(_Engine.dt);
-    
-    float ri = pi->radius;
-    float rj = pj->radius;
-    bool shifted = p->flags & POTENTIAL_SHIFTED;
-    
-    float cutoff = shifted ? (p->b + ri + rj) : p->b;
-    
-    if(r2 > cutoff * cutoff) {
-        return false;
-    }
+    static const float epsilon = std::numeric_limits<float>::epsilon();
     
     float r = std::sqrt(r2);
-    
-    assert(r >= p->a);
+    float ro = r < epsilon ? epsilon : r;
+
+    r = p->flags & POTENTIAL_SHIFTED ? r - (pi->radius + pj->radius) : r;
+
+    if(r > p->b) {
+        return false;
+    }
+    r = r >= p->a ? r : p->a;
     
     // unit vector
-    MxVector3f e = {dx[0] / r, dx[1] / r, dx[2] / r};
+    MxVector3f e = {dx[0] / ro, dx[1] / ro, dx[2] / ro};
     
     MxVector3f v = pi->velocity - pj->velocity;
     
-    float shifted_r = shifted ? r - ri - rj : r;
-    
     // conservative force
-    float omega_c = shifted_r < 0.f ?  1.f : (1 - shifted_r / cutoff);
+    float omega_c = r < 0.f ?  1.f : (1 - r / p->b);
     
     float fc = p->alpha * omega_c;
     
@@ -68,25 +63,28 @@ MX_ALWAYS_INLINE bool dpd_eval(DPDPotential *p, float gaussian,
 }
 
 MX_ALWAYS_INLINE bool dpd_boundary_eval(DPDPotential *p, float gaussian,
-                               MxParticle *pi, const float *velocity, const float* dx, float r2 , FPTYPE *energy) {
+                               MxParticle *pi, float &rj, const float *velocity, const float* dx, float r2 , FPTYPE *energy) {
     
     static const float delta = 1.f / std::sqrt(_Engine.dt);
-    
-    float cutoff = p->b;
-    
-    if(r2 > cutoff * cutoff) {
-        return false;
-    }
+    static const float epsilon = std::numeric_limits<float>::epsilon();
     
     float r = std::sqrt(r2);
+    float ro = r < epsilon ? epsilon : r;
+
+    r = p->flags & POTENTIAL_SHIFTED ? r - (pi->radius + rj) : r;
+
+    if(r > p->b) {
+        return false;
+    }
+    r = r >= p->a ? r : p->a;
     
     // unit vector
-    MxVector3f e = {dx[0] / r, dx[1] / r, dx[2] / r};
+    MxVector3f e = {dx[0] / ro, dx[1] / ro, dx[2] / ro};
     
     MxVector3f v = {pi->velocity[0] - velocity[0], pi->velocity[1] - velocity[1], pi->velocity[2] - velocity[2]};
     
     // conservative force
-    float omega_c = (1 - r / cutoff);
+    float omega_c = r < 0.f ?  1.f : (1 - r / p->b);
     
     float fc = p->alpha * omega_c;
     

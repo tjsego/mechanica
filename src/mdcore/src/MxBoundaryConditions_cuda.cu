@@ -21,39 +21,6 @@ MxBoundaryConditionCUDA::MxBoundaryConditionCUDA(const MxBoundaryCondition &_bc)
     this->normal = make_float3(_bc.normal[0], _bc.normal[1], _bc.normal[2]);
     this->velocity = make_float3(_bc.velocity[0], _bc.velocity[1], _bc.velocity[2]);
     this->radius = _bc.radius;
-
-    MxPotential *p;
-    
-    size_t size_pots = sizeof(MxPotentialCUDA) * engine_maxnrtypes;
-    if(cudaMalloc(&this->pots, size_pots) != cudaSuccess) {
-        printf("Boundary condition allocation failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-        return;
-    }
-
-    this->pots_h = (MxPotentialCUDA*)malloc(size_pots);
-    for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) { 
-        p = _bc.potenntials[typeId];
-        if(p != NULL) 
-            this->pots_h[typeId] = MxPotentialCUDA(p);
-        else 
-            this->pots_h[typeId] = MxPotentialCUDA();
-    }
-
-    if(cudaMemcpy(this->pots, this->pots_h, size_pots, cudaMemcpyHostToDevice) != cudaSuccess)
-        printf("Boundary condition copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-}
-
-__host__ 
-void MxBoundaryConditionCUDA::finalize() {
-    for(int typeId = 0; typeId < engine_maxnrtypes; typeId++) {
-        auto p = this->pots_h[typeId];
-        p.finalize();
-    }
-
-    free(this->pots_h);
-    
-    if(cudaFree(this->pots) != cudaSuccess) 
-        printf("Boundary condition finalize failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
 }
 
 
@@ -80,15 +47,4 @@ MxBoundaryConditionsCUDA::MxBoundaryConditionsCUDA(const MxBoundaryConditions &_
 
     if(cudaMemcpy(this->bcs, this->bcs_h, size_bcs, cudaMemcpyHostToDevice) != cudaSuccess)
         printf("Boundary conditions copy H2D failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
-}
-
-__host__ 
-void MxBoundaryConditionsCUDA::finalize() {
-    for(int bcId = 0; bcId < 6; bcId++)
-        this->bcs_h[bcId].finalize();
-
-    free(this->bcs_h);
-
-    if(cudaFree(this->bcs) != cudaSuccess) 
-        printf("Boundary conditions finalize failed: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
 }

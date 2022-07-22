@@ -109,15 +109,17 @@ MxFluxes *MxFluxes::fromString(const std::string &str) {
     return new MxFluxes(mx::io::fromString<MxFluxes>(str));
 }
 
-static void integrate_statevector(MxStateVector *s, float dt=-1.0) {
-    if(dt < 0) dt = _Engine.dt;
-
+static void integrate_statevector(MxStateVector *s, float dt) {
     for(int i = 0; i < s->size; ++i) {
         s->species_flags[i] = (uint32_t)s->species->item(i)->flags();
         float konst = (s->species_flags[i] & SPECIES_KONSTANT) ? 0.f : 1.f;
         s->fvec[i] += dt * s->q[i] * konst;
         s->q[i] = 0; // clear flux for next step
     }
+}
+
+static void integrate_statevector(MxStateVector *s) {
+    return integrate_statevector(s, _Engine.dt);
 }
 
 HRESULT MxFluxes_integrate(space_cell *c, float dt) {

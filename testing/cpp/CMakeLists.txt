@@ -1,0 +1,26 @@
+find_package(CUDAToolkit)
+find_package(assimp REQUIRED)
+find_package(glfw3 REQUIRED)
+find_package(libsbml-static REQUIRED)
+find_package(Mechanica REQUIRED COMPONENTS Shared)
+
+set(MxTest_LIBS Mechanica::mechanica_shared)
+if(UNIX)
+    list(APPEND MxTest_LIBS m)
+endif()
+
+set(MxTest_INCLUDES ${MECHANICA_INCLUDE_DIRS})
+
+macro(MxTest_Build src_name)
+    add_executable(${src_name} ${src_name}.cpp)
+    target_link_libraries(${src_name} ${MxTest_LIBS})
+    target_include_directories(${src_name} PUBLIC ${MxTest_INCLUDES})
+endmacro()
+
+file(GLOB MxTest_SRCS MxTest_*.cpp)
+foreach(MxTest_SRC ${MxTest_SRCS})
+    cmake_path(GET MxTest_SRC FILENAME MxTest_SRC_FN)
+    cmake_path(GET MxTest_SRC_FN STEM LAST_ONLY MxTest_SRC_NAME)
+    MxTest_Build(${MxTest_SRC_NAME})
+    add_test(NAME ${MxTest_SRC_NAME} COMMAND ${MxTest_SRC_NAME})
+endforeach()

@@ -46,7 +46,7 @@ class YolkType(mx.ParticleType):
     radius = 10
     mass = 1000000
     dynamics = mx.Overdamped
-    flozen = True
+    frozen = True
     style = {"color": "gold"}
 
 
@@ -62,9 +62,9 @@ c = C(position=yolk.position + [0, 0, yolk.radius + C.radius - 5])
 
 [B() for _ in range(8000)]
 
-pb = mx.Potential.morse(d=15, a=5.5, min=0.1, max=2)
-pub = mx.Potential.morse(d=1, a=6, min=0.1, max=2)
-py = mx.Potential.morse(d=3, a=3, max=30)
+pb = mx.Potential.morse(d=1, a=6, r0=0.5, min=0.01, max=3, shifted=False)
+pub = mx.Potential.morse(d=1, a=6, r0=0.5, min=0.01, max=3, shifted=False)
+py = mx.Potential.morse(d=0.1, a=6, r0=0.0, min=-5, max=1.0)
 
 rforce = mx.Force.random(mean=0, std=500, duration=0.0001)
 

@@ -17,7 +17,7 @@
 /**
  * @brief The color mapping type
  */
-struct MxColorMapper
+struct CAPI_EXPORT MxColorMapper
 {
     ColorMapperFunc map;
     int species_index;

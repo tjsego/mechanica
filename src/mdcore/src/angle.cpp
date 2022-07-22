@@ -233,27 +233,6 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
 
         for(int i = 0; i < pots.size(); i++) {
             pot = pots[i];
-        
-            /* printf( "angle_eval: cos of angle %i (%s-%s-%s) is %e.\n" , aid ,
-                e->types[pi->type].name , e->types[pj->type].name , e->types[pk->type].name , ctheta ); */
-            /* printf( "angle_eval: ids are ( %i , %i , %i ).\n" , pi->id , pj->id , pk->id );
-            if ( e->s.celllist[pid] != e->s.celllist[pjd] )
-                printf( "angle_eval: pi and pj are in different cells!\n" );
-            if ( e->s.celllist[pkd] != e->s.celllist[pjd] )
-                printf( "angle_eval: pk and pj are in different cells!\n" );
-            printf( "angle_eval: xi-xj is [ %e , %e , %e ], ||xi-xj||=%e.\n" ,
-                xi[0]-xj[0] , xi[1]-xj[1] , xi[2]-xj[2] , sqrt( (xi[0]-xj[0])*(xi[0]-xj[0]) + (xi[1]-xj[1])*(xi[1]-xj[1]) + (xi[2]-xj[2])*(xi[2]-xj[2]) ) );
-            printf( "angle_eval: xk-xj is [ %e , %e , %e ], ||xk-xj||=%e.\n" ,
-                xk[0]-xj[0] , xk[1]-xj[1] , xk[2]-xj[2] , sqrt( (xk[0]-xj[0])*(xk[0]-xj[0]) + (xk[1]-xj[1])*(xk[1]-xj[1]) + (xk[2]-xj[2])*(xk[2]-xj[2]) ) ); */
-            /* printf( "angle_eval: dxi is [ %e , %e , %e ], ||dxi||=%e.\n" ,
-                dxi[0] , dxi[1] , dxi[2] , sqrt( dxi[0]*dxi[0] + dxi[1]*dxi[1] + dxi[2]*dxi[2] ) );
-            printf( "angle_eval: dxk is [ %e , %e , %e ], ||dxk||=%e.\n" ,
-                dxk[0] , dxk[1] , dxk[2] , sqrt( dxk[0]*dxk[0] + dxk[1]*dxk[1] + dxk[2]*dxk[2] ) ); */
-            if ( ctheta < pot->a || ctheta > pot->b ) {
-                printf( "angle_eval[%i]: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
-                    e->nodeID , aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
-                ctheta = FPTYPE_FMAX( pot->a , FPTYPE_FMIN( pot->b , ctheta ) );
-            }
 
             if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
                 std::fill(std::begin(fi), std::end(fi), 0.0);
@@ -270,10 +249,13 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
                     toDestroy.insert(angle);
             }
             else {
+
+                if(ctheta > pot->b) 
+                    continue;
             
                 #ifdef VECTORIZE
                     /* add this angle to the interaction queue. */
-                    cthetaq[icount] = ctheta;
+                    cthetaq[icount] = FPTYPE_FMAX(ctheta, pot->a);
                     diq[icount*3] = dxi[0];
                     diq[icount*3+1] = dxi[1];
                     diq[icount*3+2] = dxi[2];
@@ -324,9 +306,9 @@ int angle_eval ( struct MxAngle *a , int N , struct engine *e , double *epot_out
                 #else
                     /* evaluate the angle */
                     #ifdef EXPLICIT_POTENTIALS
-                        potential_eval_expl( pot , ctheta , &ee , &eff );
+                        potential_eval_expl( pot , FPTYPE_FMAX(ctheta, pot->a) , &ee , &eff );
                     #else
-                        potential_eval_r( pot , ctheta , &ee , &eff );
+                        potential_eval_r( pot , FPTYPE_FMAX(ctheta, pot->a) , &ee , &eff );
                     #endif
                     
                     /* update the forces */
@@ -541,13 +523,6 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
 
         for(int i = 0; i < pots.size(); i++) {
             pot = pots[i];
-        
-            /* printf( "angle_eval: angle %i is %e rad.\n" , aid , ctheta ); */
-            if ( ctheta < pot->a || ctheta > pot->b ) {
-                printf( "angle_evalf: angle %i (%s-%s-%s) out of range [%e,%e], ctheta=%e.\n" ,
-                    aid , e->types[pi->typeId].name , e->types[pj->typeId].name , e->types[pk->typeId].name , pot->a , pot->b , ctheta );
-                ctheta = fmax( pot->a , fmin( pot->b , ctheta ) );
-            }
 
             if(pot->kind == POTENTIAL_KIND_BYPARTICLES) {
                 std::fill(std::begin(fi), std::end(fi), 0.0);
@@ -565,9 +540,12 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
             }
             else {
 
+                if(ctheta > pot->b) 
+                    continue;
+
                 #ifdef VECTORIZE
                     /* add this angle to the interaction queue. */
-                    cthetaq[icount] = ctheta;
+                    cthetaq[icount] = FPTYPE_FMAX(ctheta, pot->a);
                     diq[icount*3] = dxi[0];
                     diq[icount*3+1] = dxi[1];
                     diq[icount*3+2] = dxi[2];
@@ -618,9 +596,9 @@ int angle_evalf ( struct MxAngle *a , int N , struct engine *e , FPTYPE *f , dou
                 #else
                     /* evaluate the angle */
                     #ifdef EXPLICIT_POTENTIALS
-                        potential_eval_expl( pot , ctheta , &ee , &eff );
+                        potential_eval_expl( pot , FPTYPE_FMAX(ctheta, pot->a) , &ee , &eff );
                     #else
-                        potential_eval_r( pot , ctheta , &ee , &eff );
+                        potential_eval_r( pot , FPTYPE_FMAX(ctheta, pot->a) , &ee , &eff );
                     #endif
                     
                     /* update the forces */
@@ -758,6 +736,11 @@ void MxAngle::init(MxPotential *potential, MxParticleHandle *p1, MxParticleHandl
 }
 
 MxAngleHandle *MxAngle::create(MxPotential *potential, MxParticleHandle *p1, MxParticleHandle *p2, MxParticleHandle *p3, uint32_t flags) {
+    if(potential->flags & POTENTIAL_SCALED || potential->flags & POTENTIAL_SHIFTED) {
+        throw std::runtime_error("angles do not support scaled or shifted potentials");
+        return NULL;
+    }
+
     MxAngle *angle = NULL;
 
     auto id = engine_angle_alloc(&_Engine, &angle);

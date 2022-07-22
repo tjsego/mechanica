@@ -843,22 +843,30 @@ int MxBondCUDA_setThreads(const unsigned int &nr_threads) {
 }
 
 __device__ 
-void bond_eval_single_cuda(MxPotential *pot, float _r2, float *dx, float *force, float *epot_out) {
-    float r2, ee, eff;
+void bond_eval_single_cuda(MxPotential *pot, float ri, float rj, float _r2, float *dx, float *force, float *epot_out) {
+    float r, ee, eff;
     int k;
 
     if(pot->kind == POTENTIAL_KIND_COMBINATION && pot->flags & POTENTIAL_SUM) {
-        if(pot->pca != NULL) bond_eval_single_cuda(pot->pca, _r2, dx, force, epot_out);
-        if(pot->pcb != NULL) bond_eval_single_cuda(pot->pcb, _r2, dx, force, epot_out);
+        if(pot->pca != NULL) bond_eval_single_cuda(pot->pca, ri, rj, _r2, dx, force, epot_out);
+        if(pot->pcb != NULL) bond_eval_single_cuda(pot->pcb, ri, rj, _r2, dx, force, epot_out);
         return;
     }
 
-    if (_r2 < pot->a*pot->a || _r2 > pot->b*pot->b) 
-        r2 = fmax(pot->a * pot->a, fmin(pot->b * pot->b, _r2));
-    else 
-        r2 = _r2;
+    /* Get r for the right type. */
+    r = _r2 * rsqrtf(_r2);
+    
+    if(pot->flags & POTENTIAL_SCALED) {
+        r = r / (ri + rj);
+    }
+    else if(pot->flags & POTENTIAL_SHIFTED) {
+        r = r - (ri + rj) + pot->r0_plusone;
+    }
 
-    potential_eval_cuda(pot, r2, &ee, &eff);
+    if(r > pot->b) 
+        return;
+
+    potential_eval_cuda(pot, fmax(r * r, pot->a * pot->a), &ee, &eff);
 
     // Update the forces
     for (k = 0; k < 3; k++) {
@@ -940,7 +948,7 @@ void bond_eval_cuda(MxBondCUDAData *bonds, int nr_bonds, float *forces, float *e
 
         memset(fix, 0.f, 3 * sizeof(float));
 
-        bond_eval_single_cuda(&b->p, r2, dx, fix, &epot);
+        bond_eval_single_cuda(&b->p, pi->v.w, pj->v.w, r2, dx, fix, &epot);
         forces[3 * i    ] = fix[0];
         forces[3 * i + 1] = fix[1];
         forces[3 * i + 2] = fix[2];
@@ -1674,7 +1682,7 @@ int engine_angle_flip_stream() {
 
 __device__ 
 void angle_eval_single_cuda(MxPotential *pot, float _ctheta, float *dxi, float *dxk, float *force_i, float *force_k, float *epot_out) {
-    float ctheta, ee, eff;
+    float ee, eff;
     int k;
 
     if(pot->kind == POTENTIAL_KIND_COMBINATION && pot->flags & POTENTIAL_SUM) {
@@ -1683,12 +1691,10 @@ void angle_eval_single_cuda(MxPotential *pot, float _ctheta, float *dxi, float *
         return;
     }
 
-    if(_ctheta < pot->a || _ctheta > pot->b) 
-        ctheta = fmax(pot->a, fmin(pot->b, _ctheta));
-    else 
-        ctheta = _ctheta;
-
-    potential_eval_r_cuda(pot, ctheta, &ee, &eff);
+    if(_ctheta > pot->b) 
+        return;
+    
+    potential_eval_r_cuda(pot, fmax(_ctheta, pot->a), &ee, &eff);
 
     // Update the forces
     for (k = 0; k < 3; k++) {

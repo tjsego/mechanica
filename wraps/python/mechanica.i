@@ -42,6 +42,7 @@
 
 #define CAPI_DATA(RTYPE) RTYPE
 #define CAPI_FUNC(RTYPE) RTYPE
+#define CPPAPI_FUNC(RTYPE) RTYPE
 #define CAPI_EXPORT
 #define CAPI_STRUCT(RTYPE) struct RTYPE
 
@@ -52,6 +53,7 @@
 %begin %{
 #ifdef _MSC_VER
 #define SWIG_PYTHON_INTERPRETER_NO_DEBUG
+#include <corecrt.h>
 #endif
 %}
 
@@ -174,6 +176,9 @@
 
 // Simulator
 %include "MxSimulator.i"
+
+// MxBind
+%include "MxBind.i"
 
 // Universe
 %include "MxUniverse.i"

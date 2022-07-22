@@ -6,8 +6,7 @@ cutoff = 1
 # new simulator
 mx.init(dim=[20., 20., 20.])
 
-pot = mx.Potential.soft_sphere(kappa=5, epsilon=0.01,
-                               r0=0.6, eta=3, tol=0.1, min=0, max=4)
+pot = mx.Potential.morse(d=1, a=5, r0=0.6, min=0, max=4, shifted=False)
 
 
 class CellType(mx.ParticleType):

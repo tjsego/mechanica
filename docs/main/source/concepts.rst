@@ -25,4 +25,5 @@ Concepts
     controls
     rendering
     file_io
+    numerical_details
     cuda

@@ -59,7 +59,7 @@ struct MxParticleHandle;
  * If you're building a model, you should probably instead be working with a 
  * MxBondHandle. 
  */
-typedef struct MxBond {
+typedef struct CAPI_EXPORT MxBond {
 
     uint32_t flags;
 
@@ -131,7 +131,7 @@ struct MxParticleList;
  * 
  * This is a safe way to work with a bond. 
  */
-struct MxBondHandle {
+struct CAPI_EXPORT MxBondHandle {
     int32_t id;
     
     /**

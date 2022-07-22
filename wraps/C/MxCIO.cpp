@@ -1306,6 +1306,13 @@ HRESULT MxCFIOModule_load(struct MxFIOModuleHandle *handle) {
 //////////////////////
 
 
+HRESULT MxCFIO_deleteElement(struct MxIOElementHandle *handle) {
+    MXIOELEMENTHANDLE_GET(handle, ioel);
+    HRESULT result = mx::io::deleteElement(&ioel);
+    handle->MxObj = NULL;
+    return result;
+}
+
 HRESULT MxCFIO_getMxIORootElement(struct MxIOElementHandle *handle) {
     MxIOElement *rootElement = MxFIO::currentRootElement == NULL ? MxFIO::generateMxIORootElement() : MxFIO::currentRootElement;
     if(!rootElement) 

@@ -36,7 +36,7 @@
 
 
 /* some constants */
-#define cell_default_size               64
+#define cell_default_size               256
 #define cell_incr                       10
 
 /** Alignment when allocating parts. */
@@ -155,6 +155,9 @@ typedef struct space_cell {
     
         /* ID of the GPU this cell belongs to. */
         int GPUID;
+
+        /* Volume contribution of this cell. */
+        FPTYPE computed_volume;
 
 } space_cell;
 

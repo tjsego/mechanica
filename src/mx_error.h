@@ -12,7 +12,7 @@
 
 #include <exception>
 
-struct MxError {
+struct CAPI_EXPORT MxError {
     HRESULT err;
     const char* msg;
     int lineno;

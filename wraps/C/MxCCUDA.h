@@ -180,28 +180,6 @@ CAPI_FUNC(HRESULT) MxCEngineCUDAConfig_refreshBoundaryConditions(struct MxEngine
  */
 CAPI_FUNC(HRESULT) MxCEngineCUDAConfig_refresh(struct MxEngineCUDAConfigHandle *handle);
 
-/**
- * @brief Set the seed for the random number generator on all CUDA devices. 
- * 
- * The seed is uniformly applied to all devices. 
- * Resets all random number generators. 
- * Can be used when on or off a CUDA device. 
- * 
- * @param handle populated handle
- * @param seed The seed. 
- * @return S_OK on success 
- */
-CAPI_FUNC(HRESULT) MxCEngineCUDAConfig_setSeed(struct MxEngineCUDAConfigHandle *handle, unsigned int seed);
-
-/**
- * @brief Get the seed for the random number generator on a CUDA device. 
- * 
- * @param handle populated handle
- * @param seed The seed.
- * @return S_OK on success 
- */
-CAPI_FUNC(HRESULT) MxCEngineCUDAConfig_getSeed(struct MxEngineCUDAConfigHandle *handle, unsigned int *seed);
-
 
 //////////////////////
 // MxBondCUDAConfig //

@@ -23,7 +23,7 @@
 
 #include "platform.h"
 #include "fptype.h"
-#include "../../io/mx_io.h"
+#include <io/mx_io.h>
 
 #include <limits>
 #include <utility>
@@ -204,7 +204,7 @@ typedef void (*MxPotentialClear) (struct MxPotential* p);
  * 
  * A potential can be treated just like any callable object. 
  */
-typedef struct MxPotential {
+struct CAPI_EXPORT MxPotential {
     uint32_t kind;
 
     /** Flags. */
@@ -320,23 +320,6 @@ typedef struct MxPotential {
      * @return MxPotential* 
      */
     static MxPotential *lennard_jones_12_6_coulomb(double min, double max, double A, double B, double q, double *tol=NULL);
-
-    /**
-     * @brief Creates a soft sphere interaction potential. 
-     * 
-     * The soft sphere is a generalized Lennard-Jones-type potential, but with settable exponents to create a softer interaction.
-     * 
-     * @param kappa 
-     * @param epsilon 
-     * @param r0 
-     * @param eta 
-     * @param min 
-     * @param max 
-     * @param tol 
-     * @param shift 
-     * @return MxPotential* 
-     */
-    static MxPotential *soft_sphere(double kappa, double epsilon, double r0, int eta, double *min=NULL, double *max=NULL, double *tol=NULL, bool *shift=NULL);
 
     /**
      * @brief Creates a real-space Ewald potential. 
@@ -553,7 +536,7 @@ typedef struct MxPotential {
      * 
      * @f[
      * 
-     *      d \left(1 - e^{ -a \left(r - r_0 \right) } \right)
+     *      d \left(1 - e^{ -a \left(r - r_0 \right) } \right)^2
      * 
      * @f]
      * 
@@ -563,9 +546,10 @@ typedef struct MxPotential {
      * @param min The smallest radius for which the potential will be constructed. Defaults to 0.0001.
      * @param max The largest radius for which the potential will be constructed. Defaults to 3.0.
      * @param tol The tolerance to which the interpolation should match the exact potential. Defaults to 0.001.
+     * @param shifted Flag for whether using a shifted potential. Defaults to true.
      * @return MxPotential* 
      */
-    static MxPotential *morse(double *d=NULL, double *a=NULL, double *r0=NULL, double *min=NULL, double *max=NULL, double *tol=NULL);
+    static MxPotential *morse(double *d=NULL, double *a=NULL, double *r0=NULL, double *min=NULL, double *max=NULL, double *tol=NULL, bool *shifted=NULL);
 
     /**
      * @brief Creates an overlapping-sphere potential from :cite:`Osborne:2017hk`. 
@@ -696,12 +680,10 @@ typedef struct MxPotential {
     FPTYPE getR0();
     void setR0(const FPTYPE &_r0);
     bool getShifted();
-    void setShifted(const bool &_shifted);
     bool getPeriodic();
     bool getRSquare();
-    void setRSquare(const bool &_rSquare);
 
-} MxPotential;
+};
 
 
 /** Fictitious null potential. */
@@ -758,16 +740,8 @@ CAPI_FUNC(struct MxPotential *) potential_create_harmonic_dihedral ( double a , 
 CAPI_FUNC(struct MxPotential *) potential_create_cosine_dihedral ( double K , int n ,
 																   double delta , double tol );
 
-
-CAPI_FUNC(struct MxPotential *) potential_create_SS1(double k, double e, double r0, double a , double b ,double tol);
-
-CAPI_FUNC(struct MxPotential *) potential_create_SS(int eta, double k, double e,
-                                                    double r0, double a , double b , double tol, bool scale = false);
-
-CAPI_FUNC(struct MxPotential *) potential_create_SS2(double k, double e, double r0, double a , double b ,double tol);
-
 CAPI_FUNC(struct MxPotential *) potential_create_morse(double d, double alpha, double r0,
-                                                        double min, double max, double tol);
+                                                        double min, double max, double tol, bool shifted);
 
 
 CAPI_FUNC(struct MxPotential *) potential_create_glj(

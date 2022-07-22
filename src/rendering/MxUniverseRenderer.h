@@ -47,7 +47,6 @@
 #include <Magnum/Shaders/Phong.h>
 #include <Magnum/Shaders/Flat.h>
 
-#include <rendering/MxUniverseRenderer.h>
 #include <rendering/MxGlfwWindow.h>
 
 #include <Magnum/Platform/GlfwApplication.h>
@@ -317,7 +316,7 @@ struct MxUniverseRenderer : MxRenderer {
     void mouseScrollEvent(Platform::GlfwApplication::MouseScrollEvent& event);
 
     MxSubRenderer *getSubRenderer(const MxSubRendererFlag &flag);
-
+    HRESULT registerSubRenderer(MxSubRenderer *subrenderer);
 
     bool _dirty = false;
     bool _decorateScene = true;

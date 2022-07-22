@@ -7,11 +7,10 @@ cutoff = 8
 count = 3000
 
 # dimensions of universe
-dim = np.array([20., 20., 20.])
-center = dim / 2
+dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim.tolist(), cutoff=cutoff)
+mx.init(dim=dim, cutoff=cutoff)
 
 
 class BeadType(mx.ParticleType):
@@ -22,13 +21,13 @@ class BeadType(mx.ParticleType):
 
 Bead = BeadType.get()
 
-pot_bb = mx.Potential.soft_sphere(kappa=0.2, epsilon=0.05, r0=0.2, eta=4, tol=0.01, min=0.01, max=0.5)
+pot_bb = mx.Potential.coulomb(q=0.1, min=0.1, max=1.0)
 
 # hamonic bond between particles
-pot_bond = mx.Potential.harmonic(k=0.4, r0=0.2, max=2)
+pot_bond = mx.Potential.harmonic(k=0.4, r0=0.2, min=0, max=2)
 
 # angle bond potential
-pot_ang = mx.Potential.harmonic_angle(k=0.2, theta0=0.85 * np.pi, tol=0.1)
+pot_ang = mx.Potential.harmonic_angle(k=0.01, theta0=0.85 * np.pi, tol=0.01)
 
 # bind the potential with the *TYPES* of the particles
 mx.bind.types(pot_bb, Bead, Bead)
@@ -42,10 +41,11 @@ rforce = mx.Force.random(mean=0, std=0.1)
 mx.bind.force(rforce, Bead)
 
 # make a array of positions
-xx = np.arange(4., 16, 0.15)
+xx = np.arange(0.2/2, dim[0] - 0.2/2, 0.2)
 
 p = None                              # previous bead
 bead = Bead([xx[0], 10., 10.0])       # current bead
+bead_init = bead
 
 for i in range(1, xx.size):
     n = Bead([xx[i], 10.0, 10.0])     # create a new bead particle
@@ -54,6 +54,9 @@ for i in range(1, xx.size):
         mx.Angle.create(pot_ang, p, bead, n)  # make an angle bond between prev, cur, next
     p = bead
     bead = n
+
+mx.Bond.create(pot_bond, bead, bead_init)  # create a bond between first and last
+mx.Angle.create(pot_ang, p, bead, bead_init)  # make an angle bond between prev, last, first
 
 # run the simulator interactive
 mx.run()

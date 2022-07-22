@@ -10,19 +10,20 @@
 
 #include <MxParticle.h>
 #include <space_cell.h>
-#include "../types/mx_types.h"
+#include <types/mx_types.h>
 
 #include <vector>
 
-MxVector4f MxPlaneEquation(const MxVector3f &normal, const MxVector3f &point);
+CPPAPI_FUNC(MxVector4f) MxPlaneEquation(const MxVector3f &normal, const MxVector3f &point);
 CAPI_FUNC(HRESULT) MxPlaneEquation(const MxVector3f &normal, const MxVector3f &point, float *result);
 
-std::vector<MxVector4f> MxParsePlaneEquation(const std::vector<std::tuple<MxVector3f, MxVector3f> > &clipPlanes);
+CPPAPI_FUNC(std::vector<MxVector4f>) MxParsePlaneEquation(const std::vector<std::tuple<MxVector3f, MxVector3f> > &clipPlanes);
 CAPI_FUNC(HRESULT) MxParsePlaneEquation(const std::vector<std::tuple<MxVector3f, MxVector3f> > &clipPlanes, MxVector4f *result);
 
-std::tuple<MxVector3f, MxVector3f> MxPlaneEquation(const MxVector4f &planeEq);
+typedef std::tuple<MxVector3f, MxVector3f> tuple_MxVector3f;
+CPPAPI_FUNC(tuple_MxVector3f) MxPlaneEquation(const MxVector4f &planeEq);
 
-struct MxClipPlane
+struct CAPI_EXPORT MxClipPlane
 {
     /** Index of the clip plane. Less than zero if clip plane has been destroyed. */
     int index;
@@ -132,6 +133,6 @@ struct CAPI_EXPORT MxClipPlanes {
 /**
  * get a reference to the cut planes collection.
  */
-MxClipPlanes *getClipPlanes();
+CPPAPI_FUNC(MxClipPlanes*) getClipPlanes();
 
 #endif /* SRC_RENDERING_MXCUTPLANE_HPP_ */

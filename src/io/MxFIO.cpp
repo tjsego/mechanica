@@ -10,6 +10,7 @@
 
 #include <MxSimulator.h>
 #include <MxLogger.h>
+#include <MxUtil.h>
 #include <mx_error.h>
 
 #include <fstream>
@@ -144,6 +145,43 @@ MxIOElement *fromStr(const std::string &str) {
     return fevalue;
 }
 
+static HRESULT gatherElements(std::vector<MxIOElement*> &elements, MxIOElement *fileElement) {
+    HRESULT ret;
+
+    elements.push_back(fileElement);
+    for(auto &e : fileElement->children) 
+        if((ret = gatherElements(elements, e.second)) != S_OK) 
+            return ret;
+
+    return S_OK;
+}
+
+HRESULT deleteElement(MxIOElement **fileElement) { 
+    HRESULT result;
+
+    if(fileElement) {
+
+        std::vector<MxIOElement*> elementsFlat;
+        if((result = gatherElements(elementsFlat, *fileElement)) != S_OK) 
+            return result;
+        elementsFlat = unique(elementsFlat);
+
+        for(auto &e : elementsFlat) {
+            if(e) {
+                e->parent = NULL;
+                e->children.clear();
+                delete e;
+                e = NULL;
+            }
+        }
+
+        *fileElement = NULL;
+
+    }
+
+    return S_OK;
+}
+
 }}
 
 
@@ -263,25 +301,7 @@ HRESULT MxFIO::releaseMxIORootElement() {
     if(MxFIO::currentRootElement == NULL) 
         return S_OK;
 
-    MxIOElement *feMetaData = MxFIO::currentRootElement->children[MxFIO::KEY_METADATA];
-    MxIOElement *feSimulator = MxFIO::currentRootElement->children[MxFIO::KEY_SIMULATOR];
-    MxIOElement *feUniverse = MxFIO::currentRootElement->children[MxFIO::KEY_UNIVERSE];
-
-    auto itr = MxFIO::currentRootElement->children.find(MxFIO::KEY_MODULES);
-    if(itr != MxFIO::currentRootElement->children.end()) {
-        for(auto &mItr : itr->second->children) 
-            delete mItr.second;
-        delete itr->second;
-    }
-
-    delete feMetaData;
-    delete feSimulator;
-    delete feUniverse;
-    delete MxFIO::currentRootElement;
-
-    MxFIO::currentRootElement = NULL;
-
-    return S_OK;
+    return mx::io::deleteElement(&MxFIO::currentRootElement);
 }
 
 HRESULT MxFIO::toFile(const std::string &saveFilePath) { 

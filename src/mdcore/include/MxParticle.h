@@ -21,8 +21,8 @@
 #define INCLUDE_PARTICLE_H_
 #include "platform.h"
 #include "fptype.h"
-#include "../../state/MxStateVector.h"
-#include "../../types/mx_types.h"
+#include <state/MxStateVector.h>
+#include <types/mx_types.h>
 #include "space_cell.h"
 #include "angle.h"
 #include "bond.h"
@@ -449,7 +449,7 @@ struct CAPI_EXPORT MxParticleHandle {
  * actual particle with position, velocity, etc. However, particles 
  * of this *type* can be created with one of these. 
  */
-struct MxParticleType {
+struct CAPI_EXPORT MxParticleType {
 
     static const int MAX_NAME = 64;
 
@@ -601,6 +601,23 @@ struct MxParticleType {
     MxParticleHandle *operator()(const std::string &str, int *clusterId=NULL);
 
     /**
+     * @brief Particle factory constructor, for making lots of particles quickly. 
+     * 
+     * At minimum, arguments must specify the number of particles to create, whether 
+     * specified explicitly or through one or more vector arguments.
+     * 
+     * @param nr_parts number of particles to create, optional
+     * @param positions initial particle positions, optional
+     * @param velocities initial particle velocities, optional
+     * @param clusterIds parent cluster ids, optional
+     * @return std::vector<int> 
+     */
+    std::vector<int> factory(unsigned int nr_parts=0, 
+                             std::vector<MxVector3f> *positions=NULL, 
+                             std::vector<MxVector3f> *velocities=NULL, 
+                             std::vector<int> *clusterIds=NULL);
+
+    /**
      * @brief Particle type constructor. 
      * 
      * New type is constructed from the definition of the calling type. 
@@ -731,6 +748,17 @@ CAPI_FUNC(MxParticleHandle*) MxParticle_New(MxParticleType *type,
                                             MxVector3f *position=NULL,
                                             MxVector3f *velocity=NULL,
                                             int *clusterId=NULL);
+
+std::vector<int> MxParticles_New(std::vector<MxParticleType*> types, 
+                                 std::vector<MxVector3f> *positions=NULL, 
+                                 std::vector<MxVector3f> *velocities=NULL, 
+                                 std::vector<int> *clusterIds=NULL);
+
+std::vector<int> MxParticles_New(MxParticleType *type, 
+                                 unsigned int nr_parts=0, 
+                                 std::vector<MxVector3f> *positions=NULL, 
+                                 std::vector<MxVector3f> *velocities=NULL, 
+                                 std::vector<int> *clusterIds=NULL);
 
 /**
  * Change the type of one particle to another.

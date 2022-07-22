@@ -26,7 +26,7 @@ using MxParticleTimeEventNextTimeSetter = double (*)(MxParticleTimeEvent&, const
  * @param event 
  * @param time 
  */
-double MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEvent &event, const double &time);
+CAPI_FUNC(double) MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEvent &event, const double &time);
 
 /**
  * @brief Sets the next time on an event according to the period of the event
@@ -34,7 +34,7 @@ double MxParticleTimeEventSetNextTimeExponential(MxParticleTimeEvent &event, con
  * @param event 
  * @param time 
  */
-double MxParticleTimeEventSetNextTimeDeterministic(MxParticleTimeEvent &event, const double &time);
+CAPI_FUNC(double) MxParticleTimeEventSetNextTimeDeterministic(MxParticleTimeEvent &event, const double &time);
 
 using MxParticleTimeEventParticleSelector = MxParticleEventParticleSelectorT<MxParticleTimeEvent>;
 
@@ -44,7 +44,7 @@ using MxParticleTimeEventParticleSelector = MxParticleEventParticleSelectorT<MxP
  * @param event 
  * @return MxParticleHandle* 
  */
-MxParticleHandle* MxParticleTimeEventParticleSelectorUniform(const MxParticleTimeEvent &event);
+CAPI_FUNC(MxParticleHandle*) MxParticleTimeEventParticleSelectorUniform(const MxParticleTimeEvent &event);
 
 /**
  * @brief Selects largest particle by event target type
@@ -52,7 +52,7 @@ MxParticleHandle* MxParticleTimeEventParticleSelectorUniform(const MxParticleTim
  * @param event 
  * @return MxParticleHandle* 
  */
-MxParticleHandle* MxParticleTimeEventParticleSelectorLargest(const MxParticleTimeEvent &event);
+CAPI_FUNC(MxParticleHandle*) MxParticleTimeEventParticleSelectorLargest(const MxParticleTimeEvent &event);
 
 // keys for selecting a particle selector
 enum class MxParticleTimeEventParticleSelectorEnum : unsigned int {

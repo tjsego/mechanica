@@ -45,8 +45,6 @@ Potentials
 
     .. automethod:: lennard_jones_12_6_coulomb
 
-    .. automethod:: soft_sphere
-
     .. automethod:: ewald
 
     .. automethod:: coulomb
@@ -75,8 +73,6 @@ Potentials
 
     .. automethod:: dpd
 
-    .. automethod:: custom
-
 .. autoclass:: DPDPotential
     :show-inheritance:
 
@@ -93,3 +89,8 @@ Potentials
     .. automethod:: fromString
 
     .. automethod:: __reduce__
+
+.. autoclass:: MxPotentialPy
+    :show-inheritance:
+
+    .. autoattribute:: custom

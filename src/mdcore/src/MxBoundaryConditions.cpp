@@ -461,7 +461,7 @@ void MxBoundaryCondition::set_potential(struct MxParticleType *ptype,
     potenntials[ptype->id] = pot;
 
     #if defined(HAVE_CUDA)
-    if(!boundary_conditions_cuda_defer_update)
+    if(!boundary_conditions_cuda_defer_update && _Engine.flags & engine_flag_cuda)
         engine_cuda_boundary_conditions_refresh(&_Engine);
     #endif
 }
@@ -514,7 +514,7 @@ void MxBoundaryConditions::set_potential(struct MxParticleType *ptype,
         struct MxPotential *pot)
 {
     #if defined(HAVE_CUDA)
-    boundary_conditions_cuda_defer_update = true;
+    boundary_conditions_cuda_defer_update = _Engine.flags & engine_flag_cuda;
     #endif
 
     left.set_potential(ptype, pot);
@@ -525,8 +525,10 @@ void MxBoundaryConditions::set_potential(struct MxParticleType *ptype,
     top.set_potential(ptype, pot);
 
     #if defined(HAVE_CUDA)
-    boundary_conditions_cuda_defer_update = false;
-    engine_cuda_boundary_conditions_refresh(&_Engine);
+    if(_Engine.flags & engine_flag_cuda) {
+        boundary_conditions_cuda_defer_update = false;
+        engine_cuda_boundary_conditions_refresh(&_Engine);
+    }
     #endif
 }
 

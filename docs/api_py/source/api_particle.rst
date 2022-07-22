@@ -166,6 +166,8 @@ Particles and Clusters
 
     .. automethod:: _call
 
+    .. automethod:: factory
+
     .. automethod:: newType
 
     .. automethod:: registerType

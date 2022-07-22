@@ -8,8 +8,7 @@
 #ifndef _WRAPS_C_MECHANICA_C_H_
 #define _WRAPS_C_MECHANICA_C_H_
 
-#include <Mechanica.h>
-
+#include <mx_port.h>
 
 //////////////////////
 // Module functions //

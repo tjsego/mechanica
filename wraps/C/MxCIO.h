@@ -1573,6 +1573,14 @@ CAPI_FUNC(HRESULT) MxCFIOModule_load(struct MxFIOModuleHandle *handle);
 
 
 /**
+ * @brief Delete a file element and all child elements
+ * 
+ * @param handle element to delete
+ * @return S_OK on success 
+ */
+CAPI_FUNC(HRESULT) MxCFIO_deleteElement(struct MxIOElementHandle *handle);
+
+/**
  * @brief Get or generate root element from current simulation state
  * 
  * @param handle root element

@@ -1,19 +1,15 @@
-find_library(mechanica_clib 
-    PATHS ${MX_INSTALL_ROOT} 
-    PATH_SUFFIXES bin lib 
-    NAMES mechanica_c libmechanica_c
-    REQUIRED
-)
+find_package(CUDAToolkit)
+find_package(assimp REQUIRED)
+find_package(glfw3 REQUIRED)
+find_package(libsbml-static REQUIRED)
+find_package(Mechanica REQUIRED COMPONENTS CLib)
 
-set(MxCTest_LIBS ${mechanica_clib})
+set(MxCTest_LIBS Mechanica::mechanica_c)
 if(UNIX)
     list(APPEND MxCTest_LIBS m)
 endif()
 
-set(MxCTest_INCLUDES 
-    ${MX_INSTALL_ROOT}/include/mechanica 
-    ${MX_INSTALL_ROOT}/include/mechanica/wraps/C 
-)
+set(MxCTest_INCLUDES ${MECHANICA_C_INCLUDE_DIRS})
 
 macro(MxCTest_Build src_name)
     add_executable(${src_name} ${src_name}.c)

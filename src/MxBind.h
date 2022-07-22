@@ -1,5 +1,5 @@
 /*
- * MxBind.hpp
+ * MxBind.h
  *
  *  Created on: Feb 13, 2021
  *      Author: andy
@@ -9,9 +9,9 @@
 #ifndef SRC_MDCORE_SRC_MXPOTENTIALBIND_HPP_
 #define SRC_MDCORE_SRC_MXPOTENTIALBIND_HPP_
 
-#include "MxBoundaryConditions.hpp"
-#include "MxForce.h"
-#include "MxPotential.h"
+#include <MxBoundaryConditions.hpp>
+#include <MxForce.h>
+#include <MxPotential.h>
 #include <bond.h>
 
 #include <utility>

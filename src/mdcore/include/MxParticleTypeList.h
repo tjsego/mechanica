@@ -8,7 +8,6 @@
 #ifndef _MDCORE_MXPARTICLETYPELIST_H_
 #define _MDCORE_MXPARTICLETYPELIST_H_
 
-#include "../../io/mx_io.h"
 #include "MxParticleList.hpp"
 
 struct MxParticleType;
@@ -26,6 +25,14 @@ struct CAPI_EXPORT MxParticleTypeList {
     
     // frees the memory associated with the parts list.
     void free();
+
+    /**
+     * @brief Reserve enough storage for a given number of items.
+     * 
+     * @param _nr_parts number of items
+     * @return HRESULT 
+     */
+    HRESULT reserve(size_t _nr_parts);
     
     // inserts the given id into the list, returns the index of the item. 
     uint16_t insert(int32_t item);

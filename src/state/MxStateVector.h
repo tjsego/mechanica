@@ -10,9 +10,11 @@
 #define SRC_STATE_MXSTATEVECTOR_H_
 
 #include <mx_port.h>
-#include "../io/mx_io.h"
+#include <io/mx_io.h>
 #include <stdio.h>
 #include <string>
+
+#include "MxSpeciesList.h"
 
 enum StateVectorFlags {
     STATEVECTOR_NONE            = 0,
@@ -22,7 +24,7 @@ enum StateVectorFlags {
 /**
  * @brief A state vector of an object. 
  */
-struct MxStateVector {
+struct CAPI_EXPORT MxStateVector {
     uint32_t flags;
     uint32_t size;
 

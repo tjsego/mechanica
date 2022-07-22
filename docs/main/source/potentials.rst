@@ -107,5 +107,39 @@ constructor method. For details on the parameters of each function, refer to the
 * Morse: :meth:`Potential.morse <MxPotential.morse>`
 * Overlapping sphere: :meth:`Potential.overlapping_sphere <MxPotential.overlapping_sphere>`
 * Power: :meth:`Potential.power <MxPotential.power>`
-* Soft sphere: :meth:`Potential.soft_sphere <MxPotential.soft_sphere>`
 * Well: :meth:`Potential.well <MxPotential.well>`
+
+Shifted Potentials
+^^^^^^^^^^^^^^^^^^^
+
+Some potentials (*e.g.*, :meth:`morse <MxPotential.morse>`) provide default or optional
+*shifted* forms. When a potential is shifted, the distance between two particles during
+an interaction is shifted by the sum of radii of the two particles. For example, the two
+following potentials produce the same potential, though only one uses shifting,
+
+.. code:: python
+
+    class PType(mx.ParticleType):
+        radius = 0.1
+    ptype = PType.get()
+
+    pot_shifted = mx.Potential.morse(min=-ptype.radius * 2, max=2 - ptype.radius * 2, r0=0)
+    pot_noshift = mx.Potential.morse(min=0, max=2, r0=ptype.radius * 2, shifted=False)
+
+Potential Details
+^^^^^^^^^^^^^^^^^^
+
+Most potentials define a range of distances over which two particles interact, which
+Mechanica uses to construct an interpolation of the potential function for imposing
+forces on interacting particles. As such, interpolated potentials cannot be altered once
+they have been created, and so changing a potential during a simulation requires replacing the
+potential with an updated version of itself. For potentials that are :ref:`bound<binding>` to pairs
+of particles by type, performing binding replaces any potential that was previously bound to a
+pair of particle types. For updating :ref:`bonded interactions<bonded_interactions>`, a bond
+can simply be destroyed and recreated with the updated potential. Furthermore, potentials that use
+interpolations are not defined outside of their prescribed range of distances. For the case of
+two particles that are separated by a distance greater than the maximum distance of a potential range,
+Mechanica simply ignores the potential (like the global :ref:`cutoff distance<cutoff_distance>`).
+For the case of two particles that are separated by a distance less than the minimum distance of a
+potential range, the magnitude of the resulting force at the minimum distance of the potential range
+is applied.

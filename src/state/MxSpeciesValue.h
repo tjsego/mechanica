@@ -15,7 +15,7 @@
 /**
  * @brief A working valued-object of an underlying MxSpecies attached to an object. 
  */
-struct MxSpeciesValue
+struct CAPI_EXPORT MxSpeciesValue
 {
     double value;
     struct MxStateVector *state_vector;

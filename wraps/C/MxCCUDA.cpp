@@ -124,18 +124,6 @@ HRESULT MxCEngineCUDAConfig_refresh(struct MxEngineCUDAConfigHandle *handle) {
     return engcuda->refresh();
 }
 
-HRESULT MxCEngineCUDAConfig_setSeed(struct MxEngineCUDAConfigHandle *handle, unsigned int seed) {
-    MXENGINECUDACONFIGHANDLE_GET(handle, engcuda);
-    return engcuda->setSeed(seed);
-}
-
-HRESULT MxCEngineCUDAConfig_getSeed(struct MxEngineCUDAConfigHandle *handle, unsigned int *seed) {
-    MXENGINECUDACONFIGHANDLE_GET(handle, engcuda);
-    MXCPTRCHECK(seed);
-    *seed = engcuda->getSeed();
-    return S_OK;
-}
-
 
 //////////////////////
 // MxBondCUDAConfig //

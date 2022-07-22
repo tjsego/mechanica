@@ -353,7 +353,7 @@ static MxVector3f random_point_solidsphere_shell(std::uniform_real_distribution<
     auto &MxRandom = MxRandomEngine();
     float theta = 2 * M_PI * uniform01(MxRandom);
     float phi = acos(cos0 - (cos0-cos1) * uniform01(MxRandom));
-    float r = std::cbrt((1-dr) + dr * uniform01(MxRandom));
+    float r = (1-dr) + dr * uniform01(MxRandom);
     float x = r * sin(phi) * cos(theta);
     float y = r * sin(phi) * sin(theta);
     float z = r * cos(phi);
@@ -520,7 +520,7 @@ std::vector<MxVector3f> MxRandomPoints(const MxPointsType &kind,
     return std::vector<MxVector3f>();
 }
 
-std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n)
+std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const unsigned int &n)
 {
     try {
         switch(kind) {
@@ -543,9 +543,9 @@ std::vector<MxVector3f> MxPoints(const MxPointsType &kind, const int &n)
 // todo: expand MxFilledCubeUniform to rectangular cuboids
 std::vector<MxVector3f> MxFilledCubeUniform(const MxVector3f &corner1, 
                                             const MxVector3f &corner2, 
-                                            const int &nParticlesX, 
-                                            const int &nParticlesY, 
-                                            const int &nParticlesZ) 
+                                            const unsigned int &nParticlesX, 
+                                            const unsigned int &nParticlesY, 
+                                            const unsigned int &nParticlesZ) 
 {
     if(nParticlesX < 2 || nParticlesY < 2 || nParticlesZ < 2) 
         mx_exp(std::range_error("Must have 2 or more particles in each direction"));
@@ -590,6 +590,14 @@ std::vector<MxVector3f> MxFilledCubeRandom(const MxVector3f &corner1, const MxVe
 
 std::vector<std::string> MxColor3_Names() {
     return std::vector<std::string>(std::begin(MxColor3Names), std::end(MxColor3Names) - 1);
+}
+
+unsigned int MxNumColor3Names() {
+    return MxColor3_Names().size();
+}
+
+const char* MxGetColorName(const unsigned int &idx) {
+    return MxColor3_Names()[idx].c_str();
 }
 
 Magnum::Color3 Color3_Parse(const std::string &s)

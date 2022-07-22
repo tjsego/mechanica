@@ -7,7 +7,7 @@ cutoff = 1
 mx.init(dim=[20., 20., 20.], windowless=True)
 
 
-pot = mx.Potential.soft_sphere(kappa=10, epsilon=0.1, r0=0.6, eta=3, tol=0.1, min=0.05, max=4)
+pot = mx.Potential.morse(d=0.1, a=6, min=-1, max=1)
 
 
 class CellType(mx.ParticleType):
@@ -20,7 +20,10 @@ class CellType(mx.ParticleType):
     @staticmethod
     def on_register(ptype):
         def fission(event: mx.ParticleTimeEvent):
-            event.targetParticle.fission()
+            m = event.targetParticle
+            d = m.fission()
+            m.radius = d.radius = CellType.radius
+            m.mass = d.mass = CellType.mass
 
             print('fission:', len(event.targetType.items()))
 

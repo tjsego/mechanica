@@ -4,14 +4,11 @@ import numpy as np
 # potential cutoff distance
 cutoff = 8
 
-count = 3000
-
 # dimensions of universe
-dim = np.array([20., 20., 20.])
-center = dim / 2
+dim = [20., 20., 20.]
 
 # new simulator
-mx.init(dim=dim.tolist(), cutoff=cutoff, windowless=True)
+mx.init(dim=dim, cutoff=cutoff, windowless=True)
 
 
 class BeadType(mx.ParticleType):
@@ -22,13 +19,13 @@ class BeadType(mx.ParticleType):
 
 Bead = BeadType.get()
 
-pot_bb = mx.Potential.soft_sphere(kappa=0.2, epsilon=0.05, r0=0.2, eta=4, tol=0.01, min=0.01, max=0.5)
+pot_bb = mx.Potential.coulomb(q=0.1, min=0.1, max=1.0)
 
 # hamonic bond between particles
 pot_bond = mx.Potential.harmonic(k=0.4, r0=0.2, max=2)
 
 # angle bond potential
-pot_ang = mx.Potential.harmonic_angle(k=0.2, theta0=0.85 * np.pi, tol=0.1)
+pot_ang = mx.Potential.harmonic_angle(k=0.01, theta0=0.85 * np.pi, tol=0.01)
 
 # bind the potential with the *TYPES* of the particles
 mx.bind.types(pot_bb, Bead, Bead)

@@ -8,7 +8,7 @@
 #ifndef SRC_EVENT_MXEVENT_H_
 #define SRC_EVENT_MXEVENT_H_
 
-#include "../../mechanica_private.h"
+#include <mechanica_private.h>
 
 #include <forward_list>
 #include <iostream>

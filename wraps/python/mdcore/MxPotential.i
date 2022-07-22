@@ -100,10 +100,6 @@
             """Shifted flag"""
             return self.getShifted()
 
-        @shifted.setter
-        def shifted(self, shifted: bool):
-            self.setShifted(shifted)
-
         @property
         def periodic(self) -> bool:
             """Periodic flag"""
@@ -113,10 +109,6 @@
         def r_square(self) -> bool:
             """Potential r2 value"""
             return self.getRSquare()
-
-        @r_square.setter
-        def r_square(self, r_square: bool):
-            self.setRSquare(r_square)
 
         def plot(self, s=None, force=True, potential=False, show=True, ymin=None, ymax=None, *args, **kwargs):
             """Potential plot function"""

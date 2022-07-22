@@ -64,6 +64,7 @@
 #include <MxUtil.h>
 #include <MxLogger.h>
 #include <mx_error.h>
+#include <MxTaskScheduler.hpp>
 
 #include <assert.h>
 #include <iostream>
@@ -314,6 +315,41 @@ static inline int render_particle(SphereInstanceData* pData, int i, MxParticle *
     return 0;
 }
 
+static inline int render_cell_particles(SphereInstanceData* pData, int cid) {
+
+    int buffId = 0;
+    for(int i = 0; i < cid; i++) 
+        buffId += _Engine.s.cells[i].count;
+
+    space_cell *c = &_Engine.s.cells[cid];
+    SphereInstanceData *pData_buff = &pData[buffId];
+
+    int count = 0;
+    FPTYPE origin[] = {(FPTYPE)c->origin[0], (FPTYPE)c->origin[1], (FPTYPE)c->origin[2]};
+
+    for(int pid = 0; pid < c->count; pid++) {
+        MxParticle *p = &c->parts[pid];
+
+        MxStyle *style = p->style ? p->style : (&_Engine.types[p->typeId])->style;
+
+        bool isvisible = style->flags & STYLE_VISIBLE && !(p->flags & PARTICLE_CLUSTER);
+        float radius = isvisible ? p->radius : 0;
+        count += isvisible;
+    
+        Magnum::Vector3 position = {
+            origin[0] + p->x[0],
+            origin[1] + p->x[1],
+            origin[2] + p->x[2]
+        };
+        
+        pData_buff[pid].transformationMatrix = Matrix4::translation(position) * Matrix4::scaling(Vector3{radius});
+        pData_buff[pid].normalMatrix = pData_buff[pid].transformationMatrix.normalMatrix();
+        pData_buff[pid].color = style->map_color(p);
+    }
+
+    return count;
+}
+
 static inline int render_cuboid(CuboidInstanceData* pData, int i, MxCuboid *p, double *origin) {
 
     if(true) {
@@ -352,60 +388,52 @@ MxUniverseRenderer& MxUniverseRenderer::draw(T& camera,
     
     _dirty = false;
 
-    sphereMesh.setInstanceCount(_Engine.s.nr_visible_parts);
-    largeSphereMesh.setInstanceCount(_Engine.s.nr_visible_large_parts);
+    sphereMesh.setInstanceCount(_Engine.s.nr_parts);
+    largeSphereMesh.setInstanceCount(_Engine.s.largeparts.count);
     cuboidMesh.setInstanceCount(_Engine.s.nr_visible_cuboids);
 
     // invalidate / resize the buffer
     sphereInstanceBuffer.setData({NULL,
-        _Engine.s.nr_visible_parts * sizeof(SphereInstanceData)},
+        _Engine.s.nr_parts * sizeof(SphereInstanceData)},
             GL::BufferUsage::DynamicDraw);
 
     largeSphereInstanceBuffer.setData({NULL,
-        _Engine.s.nr_visible_large_parts * sizeof(SphereInstanceData)},
+        _Engine.s.largeparts.count * sizeof(SphereInstanceData)},
             GL::BufferUsage::DynamicDraw);
     
     cuboidInstanceBuffer.setData({NULL,
         _Engine.s.nr_visible_cuboids * sizeof(CuboidInstanceData)},
             GL::BufferUsage::DynamicDraw);
     
-    // get pointer to data, give me the damned bytes
+    // get pointer to data
     SphereInstanceData* pData = (SphereInstanceData*)(void*)sphereInstanceBuffer.map(0,
-            _Engine.s.nr_visible_parts * sizeof(SphereInstanceData),
+            _Engine.s.nr_parts * sizeof(SphereInstanceData),
             GL::Buffer::MapFlag::Write|GL::Buffer::MapFlag::InvalidateBuffer);
 
-    int i = 0;
-    for (int cid = 0 ; cid < _Engine.s.nr_cells ; cid++ ) {
-        for (int pid = 0 ; pid < _Engine.s.cells[cid].count ; pid++ ) {
-            MxParticle *p  = &_Engine.s.cells[cid].parts[pid];
-            i += render_particle(pData, i, p, &_Engine.s.cells[cid]);
-        }
-    }
-    assert(i == _Engine.s.nr_visible_parts);
+    mx::parallel_for(_Engine.s.nr_cells, [&pData](int _cid) -> void {render_cell_particles(pData, _cid);});
     sphereInstanceBuffer.unmap();
 
-    // get pointer to data, give me the damned bytes
+
+    // get pointer to data
     SphereInstanceData* pLargeData = (SphereInstanceData*)(void*)largeSphereInstanceBuffer.map(0,
-            _Engine.s.nr_visible_large_parts * sizeof(SphereInstanceData),
+            _Engine.s.largeparts.count * sizeof(SphereInstanceData),
             GL::Buffer::MapFlag::Write|GL::Buffer::MapFlag::InvalidateBuffer);
 
-    i = 0;
-    for (int pid = 0 ; pid < _Engine.s.largeparts.count ; pid++ ) {
-        MxParticle *p  = &_Engine.s.largeparts.parts[pid];
-        i += render_particle(pLargeData, i, p, &_Engine.s.largeparts);
-    }
-    
-    assert(i == _Engine.s.nr_visible_large_parts);
+    auto func_render_cluster_particles = [&pLargeData](int _pid) -> void {
+        MxParticle *p  = &_Engine.s.largeparts.parts[_pid];
+        render_particle(pLargeData, _pid, p, &_Engine.s.largeparts);
+    };
+    mx::parallel_for(_Engine.s.largeparts.count, func_render_cluster_particles);
     largeSphereInstanceBuffer.unmap();
     
     
     // render the cuboids.
-    // get pointer to data, give me the damned bytes
+    // get pointer to data
     CuboidInstanceData* pCuboidData = (CuboidInstanceData*)(void*)cuboidInstanceBuffer.map(0,
             _Engine.s.nr_visible_cuboids * sizeof(CuboidInstanceData),
             GL::Buffer::MapFlag::Write|GL::Buffer::MapFlag::InvalidateBuffer);
 
-    i = 0;
+    int i = 0;
     for (int cid = 0 ; cid < _Engine.s.cuboids.size() ; cid++ ) {
         MxCuboid *c = &_Engine.s.cuboids[cid];
         i += render_cuboid(pCuboidData, i, c, _Engine.s.origin);
@@ -938,6 +966,15 @@ MxSubRenderer *MxUniverseRenderer::getSubRenderer(const MxSubRendererFlag &flag)
     }
 }
 
+HRESULT MxUniverseRenderer::registerSubRenderer(MxSubRenderer *subrenderer) {
+    std::vector<MxVector4f> cps(_clipPlanes.begin(), _clipPlanes.end());
+    if(subrenderer->start(cps) != S_OK) 
+        return E_FAIL;
+    for(auto &cp : _clipPlanes) 
+        subrenderer->addClipPlaneEquation(cp);
+    subRenderers.push_back(subrenderer);
+    return S_OK;
+}
 
 int MxUniverseRenderer::clipPlaneCount() const {
     return _clipPlanes.size();

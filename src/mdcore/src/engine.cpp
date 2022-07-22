@@ -69,6 +69,7 @@
 #include "engine_advance.h"
 #include "MxForce.h"
 #include "MxBoundaryConditions.hpp"
+#include "MxTaskScheduler.hpp"
 #include "../../MxLogger.h"
 #include "../../MxUtil.h"
 #include "../../mx_error.h"
@@ -118,7 +119,7 @@ double engine_steps_per_second() {
 #define error(id)				( engine_err = errs_register( id , engine_err_msg[-(id)] , __LINE__ , __FUNCTION__ , __FILE__ ) )
 
 /* list of error messages. */
-const char *engine_err_msg[30] = {
+const char *engine_err_msg[31] = {
 		"Nothing bad happened.",
 		"An unexpected NULL pointer was encountered.",
 		"A call to malloc failed, probably due to insufficient memory.",
@@ -149,6 +150,7 @@ const char *engine_err_msg[30] = {
 		"Cell cutoff size doesn't work with METIS",
 		"METIS library undefined",
         "Particles moving too fast",
+		"An error occured when calling a subengine.",
 };
 
 
@@ -162,15 +164,25 @@ const char *engine_err_msg[30] = {
 
 int engine_shuffle ( struct engine *e ) {
 
-	int cid, k;
-	struct space_cell *c;
 	struct space *s = &e->s;
 
+#ifdef HAVE_OPENMP
+	int cid, k;
+	struct space_cell *c;
+#endif
+
 	/* Flush the ghost cells (to avoid overlapping particles) */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static), private(cid)
     for ( cid = 0 ; cid < s->nr_ghost ; cid++ ) {
 		space_cell_flush( &(s->cells[s->cid_ghost[cid]]) , s->partlist , s->celllist );
     }
+#else
+	auto func_space_cell_flush = [&](int _cid) {
+		space_cell_flush( &(s->cells[s->cid_ghost[_cid]]) , s->partlist , s->celllist );
+    };
+	mx::parallel_for(s->nr_ghost, func_space_cell_flush);
+#endif
 
 	/* Shuffle the domain. */
     if ( space_shuffle_local( s ) < 0 ) {
@@ -185,6 +197,7 @@ int engine_shuffle ( struct engine *e ) {
 #endif
 
 /* Welcome the new particles in each cell, unhook the old ones. */
+#ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(static), private(cid,c,k)
 	for ( cid = 0 ; cid < s->nr_marked ; cid++ ) {
 		c = &(s->cells[s->cid_marked[cid]]);
@@ -196,6 +209,19 @@ int engine_shuffle ( struct engine *e ) {
 			c->incomming_count = 0;
 		}
 	}
+#else
+	auto func_space_cell_welcome = [&](int _cid) {
+		space_cell *_c = &(s->cells[s->cid_marked[_cid]]);
+		if ( !(_c->flags & cell_flag_ghost) )
+			space_cell_welcome( _c , s->partlist );
+		else {
+			for ( int _k = 0 ; _k < _c->incomming_count ; _k++ )
+				s->partlist[ _c->incomming[_k].id ] = NULL;
+			_c->incomming_count = 0;
+		}
+	};
+	mx::parallel_for(s->nr_marked, func_space_cell_welcome);
+#endif
 
 	/* return quietly */
 	return engine_err_ok;
@@ -241,15 +267,15 @@ int engine_timers_reset ( struct engine *e ) {
 
 int engine_verlet_update ( struct engine *e ) {
 
-	int cid, pid, k;
-	double dx, w, maxdx = 0.0, skin;
-	struct space_cell *c;
+	int cid;
+	double maxdx = 0.0, skin;
 	struct MxParticle *p;
 	struct space *s = &e->s;
 	ticks tic;
 #ifdef HAVE_OPENMP
-	int step;
-	double lmaxdx;
+	int step, pid, k;
+	double lmaxdx, dx, w;
+	struct space_cell *c;
 #endif
 
 	/* Do we really need to do this? */
@@ -281,17 +307,25 @@ int engine_verlet_update ( struct engine *e ) {
 			maxdx = fmax( lmaxdx , maxdx );
 		}
 #else
-        for ( cid = 0 ; cid < s->nr_real ; cid++ ) {
-            c = &(s->cells[s->cid_real[cid]]);
-            for ( pid = 0 ; pid < c->count ; pid++ ) {
-                p = &(c->parts[pid]);
-                for ( dx = 0.0 , k = 0 ; k < 3 ; k++ ) {
-                    w = p->x[k] - c->oldx[ 4*pid + k ];
-                    dx += w*w;
+
+		std::vector<double> wmaxdx(s->nr_real);
+		auto func = [&](int _cid) {
+			wmaxdx[_cid] = 0;
+			double _dx;
+            space_cell *_c = &(s->cells[s->cid_real[_cid]]);
+            for ( int _pid = 0 ; _pid < _c->count ; _pid++ ) {
+                MxParticle *_p = &(_c->parts[_pid]);
+                for ( int _k = 0, _dx = 0.0 ; _k < 3 ; _k++ ) {
+                    double _w = _p->x[_k] - _c->oldx[ 4*_pid + _k ];
+                    _dx += _w * _w;
                 }
-                maxdx = fmax( dx , maxdx );
+                wmaxdx[_cid] = fmax( _dx , wmaxdx[_cid] );
             }
-        }
+        };
+		mx::parallel_for(s->nr_real, func);
+		for(cid = 0; cid < s->nr_real; cid++) 
+			maxdx = fmax(maxdx, wmaxdx[cid]);
+
 #endif
 
 #ifdef WITH_MPI
@@ -331,6 +365,7 @@ if ( ( e->particle_flags & engine_flag_mpi ) && ( e->nr_nodes > 1 ) ) {
             return error(engine_err);
 
         /* Store the current positions as a reference. */
+#ifdef HAVE_OPENMP
         #pragma omp parallel for schedule(static), private(cid,c,pid,p,k)
         for ( cid = 0 ; cid < s->nr_real ; cid++ ) {
             c = &(s->cells[s->cid_real[cid]]);
@@ -345,7 +380,22 @@ if ( ( e->particle_flags & engine_flag_mpi ) && ( e->nr_nodes > 1 ) ) {
                     c->oldx[ 4*pid + k ] = p->x[k];
             }
         }
-
+#else
+		auto func_store_current_pos = [&](int _cid) -> void {
+            space_cell *_c = &(s->cells[s->cid_real[_cid]]);
+            if ( _c->oldx == NULL || _c->oldx_size < _c->count ) {
+                free(_c->oldx);
+                _c->oldx_size = _c->size + 20;
+                _c->oldx = (FPTYPE *)malloc( sizeof(FPTYPE) * 4 * _c->oldx_size );
+            }
+            for ( int _pid = 0 ; _pid < _c->count ; _pid++ ) {
+                MxParticle *_p = &(_c->parts[_pid]);
+                for ( int _k = 0 ; _k < 3 ; _k++ )
+                    _c->oldx[ 4*_pid + _k ] = _p->x[_k];
+            }
+        };
+		mx::parallel_for(s->nr_real, func_store_current_pos);
+#endif
         /* Set the maximum displacement to zero. */
         s->maxdx = 0;
 
@@ -1636,6 +1686,7 @@ int engine_nonbond_eval ( struct engine *e ) {
  * are updated and the particles are re-sorted in the #space.
  */
 int engine_step ( struct engine *e ) {
+	int i;
     WallTime wt;
     PerformanceTimer t(engine_timer_step);
     update_steps_per_second();
@@ -1643,7 +1694,19 @@ int engine_step ( struct engine *e ) {
 	/* increase the time stepper */
 	e->time += 1;
 
-	engine_advance(e);
+	if(engine_force_prep(e) != engine_err_ok) 
+		return error(engine_err);
+
+	// Pre-step subengines
+	for(auto &se : e->subengines) 
+		if((i = se->preStepStart()) != engine_err_ok) 
+			return error(engine_err_subengine);
+	for(auto &se : e->subengines) 
+		if((i = se->preStepJoin()) != engine_err_ok) 
+			return error(engine_err_subengine);
+
+	if(engine_advance(e) != engine_err_ok) 
+		return error(engine_err);
 
     /* Shake the particle positions? */
     if ( e->nr_rigids > 0 ) {
@@ -1658,17 +1721,26 @@ int engine_step ( struct engine *e ) {
         p->onTime(e->time * e->dt);
     }
 
+	// Post-step subengines
+	for(auto &se : e->subengines) 
+		if((i = se->postStepStart()) != engine_err_ok) 
+			return error(engine_err_subengine);
+	for(auto &se : e->subengines) 
+		if((i = se->postStepJoin()) != engine_err_ok) 
+			return error(engine_err_subengine);
+
 	/* return quietly */
 	return engine_err_ok;
 }
 
-int engine_force(struct engine *e) {
+int engine_force_prep(struct engine *e) {
 
     ticks tic = getticks();
-
+	
     // clear the energy on the types
     // TODO: should go in prepare space for better performance
     engine_kinetic_energy(e);
+	e->timers[engine_timer_kinetic] += getticks() - tic;
 
     /* prepare the space, sets forces to zero */
     tic = getticks();
@@ -1699,7 +1771,7 @@ int engine_force(struct engine *e) {
         if ( engine_shuffle( e ) < 0 ) {
             return error(engine_err_space);
         }
-        e->timers[engine_timer_advance] += getticks() - tic;
+        e->timers[engine_timer_shuffle] += getticks() - tic;
     }
 
 
@@ -1725,16 +1797,36 @@ int engine_force(struct engine *e) {
     }
 #endif
 
+    return engine_err_ok;
+}
+
+int engine_force(struct engine *e) {
+
+    ticks tic = getticks();
+
     /* Compute the non-bonded interactions. */
     tic = getticks();
     #if defined(HAVE_CUDA)
         if ( e->flags & engine_flag_cuda ) {
-            if ( engine_nonbond_cuda( e ) < 0 )
+            if ( engine_nonbond_cuda( e ) != engine_err_ok )
                 return error(engine_err);
+			
+			space *s = &e->s;
+			MxForce **forces = e->forces;
+			auto func_eval_forces = [&s, &forces] (int cid) -> void {
+				space_cell *c = &s->cells[s->cid_real[cid]];
+				for(int pid = 0; pid < c->count; pid++) {
+					MxParticle *p = &c->parts[pid];
+					MxForce *force = forces[p->typeId];
+					if(force) 
+						force->func(force, p, p->f);
+				}
+			};
+			mx::parallel_for(s->nr_real, func_eval_forces);
             }
         else
     #endif
-    if ( engine_nonbond_eval( e ) < 0 ) {
+    if ( engine_nonbond_eval( e ) != engine_err_ok ) {
         return error(engine_err);
     }
 
@@ -1747,11 +1839,11 @@ int engine_force(struct engine *e) {
     /* Do bonded interactions. */
     tic = getticks();
     if ( e->flags & engine_flag_sets ) {
-        if ( engine_bonded_eval_sets( e ) < 0 )
+        if ( engine_bonded_eval_sets( e ) != engine_err_ok )
             return error(engine_err);
     }
     else {
-        if ( engine_bonded_eval( e ) < 0 )
+        if ( engine_bonded_eval( e ) != engine_err_ok )
             return error(engine_err);
     }
     e->timers[engine_timer_bonded] += getticks() - tic;
@@ -1870,6 +1962,11 @@ int engine_finalize ( struct engine *e ) {
 		if(engine_fromCUDA(e) < 0)
 			return error(engine_err);
 	#endif
+
+	// Finalize subengines
+	for(auto &se : e->subengines) 
+		if((j = se->finalize()) != engine_err_ok) 
+			return error(engine_err_subengine);
 
     /* Shut down the runners, if they were started. */
     if ( e->runners != NULL ) {
@@ -2142,17 +2239,30 @@ double engine_kinetic_energy(struct engine *e)
     for(int i = 0; i < engine::nr_types; ++i) {
         engine::types[i].kinetic_energy = 0;
     }
-
-    for(int cid = 0; cid < _Engine.s.nr_cells; ++cid) {
-        space_cell *cell = &_Engine.s.cells[cid];
+	
+	std::vector<double> worker_total(_Engine.s.nr_cells);
+	std::vector<std::vector<double> > worker_type_total(_Engine.s.nr_cells);
+	auto nr_types = _Engine.nr_types;
+	auto func_cell_kinetic_energy = [&, nr_types](int cid) {
+		worker_total[cid] = 0;
+		worker_type_total[cid] = std::vector<double>(nr_types, 0);
+		space_cell *cell = &_Engine.s.cells[cid];
         for(int pid = 0; pid < cell->count; ++pid) {
             MxParticle *p = &cell->parts[pid];
             MxParticleType *type = &engine::types[p->typeId];
             float e = 0.5 * type->mass * (p->v[0] * p->v[0] + p->v[1] * p->v[1] + p->v[2] * p->v[2]);
-            type->kinetic_energy += e;
-            total += e;
+			worker_type_total[cid][type->id] += e;
+            worker_total[cid] += e;
         }
-    }
+	};
+	mx::parallel_for(_Engine.s.nr_cells, func_cell_kinetic_energy);
+
+	for(int cid = 0; cid < _Engine.s.nr_cells; cid++) {
+		total += worker_total[cid];
+		for(int tid = 0; tid < nr_types; tid++) {
+			engine::types[tid].kinetic_energy += worker_type_total[cid][tid];
+		}
+	}
 
     return total;
 }
@@ -2178,6 +2288,61 @@ int engine_addpart(struct engine *e, struct MxParticle *p, double *x,
     return engine_err_ok;
 }
 
+int engine_addparts(struct engine *e, int nr_parts, struct MxParticle **parts, double **x)
+{
+	int num_workers = mx::ThreadPool::size();
+	
+	// Check input and count particles of each type
+
+	int nr_types = e->nr_types;
+	std::vector<bool> worker_check(num_workers, false);
+	std::vector<std::vector<int> >worker_type_counts(num_workers);
+
+	auto func_check = [num_workers, nr_types, nr_parts, &worker_check, &worker_type_counts, &parts](int wid) -> void { 
+		worker_type_counts[wid] = std::vector<int>(nr_types, 0);
+		for(int i = wid; i < nr_parts; i += num_workers) {
+			if(parts[i]->typeId < 0 || parts[i]->typeId >= nr_types) {
+				worker_check[wid] = true;
+				return;
+			}
+			worker_type_counts[wid][parts[i]->typeId]++;
+		}
+	};
+	mx::parallel_for(num_workers, func_check);
+	for(int i = 0; i < worker_check.size(); i++) 
+		if(worker_check[i]) 
+			return error(engine_err_range);
+	
+	// Gather type counts
+	std::vector<int> type_counts(nr_types, 0);
+	for(int i = 0; i < nr_types; i++) 
+		for(int j = 0; j < num_workers; j++) 
+			type_counts[i] += worker_type_counts[j][i];
+
+    // Add parts
+	if(space_addparts (&(e->s), nr_parts, parts, x) != 0) {
+        return error(engine_err_space);
+    }
+
+	// Gather ids for type containers
+    std::vector<MxParticleList> ptype_lists(e->nr_types);
+	for(int i = 0; i < nr_types; i++) 
+		ptype_lists[i].reserve(type_counts[i]);
+	for(int i = 0; i < nr_parts; i++) 
+		ptype_lists[parts[i]->typeId].insert(parts[i]->id);
+	
+	// Add ids to type containers
+	auto ptypes = e->types;
+	auto func_extend = [num_workers, &ptypes, &ptype_lists](int wid) -> void {
+		for(int i = wid; i < ptype_lists.size(); i += num_workers) 
+			if(ptype_lists[i].nr_parts > 0) 
+				ptypes[i].parts.extend(ptype_lists[i]);
+	};
+	mx::parallel_for(num_workers, func_extend);
+
+    return engine_err_ok;
+}
+
 int engine_addcuboid(struct engine *e, struct MxCuboid *p, struct MxCuboid **result)
 {
 
@@ -2198,23 +2363,36 @@ CAPI_FUNC(struct MxParticleType*) engine_type(int id)
 
 int engine_next_partid(struct engine *e)
 {
-    // TODO: not the most effecient algorithm...
-    space *s = &e->s;
-    int i;
+	if(e->pids_avail.empty()) 
+		return e->s.nr_parts;
 
-    for(i = 0; i < s->nr_parts; ++i) {
-        if(s->partlist[i] == NULL) {
-            return i;
-        }
-    }
-    return i;
+	std::set<unsigned int>::iterator itr = e->pids_avail.begin();
+	unsigned int pid = *itr;
+	e->pids_avail.erase(itr);
+
+	return pid;
+}
+
+int engine_next_partids(struct engine *e, int nr_ids, int *ids) { 
+	int j = 0;
+	for(int i = 0; i < nr_ids; i++) {
+		if(!e->pids_avail.empty()) {
+			std::set<unsigned int>::iterator itr = e->pids_avail.begin();
+			ids[i] = *itr;
+			e->pids_avail.erase(itr);
+		} 
+		else {
+			ids[i] = e->s.nr_parts + j;
+			j++;
+		}
+	}
+
+	return engine_err_ok;
 }
 
 CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
 {
     Log(LOG_DEBUG) << "time: " << e->time * e->dt << ", deleting particle id: " << pid;
-    
-    PerformanceTimer t(engine_timer_advance);
 
     if(pid < 0 || pid >= e->s.size_parts) {
         return mx_error(E_FAIL, "pid out of range");
@@ -2250,6 +2428,8 @@ CAPI_FUNC(HRESULT) engine_del_particle(struct engine *e, int pid)
 	for(int i = 0; i < dihedrals.size(); ++i) {
 		MxDihedral_Destroy(&_Engine.dihedrals[dihedrals[i]]);
 	}
+
+	e->pids_avail.insert(pid);
 
     return space_del_particle(&e->s, pid);
 }

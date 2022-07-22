@@ -95,9 +95,8 @@ yshift = total_height/2 - Yolk.radius
 cshift = total_height/2 - 1.3 * clump_radius
 
 
-pot_yc = mx.Potential.soft_sphere(kappa=300, epsilon=50, r0=1, eta=2, tol=0.03, min=0.1, max=8, shift=True)
-
-pot_cc = mx.Potential.soft_sphere(kappa=600, epsilon=0.5, r0=1, eta=3, tol=0.05, min=0, max=2.5, shift=True)
+pot_yc = mx.Potential.morse(d=1, a=6, min=0, r0=6.0, max=9, shifted=False)
+pot_cc = mx.Potential.morse(d=0.1, a=9, min=0, r0=0.25, max=0.6, shifted=False)
 
 # bind the potential with the *TYPES* of the particles
 mx.bind.types(pot_yc, Yolk, Cell)

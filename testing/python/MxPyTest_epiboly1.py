@@ -27,8 +27,8 @@ class CellType(mx.ParticleType):
 Cell = CellType.get()
 Yolk = YolkType.get()
 
-pot_bs = mx.Potential.soft_sphere(kappa=5, epsilon=20, r0=2.9, eta=3, tol=0.1, min=0, max=9)
-pot_ss = mx.Potential.soft_sphere(kappa=10, epsilon=0.000000001, r0=0.2, eta=2, tol=0.05, min=0, max=3)
+pot_bs = mx.Potential.morse(d=1, a=6, min=0, r0=3.0, max=9, shifted=False)
+pot_ss = mx.Potential.morse(d=0.1, a=9, min=0, r0=0.3, max=0.6, shifted=False)
 
 # bind the potential with the *TYPES* of the particles
 mx.bind.types(pot_bs, Yolk, Cell)
